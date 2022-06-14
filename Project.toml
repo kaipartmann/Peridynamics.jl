@@ -3,11 +3,17 @@ uuid = "4dc47793-80f3-4232-b30e-ca78ca9d621b"
 authors = ["Kai Friebertshäuser"]
 version = "0.1.0"
 
+[deps]
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
+
 [compat]
 julia = "1"
 
 [extras]
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Test", "SafeTestsets"]
