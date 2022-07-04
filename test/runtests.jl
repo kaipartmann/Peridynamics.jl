@@ -1,6 +1,7 @@
 using Peridynamics
 using Test
+using SafeTestsets
 
 @testset "Peridynamics.jl" begin
-    # Write your tests here.
+    @safetestset "Bonds" begin include("bonds.jl") end
 end
