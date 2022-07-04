@@ -111,7 +111,7 @@ function PointCloud(
     point_sets::Dict{String,Vector{Int}}=Dict{String,Vector{Int}}(),
 )
     if size(position, 1) !== 3 || size(position, 2) !== length(volume)
-        throw(DimensionMismatch("size of position: $(size(positions)) !== (3, n_points)"))
+        throw(DimensionMismatch("size of position: $(size(position)) !== (3, n_points)"))
     end
     n_points = length(volume)
     radius = sphere_radius.(volume)
@@ -291,7 +291,9 @@ every time step with the function `fun` and applied to the dimension `dim` of th
 specified by `point_id_set`.
 
 # Fields
-- `val::Float64`: value of the velocity
+- `fun::Function`: function `f(x, y, z, t)` with x-, y-, z-position of the point and current
+  time `t` as arguments, calculates the value of the force density for each timestep
+  dependent of the point position
 - `point_id_set::Vector{Int}`: point-id set with all points for which the boundary condition
   gets applied to
 - `dim::Int`: dimension on which the initial condition gets applied to. Possible values:
@@ -360,7 +362,7 @@ function TimeDiscretization(nt::Int, Δt::Real; alg::Symbol=:verlet)
             @warn "alg = :dynrelax -> will skip given value of Δt! Check your input values!"
             return TimeDiscretization(nt, 1.0, alg)
         else
-            return TimeDiscretization(nt, Δt, false)
+            return TimeDiscretization(nt, Δt, alg)
         end
     else
         msg = "input $alg for keyword argument alg not supported!\n"
