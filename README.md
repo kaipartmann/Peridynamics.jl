@@ -1,4 +1,4 @@
-<img src="https://github.com/kfrb/Peridynamics.jl/docs/src/assets/logo.png" width="500" />
+<img src="docs/src/assets/logo.png" width="500" />
 
 # Peridynamics.jl
 
