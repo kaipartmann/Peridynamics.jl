@@ -295,9 +295,9 @@ specified by `point_id_set`.
 - `point_id_set::Vector{Int}`: point-id set with all points for which the boundary condition
   gets applied to
 - `dim::Int`: dimension on which the initial condition gets applied to. Possible values:
-    - $x$-direction: `dim=1`
-    - $y$-direction: `dim=2`
-    - $z$-direction: `dim=3`
+    - x-direction: `dim=1`
+    - y-direction: `dim=2`
+    - z-direction: `dim=3`
 """
 struct PosDepVelBC <: AbstractBC
     fun::Function
