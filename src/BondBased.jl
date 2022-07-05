@@ -94,10 +94,10 @@ function BondBasedBody(mat::BondBasedMaterial, pc::PointCloud)
     damage = zeros(Int, n_points)
     forcedensity_int = zeros(Float64, (3, n_points, n_threads))
     unique_bonds = true
-    one_ni_data, n_family_members = find_unique_bonds(pc, mat.δ, owned_points)
-    n_one_ni = length(one_ni_data)
-    owned_bonds = defaultdist(n_one_ni, n_threads)
-    one_ni_failure = ones(Int, n_one_ni)
+    bond_data, n_family_members = find_unique_bonds(pc, mat.δ, owned_points)
+    n_bonds = length(bond_data)
+    owned_bonds = defaultdist(n_bonds, n_threads)
+    bond_failure = ones(Int, n_bonds)
     n_active_family_members = zeros(Int, (n_points, n_threads))
     @threads for tid in 1:n_threads
         for i in owned_points[tid]
@@ -106,12 +106,12 @@ function BondBasedBody(mat::BondBasedMaterial, pc::PointCloud)
     end
     return BondBasedBody(
         n_points,
-        n_one_ni,
+        n_bonds,
         n_threads,
         unique_bonds,
         owned_points,
         owned_bonds,
-        one_ni_data,
+        bond_data,
         volumes,
         n_family_members,
         n_active_family_members,
@@ -123,13 +123,13 @@ function BondBasedBody(mat::BondBasedMaterial, pc::PointCloud)
         forcedensity_int,
         forcedensity_ext,
         damage,
-        one_ni_failure,
+        bond_failure,
     )
 end
 
-function Base.show(io::IO, ::MIME"text/plain", PDBody::BondBasedBody)
-    println(io, PDBody.n_points, "-points ", typeof(PDBody), ":")
-    println(io, "  Number of bonds / 1-NI: ", PDBody.n_bonds)
+function Base.show(io::IO, ::MIME"text/plain", body::BondBasedBody)
+    println(io, body.n_points, "-points ", typeof(body), ":")
+    println(io, "  Number of bonds / 1-NI: ", body.n_bonds)
     return nothing
 end
 
