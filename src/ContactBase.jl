@@ -227,12 +227,12 @@ function velocity_verlet!(body::Vector{<:AbstractPDBody}, sim::PDContactAnalysis
 end
 
 function compute_contactforcedensity!(
-    body::Vector{<:AbstractPDBody}, sim::PDContactAnalysis
+    bodies::Vector{<:AbstractPDBody}, sim::PDContactAnalysis
 )
     for contact in sim.contact
         ii, jj = contact.body_id_set
-        body_a = body[ii]
-        body_b = body[jj]
+        body_a = bodies[ii]
+        body_b = bodies[jj]
         r = contact.search_radius
         C = 9 * contact.spring_constant / (π * sim.body_setup[ii].mat.δ^4)
         @threads for _ in 1:nthreads()
