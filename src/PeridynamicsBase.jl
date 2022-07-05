@@ -738,22 +738,6 @@ function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
                 body.n_active_family_members[j, tid] += body.bond_failure[current_one_ni]
             end
         end
-    else
-        @threads for _ in 1:(body.n_threads)
-            tid = threadid()
-            (@view body.n_active_family_members[:, tid]) .= 0
-            for current_one_ni in body.owned_bonds[tid]
-                i, j, _, _ = body.bond_data[current_one_ni]
-                i_is_in_set_a = in(i, precrack.point_id_set_a)
-                i_is_in_set_b = in(i, precrack.point_id_set_b)
-                j_is_in_set_a = in(j, precrack.point_id_set_a)
-                j_is_in_set_b = in(j, precrack.point_id_set_b)
-                if i_is_in_set_a && j_is_in_set_b || i_is_in_set_b && j_is_in_set_a
-                    body.bond_failure[current_one_ni] = 0
-                end
-                body.n_active_family_members[i, tid] += body.bond_failure[current_one_ni]
-            end
-        end
     end
     return nothing
 end
