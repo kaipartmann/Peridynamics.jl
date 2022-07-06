@@ -570,7 +570,6 @@ struct PDSingleBodyAnalysis{T<:AbstractPDMaterial} <: AbstractPDAnalysis
         end
         return new{typeof(mat)}(name, pc, mat, precracks, bcs, ics, td, es)
     end
-    return nothing
 end
 
 """
