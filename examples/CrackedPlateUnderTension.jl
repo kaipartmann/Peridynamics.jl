@@ -39,7 +39,7 @@ boundary_conditions = [bc_top, bc_bottom]
 td = TimeDiscretization(2000)
 
 ##--   6. DEFINE EXPORT SETTINGS   ---------------------------------------------------------
-simulation_name = "CrackedBarUnderTension"
+simulation_name = "CrackedPlateUnderTension"
 resfolder = joinpath(@__DIR__, "results", simulation_name)
 mkpath(resfolder)
 es = ExportSettings(resfolder, 10)
