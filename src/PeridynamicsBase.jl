@@ -520,7 +520,7 @@ function defaultdist(sz::Int, nc::Int)
         end
         return grid
     else
-        sidx = [1:(sz + 1)]
+        sidx = [1:(sz + 1);]
         grid = fill(0:0, nc)
         for i in 1:sz
             grid[i] = sidx[i]:(sidx[i + 1] - 1)
