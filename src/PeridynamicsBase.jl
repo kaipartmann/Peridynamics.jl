@@ -358,12 +358,10 @@ end
 
 function TimeDiscretization(nt::Int, Δt::Real; alg::Symbol=:verlet)
     if alg in (SUPPORTED_TD_ALGS)
-        if alg == :dynrelax
-            @warn "alg = :dynrelax -> will skip given value of Δt! Check your input values!"
-            return TimeDiscretization(nt, 1.0, alg)
-        else
-            return TimeDiscretization(nt, Δt, alg)
+        if alg == :dynrelax && !(Δt ≈ 1)
+            @warn "for dynamic relaxation a time step of Δt = 1 is recommended!"
         end
+        return TimeDiscretization(nt, Δt, alg)
     else
         msg = "input $alg for keyword argument alg not supported!\n"
         msg *= "Supported input: $SUPPORTED_TD_ALGS"
