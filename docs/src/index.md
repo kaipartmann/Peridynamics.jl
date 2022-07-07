@@ -1,5 +1,5 @@
 ```@raw html
-<img src="../assets/logo.png" width="450" />
+<img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/logo.png?raw=true" width="450" />
 ```
 # Peridynamics
 

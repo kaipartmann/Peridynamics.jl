@@ -1,5 +1,5 @@
 ```@raw html
-<img src="../assets/CompressedCube.png" width="600" />
+<img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/CompressedCube.png?raw=true" width="600" />
 ```
 (Visualization made with [ParaView](https://www.paraview.org))
 
