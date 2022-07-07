@@ -18,8 +18,8 @@ makedocs(;
         "Home" => "index.md",
         "manual.md",
         "Tutorials" => [
+            "tensiletest.md",
             "crackedplateundertension.md",
-            "compressedcube.md",
             "logo.md",
         ],
         "library.md",

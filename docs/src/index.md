@@ -35,6 +35,6 @@ pkg> add Peridynamics
 
 ## Getting Started
 
-We recommend looking at the [manual](@ref manual) and the [tutorials section](@ref cracked-plate-under-tension) to start working with this package!
+We recommend looking at the [manual](@ref manual) and the [tutorials section](@ref TensileTest.jl) to start working with this package!
 
 Have fun! 😃
