@@ -31,8 +31,11 @@ if Threads.nthreads() <= 2
         body_setup=bodies,
         contact=[contact1],
         td=TimeDiscretization(1),
-        es=ExportSettings(),
+        es=ExportSettings(@__DIR__, 1),
     )
+    rm.(joinpath.(@__DIR__,filter(x->endswith(x,".vtu"), readdir(@__DIR__))), force=true)
+    rm.(joinpath.(@__DIR__,filter(x->endswith(x,".jld2"), readdir(@__DIR__))), force=true)
+    rm.(joinpath.(@__DIR__,filter(x->endswith(x,".log"), readdir(@__DIR__))), force=true)
     resulting_bodies = submit(job1)
 
     @test contact1.spring_constant == 1e12
@@ -45,6 +48,13 @@ if Threads.nthreads() <= 2
     vel_contact = acc_contact * job1.td.Δt * 0.5
     @test resulting_bodies[1].velocity[1,2,1] == -vel_contact
     @test resulting_bodies[2].velocity[1,1,1] == vel_contact
+    @test length(filter(x->endswith(x,".vtu"), readdir(@__DIR__))) == 4
+    @test length(filter(x->endswith(x,".jld2"), readdir(@__DIR__))) == 4
+    @test length(filter(x->endswith(x,".log"), readdir(@__DIR__))) == 1
+
+    rm.(joinpath.(@__DIR__,filter(x->endswith(x,".vtu"), readdir(@__DIR__))), force=true)
+    rm.(joinpath.(@__DIR__,filter(x->endswith(x,".jld2"), readdir(@__DIR__))), force=true)
+    rm.(joinpath.(@__DIR__,filter(x->endswith(x,".log"), readdir(@__DIR__))), force=true)
 else
     @warn "Test omitted! Threads.nthreads() should be <= 2"
 end
