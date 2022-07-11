@@ -7,6 +7,7 @@
 
 # Logo.jl
 
+The Julia logo crashing into a plate and braking it into many pieces.
 The complete script for this tutorial can be found here: [Logo.jl](https://github.com/kfrb/Peridynamics.jl/blob/main/examples/Logo.jl).
 
 First, we have to load the `Peridynamics.jl` package.
@@ -14,7 +15,7 @@ First, we have to load the `Peridynamics.jl` package.
 ```julia
 using Peridynamics
 ```
-
+Now we create the plate in the background by specifying the dimensions and the point spacing.
 ```julia
 # PLATE - INDEX: p
 dimXYₚ = 0.1 # [m]
@@ -22,7 +23,8 @@ dimZₚ = 0.01 # [m]
 Δxₚ = dimXYₚ/50 # [m]
 pcₚ = PointCloud(dimXYₚ, dimXYₚ, dimZₚ, Δxₚ)
 ```
-
+To create the spheres of the logo, a cubic point cloud is created and only the points inside a specified radius are preserved.
+The these points are then copied three times and moved to the right position to represent the logo.
 ```julia
 # SPHERES OF LOGO - INDEX: s
 Øₛ = 0.03 # [m]
@@ -51,17 +53,25 @@ pcₛ₂.position[2, :] .-= rₗ * sin(30π / 180)
 pcₛ₃.position[1, :] .-= rₗ * cos(30π / 180)
 pcₛ₃.position[2, :] .-= rₗ * sin(30π / 180)
 ```
-
+Different material properties are used for the plate and the spheres.
+##### Plate
+- Horizon $\delta = 3.015 \Delta x_p$
+- Density $\rho = 2000\,\mathrm{kg}\,\mathrm{m}^{-3}$
+- Youngs modulus $E = 30 \times 10^9 \, \mathrm{Pa}$
+- Griffith's parameter $G_c = 10 \, \mathrm{N} \, \mathrm{m}^{-1}$
+##### Julia-logo spheres
+- Horizon $\delta = 3.015 \Delta x_s$
+- Density $\rho = 7850\,\mathrm{kg}\,\mathrm{m}^{-3}$
+- Youngs modulus $E = 210 \times 10^9 \, \mathrm{Pa}$
+- Griffith's parameter $G_c = 1000 \, \mathrm{N} \, \mathrm{m}^{-1}$
 ```julia
 matₚ = BondBasedMaterial(;
-    point_spacing=Δxₚ,
     horizon=3.015Δxₚ,
-    density=2000.0,
+    density=2000,
     young_modulus=30e9,
     critical_energy_release_rate=10.0,
 )
 matₛ = BondBasedMaterial(;
-    point_spacing=Δxₛ,
     horizon=3.015Δxₛ,
     density=7850.0,
     young_modulus=210e9,
@@ -69,11 +79,12 @@ matₛ = BondBasedMaterial(;
 )
 ```
 
+All material points of the spheres have a initial velocity of $-20\, \mathrm{m} \, \mathrm{s}^{-1}$ in $z$-direction.
 ```julia
 icₛ = [VelocityIC(-20.0, 1:(pcₛ₁.n_points), 3)]
 ```
-
-
+For the contact analysis, every body needs to be specified with a [`BodySetup`](@ref).
+Time can be saved by using only one sphere for the calculation of the stable time step.
 ```julia
 plate = BodySetup(pcₚ, matₚ)
 sphere1 = BodySetup(pcₛ₁, matₛ; ics=icₛ)
@@ -81,22 +92,22 @@ sphere2 = BodySetup(pcₛ₂, matₛ; ics=icₛ, calc_timestep=false)
 sphere3 = BodySetup(pcₛ₃, matₛ; ics=icₛ, calc_timestep=false)
 body_setup = [plate, sphere1, sphere2, sphere3]
 ```
-
+Now, contact between the plate and the three spheres needs to be specified.
 ```julia
 contact = [Contact((1, 2), Δxₚ), Contact((1, 3), Δxₚ), Contact((1, 4), Δxₚ)]
 ```
-
+For this simulation, 3000 time steps with explicit time integration and the velocity verlet algorithm are used.
 ```julia
 td = TimeDiscretization(3000)
 ```
-
+Now we give the simulation a name and create a directory for the results. 
 ```julia
 simulation_name = "Logo"
 resfolder = joinpath(@__DIR__, "results", simulation_name)
 mkpath(resfolder)
 es = ExportSettings(resfolder, 10)
 ```
-
+To complete everything, the [`PDContactAnalysis`](@ref) is created and submitted for simulation.
 ```julia
 JOB = PDContactAnalysis(;
     name=simulation_name, body_setup=body_setup, contact=contact, td=td, es=es
