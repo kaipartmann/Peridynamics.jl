@@ -323,11 +323,11 @@ Time discretization type for setting the number of timesteps and the timestep `�
 
 ---
 ```julia
-TimeDiscretization(nt::Int[, Δt::Real]; alg::Symbol=:verlet)
+TimeDiscretization(n_timesteps::Int[, Δt::Real]; alg::Symbol=:verlet)
 ```
 
 # Arguments
-- `nt::Int`: number of time steps
+- `n_timesteps::Int`: number of time steps
 - `Δt::Real`: optional specified time step
 
 # Keywords
@@ -342,12 +342,12 @@ mutable struct TimeDiscretization
     alg::Symbol
 end
 
-function TimeDiscretization(nt::Int; alg::Symbol=:verlet)
+function TimeDiscretization(n_timesteps::Int; alg::Symbol=:verlet)
     if alg in (SUPPORTED_TD_ALGS)
         if alg == :dynrelax
-            return TimeDiscretization(nt, 1.0, alg)
+            return TimeDiscretization(n_timesteps, 1.0, alg)
         else
-            return TimeDiscretization(nt, -1.0, alg)
+            return TimeDiscretization(n_timesteps, -1.0, alg)
         end
     else
         msg = "input $alg for keyword argument alg not supported!\n"
@@ -356,12 +356,12 @@ function TimeDiscretization(nt::Int; alg::Symbol=:verlet)
     end
 end
 
-function TimeDiscretization(nt::Int, Δt::Real; alg::Symbol=:verlet)
+function TimeDiscretization(n_timesteps::Int, Δt::Real; alg::Symbol=:verlet)
     if alg in (SUPPORTED_TD_ALGS)
         if alg == :dynrelax && !(Δt ≈ 1)
             @warn "for dynamic relaxation a time step of Δt = 1 is recommended!"
         end
-        return TimeDiscretization(nt, Δt, alg)
+        return TimeDiscretization(n_timesteps, Δt, alg)
     else
         msg = "input $alg for keyword argument alg not supported!\n"
         msg *= "Supported input: $SUPPORTED_TD_ALGS"
