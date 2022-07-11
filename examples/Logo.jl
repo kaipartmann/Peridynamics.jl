@@ -41,14 +41,12 @@ pcₛ₃.position[2, :] .-= rₗ * sin(30π / 180)
 
 ##--   3. DEFINE THE MATERIAL   ------------------------------------------------------------
 matₚ = BondBasedMaterial(;
-    point_spacing=Δxₚ,
     horizon=3.015Δxₚ,
     density=2000.0,
     young_modulus=30e9,
     critical_energy_release_rate=10.0,
 )
 matₛ = BondBasedMaterial(;
-    point_spacing=Δxₛ,
     horizon=3.015Δxₛ,
     density=7850.0,
     young_modulus=210e9,
