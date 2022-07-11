@@ -58,14 +58,35 @@ end
 """
     read_inp(file::String)
 
-Read Abaqus .inp-file and convert meshes to `PointCloud` objects. Currently supported
-mesh elements: $SUPPORTED_ELEMENT_TYPES
+Read Abaqus .inp-file and convert meshes to `PointCloud` objects with the help of the
+[`AbaqusReader.jl`](https://github.com/JuliaFEM/AbaqusReader.jl) package.
+Every element is converted to a point. The center of the element becomes the position of the
+point and the element volume becomes the point volume.
+Element sets defined in Abaqus are converted to corresponding point sets.
+
+Currently supported mesh elements: $SUPPORTED_ELEMENT_TYPES
 
 # Arguments
 - `file::String`: path to Abaqus .inp-file
 
 # Returns
 - `PointCloud`: generated point cloud with element volume as point volume
+
+# Examples
+The specimen of the [`TensileTest.jl`](@ref) example script:
+```julia-repl
+julia> pointcloud = read_inp("examples/models/TensileTestMesh.inp")
+[ Info: 21420 nodes found
+[ Info: Parsing elements. Type: C3D8. Topology: Hex8
+[ Info: Creating elset bottom
+[ Info: Creating elset top
+16900-points PointCloud
+
+julia> pointcloud.point_sets
+Dict{String, Vector{Int64}} with 2 entries:
+  "bottom" => [11701, 11702, 11703, 11704, 11705, 11706, 11707, 11708, 117…
+  "top"    => [7501, 7502, 7503, 7504, 7505, 7506, 7507, 7508, 7509, 7510 …
+```
 """
 function read_inp(file::String)
     if !endswith(file, ".inp")
