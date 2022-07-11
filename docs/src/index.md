@@ -11,11 +11,11 @@ Peridynamics is a non-local formulation of continuum mechanics.
 Material points map the continuum, and the relative displacements and forces are described by an integral equation that is also fulfilled for discontinuities. Therefore, peridynamics is ideally suited for dynamic fracture simulations with many cracks!
 
 This package aims at making it easy for everyone to perform peridynamics simulations with a high-level API and the speed of Julia.
-Currently, only a limited feature set is supported, but many more are in the pipeline, so stay tuned for upcoming versions!
+Currently, only a limited feature set is supported, but many upgrades are in the pipeline, so stay tuned for upcoming versions!
 
 #### Features
 - Bond-based peridynamics, see [Silling (2000)](https://doi.org/10.1016/S0022-5096(99)00029-0)
-- Import and convert meshes from Abaqus (Supported element types: `Tet4`, `Hex8`)
+- Import and convert meshes from Abaqus
 - Explicit time integration with Velocity Verlet algorithm
 - Adaptive dynamic relaxation for quasistatic analysis, see [Kilic and Madenci (2010)](https://doi.org/10.1016/j.tafmec.2010.08.001)
 - Multi-body contact analysis with short-range forces, see [Silling and Askari (2005)](https://doi.org/10.1016/j.compstruc.2004.11.026)
@@ -37,4 +37,12 @@ pkg> add Peridynamics
 
 We recommend looking at the [manual](@ref manual) and the [tutorials section](@ref TensileTest.jl) to start working with this package!
 
-Have fun! 😃
+
+## Authors
+
+- Kai Friebertshäuser (University of Siegen)
+- Kerstin Weinberg (University of Siegen)
+
+## Acknowledgement
+
+The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) under the project WE2525-14/1.
