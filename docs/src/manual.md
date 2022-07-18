@@ -78,8 +78,8 @@ TimeDiscretization(500, 5e-7)
 
 ## Export settings
 
-The results of a simulation are exported as `vtu` and `jld2` files, to make post-processing with ParaView and Julia easy.
-With [`ExportSettings`](@ref), the file path and the frequency of the export can be set.
+The simulation results are exported as `vtu` and `jld2` files to make post-processing with ParaView and Julia straightforward.
+With [`ExportSettings`](@ref), the file path and the export frequency can be set.
 
 #### Example 1:
 Export into the directory `"results"` every 10'th time step.
@@ -99,14 +99,11 @@ Predefined cracks are defined with [`PreCrack`](@ref).
 For an example, see [`CrackedPlateUnderTension.jl`](@ref cracked-plate-under-tension).
 
 
-## Boundary and initial conditions
+## Boundary & initial conditions
 
-Currently, 4 different conditions can be used:
+For more information, see the documentation for each type:
 
-*Boundary conditions*
-1. [`VelocityBC`](@ref): velocity boundary conditions
-2. [`ForceDensityBC`](@ref): force density boundary conditions
-3. [`PosDepVelBC`](@ref): position dependend velocity boundary conditions
-
-*Initial conditions*
-1. [`VelocityIC`](@ref): velocity boundary conditions
+- [`VelocityBC`](@ref): velocity boundary conditions
+- [`ForceDensityBC`](@ref): force density boundary conditions
+- [`PosDepVelBC`](@ref): position dependend velocity boundary conditions
+- [`VelocityIC`](@ref): velocity initial conditions

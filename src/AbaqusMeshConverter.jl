@@ -73,7 +73,8 @@ Currently supported mesh elements: $SUPPORTED_ELEMENT_TYPES
 - `PointCloud`: generated point cloud with element volume as point volume
 
 # Examples
-The specimen of the [`TensileTest.jl`](@ref) example script:
+The specimen of the
+[`TensileTest.jl`](https://kfrb.github.io/Peridynamics.jl/dev/tensiletest/) example script:
 ```julia-repl
 julia> pointcloud = read_inp("examples/models/TensileTestMesh.inp")
 [ Info: 21420 nodes found

@@ -20,10 +20,10 @@ Currently, only a limited feature set is supported, but many upgrades are in the
 - Adaptive dynamic relaxation for quasistatic analysis, see [Kilic and Madenci (2010)](https://doi.org/10.1016/j.tafmec.2010.08.001)
 - Multi-body contact analysis with short-range forces, see [Silling and Askari (2005)](https://doi.org/10.1016/j.compstruc.2004.11.026)
 
-#### Incomplete list of upcoming features
+#### An incomplete list of upcoming features
 - Volume and surface correction
 - Ordinary and non-ordinary state-based peridynamics, see [Silling et al. (2007)](https://link.springer.com/article/10.1007/s10659-007-9125-1)
-- Continuum-kinematics-based peridynamics, see [Javili, McBride and Steinmann (2019)](https://doi.org/10.1016/j.jmps.2019.06.016)
+- Continuum-kinematics-based peridynamics, see [Javili, McBride, and Steinmann (2019)](https://doi.org/10.1016/j.jmps.2019.06.016)
 
 ## Installation
 
@@ -46,3 +46,4 @@ We recommend looking at the [manual](@ref manual) and the [tutorials section](@r
 ## Acknowledgement
 
 The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) under the project WE2525-14/1.
+

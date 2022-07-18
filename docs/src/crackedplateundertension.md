@@ -34,7 +34,7 @@ Now we want the plate to have a crack from the left side to the middle.
 Therefore we need to specify a [`PreCrack`](@ref) object.
 A `PreCrack` is simply two `Vector{Int}`'s containing point indices.
 Points in `point_id_set_a` don't interact with points in  `point_id_set_b`.
-So we need to specify all points above and below the crack, seen in the following image:
+So we need to specify all points above and below the crack, as seen in the following image:
 
 ```@raw html
 <img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/CrackedPlateUnderTension0.png?raw=true" width="600" />
@@ -58,8 +58,8 @@ precracks = [PreCrack(precrack_set_a, precrack_set_b)]
 
 The `PreCrack` is then wrapped inside a `Vector` because `PDSingleBodyAnalysis` needs a `Vector{PreCrack}` in case you have multiple predefined cracks in your model.
 
-Now we specify boundary conditions so the crack has to grow under the load that is applied to the plate.
-Therefore, we want the five rows of points in the upper and lower part of the plate to have a constant velocity of $0.1\,\frac{\mathrm{m}}{\mathrm{s}}$ in positive and negative $y$-direction to pull the plate apart.
+Now we specify boundary conditions, so the crack has to grow under the load applied to the plate.
+Therefore, we want the five rows of points in the upper and lower part of the plate to have a constant velocity of $0.1\,\frac{\mathrm{m}}{\mathrm{s}}$ in the positive and negative $y$-direction to pull the plate apart.
 
 ```julia
 bc_set_top = findall(pc.position[2,:] .> length_y / 2 - 5.1 * Δx)
@@ -76,7 +76,7 @@ Our simulation should run for 2000 time steps and the stable time step should be
 td = TimeDiscretization(2000)
 ```
 
-In order to save the results, we specify with `ExportSettings`, that every 10 timesteps, the results should be saved to a folder named `results/CrackedPlateUnderTension`.
+To save the results, we specify with `ExportSettings` that every 10 timesteps, the results should be saved to a folder named `results/CrackedPlateUnderTension`.
 
 ```julia
 simulation_name = "CrackedPlateUnderTension"

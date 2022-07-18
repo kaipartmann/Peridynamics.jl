@@ -23,8 +23,8 @@ dimZₚ = 0.01 # [m]
 Δxₚ = dimXYₚ/50 # [m]
 pcₚ = PointCloud(dimXYₚ, dimXYₚ, dimZₚ, Δxₚ)
 ```
-To create the spheres of the logo, a cubic point cloud is created and only the points inside a specified radius are preserved.
-The these points are then copied three times and moved to the right position to represent the logo.
+A cubic point cloud is assembled, and only the points inside a specified radius are preserved to create the spheres of the logo.
+These points are then copied three times and moved to the correct position to represent the logo.
 ```julia
 # SPHERES OF LOGO - INDEX: s
 Øₛ = 0.03 # [m]
@@ -92,7 +92,7 @@ sphere2 = BodySetup(pcₛ₂, matₛ; ics=icₛ, calc_timestep=false)
 sphere3 = BodySetup(pcₛ₃, matₛ; ics=icₛ, calc_timestep=false)
 body_setup = [plate, sphere1, sphere2, sphere3]
 ```
-Now, contact between the plate and the three spheres needs to be specified.
+Contact between the plate and the three spheres needs to be specified.
 ```julia
 contact = [Contact((1, 2), Δxₚ), Contact((1, 3), Δxₚ), Contact((1, 4), Δxₚ)]
 ```

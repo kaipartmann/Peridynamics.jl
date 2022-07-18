@@ -61,7 +61,7 @@ boundary_conditions = [
 ]
 ```
 With these at hand, a `PDSingleBodyAnalysis` can be constructed and submitted for calculation.
-We set the number of time steps for the explicit time integration to 500 with `TimeDiscretization(500)` and define, that the results of our calculation should be saved in the directory `"results/TensileTest"` every 10'th time step.
+We set the number of time steps for the explicit time integration to 500 with `TimeDiscretization(500)` and define that the results of our analysis should be saved in the directory `"results/TensileTest"` every 10'th time step.
 ```julia
 job = PDSingleBodyAnalysis(;
     name="TensileTest",
@@ -111,7 +111,7 @@ Results:
 
 As an improvement to the previous results, we can additionally set a no-fail-zone.
 It is a common problem for bond-based peridynamics, that to much damage occurs next to the points where boundary conditions apply.
-To disable failure of the points in the bottom and the top of the specimen, add these two lines after the definition of the `pointcloud`:
+With these two lines, failure in the bottom and top of the specimen is disabled:
 ```julia
 pointcloud.failure_flag[pointcloud.point_sets["bottom"]] .= false
 pointcloud.failure_flag[pointcloud.point_sets["top"]] .= false
