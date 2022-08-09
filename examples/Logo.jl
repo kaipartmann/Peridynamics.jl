@@ -23,13 +23,7 @@ sphere_point_set = @views findall(
     ) .<= Øₛ / 2,
 )
 pcₛ₀.position[3, sphere_point_set] .+= Øₛ / 2 + dimZₚ / 2 + 1.1Δxₚ
-pcₛ₁ = PointCloud(
-    pcₛ₀.position[:, sphere_point_set],
-    pcₛ₀.volume[sphere_point_set],
-    zeros(Bool, length(sphere_point_set)),
-    pcₛ₀.radius[sphere_point_set],
-    length(sphere_point_set),
-)
+pcₛ₁ = PointCloud(pcₛ₀.position[:, sphere_point_set], pcₛ₀.volume[sphere_point_set])
 pcₛ₂ = deepcopy(pcₛ₁)
 pcₛ₃ = deepcopy(pcₛ₁)
 rₗ = Øₛ / 2 + 0.2 * Øₛ
@@ -42,15 +36,15 @@ pcₛ₃.position[2, :] .-= rₗ * sin(30π / 180)
 ##--   3. DEFINE THE MATERIAL   ------------------------------------------------------------
 matₚ = BondBasedMaterial(;
     horizon=3.015Δxₚ,
-    density=2000.0,
-    young_modulus=30e9,
-    critical_energy_release_rate=10.0,
+    rho=2000.0,
+    E=30e9,
+    Gc=10.0,
 )
 matₛ = BondBasedMaterial(;
     horizon=3.015Δxₛ,
-    density=7850.0,
-    young_modulus=210e9,
-    critical_energy_release_rate=1000.0,
+    rho=7850.0,
+    E=210e9,
+    Gc=1000.0,
 )
 
 ##--   4. DEFINE INITIAL CONDITIONS   ------------------------------------------------------
@@ -76,9 +70,9 @@ mkpath(resfolder)
 es = ExportSettings(resfolder, 10)
 
 ##--   9. DEFINE THE JOB   -----------------------------------------------------------------
-JOB = PDContactAnalysis(;
+job = PDContactAnalysis(;
     name=simulation_name, body_setup=body_setup, contact=contact, td=td, es=es
 )
 
 ##--   11. SUBMIT THE JOB FOR ANALYSIS   ---------------------------------------------------
-results = submit(JOB);
+results = submit(job);
