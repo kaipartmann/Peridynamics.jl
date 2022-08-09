@@ -14,13 +14,7 @@ sphere_point_set = @views findall(
     ) .&lt;= Øₛ / 2,
 )
 pcₛ₀.position[3, sphere_point_set] .+= Øₛ / 2 + dimZₚ / 2 + 1.1Δxₚ
-pcₛ₁ = PointCloud(
-    pcₛ₀.position[:, sphere_point_set],
-    pcₛ₀.volume[sphere_point_set],
-    zeros(Bool, length(sphere_point_set)),
-    pcₛ₀.radius[sphere_point_set],
-    length(sphere_point_set),
-)
+pcₛ₁ = PointCloud(pcₛ₀.position[:, sphere_point_set], pcₛ₀.volume[sphere_point_set])
 pcₛ₂ = deepcopy(pcₛ₁)
 pcₛ₃ = deepcopy(pcₛ₁)
 rₗ = Øₛ / 2 + 0.2 * Øₛ
@@ -30,15 +24,15 @@ pcₛ₂.position[2, :] .-= rₗ * sin(30π / 180)
 pcₛ₃.position[1, :] .-= rₗ * cos(30π / 180)
 pcₛ₃.position[2, :] .-= rₗ * sin(30π / 180)</code></pre><p>Different material properties are used for the plate and the spheres.</p><h5 id="Plate"><a class="docs-heading-anchor" href="#Plate">Plate</a><a id="Plate-1"></a><a class="docs-heading-anchor-permalink" href="#Plate" title="Permalink"></a></h5><ul><li>Horizon <span>$\delta = 3.015 \Delta x_p$</span></li><li>Density <span>$\rho = 2000\,\mathrm{kg}\,\mathrm{m}^{-3}$</span></li><li>Youngs modulus <span>$E = 30 \times 10^9 \, \mathrm{Pa}$</span></li><li>Griffith&#39;s parameter <span>$G_c = 10 \, \mathrm{N} \, \mathrm{m}^{-1}$</span></li></ul><h5 id="Julia-logo-spheres"><a class="docs-heading-anchor" href="#Julia-logo-spheres">Julia-logo spheres</a><a id="Julia-logo-spheres-1"></a><a class="docs-heading-anchor-permalink" href="#Julia-logo-spheres" title="Permalink"></a></h5><ul><li>Horizon <span>$\delta = 3.015 \Delta x_s$</span></li><li>Density <span>$\rho = 7850\,\mathrm{kg}\,\mathrm{m}^{-3}$</span></li><li>Youngs modulus <span>$E = 210 \times 10^9 \, \mathrm{Pa}$</span></li><li>Griffith&#39;s parameter <span>$G_c = 1000 \, \mathrm{N} \, \mathrm{m}^{-1}$</span></li></ul><pre><code class="language-julia hljs">matₚ = BondBasedMaterial(;
     horizon=3.015Δxₚ,
-    density=2000,
-    young_modulus=30e9,
-    critical_energy_release_rate=10.0,
+    rho=2000.0,
+    E=30e9,
+    Gc=10.0,
 )
 matₛ = BondBasedMaterial(;
     horizon=3.015Δxₛ,
-    density=7850.0,
-    young_modulus=210e9,
-    critical_energy_release_rate=1000.0,
+    rho=7850.0,
+    E=210e9,
+    Gc=1000.0,
 )</code></pre><p>All material points of the spheres have a initial velocity of <span>$-20\, \mathrm{m} \, \mathrm{s}^{-1}$</span> in <span>$z$</span>-direction.</p><pre><code class="language-julia hljs">icₛ = [VelocityIC(-20.0, 1:(pcₛ₁.n_points), 3)]</code></pre><p>For the contact analysis, every body needs to be specified with a <a href="../library/#Peridynamics.BodySetup"><code>BodySetup</code></a>. Time can be saved by using only one sphere for the calculation of the stable time step.</p><pre><code class="language-julia hljs">plate = BodySetup(pcₚ, matₚ)
 sphere1 = BodySetup(pcₛ₁, matₛ; ics=icₛ)
 sphere2 = BodySetup(pcₛ₂, matₛ; ics=icₛ, calc_timestep=false)
@@ -46,6 +40,6 @@ sphere3 = BodySetup(pcₛ₃, matₛ; ics=icₛ, calc_timestep=false)
 body_setup = [plate, sphere1, sphere2, sphere3]</code></pre><p>Contact between the plate and the three spheres needs to be specified.</p><pre><code class="language-julia hljs">contact = [Contact((1, 2), Δxₚ), Contact((1, 3), Δxₚ), Contact((1, 4), Δxₚ)]</code></pre><p>For this simulation, 3000 time steps with explicit time integration and the velocity verlet algorithm are used.</p><pre><code class="language-julia hljs">td = TimeDiscretization(3000)</code></pre><p>Now we give the simulation a name and create a directory for the results. </p><pre><code class="language-julia hljs">simulation_name = &quot;Logo&quot;
 resfolder = joinpath(@__DIR__, &quot;results&quot;, simulation_name)
 mkpath(resfolder)
-es = ExportSettings(resfolder, 10)</code></pre><p>To complete everything, the <a href="../library/#Peridynamics.PDContactAnalysis"><code>PDContactAnalysis</code></a> is created and submitted for simulation.</p><pre><code class="language-julia hljs">JOB = PDContactAnalysis(;
+es = ExportSettings(resfolder, 10)</code></pre><p>To complete everything, the <a href="../library/#Peridynamics.PDContactAnalysis"><code>PDContactAnalysis</code></a> is created and submitted for simulation.</p><pre><code class="language-julia hljs">job = PDContactAnalysis(;
     name=simulation_name, body_setup=body_setup, contact=contact, td=td, es=es
-)</code></pre><pre><code class="language-julia hljs">results = submit(JOB);</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../crackedplateundertension/">« CrackedPlateUnderTension.jl</a><a class="docs-footer-nextpage" href="../library/">Libary »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.19 on <span class="colophon-date" title="Monday 18 July 2022 07:15">Monday 18 July 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+)</code></pre><pre><code class="language-julia hljs">results = submit(job);</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../crackedplateundertension/">« CrackedPlateUnderTension.jl</a><a class="docs-footer-nextpage" href="../library/">Libary »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.19 on <span class="colophon-date" title="Tuesday 9 August 2022 21:18">Tuesday 9 August 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
