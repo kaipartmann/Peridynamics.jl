@@ -21,6 +21,7 @@ makedocs(;
             "tensiletest.md",
             "crackedplateundertension.md",
             "logo.md",
+            "paraviewtutorial.md",
         ],
         "library.md",
     ],
