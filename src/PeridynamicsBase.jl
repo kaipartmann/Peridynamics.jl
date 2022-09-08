@@ -425,7 +425,7 @@ function find_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{UnitRange{
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)
     n_family_members = zeros(Int, pc.n_points)
     p = Progress(pc.n_points; dt=1, desc="Search bonds...     ", barlen=30, color=:normal)
-    @threads for _ in 1:n_threads
+    @threads :static for _ in 1:n_threads
         tid = threadid()
         local_bond_data = Vector{Tuple{Int,Int,Float64,Bool}}(undef, 0)
         sizehint!(local_bond_data, pc.n_points * 500)
@@ -463,7 +463,7 @@ function find_unique_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{Uni
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)
     n_family_members = zeros(Int, pc.n_points)
     p = Progress(pc.n_points; dt=1, desc="Search bonds...     ", barlen=30, color=:normal)
-    @threads for _ in 1:n_threads
+    @threads :static for _ in 1:n_threads
         tid = threadid()
         local_bonds_data = Vector{Tuple{Int,Int,Float64,Bool}}(undef, 0)
         sizehint!(local_bonds_data, pc.n_points * 500)
@@ -625,7 +625,7 @@ function log_describe_sim(
     simname::String, pc::PointCloud, mat::AbstractPDMaterial, es::ExportSettings
 )
     msg = "Peridynamic single body analysis: " * simname * "\nMaterial parameters:\n"
-    msg *= @sprintf "  - Number of material points [-]:      %30g\n" pc.n_points
+    msg *= @sprintf("  - Number of material points [-]:      %30g\n", pc.n_points)
     msg *= describe_mat(mat)
     print(msg)
     if es.exportflag
@@ -719,7 +719,7 @@ end
 
 function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
     if body.unique_bonds # TODO: material dependent choicing with multiple dispatch
-        @threads for _ in 1:(body.n_threads)
+        @threads :static for _ in 1:(body.n_threads)
             tid = threadid()
             (@view body.n_active_family_members[:, tid]) .= 0
             for current_one_ni in body.owned_bonds[tid]
@@ -741,7 +741,7 @@ end
 
 function calc_stable_timestep(body::AbstractPDBody, rho::Float64, K::Float64, δ::Float64)
     _Δt = zeros(Float64, body.n_threads)
-    @threads for _ in 1:(body.n_threads)
+    @threads :static for _ in 1:(body.n_threads)
         tid = threadid()
         timesteps = zeros(Float64, body.n_points)
         dtsum = zeros(Float64, (body.n_points, body.n_threads))
@@ -777,7 +777,7 @@ function calc_stable_user_timestep(pc::PointCloud, mat::AbstractPDMaterial, Sf::
     bond_data, _ = find_bonds(pc, mat.δ, owned_points)
     owned_bonds = defaultdist(length(bond_data), nthreads())
     _Δt = zeros(Float64, nthreads())
-    @threads for _ in 1:nthreads()
+    @threads :static for _ in 1:nthreads()
         tid = threadid()
         timesteps = zeros(Float64, pc.n_points)
         dtsum = zeros(Float64, (pc.n_points, nthreads()))
@@ -796,7 +796,7 @@ function calc_stable_user_timestep(pc::PointCloud, mat::AbstractPDMaterial, Sf::
 end
 
 function calc_damage!(body::AbstractPDBody)
-    @threads for _ in 1:(body.n_threads)
+    @threads :static for _ in 1:(body.n_threads)
         for a in body.owned_points[threadid()]
             body.n_active_family_members[a, 1] = sum(
                 @view body.n_active_family_members[a, :]

@@ -138,8 +138,11 @@ end
 function log_describe_sim(sim::PDContactAnalysis)
     msg = "Peridynamic multibody contact analysis: " * sim.name * "\nMaterial parameters:\n"
     for i in 1:(sim.n_bodies)
-        msg *= @sprintf "Body %d:\n" i
-        msg *= @sprintf "  - Number of material points [-]:      %30g\n" sim.body_setup[i].pc.n_points
+        msg *= @sprintf("Body %d:\n", i)
+        msg *= @sprintf(
+            "  - Number of material points [-]:      %30g\n",
+            sim.body_setup[i].pc.n_points
+        )
         msg *= describe_mat(sim.body_setup[i].mat)
     end
     print(msg)
@@ -235,7 +238,7 @@ function compute_contactforcedensity!(
         body_b = bodies[jj]
         r = contact.search_radius
         C = 9 * contact.spring_constant / (π * sim.body_setup[ii].mat.δ^4)
-        @threads for _ in 1:nthreads()
+        @threads :static for _ in 1:nthreads()
             tid = threadid()
             for i in body_a.owned_points[tid]
                 for j in 1:(body_b.n_points)
