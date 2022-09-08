@@ -424,7 +424,13 @@ function find_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{UnitRange{
     n_threads = nthreads()
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)
     n_family_members = zeros(Int, pc.n_points)
-    p = Progress(pc.n_points; dt=1, desc="Search bonds...     ", barlen=30, color=:normal)
+    p = Progress(pc.n_points;
+        dt=1,
+        desc="Search bonds...     ",
+        barlen=30,
+        color=:normal,
+        enabled=!is_logging(stderr),
+    )
     @threads :static for _ in 1:n_threads
         tid = threadid()
         local_bond_data = Vector{Tuple{Int,Int,Float64,Bool}}(undef, 0)
@@ -462,7 +468,13 @@ function find_unique_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{Uni
     n_threads = nthreads()
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)
     n_family_members = zeros(Int, pc.n_points)
-    p = Progress(pc.n_points; dt=1, desc="Search bonds...     ", barlen=30, color=:normal)
+    p = Progress(pc.n_points;
+        dt=1,
+        desc="Search bonds...     ",
+        barlen=30,
+        color=:normal,
+        enabled=!is_logging(stderr),
+    )
     @threads :static for _ in 1:n_threads
         tid = threadid()
         local_bonds_data = Vector{Tuple{Int,Int,Float64,Bool}}(undef, 0)
@@ -637,7 +649,7 @@ function log_describe_sim(
 end
 
 function describe_mat(mat::AbstractPDMaterial)
-    msg = @sprintf "  - Material model:                     %30s\n" typeof(mat)
+    msg = @sprintf "  - Material model: %50s\n" typeof(mat)
     msg *= @sprintf "  - Horizon δ [m]:                      %30g\n" mat.δ
     msg *= @sprintf "  - Density ρ [kg/m³]:                  %30g\n" mat.rho
     msg *= @sprintf "  - Young's modulus E [N/m²]:           %30g\n" mat.E
@@ -671,13 +683,20 @@ function log_simsetup(sim::AbstractPDAnalysis)
     if sim.es.exportflag
         msg *= "Export setup:\n"
         msg *= @sprintf "  - Export frequency:                   %30g\n" sim.es.exportfreq
-        if length(sim.es.resultfile_prefix) <= 48
-            msg *= @sprintf "  - Export file name: %48s\n" sim.es.resultfile_prefix
+        resfile_basename = basename(sim.es.resultfile_prefix)
+        if length(resfile_basename) <= 48
+            msg *= @sprintf "  - Export file name: %48s\n" resfile_basename
         else
-            msg *= @sprintf "  - Export file name:\n    %s\n" sim.es.resultfile_prefix
+            msg *= @sprintf "  - Export file name:\n    %s\n" resfile_basename
         end
     end
-    msg *= "Time discretization:\n"
+    timedisc = ""
+    if sim.td.alg == :verlet
+        timedisc = "dynamic (Velocity-Verlet algorithm)"
+    elseif sim.td.alg == :dynrelax
+        timedisc = "quasi-static (adaptive dynamic relaxation)"
+    end
+    msg *= @sprintf "Time discretization: %49s\n" timedisc
     msg *= @sprintf "  - Time step Δt [s]:                   %30g\n" sim.td.Δt
     msg *= @sprintf "  - Number of time steps [-]:           %30g\n" sim.td.n_timesteps
     msg *= @sprintf "  - Simulation time horizon [s]:        %30g\n" sim.td.n_timesteps *
@@ -718,20 +737,20 @@ function log_closesim(part::AbstractPDBody, timingsummary::NamedTuple, es::Expor
 end
 
 function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
-    if body.unique_bonds # TODO: material dependent choicing with multiple dispatch
-        @threads :static for _ in 1:(body.n_threads)
-            tid = threadid()
-            (@view body.n_active_family_members[:, tid]) .= 0
-            for current_one_ni in body.owned_bonds[tid]
-                i, j, _, _ = body.bond_data[current_one_ni]
-                i_is_in_set_a = in(i, precrack.point_id_set_a)
-                i_is_in_set_b = in(i, precrack.point_id_set_b)
-                j_is_in_set_a = in(j, precrack.point_id_set_a)
-                j_is_in_set_b = in(j, precrack.point_id_set_b)
-                if i_is_in_set_a && j_is_in_set_b || i_is_in_set_b && j_is_in_set_a
-                    body.bond_failure[current_one_ni] = 0
-                end
-                body.n_active_family_members[i, tid] += body.bond_failure[current_one_ni]
+    @threads :static for _ in 1:(body.n_threads)
+        tid = threadid()
+        (@view body.n_active_family_members[:, tid]) .= 0
+        for current_one_ni in body.owned_bonds[tid]
+            i, j, _, _ = body.bond_data[current_one_ni]
+            i_is_in_set_a = in(i, precrack.point_id_set_a)
+            i_is_in_set_b = in(i, precrack.point_id_set_b)
+            j_is_in_set_a = in(j, precrack.point_id_set_a)
+            j_is_in_set_b = in(j, precrack.point_id_set_b)
+            if i_is_in_set_a && j_is_in_set_b || i_is_in_set_b && j_is_in_set_a
+                body.bond_failure[current_one_ni] = 0
+            end
+            body.n_active_family_members[i, tid] += body.bond_failure[current_one_ni]
+            if body.unique_bonds
                 body.n_active_family_members[j, tid] += body.bond_failure[current_one_ni]
             end
         end
@@ -896,8 +915,12 @@ function export_results(body::AbstractPDBody, expfile::String, timestep::Int, ti
 end
 
 function velocity_verlet!(body::AbstractPDBody, sim::PDSingleBodyAnalysis)
-    p = Progress(
-        sim.td.n_timesteps; dt=1, desc="Time integration... ", barlen=30, color=:normal
+    p = Progress(sim.td.n_timesteps;
+        dt=1,
+        desc="Time integration... ",
+        barlen=30,
+        color=:normal,
+        enabled=!is_logging(stderr),
     )
     Δt½ = 0.5 * sim.td.Δt
     for t in 1:(sim.td.n_timesteps)
@@ -926,8 +949,12 @@ function dynamic_relaxation_finite_difference!(
     )
     velocity_half_old = zeros(Float64, (3, body.n_points))
     b_int_old = zeros(Float64, (3, body.n_points))
-    p = Progress(
-        sim.td.n_timesteps; dt=1, desc="Time integration... ", barlen=30, color=:normal
+    p = Progress(sim.td.n_timesteps;
+        dt=1,
+        desc="Time integration... ",
+        barlen=30,
+        color=:normal,
+        enabled=!is_logging(stderr),
     )
     for t in 1:(sim.td.n_timesteps)
         time = t * sim.td.Δt
@@ -1070,3 +1097,5 @@ function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, rho::
     end
     return nothing
 end
+
+is_logging(io) = isa(io, Base.TTY) == false || (get(ENV, "CI", nothing) == "true")
