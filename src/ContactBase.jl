@@ -201,8 +201,12 @@ function log_closesim(
 end
 
 function velocity_verlet!(body::Vector{<:AbstractPDBody}, sim::PDContactAnalysis)
-    p = Progress(
-        sim.td.n_timesteps; dt=1, desc="Time integration... ", barlen=30, color=:normal
+    p = Progress(sim.td.n_timesteps;
+        dt=1,
+        desc="Time integration... ",
+        barlen=30,
+        color=:normal,
+        enabled=!is_logging(stderr),
     )
     Δt½ = 0.5 * sim.td.Δt
     for t in 1:(sim.td.n_timesteps)
