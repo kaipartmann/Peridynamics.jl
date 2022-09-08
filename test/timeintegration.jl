@@ -88,12 +88,12 @@ if Threads.nthreads() <= 2
     )
     Peridynamics.dynamic_relaxation_finite_difference!(body, sim)
 
-    @test body.velocity_half == [-0.0625 0.0625; 0.0 0.0; 0.0 0.0]
-    @test body.displacement == [-0.0625 0.0625; 0.0 0.0; 0.0 0.0]
-    @test body.position == [-0.0625 1.0625; 0.0 0.0; 0.0 0.0]
+    @test body.velocity_half == [-0.09375 0.09375; 0.0 0.0; 0.0 0.0]
+    @test body.displacement == [-0.09375 0.09375; 0.0 0.0; 0.0 0.0]
+    @test body.position == [-0.09375 1.09375; 0.0 0.0; 0.0 0.0]
     @test body.b_int == zeros(3, 2, 1)
     @test body.acceleration == zeros(3, 2)
-    @test body.velocity == [-0.03125 0.03125; 0.0 0.0; 0.0 0.0]
+    @test body.velocity == [-0.046875 0.046875; 0.0 0.0; 0.0 0.0]
 else
     @warn "Test omitted! Threads.nthreads() should be <= 2"
 end

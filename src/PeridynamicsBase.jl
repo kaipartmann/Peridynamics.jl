@@ -920,7 +920,10 @@ end
 function dynamic_relaxation_finite_difference!(
     body::AbstractPDBody, sim::PDSingleBodyAnalysis
 )
-    damping_matrix = fill(18 * sim.mat.K * sim.td.Δt^2 / sim.mat.δ, (3, body.n_points))
+    damping_matrix = fill(
+        6 * sim.mat.K * sim.td.Δt^2 / (1/3 * sim.mat.δ^2),
+        (3, body.n_points),
+    )
     velocity_half_old = zeros(Float64, (3, body.n_points))
     b_int_old = zeros(Float64, (3, body.n_points))
     p = Progress(
