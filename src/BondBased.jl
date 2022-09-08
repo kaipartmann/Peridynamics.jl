@@ -65,7 +65,7 @@ struct BondBasedBody <: AbstractPDBody
     owned_points::Vector{UnitRange{Int}}
     owned_bonds::Vector{UnitRange{Int}}
     bond_data::Vector{Tuple{Int,Int,Float64,Bool}}
-    volumes::Vector{Float64}
+    volume::Vector{Float64}
     n_family_members::Vector{Int}
     n_active_family_members::Matrix{Int}
     position::Matrix{Float64}
@@ -84,7 +84,7 @@ function BondBasedBody(mat::BondBasedMaterial, pc::PointCloud)
     n_points = pc.n_points
     @assert n_points >= n_threads "n_points < n_threads"
     owned_points = defaultdist(n_points, n_threads)
-    volumes = pc.volume
+    volume = pc.volume
     position = pc.position
     displacement = zeros(Float64, (3, n_points))
     velocity = zeros(Float64, (3, n_points))
@@ -112,7 +112,7 @@ function BondBasedBody(mat::BondBasedMaterial, pc::PointCloud)
         owned_points,
         owned_bonds,
         bond_data,
-        volumes,
+        volume,
         n_family_members,
         n_active_family_members,
         position,
@@ -147,7 +147,7 @@ function compute_forcedensity!(body::BondBasedBody, mat::BondBasedMaterial)
             ϑz = body.position[3, j] - body.position[3, i]
             η = sqrt(ϑx * ϑx + ϑy * ϑy + ϑz * ϑz)
             ε = (η - ξ) / ξ
-            temp = body.bond_failure[current_bond] * mat.bc * body.volumes[j] * ε / η
+            temp = body.bond_failure[current_bond] * mat.bc * body.volume[j] * ε / η
             body.b_int[1, i, tid] += temp * ϑx
             body.b_int[2, i, tid] += temp * ϑy
             body.b_int[3, i, tid] += temp * ϑz

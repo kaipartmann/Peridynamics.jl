@@ -747,7 +747,7 @@ function calc_stable_timestep(body::AbstractPDBody, rho::Float64, K::Float64, δ
         dtsum = zeros(Float64, (body.n_points, body.n_threads))
         for current_one_ni in body.owned_bonds[tid]
             (a, i, L, _) = body.bond_data[current_one_ni]
-            dtsum[a, tid] += body.volumes[i] * 1 / L * 18 * K / (π * δ^4)
+            dtsum[a, tid] += body.volume[i] * 1 / L * 18 * K / (π * δ^4)
         end
         for a in body.owned_points[tid]
             dtsum[a, 1] = sum(@view dtsum[a, :])

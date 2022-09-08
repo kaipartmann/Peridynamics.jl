@@ -18,7 +18,7 @@ if Threads.nthreads() <= 2
     mat = BondBasedMaterial(; horizon=δ, rho=1, E=1, Gc=1)
     body = Peridynamics.create_simmodel(mat, pc)
 
-    Δt = 0.7 * sqrt(2 * 1 / (body.volumes[2] * 1 / 1 * 18 * 2/3 / (π * δ^4)))
+    Δt = 0.7 * sqrt(2 * 1 / (body.volume[2] * 1 / 1 * 18 * 2/3 / (π * δ^4)))
     @test Peridynamics.calc_stable_timestep(body, mat.rho, mat.K, δ) == Δt
     @test calc_stable_user_timestep(pc, mat) == Δt
 else

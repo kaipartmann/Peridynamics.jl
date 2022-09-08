@@ -248,12 +248,12 @@ function compute_contactforcedensity!(
                     η = sqrt(ϑx * ϑx + ϑy * ϑy + ϑz * ϑz)
                     if η < r
                         temp::Float64 = C * (r - η) / η
-                        body_a.b_int[1, i, tid] -= temp * ϑx * body_b.volumes[j]
-                        body_a.b_int[2, i, tid] -= temp * ϑy * body_b.volumes[j]
-                        body_a.b_int[3, i, tid] -= temp * ϑz * body_b.volumes[j]
-                        body_b.b_int[1, j, tid] += temp * ϑx * body_a.volumes[i]
-                        body_b.b_int[2, j, tid] += temp * ϑy * body_a.volumes[i]
-                        body_b.b_int[3, j, tid] += temp * ϑz * body_a.volumes[i]
+                        body_a.b_int[1, i, tid] -= temp * ϑx * body_b.volume[j]
+                        body_a.b_int[2, i, tid] -= temp * ϑy * body_b.volume[j]
+                        body_a.b_int[3, i, tid] -= temp * ϑz * body_b.volume[j]
+                        body_b.b_int[1, j, tid] += temp * ϑx * body_a.volume[i]
+                        body_b.b_int[2, j, tid] += temp * ϑy * body_a.volume[i]
+                        body_b.b_int[3, j, tid] += temp * ϑz * body_a.volume[i]
                     end
                 end
             end
