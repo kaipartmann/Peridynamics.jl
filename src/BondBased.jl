@@ -99,7 +99,7 @@ function BondBasedBody(mat::BondBasedMaterial, pc::PointCloud)
     owned_bonds = defaultdist(n_bonds, n_threads)
     bond_failure = ones(Int, n_bonds)
     n_active_family_members = zeros(Int, (n_points, n_threads))
-    @threads :static for tid in 1:n_threads
+    @threads for tid in 1:n_threads
         for i in owned_points[tid]
             n_active_family_members[i, tid] = n_family_members[i]
         end
@@ -138,8 +138,7 @@ create_simmodel(mat::BondBasedMaterial, pc::PointCloud) = BondBasedBody(mat, pc)
 function compute_forcedensity!(body::BondBasedBody, mat::BondBasedMaterial)
     body.b_int .= 0.0
     body.n_active_family_members .= 0
-    @threads :static for _ in 1:(body.n_threads)
-        tid = threadid()
+    @threads for tid in 1:body.n_threads
         for current_bond in body.owned_bonds[tid]
             (i, j, ξ, failureflag) = body.bond_data[current_bond]
             ϑx = body.position[1, j] - body.position[1, i]

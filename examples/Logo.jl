@@ -48,7 +48,7 @@ matₛ = BondBasedMaterial(;
 )
 
 ##--   4. DEFINE INITIAL CONDITIONS   ------------------------------------------------------
-icₛ = [VelocityIC(-20.0, 1:(pcₛ₁.n_points), 3)]
+icₛ = [VelocityIC(-20.0, 1:pcₛ₁.n_points, 3)]
 
 ##--   5. DEFINE THE BODY-SETUP   ----------------------------------------------------------
 plate = BodySetup(pcₚ, matₚ)

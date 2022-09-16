@@ -49,7 +49,11 @@ if Threads.nthreads() <= 2
     @test body.n_threads == Threads.nthreads()
     @test body.unique_bonds == true
     @test body.b_int == zeros(3, n_points, Threads.nthreads())
-    @test body.n_active_family_members == [1; 1;;]
+    if Threads.nthreads() == 1
+        @test body.n_active_family_members == [1; 1;;]
+    elseif Threads.nthreads() == 2
+        @test body.n_active_family_members == [1 0; 0 1]
+    end
     @test body.bond_failure == [1]
 
     # Boundary Condition:
@@ -57,7 +61,11 @@ if Threads.nthreads() <= 2
     body.position[1, 2] = 1.0015
     Peridynamics.compute_forcedensity!(body, mat)
 
-    @test body.n_active_family_members == [0; 0;;]
+    if Threads.nthreads() == 1
+        @test body.n_active_family_members == [0; 0;;]
+    elseif Threads.nthreads() == 2
+        @test body.n_active_family_members == [0 0; 0 0]
+    end
     @test body.bond_failure == [0]
 
     b¹² = [
@@ -65,8 +73,8 @@ if Threads.nthreads() <= 2
         0.0
         0.0
     ]
-    Threads.@threads for _ in 1:Threads.nthreads()
-        for i in body.owned_points[Threads.threadid()]
+    Threads.@threads for tid in 1:Threads.nthreads()
+        for i in body.owned_points[tid]
             body.b_int[1,i,1] = sum(@view body.b_int[1,i,:])
             body.b_int[2,i,1] = sum(@view body.b_int[2,i,:])
             body.b_int[3,i,1] = sum(@view body.b_int[3,i,:])

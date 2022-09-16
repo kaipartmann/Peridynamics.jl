@@ -97,7 +97,7 @@ function submit(sim::PDContactAnalysis)
         log_describe_sim(sim)
         bodies = [create_simmodel(ps.mat, ps.pc) for ps in sim.body_setup]
         log_describe_interactions(bodies, sim.es)
-        for i in 1:(sim.n_bodies)
+        for i in 1:sim.n_bodies
             for precrack in sim.body_setup[i].precracks
                 define_precrack!(bodies[i], precrack)
             end
@@ -105,7 +105,7 @@ function submit(sim::PDContactAnalysis)
         end
         if sim.td.Δt < 0.0
             _Δt = Vector{Float64}(undef, 0)
-            for i in 1:(sim.n_bodies)
+            for i in 1:sim.n_bodies
                 if sim.body_setup[i].calc_timestep
                     push!(
                         _Δt,
@@ -121,11 +121,11 @@ function submit(sim::PDContactAnalysis)
             sim.td.Δt = minimum(_Δt)
         end
         log_simsetup(sim)
-        for i in 1:(sim.n_bodies)
+        for i in 1:sim.n_bodies
             apply_ics!(bodies[i], sim.body_setup[i].ics)
         end
         if sim.es.exportflag
-            for i in 1:(sim.n_bodies)
+            for i in 1:sim.n_bodies
                 export_results(bodies[i], string(sim.es.resultfile_prefix, "_b", i), 0, 0.0)
             end
         end
@@ -137,7 +137,7 @@ end
 
 function log_describe_sim(sim::PDContactAnalysis)
     msg = "Peridynamic multibody contact analysis: " * sim.name * "\nMaterial parameters:\n"
-    for i in 1:(sim.n_bodies)
+    for i in 1:sim.n_bodies
         msg *= @sprintf("Body %d:\n", i)
         msg *= @sprintf(
             "  - Number of material points [-]:      %30g\n",
@@ -209,9 +209,9 @@ function velocity_verlet!(body::Vector{<:AbstractPDBody}, sim::PDContactAnalysis
         enabled=!is_logging(stderr),
     )
     Δt½ = 0.5 * sim.td.Δt
-    for t in 1:(sim.td.n_timesteps)
+    for t in 1:sim.td.n_timesteps
         time = t * sim.td.Δt
-        for i in 1:(sim.n_bodies)
+        for i in 1:sim.n_bodies
             update_velhalf!(body[i], Δt½)
             apply_bcs!(body[i], sim.body_setup[i].bcs, time)
             update_disp_and_position!(body[i], sim.td.Δt)
@@ -219,11 +219,11 @@ function velocity_verlet!(body::Vector{<:AbstractPDBody}, sim::PDContactAnalysis
             calc_damage!(body[i])
         end
         compute_contactforcedensity!(body, sim)
-        for i in 1:(sim.n_bodies)
+        for i in 1:sim.n_bodies
             compute_equation_of_motion!(body[i], Δt½, sim.body_setup[i].mat.rho)
         end
         if mod(t, sim.es.exportfreq) == 0
-            for i in 1:(sim.n_bodies)
+            for i in 1:sim.n_bodies
                 export_results(body[i], string(sim.es.resultfile_prefix, "_b", i), t, time)
             end
         end
@@ -242,10 +242,9 @@ function compute_contactforcedensity!(
         body_b = bodies[jj]
         r = contact.search_radius
         C = 9 * contact.spring_constant / (π * sim.body_setup[ii].mat.δ^4)
-        @threads :static for _ in 1:nthreads()
-            tid = threadid()
+        @threads for tid in 1:nthreads()
             for i in body_a.owned_points[tid]
-                for j in 1:(body_b.n_points)
+                for j in 1:body_b.n_points
                     ϑx = body_b.position[1, j] - body_a.position[1, i]
                     ϑy = body_b.position[2, j] - body_a.position[2, i]
                     ϑz = body_b.position[3, j] - body_a.position[3, i]

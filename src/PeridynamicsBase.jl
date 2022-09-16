@@ -431,8 +431,7 @@ function find_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{UnitRange{
         color=:normal,
         enabled=!is_logging(stderr),
     )
-    @threads :static for _ in 1:n_threads
-        tid = threadid()
+    @threads for tid in 1:n_threads
         local_bond_data = Vector{Tuple{Int,Int,Float64,Bool}}(undef, 0)
         sizehint!(local_bond_data, pc.n_points * 500)
         idst = 0.0
@@ -440,7 +439,7 @@ function find_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{UnitRange{
         fail = false
         for a in owned_points[tid]
             num = 0
-            for i in 1:(pc.n_points)
+            for i in 1:pc.n_points
                 if a !== i
                     idst = sqrt(
                         (pc.position[1, i] - pc.position[1, a])^2 +
@@ -475,8 +474,7 @@ function find_unique_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{Uni
         color=:normal,
         enabled=!is_logging(stderr),
     )
-    @threads :static for _ in 1:n_threads
-        tid = threadid()
+    @threads for tid in 1:n_threads
         local_bonds_data = Vector{Tuple{Int,Int,Float64,Bool}}(undef, 0)
         sizehint!(local_bonds_data, pc.n_points * 500)
         idst = 0.0
@@ -484,7 +482,7 @@ function find_unique_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{Uni
         fail = false
         for a in owned_points[tid]
             num = 0
-            for i in 1:(pc.n_points)
+            for i in 1:pc.n_points
                 if a !== i
                     idst = sqrt(
                         (pc.position[1, i] - pc.position[1, a])^2 +
@@ -531,7 +529,7 @@ function defaultdist(sz::Int, nc::Int)
         return grid
     else
         sidx = [1:(sz + 1);]
-        grid = fill(0:0, nc)
+        grid = fill(0:-1, nc)
         for i in 1:sz
             grid[i] = sidx[i]:(sidx[i + 1] - 1)
         end
@@ -737,8 +735,7 @@ function log_closesim(part::AbstractPDBody, timingsummary::NamedTuple, es::Expor
 end
 
 function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
-    @threads :static for _ in 1:(body.n_threads)
-        tid = threadid()
+    @threads for tid in 1:body.n_threads
         (@view body.n_active_family_members[:, tid]) .= 0
         for current_one_ni in body.owned_bonds[tid]
             i, j, _, _ = body.bond_data[current_one_ni]
@@ -760,8 +757,7 @@ end
 
 function calc_stable_timestep(body::AbstractPDBody, rho::Float64, K::Float64, δ::Float64)
     _Δt = zeros(Float64, body.n_threads)
-    @threads :static for _ in 1:(body.n_threads)
-        tid = threadid()
+    @threads for tid in 1:body.n_threads
         timesteps = zeros(Float64, body.n_points)
         dtsum = zeros(Float64, (body.n_points, body.n_threads))
         for current_one_ni in body.owned_bonds[tid]
@@ -796,8 +792,7 @@ function calc_stable_user_timestep(pc::PointCloud, mat::AbstractPDMaterial, Sf::
     bond_data, _ = find_bonds(pc, mat.δ, owned_points)
     owned_bonds = defaultdist(length(bond_data), nthreads())
     _Δt = zeros(Float64, nthreads())
-    @threads :static for _ in 1:nthreads()
-        tid = threadid()
+    @threads for tid in 1:nthreads()
         timesteps = zeros(Float64, pc.n_points)
         dtsum = zeros(Float64, (pc.n_points, nthreads()))
         for current_one_ni in owned_bonds[tid]
@@ -815,8 +810,8 @@ function calc_stable_user_timestep(pc::PointCloud, mat::AbstractPDMaterial, Sf::
 end
 
 function calc_damage!(body::AbstractPDBody)
-    @threads :static for _ in 1:(body.n_threads)
-        for a in body.owned_points[threadid()]
+    @threads for tid in 1:body.n_threads
+        for a in body.owned_points[tid]
             body.n_active_family_members[a, 1] = sum(
                 @view body.n_active_family_members[a, :]
             )
@@ -897,7 +892,7 @@ end
 
 function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::Float64)
     filename = expfile * "_t" * string(timestep)
-    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:(body.n_points)]
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:body.n_points]
     vtkfile = vtk_grid(filename, body.position, cells)
     vtkfile["Damage", VTKPointData()] = body.damage
     vtkfile["Force density", VTKPointData()] = @views body.b_int[:, :, 1]
@@ -923,7 +918,7 @@ function velocity_verlet!(body::AbstractPDBody, sim::PDSingleBodyAnalysis)
         enabled=!is_logging(stderr),
     )
     Δt½ = 0.5 * sim.td.Δt
-    for t in 1:(sim.td.n_timesteps)
+    for t in 1:sim.td.n_timesteps
         time = t * sim.td.Δt
         update_velhalf!(body, Δt½)
         apply_bcs!(body, sim.bcs, time)
@@ -956,7 +951,7 @@ function dynamic_relaxation_finite_difference!(
         color=:normal,
         enabled=!is_logging(stderr),
     )
-    for t in 1:(sim.td.n_timesteps)
+    for t in 1:sim.td.n_timesteps
         time = t * sim.td.Δt
         apply_bcs!(body, sim.bcs, time)
         compute_forcedensity!(body, sim.mat)
@@ -989,7 +984,7 @@ function calc_damping(
 )
     cn1 = 0.0
     cn2 = 0.0
-    for i in 1:(body.n_points)
+    for i in 1:body.n_points
         for d in 1:3
             body.b_int[d, i, 1] = sum(@view body.b_int[d, i, :])
             if velocity_half_old[d, i] !== 0.0
@@ -1022,7 +1017,7 @@ function finite_difference_first_step!(
     b_int_old::Matrix{Float64},
     Δt::Float64,
 )
-    @threads for i in 1:(body.n_points)
+    @threads for i in 1:body.n_points
         for d in 1:3
             body.velocity_half[d, i] =
                 0.5 * Δt / damping_matrix[d, i] * (body.b_int[d, i, 1] + body.b_ext[d, i])
@@ -1044,7 +1039,7 @@ function finite_difference!(
     Δt::Float64,
     cn::Float64,
 )
-    @threads for i in 1:(body.n_points)
+    @threads for i in 1:body.n_points
         for d in 1:3
             body.velocity_half[d, i] =
                 (
@@ -1063,7 +1058,7 @@ function finite_difference!(
 end
 
 function update_velhalf!(body::AbstractPDBody, Δt½::Float64)
-    @threads for i in 1:(body.n_points)
+    @threads for i in 1:body.n_points
         body.velocity_half[1, i] = body.velocity[1, i] + body.acceleration[1, i] * Δt½
         body.velocity_half[2, i] = body.velocity[2, i] + body.acceleration[2, i] * Δt½
         body.velocity_half[3, i] = body.velocity[3, i] + body.acceleration[3, i] * Δt½
@@ -1072,7 +1067,7 @@ function update_velhalf!(body::AbstractPDBody, Δt½::Float64)
 end
 
 function update_disp_and_position!(body::AbstractPDBody, Δt::Float64)
-    @threads for i in 1:(body.n_points)
+    @threads for i in 1:body.n_points
         body.displacement[1, i] += body.velocity_half[1, i] * Δt
         body.displacement[2, i] += body.velocity_half[2, i] * Δt
         body.displacement[3, i] += body.velocity_half[3, i] * Δt
@@ -1084,7 +1079,7 @@ function update_disp_and_position!(body::AbstractPDBody, Δt::Float64)
 end
 
 function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, rho::Float64)
-    @threads for i in 1:(body.n_points)
+    @threads for i in 1:body.n_points
         body.b_int[1, i, 1] = sum(@view body.b_int[1, i, :])
         body.b_int[2, i, 1] = sum(@view body.b_int[2, i, :])
         body.b_int[3, i, 1] = sum(@view body.b_int[3, i, :])

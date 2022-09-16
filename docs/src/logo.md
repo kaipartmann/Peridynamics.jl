@@ -75,7 +75,7 @@ matₛ = BondBasedMaterial(;
 
 All material points of the spheres have a initial velocity of $-20\, \mathrm{m} \, \mathrm{s}^{-1}$ in $z$-direction.
 ```julia
-icₛ = [VelocityIC(-20.0, 1:(pcₛ₁.n_points), 3)]
+icₛ = [VelocityIC(-20.0, 1:pcₛ₁.n_points, 3)]
 ```
 For the contact analysis, every body needs to be specified with a [`BodySetup`](@ref).
 Time can be saved by using only one sphere for the calculation of the stable time step.
