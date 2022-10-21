@@ -1,4 +1,4 @@
-# Libary
+# Library
 
 ```@meta
 CurrentModule = Peridynamics
