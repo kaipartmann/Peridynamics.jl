@@ -175,7 +175,7 @@ function sphere_radius(vol::T) where {T<:Real}
 end
 
 function Base.show(io::IO, ::MIME"text/plain", pc::PointCloud)
-    println(io, pc.n_points, "-points ", typeof(pc))
+    print(io, pc.n_points, "-points ", typeof(pc))
     return nothing
 end
 
@@ -194,6 +194,13 @@ struct PreCrack
     point_id_set_b::Vector{Int}
 end
 
+function Base.show(io::IO, ::MIME"text/plain", precrack::PreCrack)
+    println(io, typeof(precrack), ":")
+    println(io, " ", length(precrack.point_id_set_a), " points in set a")
+    print(io, " ", length(precrack.point_id_set_b), " points in set b")
+    return nothing
+end
+
 """
     AbstractBC
 
@@ -201,12 +208,38 @@ Abstract type for boundary conditions.
 """
 abstract type AbstractBC end
 
+function Base.show(io::IO, ::MIME"text/plain", bc::T) where {T<:AbstractBC}
+    msg = string(length(bc.point_id_set), "-points ", T)
+    if bc.dim == 1
+        msg *= " in x-direction (dim=1)"
+    elseif bc.dim == 2
+        msg *= " in y-direction (dim=2)"
+    elseif bc.dim == 3
+        msg *= " in z-direction (dim=3)"
+    end
+    print(io, msg)
+    return nothing
+end
+
 """
     AbstractIC
 
 Abstract type for initial conditions.
 """
 abstract type AbstractIC end
+
+function Base.show(io::IO, ::MIME"text/plain", ic::T) where {T<:AbstractIC}
+    msg = string(length(ic.point_id_set), "-points ", T)
+    if ic.dim == 1
+        msg *= " in x-direction (dim=1)"
+    elseif ic.dim == 2
+        msg *= " in y-direction (dim=2)"
+    elseif ic.dim == 3
+        msg *= " in z-direction (dim=3)"
+    end
+    print(io, msg)
+    return nothing
+end
 
 @doc raw"""
     VelocityBC <: AbstractBC
@@ -369,6 +402,18 @@ function TimeDiscretization(n_timesteps::Int, Δt::Real; alg::Symbol=:verlet)
     end
 end
 
+function Base.show(io::IO, ::MIME"text/plain", td::TimeDiscretization)
+    println(io, typeof(td), ":")
+    println(" number of time steps: ", td.n_timesteps)
+    println(" Δt: ", td.Δt)
+    if td.alg == :verlet
+    print(" algorithm: dynamic (Velocity-Verlet algorithm)")
+    elseif td.alg == :dynrelax
+        print(" algorithm: quasi-static (adaptive dynamic relaxation)")
+    end
+    return nothing
+end
+
 """
     ExportSettings
 
@@ -404,6 +449,11 @@ end
 ExportSettings() = ExportSettings("", 0, "", "", false)
 ExportSettings(path::String, freq::Int) = ExportSettings(path, freq, "", "", true)
 
+function Base.show(io::IO, ::MIME"text/plain", es::ExportSettings)
+    print(io, typeof(es))
+    return nothing
+end
+
 abstract type AbstractPDBody end
 
 """
@@ -419,6 +469,11 @@ abstract type AbstractPDMaterial end
 Abstract type for a peridynamic analysis.
 """
 abstract type AbstractPDAnalysis end
+
+function Base.show(io::IO, ::MIME"text/plain", pdsba::T) where {T<:AbstractPDAnalysis}
+    print(io, typeof(pdsba), ": ", pdsba.name)
+    return nothing
+end
 
 function find_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{UnitRange{Int}})
     n_threads = nthreads()

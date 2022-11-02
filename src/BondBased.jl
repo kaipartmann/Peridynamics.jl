@@ -50,9 +50,10 @@ function BondBasedMaterial(; horizon::Real, rho::Real, E::Real, Gc::Real)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", mat::BondBasedMaterial)
-    println(io, typeof(mat), ":")
+    print(io, typeof(mat), ":")
     for field in fieldnames(typeof(mat))
-        @printf(io, "  %s: %g\n", string(field), getfield(mat, field))
+        msg = "\n  " * rpad(string(field) * ":", 5) * string(getfield(mat, field))
+        print(io, msg)
     end
     return nothing
 end
@@ -129,7 +130,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", body::BondBasedBody)
     println(io, body.n_points, "-points ", typeof(body), ":")
-    println(io, "  Number of bonds / 1-NI: ", body.n_bonds)
+    print(io, "  ", body.n_bonds, " bonds")
     return nothing
 end
 
