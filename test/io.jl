@@ -26,24 +26,19 @@ if Threads.nthreads() <= 2
     rm.(joinpath.(@__DIR__,filter(x->endswith(x,".vtu"), readdir(@__DIR__))), force=true)
     rm.(joinpath.(@__DIR__,filter(x->endswith(x,".jld2"), readdir(@__DIR__))), force=true)
 
-    msg_mat = """
-    BondBasedMaterial:
-      δ: 1.5
-      rho: 7850
-      E: 2.1e+11
-      nu: 0.25
-      G: 8.4e+10
-      K: 1.4e+11
-      bc: 1.58448e+11
-      Gc: 1
-      εc: 1.6265e-06
-    """
-    msg_body = """
-    2-points Peridynamics.BondBasedBody:
-      Number of bonds / 1-NI: 1
-    """
-    @test_warn msg_mat Base.show(stderr, "text/plain", mat)
-    @test_warn msg_body Base.show(stderr, "text/plain", body)
+    io = IOBuffer()
+    show(IOContext(io, :limit => true, :displaysize => (20, 40)), "text/plain", mat)
+    msg_mat = String(take!(io))
+    @test msg_mat == string(
+        "BondBasedMaterial:\n  δ:   1.5\n  rho: 7850.0\n  E:   2.1e11\n  ",
+        "nu:  0.25\n  G:   8.4e10\n  K:   1.4e11\n  bc:  1.584475877892647e11\n  ",
+        "Gc:  1.0\n  εc:  1.6265001215808886e-6",
+    )
+
+    io = IOBuffer()
+    show(IOContext(io, :limit => true, :displaysize => (20, 40)), "text/plain", body)
+    msg_body = String(take!(io))
+    @test msg_body == "2-points Peridynamics.BondBasedBody:\n  1 bonds"
 else
     @warn "Test omitted! Threads.nthreads() should be <= 2"
 end
