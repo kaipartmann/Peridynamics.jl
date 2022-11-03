@@ -65,6 +65,7 @@ struct BondBasedBody <: AbstractPDBody
     unique_bonds::Bool
     owned_points::Vector{UnitRange{Int}}
     owned_bonds::Vector{UnitRange{Int}}
+    sum_tids::Vector{Vector{Int}}
     bond_data::Vector{Tuple{Int,Int,Float64,Bool}}
     volume::Vector{Float64}
     n_family_members::Vector{Int}
@@ -100,11 +101,21 @@ function BondBasedBody(mat::BondBasedMaterial, pc::PointCloud)
     owned_bonds = defaultdist(n_bonds, n_threads)
     bond_failure = ones(Int, n_bonds)
     n_active_family_members = zeros(Int, (n_points, n_threads))
+    _sum_tids = zeros(Bool, (n_points, n_threads))
+    _sum_tids .= false
     @threads for tid in 1:n_threads
         for i in owned_points[tid]
             n_active_family_members[i, tid] = n_family_members[i]
         end
+        for current_bond in owned_bonds[tid]
+            (i, j, _, _) = bond_data[current_bond]
+            _sum_tids[i, tid] = true
+            _sum_tids[j, tid] = true
+        end
     end
+    sum_tids = [findall(row) for row in eachrow(_sum_tids)]
+    # single_tids_ids = findall(x -> length(x) == 1, sum_tids)
+    # single_tids = zip(single_tids_ids, sum_tids[single_tids_ids])
     return BondBasedBody(
         n_points,
         n_bonds,
@@ -112,6 +123,7 @@ function BondBasedBody(mat::BondBasedMaterial, pc::PointCloud)
         unique_bonds,
         owned_points,
         owned_bonds,
+        sum_tids,
         bond_data,
         volume,
         n_family_members,
@@ -139,7 +151,7 @@ create_simmodel(mat::BondBasedMaterial, pc::PointCloud) = BondBasedBody(mat, pc)
 function compute_forcedensity!(body::BondBasedBody, mat::BondBasedMaterial)
     body.b_int .= 0.0
     body.n_active_family_members .= 0
-    @threads for tid in 1:body.n_threads
+    @inbounds @threads for tid in 1:body.n_threads
         for current_bond in body.owned_bonds[tid]
             (i, j, ξ, failureflag) = body.bond_data[current_bond]
             ϑx = body.position[1, j] - body.position[1, i]
