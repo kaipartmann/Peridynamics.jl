@@ -649,28 +649,28 @@ function submit(sim::PDSingleBodyAnalysis)
     timingsummary = @timed begin
         log_header(sim.es)
         log_describe_sim(sim.name, sim.pc, sim.mat, sim.es)
-        bodies = create_simmodel(sim.mat, sim.pc)
-        log_describe_interactions(bodies, sim.es)
+        body = create_simmodel(sim.mat, sim.pc)
+        log_describe_interactions(body, sim.es)
         for precrack in sim.precracks
-            define_precrack!(bodies, precrack)
+            define_precrack!(body, precrack)
         end
-        calc_damage!(bodies)
+        calc_damage!(body)
         if sim.td.Δt < 0.0 && sim.td.alg !== :dynrelax
-            sim.td.Δt = calc_stable_timestep(bodies, sim.mat.rho, sim.mat.K, sim.mat.δ)
+            sim.td.Δt = calc_stable_timestep(body, sim.mat.rho, sim.mat.K, sim.mat.δ)
         end
         log_simsetup(sim)
-        apply_ics!(bodies, sim.ics)
+        apply_ics!(body, sim.ics)
         if sim.es.exportflag
-            export_results(bodies, sim.es.resultfile_prefix, 0, 0.0)
+            export_results(body, sim.es.resultfile_prefix, 0, 0.0)
         end
         if sim.td.alg == :verlet
-            velocity_verlet!(bodies, sim)
+            velocity_verlet!(body, sim)
         elseif sim.td.alg == :dynrelax
-            dynamic_relaxation_finite_difference!(bodies, sim)
+            dynamic_relaxation_finite_difference!(body, sim)
         end
     end
-    log_closesim(bodies, timingsummary, sim.es)
-    return bodies
+    log_closesim(body, timingsummary, sim.es)
+    return body
 end
 
 function log_header(es::ExportSettings)
@@ -790,7 +790,7 @@ function log_closesim(part::AbstractPDBody, timingsummary::NamedTuple, es::Expor
 end
 
 function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
-    @threads for tid in 1:body.n_threads
+    @inbounds @threads for tid in 1:body.n_threads
         (@view body.n_active_family_members[:, tid]) .= 0
         for current_one_ni in body.owned_bonds[tid]
             i, j, _, _ = body.bond_data[current_one_ni]
@@ -812,7 +812,7 @@ end
 
 function calc_stable_timestep(body::AbstractPDBody, rho::Float64, K::Float64, δ::Float64)
     _Δt = zeros(Float64, body.n_threads)
-    @threads for tid in 1:body.n_threads
+    @inbounds @threads for tid in 1:body.n_threads
         timesteps = zeros(Float64, body.n_points)
         dtsum = zeros(Float64, (body.n_points, body.n_threads))
         for current_one_ni in body.owned_bonds[tid]
@@ -847,7 +847,7 @@ function calc_stable_user_timestep(pc::PointCloud, mat::AbstractPDMaterial, Sf::
     bond_data, _ = find_bonds(pc, mat.δ, owned_points)
     owned_bonds = defaultdist(length(bond_data), nthreads())
     _Δt = zeros(Float64, nthreads())
-    @threads for tid in 1:nthreads()
+    @inbounds @threads for tid in 1:nthreads()
         timesteps = zeros(Float64, pc.n_points)
         dtsum = zeros(Float64, (pc.n_points, nthreads()))
         for current_one_ni in owned_bonds[tid]
@@ -866,12 +866,12 @@ end
 
 function calc_damage!(body::AbstractPDBody)
     @threads for tid in 1:body.n_threads
-        for a in body.owned_points[tid]
-            body.n_active_family_members[a, 1] = sum(
-                @view body.n_active_family_members[a, :]
+        @inbounds for i in body.owned_points[tid]
+            body.n_active_family_members[i, 1] = sum(
+                @view body.n_active_family_members[i, body.sum_tids[i]]
             )
-            body.damage[a] =
-                1 - body.n_active_family_members[a, 1] / body.n_family_members[a]
+            body.damage[i] =
+                1 - body.n_active_family_members[i, 1] / body.n_family_members[i]
         end
     end
     return nothing
@@ -887,7 +887,7 @@ end
 function apply_boundarycondition!(body::AbstractPDBody, bc::VelocityBC, t::Float64)
     value = bc.fun(t)
     dim = bc.dim
-    @simd for i in bc.point_id_set
+    @inbounds @simd for i in bc.point_id_set
         body.velocity_half[dim, i] = value
     end
     return nothing
@@ -896,7 +896,7 @@ end
 function apply_boundarycondition!(body::AbstractPDBody, bc::ForceDensityBC, t::Float64)
     value = bc.fun(t)
     dim = bc.dim
-    @simd for i in bc.point_id_set
+    @inbounds @simd for i in bc.point_id_set
         body.b_ext[dim, i] = value
     end
     return nothing
@@ -904,7 +904,7 @@ end
 
 function apply_boundarycondition!(body::AbstractPDBody, bc::PosDepVelBC, t::Float64)
     dim = bc.dim
-    @simd for i in bc.point_id_set
+    @inbounds @simd for i in bc.point_id_set
         body.velocity_half[dim, i] = bc.fun(
             body.position[1, i], body.position[2, i], body.position[3, i], t
         )
@@ -921,7 +921,7 @@ end
 
 function apply_initialcondition!(body::AbstractPDBody, ic::VelocityIC)
     dim = ic.dim
-    @simd for i in ic.point_id_set
+    @inbounds @simd for i in ic.point_id_set
         body.velocity[dim, i] = ic.val
     end
     return nothing
@@ -1113,7 +1113,7 @@ function finite_difference!(
 end
 
 function update_velhalf!(body::AbstractPDBody, Δt½::Float64)
-    @threads for i in 1:body.n_points
+    @inbounds @threads for i in 1:body.n_points
         body.velocity_half[1, i] = body.velocity[1, i] + body.acceleration[1, i] * Δt½
         body.velocity_half[2, i] = body.velocity[2, i] + body.acceleration[2, i] * Δt½
         body.velocity_half[3, i] = body.velocity[3, i] + body.acceleration[3, i] * Δt½
@@ -1122,7 +1122,7 @@ function update_velhalf!(body::AbstractPDBody, Δt½::Float64)
 end
 
 function update_disp_and_position!(body::AbstractPDBody, Δt::Float64)
-    @threads for i in 1:body.n_points
+    @inbounds @threads for i in 1:body.n_points
         body.displacement[1, i] += body.velocity_half[1, i] * Δt
         body.displacement[2, i] += body.velocity_half[2, i] * Δt
         body.displacement[3, i] += body.velocity_half[3, i] * Δt
@@ -1134,10 +1134,10 @@ function update_disp_and_position!(body::AbstractPDBody, Δt::Float64)
 end
 
 function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, rho::Float64)
-    @threads for i in 1:body.n_points
-        body.b_int[1, i, 1] = sum(@view body.b_int[1, i, :])
-        body.b_int[2, i, 1] = sum(@view body.b_int[2, i, :])
-        body.b_int[3, i, 1] = sum(@view body.b_int[3, i, :])
+    @inbounds @threads for i in 1:body.n_points
+        body.b_int[1, i, 1] = sum(@view body.b_int[1, i, body.sum_tids[i]])
+        body.b_int[2, i, 1] = sum(@view body.b_int[2, i, body.sum_tids[i]])
+        body.b_int[3, i, 1] = sum(@view body.b_int[3, i, body.sum_tids[i]])
         body.acceleration[1, i] = (body.b_int[1, i, 1] + body.b_ext[1, i]) / rho
         body.acceleration[2, i] = (body.b_int[2, i, 1] + body.b_ext[2, i]) / rho
         body.acceleration[3, i] = (body.b_int[3, i, 1] + body.b_ext[3, i]) / rho

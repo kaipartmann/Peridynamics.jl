@@ -220,7 +220,7 @@ function velocity_verlet!(body::Vector{<:AbstractPDBody}, sim::PDContactAnalysis
         end
         compute_contactforcedensity!(body, sim)
         for i in 1:sim.n_bodies
-            compute_equation_of_motion!(body[i], Δt½, sim.body_setup[i].mat.rho)
+            compute_equation_of_motion_contact!(body[i], Δt½, sim.body_setup[i].mat.rho)
         end
         if mod(t, sim.es.exportfreq) == 0
             for i in 1:sim.n_bodies
@@ -230,6 +230,25 @@ function velocity_verlet!(body::Vector{<:AbstractPDBody}, sim::PDContactAnalysis
         next!(p)
     end
     finish!(p)
+    return nothing
+end
+
+function compute_equation_of_motion_contact!(
+    body::AbstractPDBody,
+    Δt½::Float64,
+    rho::Float64,
+)
+    @threads for i in 1:body.n_points
+        body.b_int[1, i, 1] = sum(@view body.b_int[1, i, :])
+        body.b_int[2, i, 1] = sum(@view body.b_int[2, i, :])
+        body.b_int[3, i, 1] = sum(@view body.b_int[3, i, :])
+        body.acceleration[1, i] = (body.b_int[1, i, 1] + body.b_ext[1, i]) / rho
+        body.acceleration[2, i] = (body.b_int[2, i, 1] + body.b_ext[2, i]) / rho
+        body.acceleration[3, i] = (body.b_int[3, i, 1] + body.b_ext[3, i]) / rho
+        body.velocity[1, i] = body.velocity_half[1, i] + body.acceleration[1, i] * Δt½
+        body.velocity[2, i] = body.velocity_half[2, i] + body.acceleration[2, i] * Δt½
+        body.velocity[3, i] = body.velocity_half[3, i] + body.acceleration[3, i] * Δt½
+    end
     return nothing
 end
 
