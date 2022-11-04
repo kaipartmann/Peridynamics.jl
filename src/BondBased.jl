@@ -65,7 +65,8 @@ struct BondBasedBody <: AbstractPDBody
     unique_bonds::Bool
     owned_points::Vector{UnitRange{Int}}
     owned_bonds::Vector{UnitRange{Int}}
-    sum_tids::Vector{Vector{Int}}
+    single_tids::Vector{Tuple{Int,Int}}
+    multi_tids::Vector{Tuple{Int,Vector{Int}}}
     bond_data::Vector{Tuple{Int,Int,Float64,Bool}}
     volume::Vector{Float64}
     n_family_members::Vector{Int}
@@ -114,8 +115,7 @@ function BondBasedBody(mat::BondBasedMaterial, pc::PointCloud)
         end
     end
     sum_tids = [findall(row) for row in eachrow(_sum_tids)]
-    # single_tids_ids = findall(x -> length(x) == 1, sum_tids)
-    # single_tids = zip(single_tids_ids, sum_tids[single_tids_ids])
+    single_tids, multi_tids = find_tids(sum_tids)
     return BondBasedBody(
         n_points,
         n_bonds,
@@ -123,7 +123,8 @@ function BondBasedBody(mat::BondBasedMaterial, pc::PointCloud)
         unique_bonds,
         owned_points,
         owned_bonds,
-        sum_tids,
+        single_tids,
+        multi_tids,
         bond_data,
         volume,
         n_family_members,

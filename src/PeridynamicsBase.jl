@@ -865,14 +865,18 @@ function calc_stable_user_timestep(pc::PointCloud, mat::AbstractPDMaterial, Sf::
 end
 
 function calc_damage!(body::AbstractPDBody)
-    @threads for tid in 1:body.n_threads
-        @inbounds for i in body.owned_points[tid]
-            body.n_active_family_members[i, 1] = sum(
-                @view body.n_active_family_members[i, body.sum_tids[i]]
-            )
-            body.damage[i] =
+    # @threads for tid in 1:body.n_threads
+    #     @inbounds for i in body.owned_points[tid]
+    #         body.n_active_family_members[i, 1] = sum(
+    #             @view body.n_active_family_members[i, body.sum_tids[i]]
+    #         )
+    #         body.damage[i] =
+    #             1 - body.n_active_family_members[i, 1] / body.n_family_members[i]
+    #     end
+    # end
+    @inbounds @threads for i in 1:body.n_points
+        body.damage[i] =
                 1 - body.n_active_family_members[i, 1] / body.n_family_members[i]
-        end
     end
     return nothing
 end
@@ -979,6 +983,7 @@ function velocity_verlet!(body::AbstractPDBody, sim::PDSingleBodyAnalysis)
         apply_bcs!(body, sim.bcs, time)
         update_disp_and_position!(body, sim.td.Δt)
         compute_forcedensity!(body, sim.mat)
+        update_thread_cache!(body)
         calc_damage!(body)
         compute_equation_of_motion!(body, Δt½, sim.mat.rho)
         if mod(t, sim.es.exportfreq) == 0
@@ -1010,6 +1015,7 @@ function dynamic_relaxation_finite_difference!(
         time = t * sim.td.Δt
         apply_bcs!(body, sim.bcs, time)
         compute_forcedensity!(body, sim.mat)
+        update_thread_cache!(body)
         calc_damage!(body)
         cn = calc_damping(body, damping_matrix, velocity_half_old, b_int_old, sim.td.Δt)
         if t == 1
@@ -1135,9 +1141,9 @@ end
 
 function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, rho::Float64)
     @inbounds @threads for i in 1:body.n_points
-        body.b_int[1, i, 1] = sum(@view body.b_int[1, i, body.sum_tids[i]])
-        body.b_int[2, i, 1] = sum(@view body.b_int[2, i, body.sum_tids[i]])
-        body.b_int[3, i, 1] = sum(@view body.b_int[3, i, body.sum_tids[i]])
+        # body.b_int[1, i, 1] = sum(@view body.b_int[1, i, body.sum_tids[i]])
+        # body.b_int[2, i, 1] = sum(@view body.b_int[2, i, body.sum_tids[i]])
+        # body.b_int[3, i, 1] = sum(@view body.b_int[3, i, body.sum_tids[i]])
         body.acceleration[1, i] = (body.b_int[1, i, 1] + body.b_ext[1, i]) / rho
         body.acceleration[2, i] = (body.b_int[2, i, 1] + body.b_ext[2, i]) / rho
         body.acceleration[3, i] = (body.b_int[3, i, 1] + body.b_ext[3, i]) / rho
@@ -1146,6 +1152,39 @@ function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, rho::
         body.velocity[3, i] = body.velocity_half[3, i] + body.acceleration[3, i] * Δt½
     end
     return nothing
+end
+
+function update_thread_cache!(body::AbstractPDBody)
+    @threads for (i, tid) in body.single_tids
+        body.b_int[1, i, 1] = body.b_int[1, i, tid]
+        body.b_int[2, i, 1] = body.b_int[2, i, tid]
+        body.b_int[3, i, 1] = body.b_int[3, i, tid]
+        body.n_active_family_members[i, 1] = body.n_active_family_members[i, tid]
+    end
+    @threads for (i, tids) in body.multi_tids
+        for tid in tids
+            body.b_int[1, i, 1] += body.b_int[1, i, tid]
+            body.b_int[2, i, 1] += body.b_int[2, i, tid]
+            body.b_int[3, i, 1] += body.b_int[3, i, tid]
+            body.n_active_family_members[i, 1] += body.n_active_family_members[i, tid]
+        end
+    end
+end
+
+function find_tids(sum_tids::Vector{Vector{Int}})
+    single_tids_ids = findall(x -> length(x) == 1 && x[1] != 1, sum_tids)
+    single_tids = Vector{Tuple{Int, Int}}(undef, length(single_tids_ids))
+    for i in eachindex(single_tids_ids)
+        single_tids[i] = (single_tids_ids[i], sum_tids[single_tids_ids[i]][1])
+    end
+    multi_tids_ids = findall(x -> length(x) > 1, sum_tids)
+    multi_tids = Vector{Tuple{Int, Vector{Int}}}(undef, length(multi_tids_ids))
+    for i in eachindex(multi_tids_ids)
+        point_id = multi_tids_ids[i]
+        tids = filter(x -> x != 1, sum_tids[point_id])
+        multi_tids[i] = (point_id, tids)
+    end
+    return single_tids, multi_tids
 end
 
 is_logging(io) = isa(io, Base.TTY) == false || (get(ENV, "CI", nothing) == "true")

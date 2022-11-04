@@ -73,13 +73,7 @@ if Threads.nthreads() <= 2
         0.0
         0.0
     ]
-    Threads.@threads for tid in 1:Threads.nthreads()
-        for i in body.owned_points[tid]
-            body.b_int[1,i,1] = sum(@view body.b_int[1,i,body.sum_tids[i]])
-            body.b_int[2,i,1] = sum(@view body.b_int[2,i,body.sum_tids[i]])
-            body.b_int[3,i,1] = sum(@view body.b_int[3,i,body.sum_tids[i]])
-        end
-    end
+    Peridynamics.update_thread_cache!(body)
     @test body.b_int[:,:,1] ≈ [b¹² -b¹²]
 else
     @warn "Test omitted! Threads.nthreads() should be <= 2"
