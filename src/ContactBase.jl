@@ -200,7 +200,7 @@ function log_closesim(
     return nothing
 end
 
-function velocity_verlet!(body::Vector{<:AbstractPDBody}, sim::PDContactAnalysis)
+function velocity_verlet!(bodies::Vector{<:AbstractPDBody}, sim::PDContactAnalysis)
     p = Progress(sim.td.n_timesteps;
         dt=1,
         desc="Time integration... ",
@@ -212,19 +212,20 @@ function velocity_verlet!(body::Vector{<:AbstractPDBody}, sim::PDContactAnalysis
     for t in 1:sim.td.n_timesteps
         time = t * sim.td.Δt
         for i in 1:sim.n_bodies
-            update_velhalf!(body[i], Δt½)
-            apply_bcs!(body[i], sim.body_setup[i].bcs, time)
-            update_disp_and_position!(body[i], sim.td.Δt)
-            compute_forcedensity!(body[i], sim.body_setup[i].mat)
-            calc_damage!(body[i])
+            update_velhalf!(bodies[i], Δt½)
+            apply_bcs!(bodies[i], sim.body_setup[i].bcs, time)
+            update_disp_and_position!(bodies[i], sim.td.Δt)
+            compute_forcedensity!(bodies[i], sim.body_setup[i].mat)
+            update_thread_cache_contact!(bodies[i])
+            calc_damage!(bodies[i])
         end
-        compute_contactforcedensity!(body, sim)
+        compute_contactforcedensity!(bodies, sim)
         for i in 1:sim.n_bodies
-            compute_equation_of_motion_contact!(body[i], Δt½, sim.body_setup[i].mat.rho)
+            compute_equation_of_motion_contact!(bodies[i], Δt½, sim.body_setup[i].mat.rho)
         end
         if mod(t, sim.es.exportfreq) == 0
             for i in 1:sim.n_bodies
-                export_results(body[i], string(sim.es.resultfile_prefix, "_b", i), t, time)
+                export_results(bodies[i], string(sim.es.resultfile_prefix, "_b", i), t, time)
             end
         end
         next!(p)
@@ -282,4 +283,15 @@ function compute_contactforcedensity!(
         end
     end
     return nothing
+end
+
+function update_thread_cache_contact!(body::AbstractPDBody)
+    @threads for (i, tid) in body.single_tids
+        body.n_active_family_members[i, 1] = body.n_active_family_members[i, tid]
+    end
+    @threads for (i, tids) in body.multi_tids
+        for tid in tids
+            body.n_active_family_members[i, 1] += body.n_active_family_members[i, tid]
+        end
+    end
 end

@@ -865,18 +865,8 @@ function calc_stable_user_timestep(pc::PointCloud, mat::AbstractPDMaterial, Sf::
 end
 
 function calc_damage!(body::AbstractPDBody)
-    # @threads for tid in 1:body.n_threads
-    #     @inbounds for i in body.owned_points[tid]
-    #         body.n_active_family_members[i, 1] = sum(
-    #             @view body.n_active_family_members[i, body.sum_tids[i]]
-    #         )
-    #         body.damage[i] =
-    #             1 - body.n_active_family_members[i, 1] / body.n_family_members[i]
-    #     end
-    # end
     @inbounds @threads for i in 1:body.n_points
-        body.damage[i] =
-                1 - body.n_active_family_members[i, 1] / body.n_family_members[i]
+        body.damage[i] = 1 - body.n_active_family_members[i, 1] / body.n_family_members[i]
     end
     return nothing
 end
@@ -1141,9 +1131,6 @@ end
 
 function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, rho::Float64)
     @inbounds @threads for i in 1:body.n_points
-        # body.b_int[1, i, 1] = sum(@view body.b_int[1, i, body.sum_tids[i]])
-        # body.b_int[2, i, 1] = sum(@view body.b_int[2, i, body.sum_tids[i]])
-        # body.b_int[3, i, 1] = sum(@view body.b_int[3, i, body.sum_tids[i]])
         body.acceleration[1, i] = (body.b_int[1, i, 1] + body.b_ext[1, i]) / rho
         body.acceleration[2, i] = (body.b_int[2, i, 1] + body.b_ext[2, i]) / rho
         body.acceleration[3, i] = (body.b_int[3, i, 1] + body.b_ext[3, i]) / rho
