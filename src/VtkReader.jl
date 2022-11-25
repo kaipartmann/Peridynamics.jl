@@ -9,6 +9,17 @@ export SimResult, read_vtk
 
 const HEADER_TYPE = UInt64
 
+"""
+    SimResult
+
+Simulation results for one time step imported from a .vtu file.
+
+# Fields
+- `position::Matrix{Float64}`: point position
+- `time::Float64`: time for time step
+- `damage::Vector{Float64}`: point damage
+- `displacement::Matrix{Float64}`: point displacement
+"""
 struct SimResult
     position::Matrix{Float64}
     time::Float64
@@ -127,6 +138,28 @@ function get_result(position_da, time_da, point_da_names, point_da, data)
     return SimResult(position, time, damage, displacement)
 end
 
+"""
+    read_vtk(file::String)
+
+Read .vtu-file containing simulation results of a time step.
+
+# Arguments
+- `file::String`: path to VTK .vtu-file
+
+# Returns
+- [`SimResult`](@ref): simulation result
+
+# Examples
+
+```julia-repl
+julia> read_vtk("ExampleSimulation_t3000.vtu")
+SimResult with fields:
+  position:     3×100 Matrix{Float64}
+  time:         Float64
+  damage:       100-element Vector{Float64}
+  displacement: 3×100 Matrix{Float64}
+```
+"""
 function read_vtk(file::String)
     if !endswith(file, ".vtu")
         _, extension = splitext(basename(file))

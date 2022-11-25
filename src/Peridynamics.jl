@@ -17,9 +17,9 @@ export submit
 export read_inp
 export read_vtk, SimResult
 
-# Base modules for peridynamics and contact problems
-include("PeridynamicsBase.jl")
-include("contact.jl")
+# Basics for peridynamics and contact problems
+include("peridynamics_base.jl")
+include("contact_base.jl")
 
 # Material models
 include("bond_based.jl")
