@@ -34,10 +34,10 @@ function Base.show(io::IO, ::MIME"text/plain", sr::SimResult)
         field_type = typeof(field_val)
         if !isempty(field_val)
             if field_type <: AbstractArray
-                print(io, "\n  ", rpad(string(field) * ":", 14))
+                print(io, "\n ", rpad(string(field) * ":", 14))
                 Base.array_summary(io, field_val, axes(field_val))
             else
-                print(io, "\n  ", rpad(string(field) * ":", 14), field_type)
+                print(io, "\n ", rpad(string(field) * ":", 14), field_type)
             end
         end
     end
