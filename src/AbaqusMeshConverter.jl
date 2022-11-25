@@ -1,3 +1,10 @@
+module AbaqusMeshConverter
+
+using StaticArrays
+using LinearAlgebra
+using AbaqusReader: abaqus_read_mesh
+using ..Peridynamics: PointCloud
+
 const SUPPORTED_ELEMENT_TYPES = [:Tet4, :Hex8]
 
 function get_points(
@@ -117,3 +124,5 @@ function tetvol(a::T, b::T, c::T, d::T) where {T<:AbstractVector}
     vol = 1 / 6 * abs(dot(v1, cross(v2, v3)))
     return vol
 end
+
+end # module AbaqusMeshConverter
