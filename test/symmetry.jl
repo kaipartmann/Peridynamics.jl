@@ -27,12 +27,10 @@ td = TimeDiscretization(100)
 es = ExportSettings(@__DIR__, 10)
 job = PDSingleBodyAnalysis(name="MWE_Symmetry",pc=pc,mat=mat,bcs=bcs,td=td,es=es)
 rm.(joinpath.(@__DIR__,filter(x->endswith(x,".vtu"), readdir(@__DIR__))), force=true)
-rm.(joinpath.(@__DIR__,filter(x->endswith(x,".jld2"), readdir(@__DIR__))), force=true)
 rm.(joinpath.(@__DIR__,filter(x->endswith(x,".log"), readdir(@__DIR__))), force=true)
 model = submit(job)
 
 @test length(filter(x->endswith(x,".vtu"), readdir(@__DIR__))) == 11
-@test length(filter(x->endswith(x,".jld2"), readdir(@__DIR__))) == 11
 @test length(filter(x->endswith(x,".log"), readdir(@__DIR__))) == 1
 @test sort(model.position[1,xp]) ≈ sort(-model.position[1,xm])
 @test sort(model.position[2,xp]) ≈ sort(model.position[2,xm])
@@ -45,5 +43,4 @@ model = submit(job)
 @test sort(model.position[3,zp]) ≈ sort(-model.position[3,zm])
 
 rm.(joinpath.(@__DIR__,filter(x->endswith(x,".vtu"), readdir(@__DIR__))), force=true)
-rm.(joinpath.(@__DIR__,filter(x->endswith(x,".jld2"), readdir(@__DIR__))), force=true)
 rm.(joinpath.(@__DIR__,filter(x->endswith(x,".log"), readdir(@__DIR__))), force=true)
