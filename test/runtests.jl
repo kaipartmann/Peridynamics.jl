@@ -8,8 +8,9 @@ using SafeTestsets
     @safetestset "IO" begin include("io.jl") end
     @safetestset "BondBased" begin include("bondbased.jl") end
     @safetestset "Symmetry" begin include("symmetry.jl") end
-    @safetestset "AbaqusMeshConverter" begin include("meshconverter.jl") end
     @safetestset "Contact" begin include("contact.jl") end
     @safetestset "Utilities" begin include("utilities.jl") end
     @safetestset "TimeIntegration" begin include("timeintegration.jl") end
+    @safetestset "AbaqusMeshConverter" begin include("meshconverter.jl") end
+    @safetestset "VtkReader" begin include("vtkreader.jl") end
 end

@@ -1,19 +1,20 @@
-using Peridynamics
+using Peridynamics: read_inp
+using Peridynamics.AbaqusMeshConverter: midpoint, tetvol, get_points
 using Test
 
 ##------------------------------------------------------------------------------------------
 # midpoint
-@test Peridynamics.midpoint([1], [2], [3], [4]) == [2.5]
-@test Peridynamics.midpoint(([0, 0, 0] for _ in 1:4)...) == [0, 0, 0]
-@test Peridynamics.midpoint(([0, 0, 0] for _ in 1:8)...) == [0, 0, 0]
-@test Peridynamics.midpoint(([i, i+1, i+2] for i in 1:4)...) == [2.5, 3.5, 4.5]
-@test Peridynamics.midpoint(([i, i+1, i+2] for i in 1:8)...) == [4.5, 5.5, 6.5]
-@test_throws MethodError Peridynamics.midpoint([1], [2], [3])
+@test midpoint([1], [2], [3], [4]) == [2.5]
+@test midpoint(([0, 0, 0] for _ in 1:4)...) == [0, 0, 0]
+@test midpoint(([0, 0, 0] for _ in 1:8)...) == [0, 0, 0]
+@test midpoint(([i, i+1, i+2] for i in 1:4)...) == [2.5, 3.5, 4.5]
+@test midpoint(([i, i+1, i+2] for i in 1:8)...) == [4.5, 5.5, 6.5]
+@test_throws MethodError midpoint([1], [2], [3])
 
 ##------------------------------------------------------------------------------------------
 # tetvol
-@test Peridynamics.tetvol([0,0,0], [1,0,0], [0,1,0], [0,0,1]) == 1/6
-@test Peridynamics.tetvol(([0,0,0] for _ in 1:4)...) == 0
+@test tetvol([0,0,0], [1,0,0], [0,1,0], [0,0,1]) == 1/6
+@test tetvol(([0,0,0] for _ in 1:4)...) == 0
 
 ##------------------------------------------------------------------------------------------
 # get_points
@@ -29,14 +30,14 @@ elements1 = Dict(
 element_types1 = Dict(
     1 => :Tet4
 )
-midpoints1, volumes1 = Peridynamics.get_points(nodes1, elements1, element_types1)
+midpoints1, volumes1 = get_points(nodes1, elements1, element_types1)
 @test midpoints1 == [0.25; 0.25; 0.25;;]
 @test volumes1 == [1/6]
 
 wrong_elem1 = Dict(
     1 => [1, 2, 3, 4, 5]
 )
-@test_throws DimensionMismatch Peridynamics.get_points(nodes1, wrong_elem1, element_types1)
+@test_throws DimensionMismatch get_points(nodes1, wrong_elem1, element_types1)
 
 nodes2 = Dict(
     1 => [0.0, 1.0, 1.0],
@@ -54,19 +55,19 @@ elements2 = Dict(
 element_types2 = Dict(
     1 => :Hex8
 )
-midpoints2, volumes2 = Peridynamics.get_points(nodes2, elements2, element_types2)
+midpoints2, volumes2 = get_points(nodes2, elements2, element_types2)
 @test midpoints2 == [0.5; 0.5; 0.5;;]
 @test volumes2 == [1]
 
 wrong_elem2 = Dict(
     1 => [1, 2, 3, 4, 5, 6, 7]
 )
-@test_throws DimensionMismatch Peridynamics.get_points(nodes1, wrong_elem1, element_types1)
+@test_throws DimensionMismatch get_points(nodes1, wrong_elem1, element_types1)
 
 wrong_elemtype = Dict(
     1 => :Tet8
 )
-@test_throws DomainError Peridynamics.get_points(nodes1, elements1, wrong_elemtype)
+@test_throws DomainError get_points(nodes1, elements1, wrong_elemtype)
 
 ##------------------------------------------------------------------------------------------
 # read_inp
