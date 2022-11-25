@@ -1,6 +1,5 @@
 using Peridynamics
 using Test
-using FileIO
 
 if Threads.nthreads() <= 2
     positions = [
@@ -17,14 +16,11 @@ if Threads.nthreads() <= 2
     mat = BondBasedMaterial(horizon=δ, rho=7850.0, E=E, Gc=1.0)
     body = Peridynamics.create_simmodel(mat, pc)
     rm.(joinpath.(@__DIR__,filter(x->endswith(x,".vtu"), readdir(@__DIR__))), force=true)
-    rm.(joinpath.(@__DIR__,filter(x->endswith(x,".jld2"), readdir(@__DIR__))), force=true)
-    Peridynamics.export_results(body, "testfile", 0, 0.0)
+    Peridynamics.export_vtk(body, "testfile", 0, 0.0)
 
     @test isfile("testfile_t0.vtu")
-    @test isfile("testfile_t0.jld2")
 
     rm.(joinpath.(@__DIR__,filter(x->endswith(x,".vtu"), readdir(@__DIR__))), force=true)
-    rm.(joinpath.(@__DIR__,filter(x->endswith(x,".jld2"), readdir(@__DIR__))), force=true)
 
     io = IOBuffer()
     show(IOContext(io, :limit => true, :displaysize => (20, 40)), "text/plain", mat)

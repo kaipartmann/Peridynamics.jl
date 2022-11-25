@@ -1,6 +1,5 @@
 module Peridynamics
 
-using FileIO
 using Printf
 using ProgressMeter
 using WriteVTK

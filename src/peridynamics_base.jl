@@ -661,7 +661,7 @@ function submit(sim::PDSingleBodyAnalysis)
         log_simsetup(sim)
         apply_ics!(body, sim.ics)
         if sim.es.exportflag
-            export_results(body, sim.es.resultfile_prefix, 0, 0.0)
+            export_vtk(body, sim.es.resultfile_prefix, 0, 0.0)
         end
         if sim.td.alg == :verlet
             velocity_verlet!(body, sim)
@@ -921,24 +921,6 @@ function apply_initialcondition!(body::AbstractPDBody, ic::VelocityIC)
     return nothing
 end
 
-function export_jld2(body::AbstractPDBody, expfile::String, timestep::Int, time::Float64)
-    filename = expfile * "_t" * string(timestep) * ".jld2"
-    save(
-        filename,
-        "position",
-        body.position,
-        "damage",
-        body.damage,
-        "b_int",
-        (@view body.b_int[:, :, 1]),
-        "displacement",
-        body.displacement,
-        "time",
-        time,
-    )
-    return nothing
-end
-
 function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::Float64)
     filename = expfile * "_t" * string(timestep)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:body.n_points]
@@ -949,12 +931,6 @@ function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::
     vtkfile["Velocity", VTKPointData()] = body.velocity
     vtkfile["Time", VTKFieldData()] = time
     vtk_save(vtkfile)
-    return nothing
-end
-
-function export_results(body::AbstractPDBody, expfile::String, timestep::Int, time::Float64)
-    export_vtk(body, expfile, timestep, time)
-    export_jld2(body, expfile, timestep, time)
     return nothing
 end
 
@@ -977,7 +953,7 @@ function velocity_verlet!(body::AbstractPDBody, sim::PDSingleBodyAnalysis)
         calc_damage!(body)
         compute_equation_of_motion!(body, Δt½, sim.mat.rho)
         if mod(t, sim.es.exportfreq) == 0
-            export_results(body, sim.es.resultfile_prefix, t, time)
+            export_vtk(body, sim.es.resultfile_prefix, t, time)
         end
         next!(p)
     end
@@ -1018,7 +994,7 @@ function dynamic_relaxation_finite_difference!(
             )
         end
         if mod(t, sim.es.exportfreq) == 0
-            export_results(body, sim.es.resultfile_prefix, t, time)
+            export_vtk(body, sim.es.resultfile_prefix, t, time)
         end
         next!(p)
     end

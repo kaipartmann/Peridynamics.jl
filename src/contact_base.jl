@@ -126,7 +126,7 @@ function submit(sim::PDContactAnalysis)
         end
         if sim.es.exportflag
             for i in 1:sim.n_bodies
-                export_results(bodies[i], string(sim.es.resultfile_prefix, "_b", i), 0, 0.0)
+                export_vtk(bodies[i], string(sim.es.resultfile_prefix, "_b", i), 0, 0.0)
             end
         end
         velocity_verlet!(bodies, sim)
@@ -225,7 +225,7 @@ function velocity_verlet!(bodies::Vector{<:AbstractPDBody}, sim::PDContactAnalys
         end
         if mod(t, sim.es.exportfreq) == 0
             for i in 1:sim.n_bodies
-                export_results(bodies[i], string(sim.es.resultfile_prefix, "_b", i), t, time)
+                export_vtk(bodies[i], string(sim.es.resultfile_prefix, "_b", i), t, time)
             end
         end
         next!(p)
