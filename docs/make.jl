@@ -24,7 +24,10 @@ makedocs(;
             "logo.md",
             "paraviewtutorial.md",
         ],
-        "library.md",
+        "API" => [
+            "public_api.md",
+            "private_api.md",
+        ]
     ],
 )
 

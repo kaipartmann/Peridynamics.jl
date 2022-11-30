@@ -1,10 +1,11 @@
-# Library
+# Public API
 
 ```@meta
 CurrentModule = Peridynamics
 ```
 
 ```@index
+Pages = ["public_api.md"]
 ```
 
 ## Types
