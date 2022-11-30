@@ -56,3 +56,21 @@ end
 @testset "wrong file type" begin
     @test_throws AssertionError read_vtk("something.wrong")
 end
+
+@testset "show SimResult" begin
+    position = rand(3, 5)
+    time = 1.0
+    damage = rand(5)
+    displacement = position .+ 0.1
+    sr = SimResult(position, time, damage, displacement)
+    io = IOBuffer()
+    show(IOContext(io, :limit => true, :displaysize => (20, 40)), "text/plain", sr)
+    msg_sr = String(take!(io))
+    @test msg_sr == string(
+        "SimResult with fields:\n",
+        " position:     3×5 Matrix{Float64}\n",
+        " time:         Float64\n",
+        " damage:       5-element Vector{Float64}\n",
+        " displacement: 3×5 Matrix{Float64}",
+    )
+end

@@ -17,12 +17,19 @@ export read_inp
 export read_vtk, SimResult
 
 # Basics for peridynamics and contact problems
-include("peridynamics_base.jl")
-include("contact_base.jl")
+include("abstract_types.jl")
+include("spatial_discretization.jl")
+include("time_discretization.jl")
+include("conditions.jl")
+include("io.jl")
+include("jobs.jl")
+include("contact.jl")
+include("utilities.jl")
 
 # Material models
 include("bond_based.jl")
 
+# Helper modules
 # Convert Abaqus mesh to PointCloud
 include("AbaqusMeshConverter.jl")
 using .AbaqusMeshConverter: read_inp
