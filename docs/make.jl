@@ -17,16 +17,18 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
-        "manual.md",
+        "Manual" => [
+            "manual/manual.md",
+        ],
         "Tutorials" => [
-            "tensiletest.md",
-            "crackedplateundertension.md",
-            "logo.md",
-            "paraviewtutorial.md",
+            "tutorials/tensiletest.md",
+            "tutorials/crackedplateundertension.md",
+            "tutorials/logo.md",
+            "tutorials/paraviewtutorial.md",
         ],
         "API" => [
-            "public_api.md",
-            "private_api.md",
+            "api/public_api.md",
+            "api/private_api.md",
         ]
     ],
 )
