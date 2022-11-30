@@ -1,5 +1,7 @@
 # Public API
 
+Here, all exported types and methods are listed, which the user needs when using the package.
+
 ```@meta
 CurrentModule = Peridynamics
 ```
