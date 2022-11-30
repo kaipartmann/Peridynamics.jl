@@ -13,6 +13,7 @@ makedocs(;
         canonical="https://kfrb.github.io/Peridynamics.jl",
         edit_link="main",
         assets=String[],
+        collapselevel=1,
     ),
     pages=[
         "Home" => "index.md",
