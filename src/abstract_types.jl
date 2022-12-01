@@ -8,14 +8,14 @@ Abstract type for a peridynamic material.
 abstract type AbstractPDMaterial end
 
 """
-AbstractBC
+    AbstractBC
 
 Abstract type for boundary conditions.
 """
 abstract type AbstractBC end
 
 """
-AbstractIC
+    AbstractIC
 
 Abstract type for initial conditions.
 """
