@@ -81,7 +81,7 @@ Currently supported mesh elements: $SUPPORTED_ELEMENT_TYPES
 
 # Examples
 The specimen of the
-[`TensileTest.jl`](https://kfrb.github.io/Peridynamics.jl/dev/tensiletest/) example script:
+[`TensileTest.jl`](https:// kaipartmann.github.io/Peridynamics.jl/dev/tensiletest/) example script:
 ```julia-repl
 julia> pointcloud = read_inp("examples/models/TensileTestMesh.inp")
 [ Info: 21420 nodes found
