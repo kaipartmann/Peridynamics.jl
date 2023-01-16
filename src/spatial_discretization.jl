@@ -69,16 +69,16 @@ julia> pc.radius
 
 ---
 ```julia
-PointCloud(W, L, H, Δx; center_x=0, center_y=0, center_z=0)
+PointCloud(lx, ly, lz, Δx; center_x=0, center_y=0, center_z=0)
 ```
 
-Generate a uniformly distributed `PointCloud` with width `W`, length `L`, height `H` and
+Generate a uniformly distributed `PointCloud` with the lengths `lx`, `ly`, `lz`, and
 point spacing `Δx`. Optional keyword arguments provide the possibility to set the center.
 
 # Arguments
-- `W::Real`: width of the `PointCloud`-block in x-direction
-- `L::Real`: length of the `PointCloud`-block in y-direction
-- `H::Real`: height of the `PointCloud`-block in z-direction
+- `lx::Real`: length of the `PointCloud`-block in x-direction
+- `ly::Real`: length of the `PointCloud`-block in y-direction
+- `lz::Real`: length of the `PointCloud`-block in z-direction
 - `Δx::Real`: point spacing in x-, y- and z- direction
 - `center_x::Real=0`: x-coordinate of the `PointCloud`-block center
 - `center_y::Real=0`: y-coordinate of the `PointCloud`-block center
@@ -121,19 +121,19 @@ function PointCloud(
 end
 
 function PointCloud(
-    W::Real,
-    L::Real,
-    H::Real,
+    lx::Real,
+    ly::Real,
+    lz::Real,
     Δx::Real;
     center_x::Real=0,
     center_y::Real=0,
     center_z::Real=0,
 )
-    _gridX = range(; start=(-W + Δx) / 2, stop=(W - Δx) / 2, step=Δx)
+    _gridX = range(; start=(-lx + Δx) / 2, stop=(lx - Δx) / 2, step=Δx)
     gridX = _gridX .- sum(_gridX) / length(_gridX)
-    _gridY = range(; start=(-L + Δx) / 2, stop=(L - Δx) / 2, step=Δx)
+    _gridY = range(; start=(-ly + Δx) / 2, stop=(ly - Δx) / 2, step=Δx)
     gridY = _gridY .- sum(_gridY) / length(_gridY)
-    _gridZ = range(; start=(-H + Δx) / 2, stop=(H - Δx) / 2, step=Δx)
+    _gridZ = range(; start=(-lz + Δx) / 2, stop=(lz - Δx) / 2, step=Δx)
     gridZ = _gridZ .- sum(_gridZ) / length(_gridZ)
     positions = hcat(([x; y; z] for x in gridX for y in gridY for z in gridZ)...)
     if center_x !== 0
