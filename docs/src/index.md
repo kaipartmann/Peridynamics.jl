@@ -3,7 +3,7 @@
 ```
 # Peridynamics
 
-Documentation for the [Peridynamics](https://github.com/ kaipartmann/Peridynamics.jl) julia package.
+Documentation for the [Peridynamics](https://github.com/kaipartmann/Peridynamics.jl) julia package.
 
 ## Overview
 

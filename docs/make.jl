@@ -6,11 +6,11 @@ DocMeta.setdocmeta!(Peridynamics, :DocTestSetup, :(using Peridynamics); recursiv
 makedocs(;
     modules=[Peridynamics],
     authors="Kai Friebertshäuser",
-    repo="https://github.com/ kaipartmann/Peridynamics.jl/blob/{commit}{path}#{line}",
+    repo="https://github.com/kaipartmann/Peridynamics.jl/blob/{commit}{path}#{line}",
     sitename="Peridynamics.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https:// kaipartmann.github.io/Peridynamics.jl",
+        canonical="https://kaipartmann.github.io/Peridynamics.jl",
         edit_link="main",
         assets=String[],
         collapselevel=1,
@@ -41,6 +41,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/ kaipartmann/Peridynamics.jl",
+    repo="github.com/kaipartmann/Peridynamics.jl",
     devbranch="main",
 )
