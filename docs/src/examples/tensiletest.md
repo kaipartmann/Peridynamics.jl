@@ -29,14 +29,14 @@ submit(job)
 (Visualization made with [ParaView](https://www.paraview.org))
 
 ## Step-by-step
-The script for this tutorial can be found here: [TensileTest.jl](https://github.com/kaipartmann/Peridynamics.jl/blob/main/examples/TensileTest.jl).
+The script for this tutorial can be found here: [TensileTest.jl](https://github.com/kfrb/Peridynamics.jl/blob/main/examples/TensileTest.jl).
 
 First, we have to load the `Peridynamics.jl` package.
 
 ```julia
 using Peridynamics
 ```
-Now we create a `PointCloud` by converting the mesh from Abaqus. [(Download the mesh)](https://github.com/kaipartmann/Peridynamics.jl/blob/main/examples/models/TensileTestMesh.inp)
+Now we create a `PointCloud` by converting the mesh from Abaqus. [(Download the mesh)](https://github.com/kfrb/Peridynamics.jl/blob/main/examples/models/TensileTestMesh.inp)
 ```julia
 pointcloud = read_inp("TensileTestMesh.inp")
 ```

@@ -1,7 +1,7 @@
 # [Spatial discretization](@id spatial_discretization)
 ### Point clouds
 
-```@example spatial_discretization_1
+```@setup spatial_discretization_1
 using Peridynamics #hide
 pc = PointCloud(1,1,1,0.3)
 ```
