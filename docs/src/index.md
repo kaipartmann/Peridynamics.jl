@@ -1,5 +1,5 @@
 ```@raw html
-<img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/logo.png?raw=true" width="450" />
+<img src="assets/logo.png" width="450" />
 ```
 # Peridynamics
 
@@ -32,11 +32,6 @@ To install, use Julia's built-in package manager. Open the Julia REPL and type `
 ```julia-repl
 pkg> add Peridynamics
 ```
-
-## Getting Started
-
-We recommend looking at the [manual](@ref manual) and the [tutorials section](@ref TensileTest.jl) to start working with this package!
-
 
 ## Authors
 

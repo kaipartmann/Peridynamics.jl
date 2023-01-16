@@ -1,4 +1,4 @@
-# TensileTest.jl
+# [TensileTest.jl](@id tensile_test)
 
 ## Quickstart
 
@@ -24,7 +24,7 @@ submit(job)
 
 ##### Results:
 ```@raw html
-<img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/TensileTest.png?raw=true" width="600" />
+<img src="../assets/TensileTest.png" width="600" />
 ```
 (Visualization made with [ParaView](https://www.paraview.org))
 
@@ -41,7 +41,7 @@ Now we create a `PointCloud` by converting the mesh from Abaqus. [(Download the 
 pointcloud = read_inp("TensileTestMesh.inp")
 ```
 ```@raw html
-<img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/TensileTestMesh.png?raw=true" width="600" />
+<img src="../assets/TensileTestMesh.png" width="600" />
 ```
 
 Next, we need to specify material parameters. We define:
@@ -118,5 +118,5 @@ pointcloud.failure_flag[pointcloud.point_sets["top"]] .= false
 ```
 As a result, we have reduced the damage in the bottom and top of the specimen:
 ```@raw html
-<img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/TensileTestNoFailZone.png?raw=true" width="600" />
+<img src="../assets/TensileTestNoFailZone.png" width="600" />
 ```

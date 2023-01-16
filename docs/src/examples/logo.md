@@ -1,11 +1,11 @@
 ```@raw html
-<img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/logo.png?raw=true" width="450" />
+<img src="../assets/logo.png" width="450" />
 ```
-[Download video](https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/logo.mp4?raw=true)
+[Download video](https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/logo.mp4)
 
 (Visualization made with [ParaView](https://www.paraview.org))
 
-# Logo.jl
+# [Logo.jl](@id logo)
 
 The Julia logo crashing into a plate and braking it into many pieces.
 The complete script for this tutorial can be found here: [Logo.jl](https://github.com/kfrb/Peridynamics.jl/blob/main/examples/Logo.jl).

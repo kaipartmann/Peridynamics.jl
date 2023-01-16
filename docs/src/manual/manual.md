@@ -1,4 +1,4 @@
-# [Manual](@id manual)
+# [Contents](@id manual)
 
 ## Spatial discretization
 #### Point clouds

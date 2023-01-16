@@ -17,14 +17,21 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
+        "quickstart.md",
         "Manual" => [
-            "manual/manual.md",
+            "manual/spatial_discretization.md",
+            "manual/matmodels.md",
+            "manual/temporal_discretization.md",
+            "manual/conditions.md",
+            "manual/jobs.md",
+            "manual/workflow.md",
+            "manual/visualization.md",
+            "manual/vtk_reader.md",
         ],
-        "Tutorials" => [
-            "tutorials/tensiletest.md",
-            "tutorials/crackedplateundertension.md",
-            "tutorials/logo.md",
-            "tutorials/paraviewtutorial.md",
+        "Examples" => [
+            "examples/tensiletest.md",
+            "examples/crackedplateundertension.md",
+            "examples/logo.md",
         ],
         "API" => [
             "api/public_api.md",
