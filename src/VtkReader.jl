@@ -22,7 +22,7 @@ Simulation results for one time step imported from a .vtu file.
 """
 struct SimResult
     position::Matrix{Float64}
-    # time::Float64 TODO
+    time::Float64
     damage::Vector{Float64}
     displacement::Matrix{Float64}
 end
@@ -74,8 +74,8 @@ function get_data_arrays(xml_doc)
     position_da = find_element(points, "DataArray")
 
     ## extract time
-    # time_da = find_element(field_data, "DataArray")
-    # @assert LightXML.attribute(time_da, "Name"; required=true) == "time"
+    time_da = find_element(field_data, "DataArray")
+    @assert LightXML.attribute(time_da, "Name"; required=true) == "time"
 
     ## get point data
     point_da_names = Vector{String}()
@@ -86,7 +86,7 @@ function get_data_arrays(xml_doc)
         push!(point_da, xml_element)
     end
 
-    return position_da, point_da_names, point_da
+    return position_da, time_da, point_da_names, point_da
 end
 
 function get_data(xml_element, data)
@@ -130,12 +130,12 @@ function get_displacement(pdan, pda, data)
     return displacement
 end
 
-function get_result(position_da, point_da_names, point_da, data)
+function get_result(position_da, time_da, point_da_names, point_da, data)
     position = get_position(position_da, data)
-    # time = get_time(time_da, data) TODO
+    time = get_time(time_da, data)
     damage = get_damage(point_da_names, point_da, data)
     displacement = get_displacement(point_da_names, point_da, data)
-    return SimResult(position, damage, displacement)
+    return SimResult(position, time, damage, displacement)
 end
 
 """
@@ -167,8 +167,8 @@ function read_vtk(file::String)
         throw(AssertionError(msg))
     end
     xml_file, data = get_xml_and_data(file)
-    position_da, point_da_names, point_da = get_data_arrays(xml_file)
-    result = get_result(position_da, point_da_names, point_da, data)
+    position_da, time_da, point_da_names, point_da = get_data_arrays(xml_file)
+    result = get_result(position_da, time_da, point_da_names, point_da, data)
     free(xml_file)
     return result
 end
