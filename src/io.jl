@@ -161,7 +161,7 @@ function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:body.n_points]
     vtkfile = vtk_grid(filename, body.position, cells)
     vtkfile["Damage", VTKPointData()] = body.damage
-    vtkfile["Force density", VTKPointData()] = @views body.b_int[:, :, 1]
+    vtkfile["ForceDensity", VTKPointData()] = @views body.b_int[:, :, 1]
     vtkfile["Displacement", VTKPointData()] = body.displacement
     vtkfile["Velocity", VTKPointData()] = body.velocity
     vtkfile["Time", VTKFieldData()] = time
