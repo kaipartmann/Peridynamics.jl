@@ -169,17 +169,19 @@ Read .vtu-file containing simulation results of a time step.
 - `file::String`: path to VTK .vtu-file
 
 # Returns
-- [`SimResult`](@ref): simulation result
+- `Dict{String, VecOrMat{Float64}}`: simulation results as a dictionary
 
 # Examples
 
 ```julia-repl
 julia> read_vtk("ExampleSimulation_t3000.vtu")
-SimResult with fields:
-  position:     3×100 Matrix{Float64}
-  time:         Float64
-  damage:       100-element Vector{Float64}
-  displacement: 3×100 Matrix{Float64}
+Dict{String, VecOrMat{Float64}} with 6 entries:
+  "Position"     => [-0.497302 -0.497303 … 0.497303 0.497302; -0.0225023 -0…
+  "Damage"       => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0…
+  "Time"         => [0.000237879]
+  "Displacement" => [0.00019766 0.000196793 … -0.000196793 -0.00019766; -2.…
+  "Velocity"     => [-2.55436 -1.5897 … 1.5897 2.55436; 0.827107 0.234996 ……
+  "ForceDensity" => [-7.00131e9 -8.45411e9 … 8.45411e9 7.00131e9; -5.0164e8…
 ```
 """
 function read_vtk(file::String)
