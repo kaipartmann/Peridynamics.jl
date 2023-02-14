@@ -13,17 +13,17 @@ using Peridynamics
     displacement = rand(3, n_points)
     time = rand() * 1000
     vtk_grid(bname, position, cells) do vtk
-        vtk["damage", VTKPointData()] = damage
-        vtk["displacement", VTKPointData()] = displacement
-        vtk["time", VTKFieldData()] = time
+        vtk["Damage", VTKPointData()] = damage
+        vtk["Displacement", VTKPointData()] = displacement
+        vtk["Time", VTKFieldData()] = time
     end
     result = read_vtk(name)
 
-    @test typeof(result) == SimResult
-    @test result.position == position
-    @test result.time == time
-    @test result.damage == damage
-    @test result.displacement == displacement
+    @test typeof(result) == Dict{String, VecOrMat{Float64}}
+    @test result["Position"] == position
+    @test result["Time"] == [time]
+    @test result["Damage"] == damage
+    @test result["Displacement"] == displacement
 
     rm(name)
 end
@@ -37,18 +37,22 @@ end
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
     damage = rand(n_points)
     time = rand() * 1000
+    random_point_data = rand(n_points)
+    random_field_data =  [1e-5, 1.0, 5]
     vtk_grid(bname, position, cells) do vtk
-        vtk["damage", VTKPointData()] = damage
-        vtk["random", VTKPointData()] = rand(n_points)
-        vtk["time", VTKFieldData()] = time
+        vtk["Time", VTKFieldData()] = time
+        vtk["Damage", VTKPointData()] = damage
+        vtk["RandomPointData", VTKPointData()] = random_point_data
+        vtk["RandomFieldData", VTKFieldData()] = random_field_data
     end
     result = read_vtk(name)
 
-    @test typeof(result) == SimResult
-    @test result.position == position
-    @test result.time == time
-    @test result.damage == damage
-    @test result.displacement == Array{Float64, 2}(undef, 0, 0)
+    @test typeof(result) == Dict{String, VecOrMat{Float64}}
+    @test result["Position"] == position
+    @test result["Time"] == [time]
+    @test result["Damage"] == damage
+    @test result["RandomPointData"] == random_point_data
+    @test result["RandomFieldData"] == random_field_data
 
     rm(name)
 end
@@ -57,20 +61,86 @@ end
     @test_throws AssertionError read_vtk("something.wrong")
 end
 
-@testset "show SimResult" begin
-    position = rand(3, 5)
-    time = 1.0
-    damage = rand(5)
-    displacement = position .+ 0.1
-    sr = SimResult(position, time, damage, displacement)
-    io = IOBuffer()
-    show(IOContext(io, :limit => true, :displaysize => (20, 40)), "text/plain", sr)
-    msg_sr = String(take!(io))
-    @test msg_sr == string(
-        "SimResult with fields:\n",
-        " position:     3×5 Matrix{Float64}\n",
-        " time:         Float64\n",
-        " damage:       5-element Vector{Float64}\n",
-        " displacement: 3×5 Matrix{Float64}",
-    )
+@testset "corrupt file <AppendedData encoding=\"raw\">" begin
+    bname = joinpath(@__DIR__, "vtk_test_2")
+    name = bname * ".vtu"
+    isfile(name) && rm(name)
+    n_points = 10
+    position = rand(3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    damage = rand(n_points)
+    time = rand() * 1000
+    random_point_data = rand(n_points)
+    random_field_data =  [1e-5, 1.0, 5]
+    vtk_grid(bname, position, cells) do vtk
+        vtk["Time", VTKFieldData()] = time
+        vtk["Damage", VTKPointData()] = damage
+        vtk["RandomPointData", VTKPointData()] = random_point_data
+        vtk["RandomFieldData", VTKFieldData()] = random_field_data
+    end
+    file_raw = read(name, String)
+    file_raw_new = replace(file_raw,"<AppendedData encoding=\"raw\">" => "<>",)
+    open(name, "w") do io
+        write(io, file_raw_new)
+    end
+
+    @test_throws ErrorException read_vtk(name)
+
+    rm(name)
+end
+
+@testset "corrupt file offset marker" begin
+    bname = joinpath(@__DIR__, "vtk_test_2")
+    name = bname * ".vtu"
+    isfile(name) && rm(name)
+    n_points = 10
+    position = rand(3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    damage = rand(n_points)
+    time = rand() * 1000
+    random_point_data = rand(n_points)
+    random_field_data =  [1e-5, 1.0, 5]
+    vtk_grid(bname, position, cells) do vtk
+        vtk["Time", VTKFieldData()] = time
+        vtk["Damage", VTKPointData()] = damage
+        vtk["RandomPointData", VTKPointData()] = random_point_data
+        vtk["RandomFieldData", VTKFieldData()] = random_field_data
+    end
+    file_raw = read(name, String)
+    file_raw_new = replace(file_raw, "_" => "")
+    open(name, "w") do io
+        write(io, file_raw_new)
+    end
+
+    @test_throws ErrorException read_vtk(name)
+
+    rm(name)
+end
+
+@testset "corrupt file </AppendedData>" begin
+    bname = joinpath(@__DIR__, "vtk_test_2")
+    name = bname * ".vtu"
+    isfile(name) && rm(name)
+    n_points = 10
+    position = rand(3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    damage = rand(n_points)
+    time = rand() * 1000
+    random_point_data = rand(n_points)
+    random_field_data =  [1e-5, 1.0, 5]
+    vtk_grid(bname, position, cells) do vtk
+        vtk["Time", VTKFieldData()] = time
+        vtk["Damage", VTKPointData()] = damage
+        vtk["RandomPointData", VTKPointData()] = random_point_data
+        vtk["RandomFieldData", VTKFieldData()] = random_field_data
+    end
+    file_raw = read(name, String)
+    file_raw_new = replace(file_raw, "\n  </AppendedData>" => "<AppendedData>")
+    open(name, "w") do io
+        write(io, file_raw_new)
+    end
+
+    @test_throws ErrorException read_vtk(name)
+
+    rm(name)
 end
