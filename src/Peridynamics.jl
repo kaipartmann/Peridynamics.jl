@@ -14,7 +14,7 @@ export Contact, BodySetup
 export PDSingleBodyAnalysis, PDContactAnalysis
 export submit
 export read_inp
-export read_vtk, SimResult
+export read_vtk
 
 # Basics for peridynamics and contact problems
 include("abstract_types.jl")
@@ -36,6 +36,6 @@ using .AbaqusMeshConverter: read_inp
 
 # Read VTK results
 include("VtkReader.jl")
-using .VtkReader: read_vtk, SimResult
+using .VtkReader: read_vtk
 
 end
