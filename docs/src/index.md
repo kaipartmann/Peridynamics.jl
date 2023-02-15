@@ -5,6 +5,9 @@
 
 Documentation for the [Peridynamics](https://github.com/kfrb/Peridynamics.jl) julia package.
 
+**Build Status:**\
+[![Build Status](https://github.com/kfrb/Peridynamics.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/kfrb/Peridynamics.jl/actions/workflows/CI.yml?query=branch%3Amain) [![Coverage](https://codecov.io/gh/kfrb/Peridynamics.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/kfrb/Peridynamics.jl)
+
 ## Overview
 
 Peridynamics is a non-local formulation of continuum mechanics.
