@@ -29,6 +29,7 @@ ForceDensityBC
 
 ## Functions
 ```@docs
+pcmerge
 calc_stable_user_timestep
 read_inp
 read_vtk
