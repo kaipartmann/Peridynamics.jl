@@ -180,6 +180,35 @@ function Base.show(io::IO, ::MIME"text/plain", pc::PointCloud)
 end
 
 """
+    pcmerge(v::Vector{PointCloud})
+
+Merge multiple point clouds into one [`PointCloud`](@ref).
+
+# Arguments
+- `v::Vector{PointCloud}`: vector of multiple `PointClouds`
+
+# Returns
+- `PointCloud`: merged point cloud
+"""
+function pcmerge(v::Vector{PointCloud})
+    n_points = sum([pc.n_points for pc in v])
+    position = reduce(hcat, [pc.position for pc in v])
+    volume = reduce(vcat, [pc.volume for pc in v])
+    failure_flag = reduce(vcat, [pc.failure_flag for pc in v])
+    radius = reduce(vcat, [pc.radius for pc in v])
+    point_sets = Dict{String,Vector{Int}}()
+    n_points_cnt = first(v).n_points
+    for pc_id in firstindex(v)+1:lastindex(v)
+        for (key, val) in v[pc_id].point_sets
+            point_sets[key] = val .+ n_points_cnt
+        end
+        n_points_cnt += v[pc_id].n_points
+    end
+    pc = PointCloud(n_points, position, volume, failure_flag, radius, point_sets)
+    return pc
+end
+
+"""
     PreCrack(point_id_set_a::Vector{Int}, point_id_set_b::Vector{Int})
 
 Definition of an preexisting crack in the model. Points in `point_id_set_a` cannot have
