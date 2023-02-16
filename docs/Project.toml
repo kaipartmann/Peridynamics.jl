@@ -1,6 +1,4 @@
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-JSServe = "824d6782-a2ef-11e9-3a09-e5662e0c26f9"
 Peridynamics = "4dc47793-80f3-4232-b30e-ca78ca9d621b"
-WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
