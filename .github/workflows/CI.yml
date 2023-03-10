@@ -18,7 +18,6 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.7'
           - '1.8'
           - 'nightly'
         os:
@@ -38,6 +37,8 @@ jobs:
       - uses: codecov/codecov-action@v2
         with:
           files: lcov.info
+    env:
+      JULIA_NUM_THREADS: 2
   docs:
     name: Documentation
     runs-on: ubuntu-latest
