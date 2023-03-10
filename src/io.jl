@@ -53,10 +53,12 @@ function log_header(es::ExportSettings)
 end
 
 function log_describe_sim(
-    simname::String, pc::PointCloud, mat::AbstractPDMaterial, es::ExportSettings
+    simname::String, pc::PointCloud, mat::PDMaterial, es::ExportSettings
 )
-    msg = "Peridynamic single body analysis: " * simname * "\nMaterial parameters:\n"
-    msg *= @sprintf("  - Number of material points [-]:      %30g\n", pc.n_points)
+    msg = "Peridynamic single body analysis: " * simname * "\n"
+    msg *= "Geometry:\n"
+    msg *= describe_geometry(pc)
+    msg *= @sprintf("Material Parameters: %49s\n", eltype(mat))
     msg *= describe_mat(mat)
     print(msg)
     if es.exportflag
@@ -67,13 +69,41 @@ function log_describe_sim(
     return nothing
 end
 
+function describe_geometry(pc::PointCloud)
+    msg = @sprintf("  - Number of material points [-]:      %30g\n", pc.n_points)
+    msg *= @views @sprintf(
+        "  - Min. / Max. x-axis [m]:             %30s\n",
+        @sprintf("%.6g / %.6g", minimum(pc.position[1,:]), maximum(pc.position[1,:])),
+    )
+    msg *= @views @sprintf(
+        "  - Min. / Max. y-axis [m]:             %30s\n",
+        @sprintf("%.6g / %.6g", minimum(pc.position[2,:]), maximum(pc.position[2,:])),
+    )
+    msg *= @views @sprintf(
+        "  - Min. / Max. z-axis [m]:             %30s\n",
+        @sprintf("%.6g / %.6g", minimum(pc.position[3,:]), maximum(pc.position[3,:])),
+    )
+end
+
 function describe_mat(mat::AbstractPDMaterial)
-    msg = @sprintf "  - Material model: %50s\n" typeof(mat)
-    msg *= @sprintf "  - Horizon δ [m]:                      %30g\n" mat.δ
+    msg =  @sprintf "  - Horizon δ [m]:                      %30g\n" mat.δ
     msg *= @sprintf "  - Density ρ [kg/m³]:                  %30g\n" mat.rho
     msg *= @sprintf "  - Young's modulus E [N/m²]:           %30g\n" mat.E
     msg *= @sprintf "  - Poisson ratio ν [-]:                %30g\n" mat.nu
+    msg *= @sprintf "  - Griffith's Parameter Gc [N/m]:      %30g\n" mat.Gc
     msg *= @sprintf "  - Critical bond stretch εc[-]:        %30g\n" mat.εc
+    return msg
+end
+
+function describe_mat(mat::MultiMaterial)
+    msg = ""
+    for (i,m) in enumerate(mat.materials)
+        msg *= @sprintf(
+            "Parameters for %d points:\n",
+            length(findall(mat.matofpoint .== i)),
+        )
+        msg *= describe_mat(m)
+    end
     return msg
 end
 
@@ -129,23 +159,11 @@ function log_simsetup(sim::AbstractPDAnalysis)
     return nothing
 end
 
-function log_closesim(part::AbstractPDBody, timingsummary::NamedTuple, es::ExportSettings)
+function log_closesim(body::AbstractPDBody, timingsummary::NamedTuple, es::ExportSettings)
     msg = @sprintf(
         "✓ Simulation completed after %g seconds\nResults:\n", timingsummary.time
     )
-    msg *= @sprintf(
-        "  - Max. abs. x-displacement [m]:       %30g\n",
-        abs(maximum(part.displacement[1, :]))
-    )
-    msg *= @sprintf(
-        "  - Max. abs. y-displacement [m]:       %30g\n",
-        abs(maximum(part.displacement[2, :]))
-    )
-    msg *= @sprintf(
-        "  - Max. abs. z-displacement [m]:       %30g\n",
-        abs(maximum(part.displacement[3, :]))
-    )
-    msg *= @sprintf("  - Max. damage [-]:                    %30g\n", maximum(part.damage))
+    msg *= log_displacement_and_damage(body)
     print(msg)
     if es.exportflag
         open(es.logfile, "a") do io
@@ -155,11 +173,40 @@ function log_closesim(part::AbstractPDBody, timingsummary::NamedTuple, es::Expor
     return nothing
 end
 
+function log_displacement_and_damage(body::AbstractPDBody)
+    msg = ""
+    msg *= @views @sprintf(
+        "  - Min. / Max. x-displacement [m]:     %30s\n",
+        @sprintf(
+            "%.6g / %.6g",
+            minimum(body.displacement[1,:]),
+            maximum(body.displacement[1,:]),
+        ),
+    )
+    msg *= @views @sprintf(
+        "  - Min. / Max. y-displacement [m]:     %30s\n",
+        @sprintf(
+            "%.6g / %.6g",
+            minimum(body.displacement[2,:]),
+            maximum(body.displacement[2,:]),
+        ),
+    )
+    msg *= @views @sprintf(
+        "  - Min. / Max. z-displacement [m]:     %30s\n",
+        @sprintf(
+            "%.6g / %.6g",
+            minimum(body.displacement[3,:]),
+            maximum(body.displacement[3,:]),
+        ),
+    )
+    msg *= @sprintf("  - Max. damage [-]:                    %30g\n", maximum(body.damage))
+    return msg
+end
+
 
 function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::Float64)
-    filename = expfile * "_t" * string(timestep)
-    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:body.n_points]
-    vtkfile = vtk_grid(filename, body.position, cells)
+    filename = @sprintf("%s_t%04d", expfile, timestep)
+    vtkfile = vtk_grid(filename, body.position, body.cells)
     vtkfile["Damage", VTKPointData()] = body.damage
     vtkfile["ForceDensity", VTKPointData()] = @views body.b_int[:, :, 1]
     vtkfile["Displacement", VTKPointData()] = body.displacement

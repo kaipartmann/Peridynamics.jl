@@ -103,20 +103,80 @@ struct PointCloud
     failure_flag::BitVector
     radius::Vector{Float64}
     point_sets::Dict{String,Vector{Int}}
+
+    function PointCloud(n_points::Int, position::Matrix{Float64}, volume::Vector{Float64},
+                        failure_flag::BitVector, radius::Vector{Float64},
+                        point_sets::Dict{String, Vector{Int}})
+
+        # check if n_points is greater than zero
+        n_points > 0 || error("Number of points `n_points` must be greater than zero!\n")
+
+        # check dimension of position
+        dim_position, n_points_position = size(position)
+        if dim_position != 3 || n_points_position != n_points
+            err_msg = "Incorrect dimensions of `position`!\n"
+            err_msg *= @sprintf("  Should be: (%d, %d)\n", 3, n_points)
+            err_msg *= @sprintf("  Evaluated: (%d, %d)\n", dim_position, n_points_position)
+            throw(DimensionMismatch(err_msg))
+        end
+
+        # check dimension of volume
+        n_points_volume = length(volume)
+        if n_points_volume != n_points
+            err_msg = "Incorrect length of `volume`!\n"
+            err_msg *= @sprintf("  Should be: %d\n", n_points)
+            err_msg *= @sprintf("  Evaluated: %d\n", n_points_volume)
+            throw(DimensionMismatch(err_msg))
+        end
+
+        # check dimension of failure_flag
+        n_points_failure_flag = length(failure_flag)
+        if n_points_failure_flag != n_points
+            err_msg = "Incorrect length of `failure_flag`!\n"
+            err_msg *= @sprintf("  Should be: %d\n", n_points)
+            err_msg *= @sprintf("  Evaluated: %d\n", n_points_failure_flag)
+            throw(DimensionMismatch(err_msg))
+        end
+
+        # check dimension of radius
+        n_points_radius = length(radius)
+        if n_points_radius != n_points
+            err_msg = "Incorrect length of `radius`!\n"
+            err_msg *= @sprintf("  Should be: %d\n", n_points)
+            err_msg *= @sprintf("  Evaluated: %d\n", n_points_radius)
+            throw(DimensionMismatch(err_msg))
+        end
+
+        # check if inputs contain NaN values
+        sum(isnan.(position)) > 0 && error("Matrix `position` contains NaN values!\n")
+        sum(isnan.(volume)) > 0 && error("Vector `volume` contains NaN values!\n")
+        sum(isnan.(radius)) > 0 && error("Vector `radius` contains NaN values!\n")
+
+        # check if radius values are correct regarding the volume values
+        if sum(sphere_radius.(volume) .≈ radius) != n_points
+            error("The values of `radius` do not match the sphere volume in `volume`!\n")
+        end
+
+        # check if all point ids in the point_sets are valid and in bounds
+        for (name, point_ids) in point_sets
+            for id in point_ids
+                if !checkbounds(Bool, volume, id)
+                    err_msg = @sprintf("Invalid index [%d] in point set `%s`!\n", id, name)
+                    err_msg *= @sprintf("Valid index range: 1:%d\n", n_points)
+                    error(err_msg)
+                end
+            end
+        end
+
+        new(n_points, position, volume, failure_flag, radius, point_sets)
+    end
 end
 
-function PointCloud(
-    position::Matrix{Float64},
-    volume::Vector{Float64},
-    point_sets::Dict{String,Vector{Int}}=Dict{String,Vector{Int}}(),
-)
-    if size(position, 1) !== 3 || size(position, 2) !== length(volume)
-        throw(DimensionMismatch("size of position: $(size(position)) !== (3, n_points)"))
-    end
+function PointCloud(position::Matrix{Float64}, volume::Vector{Float64},
+                    point_sets::Dict{String,Vector{Int}} = Dict{String,Vector{Int}}())
     n_points = length(volume)
     radius = sphere_radius.(volume)
-    failure_flag = BitVector(undef, n_points)
-    failure_flag .= true
+    failure_flag = BitVector(fill(true, n_points))
     return PointCloud(n_points, position, volume, failure_flag, radius, point_sets)
 end
 
@@ -148,8 +208,7 @@ function PointCloud(
     n_points = size(positions, 2)
     volumes = fill(Δx^3, n_points)
     radius = sphere_radius.(volumes)
-    failure_flag = BitVector(undef, n_points)
-    failure_flag .= true
+    failure_flag = BitVector(fill(true, n_points))
     point_sets = Dict{String,Vector{Int}}()
     return PointCloud(n_points, positions, volumes, failure_flag, radius, point_sets)
 end
@@ -198,6 +257,9 @@ function pcmerge(v::Vector{PointCloud})
     radius = reduce(vcat, [pc.radius for pc in v])
     point_sets = Dict{String,Vector{Int}}()
     n_points_cnt = first(v).n_points
+    for (key, val) in first(v).point_sets
+        point_sets[key] = val
+    end
     for pc_id in firstindex(v)+1:lastindex(v)
         for (key, val) in v[pc_id].point_sets
             point_sets[key] = val .+ n_points_cnt
@@ -258,7 +320,7 @@ function calc_damage!(body::AbstractPDBody)
     return nothing
 end
 
-function find_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{UnitRange{Int}})
+function find_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRange{Int}})
     n_threads = nthreads()
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)
     n_family_members = zeros(Int, pc.n_points)
@@ -277,6 +339,7 @@ function find_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{UnitRange{
         fail = false
         for a in owned_points[tid]
             num = 0
+            δ = mat[a].δ
             for i in 1:pc.n_points
                 if a !== i
                     idst = sqrt(
@@ -301,7 +364,7 @@ function find_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{UnitRange{
     return bond_data, n_family_members
 end
 
-function find_unique_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{UnitRange{Int}})
+function find_unique_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRange{Int}})
     n_threads = nthreads()
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)
     n_family_members = zeros(Int, pc.n_points)
@@ -320,6 +383,7 @@ function find_unique_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{Uni
         fail = false
         for a in owned_points[tid]
             num = 0
+            δ = mat[a].δ
             for i in 1:pc.n_points
                 if a !== i
                     idst = sqrt(
@@ -346,3 +410,5 @@ function find_unique_bonds(pc::PointCloud, δ::Float64, owned_points::Vector{Uni
     one_ni_data = unique(reduce(append!, _bond_data))
     return one_ni_data, n_family_members
 end
+
+get_cells(n::Int) = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in 1:n]

@@ -73,18 +73,18 @@ function Base.show(io::IO, ::MIME"text/plain", td::TimeDiscretization)
 end
 
 
-function calc_stable_timestep(body::AbstractPDBody, rho::Float64, K::Float64, δ::Float64)
+function calc_stable_timestep(body::AbstractPDBody, mat::PDMaterial)
     _Δt = zeros(Float64, body.n_threads)
     @inbounds @threads for tid in 1:body.n_threads
         timesteps = zeros(Float64, body.n_points)
         dtsum = zeros(Float64, (body.n_points, body.n_threads))
         for current_one_ni in body.owned_bonds[tid]
             (a, i, L, _) = body.bond_data[current_one_ni]
-            dtsum[a, tid] += body.volume[i] * 1 / L * 18 * K / (π * δ^4)
+            dtsum[a, tid] += body.volume[i] * 1 / L * 18 * mat[a].K / (π * mat[a].δ^4)
         end
         for a in body.owned_points[tid]
             dtsum[a, 1] = sum(@view dtsum[a, :])
-            timesteps[a] = √(2 * rho / dtsum[a, 1])
+            timesteps[a] = √(2 * mat[a].rho / dtsum[a, 1])
         end
         _Δt[tid] = 0.7 * minimum(timesteps[timesteps .> 0])
     end
@@ -105,9 +105,9 @@ Function to determine the stable timestep for the specified point cloud.
 # Returns
 - `Float64`: stable user timestep `Δt`
 """
-function calc_stable_user_timestep(pc::PointCloud, mat::AbstractPDMaterial, Sf::Float64=0.7)
+function calc_stable_user_timestep(pc::PointCloud, mat::PDMaterial, Sf::Float64=0.7)
     owned_points = defaultdist(pc.n_points, nthreads())
-    bond_data, _ = find_bonds(pc, mat.δ, owned_points)
+    bond_data, _ = find_bonds(pc, mat, owned_points)
     owned_bonds = defaultdist(length(bond_data), nthreads())
     _Δt = zeros(Float64, nthreads())
     @inbounds @threads for tid in 1:nthreads()
@@ -145,7 +145,7 @@ function velocity_verlet!(body::AbstractPDBody, sim::AbstractPDAnalysis)
         compute_forcedensity!(body, sim.mat)
         update_thread_cache!(body)
         calc_damage!(body)
-        compute_equation_of_motion!(body, Δt½, sim.mat.rho)
+        compute_equation_of_motion!(body, Δt½, sim.mat)
         if mod(t, sim.es.exportfreq) == 0
             export_vtk(body, sim.es.resultfile_prefix, t, time)
         end
@@ -299,11 +299,11 @@ function update_disp_and_position!(body::AbstractPDBody, Δt::Float64)
     return nothing
 end
 
-function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, rho::Float64)
+function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, mat::PDMaterial)
     @inbounds @threads for i in 1:body.n_points
-        body.acceleration[1, i] = (body.b_int[1, i, 1] + body.b_ext[1, i]) / rho
-        body.acceleration[2, i] = (body.b_int[2, i, 1] + body.b_ext[2, i]) / rho
-        body.acceleration[3, i] = (body.b_int[3, i, 1] + body.b_ext[3, i]) / rho
+        body.acceleration[1, i] = (body.b_int[1, i, 1] + body.b_ext[1, i]) / mat[i].rho
+        body.acceleration[2, i] = (body.b_int[2, i, 1] + body.b_ext[2, i]) / mat[i].rho
+        body.acceleration[3, i] = (body.b_int[3, i, 1] + body.b_ext[3, i]) / mat[i].rho
         body.velocity[1, i] = body.velocity_half[1, i] + body.acceleration[1, i] * Δt½
         body.velocity[2, i] = body.velocity_half[2, i] + body.acceleration[2, i] * Δt½
         body.velocity[3, i] = body.velocity_half[3, i] + body.acceleration[3, i] * Δt½

@@ -1,8 +1,7 @@
-using Test
-using WriteVTK
-using Peridynamics
+using Peridynamics, Test, WriteVTK
 
-@testset "read complete results" begin
+#-- read complete results
+let
     bname = joinpath(@__DIR__, "vtk_test_1")
     name = bname * ".vtu"
     isfile(name) && rm(name)
@@ -28,7 +27,8 @@ using Peridynamics
     rm(name)
 end
 
-@testset "read incomplete results" begin
+#-- read incomplete results
+let
     bname = joinpath(@__DIR__, "vtk_test_2")
     name = bname * ".vtu"
     isfile(name) && rm(name)
@@ -57,11 +57,13 @@ end
     rm(name)
 end
 
-@testset "wrong file type" begin
+#-- wrong file type
+let
     @test_throws AssertionError read_vtk("something.wrong")
 end
 
-@testset "corrupt file <AppendedData encoding=\"raw\">" begin
+#-- corrupt file <AppendedData encoding=\"raw\">
+let
     bname = joinpath(@__DIR__, "vtk_test_2")
     name = bname * ".vtu"
     isfile(name) && rm(name)
@@ -89,7 +91,8 @@ end
     rm(name)
 end
 
-@testset "corrupt file offset marker" begin
+#-- corrupt file offset marker
+let
     bname = joinpath(@__DIR__, "vtk_test_2")
     name = bname * ".vtu"
     isfile(name) && rm(name)
@@ -117,7 +120,8 @@ end
     rm(name)
 end
 
-@testset "corrupt file </AppendedData>" begin
+#-- corrupt file </AppendedData>
+let
     bname = joinpath(@__DIR__, "vtk_test_2")
     name = bname * ".vtu"
     isfile(name) && rm(name)

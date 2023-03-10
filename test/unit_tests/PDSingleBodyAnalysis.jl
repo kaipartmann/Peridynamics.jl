@@ -1,5 +1,4 @@
-using Peridynamics
-using Test
+using Peridynamics, Test
 
 pdsba1 = PDSingleBodyAnalysis(;
     name="pdsba1",

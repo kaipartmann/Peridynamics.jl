@@ -21,7 +21,7 @@ Peridynamic single body analysis.
 struct PDSingleBodyAnalysis{T<:AbstractPDMaterial} <: AbstractPDAnalysis
     name::String
     pc::PointCloud
-    mat::T
+    mat::Union{T,MultiMaterial{T}}
     precracks::Vector{PreCrack}
     bcs::Vector{<:AbstractBC}
     ics::Vector{<:AbstractIC}
@@ -30,7 +30,7 @@ struct PDSingleBodyAnalysis{T<:AbstractPDMaterial} <: AbstractPDAnalysis
     function PDSingleBodyAnalysis(;
         name::String,
         pc::PointCloud,
-        mat::AbstractPDMaterial,
+        mat::Union{AbstractPDMaterial,MultiMaterial},
         precracks::Vector{PreCrack}=Vector{PreCrack}(),
         bcs::Vector{<:AbstractBC}=Vector{AbstractBC}(),
         ics::Vector{<:AbstractIC}=Vector{AbstractIC}(),
@@ -42,7 +42,7 @@ struct PDSingleBodyAnalysis{T<:AbstractPDMaterial} <: AbstractPDAnalysis
         if !es.exportflag
             es.exportfreq = td.n_timesteps + 1
         end
-        return new{typeof(mat)}(name, pc, mat, precracks, bcs, ics, td, es)
+        return new{eltype(mat)}(name, pc, mat, precracks, bcs, ics, td, es)
     end
 end
 
@@ -68,7 +68,7 @@ function submit(sim::PDSingleBodyAnalysis)
         update_thread_cache!(body)
         calc_damage!(body)
         if sim.td.Δt < 0.0 && sim.td.alg !== :dynrelax
-            sim.td.Δt = calc_stable_timestep(body, sim.mat.rho, sim.mat.K, sim.mat.δ)
+            sim.td.Δt = calc_stable_timestep(body, sim.mat)
         end
         log_simsetup(sim)
         apply_ics!(body, sim.ics)

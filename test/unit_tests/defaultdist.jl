@@ -1,8 +1,4 @@
-using Peridynamics
-using Test
-
-##------------------------------------------------------------------------------------------
-# defaultdist
+using Peridynamics, Test
 
 @test Peridynamics.defaultdist(4, 2) == [1:2, 3:4]
 @test Peridynamics.defaultdist(3, 2) == [1:2, 3:3]

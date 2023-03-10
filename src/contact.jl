@@ -35,14 +35,14 @@ Setup of multiple bodies for `PDContactAnalysis`.
 """
 struct BodySetup
     pc::PointCloud
-    mat::AbstractPDMaterial
+    mat::PDMaterial
     precracks::Vector{PreCrack}
     bcs::Vector{<:AbstractBC}
     ics::Vector{<:AbstractIC}
     calc_timestep::Bool
     function BodySetup(
         pc::PointCloud,
-        mat::AbstractPDMaterial;
+        mat::PDMaterial;
         precracks::Vector{PreCrack}=Vector{PreCrack}(),
         bcs::Vector{<:AbstractBC}=Vector{AbstractBC}(),
         ics::Vector{<:AbstractIC}=Vector{AbstractIC}(),
@@ -112,9 +112,7 @@ function submit(sim::PDContactAnalysis)
                         _Δt,
                         calc_stable_timestep(
                             bodies[i],
-                            sim.body_setup[i].mat.rho,
-                            sim.body_setup[i].mat.K,
-                            sim.body_setup[i].mat.δ,
+                            sim.body_setup[i].mat,
                         ),
                     )
                 end
@@ -137,13 +135,12 @@ function submit(sim::PDContactAnalysis)
 end
 
 function log_describe_sim(sim::PDContactAnalysis)
-    msg = "Peridynamic multibody contact analysis: " * sim.name * "\nMaterial parameters:\n"
+    msg = "Peridynamic multibody contact analysis: " * sim.name * "\n"
     for i in 1:sim.n_bodies
         msg *= @sprintf("Body %d:\n", i)
-        msg *= @sprintf(
-            "  - Number of material points [-]:      %30g\n",
-            sim.body_setup[i].pc.n_points
-        )
+        msg *= "Geometry:\n"
+        msg *= describe_geometry(sim.body_setup[i].pc)
+        msg *= @sprintf("Material Parameters: %49s\n", eltype(sim.body_setup[i].mat))
         msg *= describe_mat(sim.body_setup[i].mat)
     end
     print(msg)
@@ -155,14 +152,14 @@ function log_describe_sim(sim::PDContactAnalysis)
     return nothing
 end
 
-function log_describe_interactions(parts::Vector{<:AbstractPDBody}, es::ExportSettings)
+function log_describe_interactions(bodies::Vector{<:AbstractPDBody}, es::ExportSettings)
     msg = "Interactions:\n"
-    for i in 1:length(parts)
+    for i in 1:length(bodies)
         msg *= @sprintf "Body %d:\n" i
-        msg *= describe_interactions(parts[i])
+        msg *= describe_interactions(bodies[i])
     end
     msg *= @sprintf "Total memory used for all parts [MB]:   %30g\n" Base.summarysize(
-        parts
+        bodies
     ) * 1e-6
     print(msg)
     if es.exportflag
@@ -174,23 +171,12 @@ function log_describe_interactions(parts::Vector{<:AbstractPDBody}, es::ExportSe
 end
 
 function log_closesim(
-    parts::Vector{<:AbstractPDBody}, timingsummary::NamedTuple, es::ExportSettings
+    bodies::Vector{<:AbstractPDBody}, timingsummary::NamedTuple, es::ExportSettings
 )
     msg = @sprintf "✓ Simulation completed after %g seconds\nResults:\n" timingsummary.time
-    for i in 1:length(parts)
+    for i in 1:length(bodies)
         msg *= @sprintf "Body %d:\n" i
-        msg *= @sprintf "  - Max. abs. x-displacement [m]:       %30g\n" abs(
-            maximum(parts[i].displacement[1, :])
-        )
-        msg *= @sprintf "  - Max. abs. y-displacement [m]:       %30g\n" abs(
-            maximum(parts[i].displacement[2, :])
-        )
-        msg *= @sprintf "  - Max. abs. z-displacement [m]:       %30g\n" abs(
-            maximum(parts[i].displacement[3, :])
-        )
-        msg *= @sprintf "  - Max. damage [-]:                    %30g\n" maximum(
-            parts[i].damage
-        )
+        msg *= log_displacement_and_damage(bodies[i])
     end
     print(msg)
     if es.exportflag
