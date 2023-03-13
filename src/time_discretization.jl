@@ -115,11 +115,11 @@ function calc_stable_user_timestep(pc::PointCloud, mat::PDMaterial, Sf::Float64=
         dtsum = zeros(Float64, (pc.n_points, nthreads()))
         for current_one_ni in owned_bonds[tid]
             (a, i, L, _) = bond_data[current_one_ni]
-            dtsum[a, tid] += pc.volume[i] * 1 / L * 18 * mat.K / (π * mat.δ^4)
+            dtsum[a, tid] += pc.volume[i] * 1 / L * 18 * mat[a].K / (π * mat[a].δ^4)
         end
         for a in owned_points[tid]
             dtsum[a, 1] = sum(@view dtsum[a, :])
-            timesteps[a] = √(2 * mat.rho / dtsum[a, 1])
+            timesteps[a] = √(2 * mat[a].rho / dtsum[a, 1])
         end
         _Δt[tid] = Sf * minimum(timesteps[timesteps .> 0])
     end
