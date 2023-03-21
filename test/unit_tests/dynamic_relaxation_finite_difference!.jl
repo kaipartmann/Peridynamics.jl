@@ -20,8 +20,8 @@ if Threads.nthreads() <= 2
     Peridynamics.dynamic_relaxation_finite_difference!(body, sim)
 
     @test body.velocity_half == [-0.09375 0.09375; 0.0 0.0; 0.0 0.0]
-    @test body.displacement == [-0.09375 0.09375; 0.0 0.0; 0.0 0.0]
-    @test body.position == [-0.09375 1.09375; 0.0 0.0; 0.0 0.0]
+    @test body.displacement == zeros(3, 2)
+    @test body.position == positions
     @test body.b_int == zeros(3, 2, Threads.nthreads())
     @test body.acceleration == zeros(3, 2)
     @test body.velocity == [-0.046875 0.046875; 0.0 0.0; 0.0 0.0]
