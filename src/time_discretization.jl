@@ -174,6 +174,7 @@ function dynamic_relaxation_finite_difference!(
     for t in 1:sim.td.n_timesteps
         time = t * sim.td.Δt
         apply_bcs!(body, sim.bcs, time)
+        update_disp_and_position!(body, sim.td.Δt)
         compute_forcedensity!(body, sim.mat)
         update_thread_cache!(body)
         calc_damage!(body)
@@ -243,8 +244,6 @@ function finite_difference_first_step!(
             body.velocity_half[d, i] =
                 0.5 * Δt / damping_matrix[d, i] * (body.b_int[d, i, 1] + body.b_ext[d, i])
             body.velocity[d, i] = 0.5 * (velocity_half_old[d, i] + body.velocity_half[d, i])
-            body.displacement[d, i] += body.velocity_half[d, i] * Δt
-            body.position[d, i] += body.velocity_half[d, i] * Δt
             velocity_half_old[d, i] = body.velocity_half[d, i]
             b_int_old[d, i] = body.b_int[d, i, 1]
         end
@@ -269,8 +268,6 @@ function finite_difference!(
                     (body.b_int[d, i, 1] + body.b_ext[d, i])
                 ) / (2 + cn * Δt)
             body.velocity[d, i] = 0.5 * (velocity_half_old[d, i] + body.velocity_half[d, i])
-            body.displacement[d, i] += body.velocity_half[d, i] * Δt
-            body.position[d, i] += body.velocity_half[d, i] * Δt
             velocity_half_old[d, i] = body.velocity_half[d, i]
             b_int_old[d, i] = body.b_int[d, i, 1]
         end
