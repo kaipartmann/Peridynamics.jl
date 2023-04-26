@@ -101,6 +101,7 @@ function submit(sim::PDContactAnalysis)
             for precrack in sim.body_setup[i].precracks
                 define_precrack!(bodies[i], precrack)
             end
+            update_thread_cache_contact!(bodies[i])
             calc_damage!(bodies[i])
         end
         if sim.td.Δt < 0.0

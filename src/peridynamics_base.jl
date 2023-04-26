@@ -654,6 +654,7 @@ function submit(sim::PDSingleBodyAnalysis)
         for precrack in sim.precracks
             define_precrack!(body, precrack)
         end
+        update_thread_cache!(body)
         calc_damage!(body)
         if sim.td.Δt < 0.0 && sim.td.alg !== :dynrelax
             sim.td.Δt = calc_stable_timestep(body, sim.mat.rho, sim.mat.K, sim.mat.δ)
