@@ -9,7 +9,7 @@ struct MultiMaterial{T<:AbstractPDMaterial,N,I<:Integer}
             error("N = 1\nUsage of MultiMaterial only makes sense for N > 1")
         end
 
-        if all(1 .<= matofpoint .<= N)
+        if !all(1 .<= matofpoint .<= N)
             error("Index in `matofpoint` out of bounds!")
         end
 
