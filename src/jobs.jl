@@ -21,7 +21,7 @@ Peridynamic single body analysis.
 struct PDSingleBodyAnalysis{T<:AbstractPDMaterial} <: AbstractPDAnalysis
     name::String
     pc::PointCloud
-    mat::Union{T,MultiMaterial{T}}
+    mat::PDMaterial{T}
     precracks::Vector{PreCrack}
     bcs::Vector{<:AbstractBC}
     ics::Vector{<:AbstractIC}
@@ -30,7 +30,7 @@ struct PDSingleBodyAnalysis{T<:AbstractPDMaterial} <: AbstractPDAnalysis
     function PDSingleBodyAnalysis(;
         name::String,
         pc::PointCloud,
-        mat::Union{AbstractPDMaterial,MultiMaterial},
+        mat::PDMaterial,
         precracks::Vector{PreCrack}=Vector{PreCrack}(),
         bcs::Vector{<:AbstractBC}=Vector{AbstractBC}(),
         ics::Vector{<:AbstractIC}=Vector{AbstractIC}(),

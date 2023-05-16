@@ -1,9 +1,9 @@
 using Peridynamics, Test
 
-mat1 = BondBasedMaterial(horizon=1, rho=1, E=1, Gc=1)
-mat2 = BondBasedMaterial(horizon=2, rho=2, E=2, Gc=2)
+mat1 = BondBasedMaterial(horizon = 1, rho = 1, E = 1, Gc = 1)
+mat2 = BondBasedMaterial(horizon = 2, rho = 2, E = 2, Gc = 2)
 materials = (mat1, mat2)
-pointmap = [1,2,1,2]
+pointmap = [1, 2, 1, 2]
 mm = Peridynamics.MultiMaterial(materials, pointmap)
 
 for p in pointmap
@@ -17,5 +17,31 @@ end
 io = IOBuffer()
 show(io, "text/plain", mm)
 msg = String(take!(io))
-@test msg == "MultiMaterial{BondBasedMaterial, 2} for 4 points" ||
-      msg == "Peridynamics.MultiMaterial{Peridynamics.BondBasedMaterial, 2} for 4 points"
+@test msg == "MultiMaterial{BondBasedMaterial, 2, UInt8} for 4 points" ||
+      msg ==
+      "Peridynamics.MultiMaterial{Peridynamics.BondBasedMaterial, 2, UInt8} for 4 points"
+
+err_msg = "N = 1\nUsage of MultiMaterial only makes sense for N > 1"
+@test_throws ErrorException(err_msg) Peridynamics.MultiMaterial((mat1,), [1, 2, 3, 4, 5, 6])
+
+err_msg = "Index in `matofpoint` out of bounds!"
+@test_throws ErrorException(err_msg) Peridynamics.MultiMaterial(materials, [1, 2, 3])
+
+# many materials -> I != UInt8
+N = typemax(UInt8) + 1
+materials = Tuple(mat1 for _ in 1:N)
+pointmap = rand(1:N, N)
+mm = Peridynamics.MultiMaterial(materials, pointmap)
+@test typeof(mm) == MultiMaterial{BondBasedMaterial, 256, Int64}
+
+pointmap = convert(Vector{UInt16}, pointmap)
+mm = Peridynamics.MultiMaterial(materials, pointmap)
+@test typeof(mm) == MultiMaterial{BondBasedMaterial, 256, UInt16}
+
+# Interface for AbstractPDMaterial:
+@test mat1[1] == mat1
+@test mat1[1:3] == mat1
+@test mat1[:] == mat1
+@test firstindex(mat1) == 1
+@test lastindex(mat1) == 1
+@test eltype(mat1) == BondBasedMaterial
