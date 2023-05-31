@@ -1,9 +1,9 @@
 ```@raw html
-<img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/logo.png?raw=true" width="450" />
+<img src="https://github.com/kaipartmann/Peridynamics.jl/blob/main/docs/src/assets/logo.png?raw=true" width="450" />
 ```
 # Peridynamics
 
-Documentation for the [Peridynamics](https://github.com/kfrb/Peridynamics.jl) julia package.
+Documentation for the [Peridynamics](https://github.com/kaipartmann/Peridynamics.jl) julia package.
 
 ## Overview
 

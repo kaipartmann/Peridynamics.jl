@@ -1,6 +1,6 @@
 # [CrackedPlateUnderTension.jl](@id cracked-plate-under-tension)
 
-The complete script for this tutorial can be found here: [CrackedPlateUnderTension.jl](https://github.com/kfrb/Peridynamics.jl/blob/main/examples/CrackedPlateUnderTension.jl).
+The complete script for this tutorial can be found here: [CrackedPlateUnderTension.jl](https://github.com/kaipartmann/Peridynamics.jl/blob/main/examples/CrackedPlateUnderTension.jl).
 
 First, we have to load the `Peridynamics.jl` package.
 
@@ -37,7 +37,7 @@ Points in `point_id_set_a` don't interact with points in  `point_id_set_b`.
 So we need to specify all points above and below the crack, as seen in the following image:
 
 ```@raw html
-<img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/CrackedPlateUnderTension0.png?raw=true" width="600" />
+<img src="https://github.com/kaipartmann/Peridynamics.jl/blob/main/docs/src/assets/CrackedPlateUnderTension0.png?raw=true" width="600" />
 ```
 (Visualization made with [ParaView](https://www.paraview.org))
 
@@ -104,6 +104,6 @@ results = submit(job);
 
 ##### Results after 2000 timesteps:
 ```@raw html
-<img src="https://github.com/kfrb/Peridynamics.jl/blob/main/docs/src/assets/CrackedPlateUnderTension2000.png?raw=true" width="600"/>
+<img src="https://github.com/kaipartmann/Peridynamics.jl/blob/main/docs/src/assets/CrackedPlateUnderTension2000.png?raw=true" width="600"/>
 ```
 (Visualization made with [ParaView](https://www.paraview.org))
