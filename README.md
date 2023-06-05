@@ -45,7 +45,7 @@ We recommend looking at the [manual](https://kaipartmann.github.io/Peridynamics.
 
 ## Authors
 
-- Kai Friebertshäuser (University of Siegen)
+- Kai Partmann (University of Siegen)
 - Kerstin Weinberg (University of Siegen)
 
 ## Acknowledgement
