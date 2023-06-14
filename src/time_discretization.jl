@@ -208,7 +208,6 @@ function calc_damping(
     cn2 = 0.0
     for i in 1:body.n_points
         for d in 1:3
-            body.b_int[d, i, 1] = sum(@view body.b_int[d, i, :])
             if velocity_half_old[d, i] !== 0.0
                 cn1 -=
                     body.displacement[d, i]^2 * (body.b_int[d, i, 1] - b_int_old[d, i]) /
