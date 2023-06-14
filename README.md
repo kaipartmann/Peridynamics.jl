@@ -32,7 +32,7 @@ Currently, only a limited feature set is supported, but many upgrades are in the
 
 To install, use Julia's built-in package manager. Open the Julia REPL and type `]` to enter the package mode and install Peridynamics as follows:
 
-```julia-repl
+```
 pkg> add Peridynamics
 ```
 
