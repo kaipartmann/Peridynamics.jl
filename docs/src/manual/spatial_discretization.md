@@ -8,8 +8,6 @@ The point clouds are represented as [`PointCloud`](@ref) objects.
 To generate a uniformly distributed `PointCloud` with the lengths `lx`, `ly`, `lz`, and
 point spacing `Δx`, simply type:
 ```@setup sd1
-import Pkg
-Pkg.activate(joinpath("..", "..","Project.toml"))
 using Peridynamics
 using CairoMakie
 ```

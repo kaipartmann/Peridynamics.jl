@@ -3,8 +3,6 @@
 ## MultiMaterial
 
 ```@setup mm1
-import Pkg
-Pkg.activate(joinpath("..", "..","Project.toml"))
 using Peridynamics
 using CairoMakie
 ```
