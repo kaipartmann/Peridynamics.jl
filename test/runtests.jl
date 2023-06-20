@@ -11,6 +11,8 @@ using SafeTestsets
     @safetestset "PosDepVelBC" begin include(joinpath("unit_tests","PosDepVelBC.jl")) end
     @safetestset "VelocityBC" begin include(joinpath("unit_tests","VelocityBC.jl")) end
     @safetestset "VelocityIC" begin include(joinpath("unit_tests","VelocityIC.jl")) end
+    @safetestset "VelocityVerlet" begin include(joinpath("unit_tests","VelocityVerlet.jl")) end
+    @safetestset "DynamicRelaxation" begin include(joinpath("unit_tests","DynamicRelaxation.jl")) end
     @safetestset "Contact" begin include(joinpath("unit_tests","Contact.jl")) end
     @safetestset "BodySetup" begin include(joinpath("unit_tests","BodySetup.jl")) end
     @safetestset "PDSingleBodyAnalysis" begin include(joinpath("unit_tests","PDSingleBodyAnalysis.jl")) end

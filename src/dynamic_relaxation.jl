@@ -2,7 +2,7 @@ mutable struct DynamicRelaxation <: AbstractTimeDiscretization
     n_steps::Int
     Δt::Float64
     Λ::Float64
-    function DynamicRelaxation(n_steps::Int, Δt::Real=1; damping_factor::Float64=1.0)
+    function DynamicRelaxation(n_steps::Int, Δt::Real=1; damping_factor::Real=1)
         new(n_steps, Δt, damping_factor)
     end
 end
