@@ -20,7 +20,6 @@ export read_vtk
 include("abstract_types.jl")
 include("multi_material.jl")
 include("spatial_discretization.jl")
-# include("time_discretization.jl")
 include("conditions.jl")
 include("io.jl")
 include("velocity_verlet.jl")
