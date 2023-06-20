@@ -30,7 +30,9 @@ using SafeTestsets
 
     # integration tests
     @safetestset "Symmetry tests BondBasedMaterial" begin include(joinpath("integration_tests","symmetry_bond_based.jl")) end
+    @safetestset "Symmetry tests BondBasedMaterial ADR" begin include(joinpath("integration_tests","symmetry_bond_based_adr.jl")) end
     @safetestset "Symmetry tests ContinuumBasedMaterial" begin include(joinpath("integration_tests","symmetry_continuum_based.jl")) end
+    @safetestset "Symmetry tests ContinuumBasedMaterial ADR" begin include(joinpath("integration_tests","symmetry_continuum_based_adr.jl")) end
     @safetestset "Bonds" begin include(joinpath("integration_tests","bonds.jl")) end
     @safetestset "Force density calculation BondBased" begin include(joinpath("integration_tests","b_int_bond_based.jl")) end
     @safetestset "create_simmodel BondBased" begin include(joinpath("integration_tests","create_simmodel_bond_based.jl")) end
