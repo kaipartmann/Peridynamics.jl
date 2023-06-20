@@ -4,12 +4,12 @@ pdsba1 = PDSingleBodyAnalysis(;
     name="pdsba1",
     pc=PointCloud(1, 1, 1, 0.5),
     mat=BondBasedMaterial(; horizon=1, rho=1, E=1, Gc=1),
-    td=TimeDiscretization(10),
+    td=VelocityVerlet(10),
     es=ExportSettings(),
 )
 @test pdsba1.es.resultfile_prefix == "pdsba1"
 @test pdsba1.es.logfile =="pdsba1.log"
-@test pdsba1.es.exportfreq == 11
+@test pdsba1.es.exportfreq == typemax(Int)
 @test isempty(pdsba1.precracks)
 @test isempty(pdsba1.bcs)
 @test isempty(pdsba1.ics)
@@ -18,7 +18,7 @@ pdsba2 = PDSingleBodyAnalysis(;
     name="pdsba2",
     pc=PointCloud(1, 1, 1, 0.5),
     mat=BondBasedMaterial(; horizon=1, rho=1, E=1, Gc=1),
-    td=TimeDiscretization(10),
+    td=VelocityVerlet(10),
     es=ExportSettings("test",2),
 )
 @test pdsba2.es.resultfile_prefix == joinpath("test", "pdsba2")

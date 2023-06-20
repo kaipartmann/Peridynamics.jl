@@ -40,7 +40,7 @@ bc2 = VelocityBC(fun2,findall(positions[3,:] .< -width/2+0.6Δx),3)
 bcs = [bc1, bc2]
 
 # settings
-td = TimeDiscretization(100)
+td = VelocityVerlet(100)
 es = ExportSettings(@__DIR__, 10)
 
 # simulation job

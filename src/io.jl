@@ -139,16 +139,10 @@ function log_simsetup(sim::AbstractPDAnalysis)
             msg *= @sprintf "  - Export file name:\n    %s\n" resfile_basename
         end
     end
-    timedisc = ""
-    if sim.td.alg == :verlet
-        timedisc = "dynamic (Velocity-Verlet algorithm)"
-    elseif sim.td.alg == :dynrelax
-        timedisc = "quasi-static (adaptive dynamic relaxation)"
-    end
-    msg *= @sprintf "Time discretization: %49s\n" timedisc
+    msg *= @sprintf "Time discretization: %49s\n" typeof(sim.td)
     msg *= @sprintf "  - Time step Δt [s]:                   %30g\n" sim.td.Δt
-    msg *= @sprintf "  - Number of time steps [-]:           %30g\n" sim.td.n_timesteps
-    msg *= @sprintf "  - Simulation time horizon [s]:        %30g\n" sim.td.n_timesteps *
+    msg *= @sprintf "  - Number of time steps [-]:           %30g\n" sim.td.n_steps
+    msg *= @sprintf "  - Simulation time horizon [s]:        %30g\n" sim.td.n_steps *
         sim.td.Δt
     print(msg)
     if sim.es.exportflag

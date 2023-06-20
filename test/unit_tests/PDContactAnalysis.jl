@@ -7,28 +7,28 @@ pdca1 = PDContactAnalysis(;
     name="pdca1",
     body_setup=[bs1, bs1],
     contact=[c1],
-    td=TimeDiscretization(10),
+    td=VelocityVerlet(10),
     es=ExportSettings(),
 )
 @test pdca1.es.resultfile_prefix == "pdca1"
 @test pdca1.es.logfile == "pdca1.log"
-@test pdca1.es.exportfreq == 11
+@test pdca1.es.exportfreq == typemax(Int)
 
 pdca2 = PDContactAnalysis(;
     name="pdca2",
     body_setup=[bs1, bs1],
     contact=[c1],
-    td=TimeDiscretization(10),
+    td=VelocityVerlet(10),
     es=ExportSettings("test",2),
 )
 @test pdca2.es.resultfile_prefix == joinpath("test", "pdca2")
 @test pdca2.es.logfile == joinpath("test", "pdca2.log")
 @test pdca2.es.exportfreq == 2
 
-@test_throws ErrorException PDContactAnalysis(;
+@test_throws TypeError PDContactAnalysis(;
     name="pdca2",
     body_setup=[bs1, bs1],
     contact=[c1],
-    td=TimeDiscretization(10; alg=:dynrelax),
+    td=DynamicRelaxation(10),
     es=ExportSettings("test",2),
 )

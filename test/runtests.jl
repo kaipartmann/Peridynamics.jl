@@ -15,7 +15,6 @@ using SafeTestsets
     @safetestset "BodySetup" begin include(joinpath("unit_tests","BodySetup.jl")) end
     @safetestset "PDSingleBodyAnalysis" begin include(joinpath("unit_tests","PDSingleBodyAnalysis.jl")) end
     @safetestset "PDContactAnalysis" begin include(joinpath("unit_tests","PDContactAnalysis.jl")) end
-    @safetestset "TimeDiscretization" begin include(joinpath("unit_tests","TimeDiscretization.jl")) end
     @safetestset "ExportSettings" begin include(joinpath("unit_tests","ExportSettings.jl")) end
     @safetestset "BondBasedMaterial" begin include(joinpath("unit_tests","BondBasedMaterial.jl")) end
     @safetestset "sphere_radius" begin include(joinpath("unit_tests","sphere_radius.jl")) end
@@ -24,9 +23,7 @@ using SafeTestsets
     @safetestset "defaultdist" begin include(joinpath("unit_tests","defaultdist.jl")) end
     @safetestset "export_vtk" begin include(joinpath("unit_tests","export_vtk.jl")) end
     @safetestset "calc_stable_timestep" begin include(joinpath("unit_tests","calc_stable_timestep.jl")) end
-    @safetestset "calc_stable_user_timestep" begin include(joinpath("unit_tests","calc_stable_user_timestep.jl")) end
-    @safetestset "velocity_verlet!" begin include(joinpath("unit_tests","velocity_verlet!.jl")) end
-    @safetestset "dynamic_relaxation_finite_difference!" begin include(joinpath("unit_tests","dynamic_relaxation_finite_difference!.jl")) end
+    @safetestset "time_loop!" begin include(joinpath("unit_tests","time_loop!.jl")) end
 
     # integration tests
     @safetestset "Symmetry tests BondBasedMaterial" begin include(joinpath("integration_tests","symmetry_bond_based.jl")) end

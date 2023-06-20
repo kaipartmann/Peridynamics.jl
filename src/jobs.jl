@@ -18,31 +18,31 @@ Peridynamic single body analysis.
 - `td::TimeDiscretization`: time discretization
 - `es::ExportSettings`: export settings
 """
-struct PDSingleBodyAnalysis{T<:AbstractPDMaterial} <: AbstractPDAnalysis
+struct PDSingleBodyAnalysis{M<:AbstractPDMaterial, T<:AbstractTimeDiscretization} <: AbstractPDAnalysis
     name::String
     pc::PointCloud
-    mat::PDMaterial{T}
+    mat::Union{M,MultiMaterial{M}}
     precracks::Vector{PreCrack}
     bcs::Vector{<:AbstractBC}
     ics::Vector{<:AbstractIC}
-    td::TimeDiscretization
+    td::T
     es::ExportSettings
     function PDSingleBodyAnalysis(;
         name::String,
         pc::PointCloud,
-        mat::PDMaterial,
+        mat::PDMaterial{M},
         precracks::Vector{PreCrack}=Vector{PreCrack}(),
         bcs::Vector{<:AbstractBC}=Vector{AbstractBC}(),
         ics::Vector{<:AbstractIC}=Vector{AbstractIC}(),
-        td::TimeDiscretization,
+        td::T,
         es::ExportSettings,
-    )
+    ) where {M<:AbstractPDMaterial, T<:AbstractTimeDiscretization}
         es.resultfile_prefix = joinpath(es.path, name)
         es.logfile = es.resultfile_prefix * ".log"
         if !es.exportflag
-            es.exportfreq = td.n_timesteps + 1
+            es.exportfreq = typemax(Int)
         end
-        return new{eltype(mat)}(name, pc, mat, precracks, bcs, ics, td, es)
+        return new{M, T}(name, pc, mat, precracks, bcs, ics, td, es)
     end
 end
 
@@ -67,19 +67,9 @@ function submit(sim::PDSingleBodyAnalysis)
         end
         update_thread_cache!(body)
         calc_damage!(body)
-        if sim.td.Δt < 0.0 && sim.td.alg !== :dynrelax
-            sim.td.Δt = calc_stable_timestep(body, sim.mat)
-        end
+        init_time_discretization!(sim.td, body, sim.mat)
         log_simsetup(sim)
-        apply_ics!(body, sim.ics)
-        if sim.es.exportflag
-            export_vtk(body, sim.es.resultfile_prefix, 0, 0.0)
-        end
-        if sim.td.alg == :verlet
-            velocity_verlet!(body, sim)
-        elseif sim.td.alg == :dynrelax
-            dynamic_relaxation_finite_difference!(body, sim)
-        end
+        time_loop!(body, sim.td, sim.mat, sim.bcs, sim.ics, sim.es)
     end
     log_closesim(body, timingsummary, sim.es)
     return body

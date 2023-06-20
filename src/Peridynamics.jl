@@ -8,7 +8,7 @@ using Base.Threads
 export PointCloud, pcmerge
 export PreCrack
 export VelocityBC, VelocityIC, ForceDensityBC, PosDepVelBC
-export TimeDiscretization, calc_stable_user_timestep, ExportSettings
+export VelocityVerlet, DynamicRelaxation, ExportSettings
 export MultiMaterial, BondBasedMaterial, ContinuumBasedMaterial
 export Contact, BodySetup
 export PDSingleBodyAnalysis, PDContactAnalysis
@@ -20,9 +20,11 @@ export read_vtk
 include("abstract_types.jl")
 include("multi_material.jl")
 include("spatial_discretization.jl")
-include("time_discretization.jl")
+# include("time_discretization.jl")
 include("conditions.jl")
 include("io.jl")
+include("velocity_verlet.jl")
+include("dynamic_relaxation.jl")
 include("jobs.jl")
 include("contact.jl")
 include("utilities.jl")

@@ -26,7 +26,7 @@ if Threads.nthreads() <= 2
         name="job1",
         body_setup=bodies,
         contact=[contact1],
-        td=TimeDiscretization(1),
+        td=VelocityVerlet(1),
         es=ExportSettings(@__DIR__, 1),
     )
     rm.(joinpath.(@__DIR__,filter(x->endswith(x,".vtu"), readdir(@__DIR__))), force=true)

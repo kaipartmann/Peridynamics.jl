@@ -27,3 +27,10 @@ abstract type AbstractIC end
 Abstract type for a peridynamic analysis.
 """
 abstract type AbstractPDAnalysis end
+
+"""
+    AbstractTimeDiscretization
+
+Abstract type for time discretizations.
+"""
+abstract type AbstractTimeDiscretization end

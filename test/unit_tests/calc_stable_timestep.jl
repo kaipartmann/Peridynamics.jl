@@ -14,9 +14,9 @@ if Threads.nthreads() <= 2
     pc = PointCloud(positions, volumes)
     mat = BondBasedMaterial(; horizon=δ, rho=1, E=1, Gc=1)
     body = Peridynamics.create_simmodel(mat, pc)
-
-    Δt = 0.7 * sqrt(2 * 1 / (body.volume[2] * 1 / 1 * 18 * 2/3 / (π * δ^4)))
-    @test Peridynamics.calc_stable_timestep(body, mat) == Δt
+    sf = 0.7
+    Δt = sf * sqrt(2 * 1 / (body.volume[2] * 1 / 1 * 18 * 2/3 / (π * δ^4)))
+    @test Peridynamics.calc_stable_timestep(body, mat, sf) == Δt
 else
     @warn "Test omitted! Threads.nthreads() should be <= 2"
 end

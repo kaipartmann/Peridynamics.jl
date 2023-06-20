@@ -62,7 +62,7 @@ Peridynamic contact analysis.
 - `body_setup::Vector{BodySetup}`: bodies used in this simulation
 - `n_bodies::Int`: number of bodies
 - `contact::Vector{Contact}`: contact definitions
-- `td::TimeDiscretization`: time discretization
+- `td::VelocityVerlet`: time discretization
 - `es::ExportSettings`: export settings
 """
 struct PDContactAnalysis <: AbstractPDAnalysis
@@ -70,22 +70,19 @@ struct PDContactAnalysis <: AbstractPDAnalysis
     body_setup::Vector{BodySetup}
     n_bodies::Int
     contact::Vector{Contact}
-    td::TimeDiscretization
+    td::VelocityVerlet
     es::ExportSettings
     function PDContactAnalysis(;
         name::String,
         body_setup::Vector{BodySetup},
         contact::Vector{Contact},
-        td::TimeDiscretization,
+        td::VelocityVerlet,
         es::ExportSettings,
     )
         es.resultfile_prefix = joinpath(es.path, name)
         es.logfile = es.resultfile_prefix * ".log"
         if !es.exportflag
-            es.exportfreq = td.n_timesteps + 1
-        end
-        if td.alg == :dynrelax
-            error("Dynamic relaxation not allowed for contact analysis! Check settings!")
+            es.exportfreq = typemax(Int)
         end
         return new(name, body_setup, length(body_setup), contact, td, es)
     end
@@ -113,6 +110,7 @@ function submit(sim::PDContactAnalysis)
                         calc_stable_timestep(
                             bodies[i],
                             sim.body_setup[i].mat,
+                            sim.td.safety_factor,
                         ),
                     )
                 end
@@ -188,7 +186,7 @@ function log_closesim(
 end
 
 function velocity_verlet!(bodies::Vector{<:AbstractPDBody}, sim::PDContactAnalysis)
-    p = Progress(sim.td.n_timesteps;
+    p = Progress(sim.td.n_steps;
         dt=1,
         desc="Time integration... ",
         barlen=30,
@@ -196,7 +194,7 @@ function velocity_verlet!(bodies::Vector{<:AbstractPDBody}, sim::PDContactAnalys
         enabled=!is_logging(stderr),
     )
     Δt½ = 0.5 * sim.td.Δt
-    for t in 1:sim.td.n_timesteps
+    for t in 1:sim.td.n_steps
         time = t * sim.td.Δt
         for i in 1:sim.n_bodies
             update_velhalf!(bodies[i], Δt½)

@@ -42,4 +42,21 @@ function find_tids(sum_tids::Vector{Vector{Int}})
     return single_tids, multi_tids
 end
 
+function update_thread_cache!(body::AbstractPDBody)
+    @threads for (i, tid) in body.single_tids
+        body.b_int[1, i, 1] = body.b_int[1, i, tid]
+        body.b_int[2, i, 1] = body.b_int[2, i, tid]
+        body.b_int[3, i, 1] = body.b_int[3, i, tid]
+        body.n_active_family_members[i, 1] = body.n_active_family_members[i, tid]
+    end
+    @threads for (i, tids) in body.multi_tids
+        for tid in tids
+            body.b_int[1, i, 1] += body.b_int[1, i, tid]
+            body.b_int[2, i, 1] += body.b_int[2, i, tid]
+            body.b_int[3, i, 1] += body.b_int[3, i, tid]
+            body.n_active_family_members[i, 1] += body.n_active_family_members[i, tid]
+        end
+    end
+end
+
 is_logging(io) = isa(io, Base.TTY) == false || (get(ENV, "CI", nothing) == "true")
