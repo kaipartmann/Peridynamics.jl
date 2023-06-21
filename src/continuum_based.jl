@@ -35,7 +35,7 @@ function ContinuumBasedMaterial(;
         msg = "Duplicate definition: define either Gc or epsilon_c, not both!"
         throw(ArgumentError(msg))
     elseif (Gc == -1) && (epsilon_c == -1)
-        throw(ArgumentError("either Gc or epsilon_c have to be defined!"))
+        throw(ArgumentError("Either Gc or epsilon_c have to be defined!"))
     end
     if C1 == 0 && C2 == 0 && C3 == 0
         C1 = 30/π * μ/horizon^4
