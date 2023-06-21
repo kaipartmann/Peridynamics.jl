@@ -1,6 +1,6 @@
 # [CrackedPlateUnderTension.jl](@id cracked-plate-under-tension)
 
-The complete script for this tutorial can be found here: [CrackedPlateUnderTension.jl](https://github.com/kfrb/Peridynamics.jl/blob/main/examples/CrackedPlateUnderTension.jl).
+The complete script for this tutorial can be found here: [CrackedPlateUnderTension.jl](https://github.com/kaipartmann/Peridynamics.jl/blob/main/examples/CrackedPlateUnderTension.jl).
 
 First, we have to load the `Peridynamics.jl` package.
 
