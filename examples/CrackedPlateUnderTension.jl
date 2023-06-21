@@ -42,7 +42,7 @@ bc_bottom = VelocityBC(t -> -0.1, bc_set_bottom, 2)
 boundary_conditions = [bc_top, bc_bottom]
 
 ##--   5. DEFINE TIME DISCRETIZATION   -----------------------------------------------------
-td = TimeDiscretization(2000)
+td = VelocityVerlet(2000)
 
 ##--   6. DEFINE EXPORT SETTINGS   ---------------------------------------------------------
 simulation_name = "CrackedPlateUnderTension"

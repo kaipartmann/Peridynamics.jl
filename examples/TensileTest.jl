@@ -12,7 +12,7 @@ job = PDSingleBodyAnalysis(;
     pc=pointcloud,
     mat=material,
     bcs=boundary_conditions,
-    td=TimeDiscretization(500),
+    td=VelocityVerlet(500),
     es=ExportSettings("examples/results/TensileTest", 10),
 )
 submit(job)

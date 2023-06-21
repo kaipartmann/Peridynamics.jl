@@ -61,7 +61,7 @@ body_setup = [plate, sphere1, sphere2, sphere3]
 contact = [Contact((1, 2), Δxₚ), Contact((1, 3), Δxₚ), Contact((1, 4), Δxₚ)]
 
 ##--   7. DEFINE TIME DISCRETIZATION   -----------------------------------------------------
-td = TimeDiscretization(3000)
+td = VelocityVerlet(3000)
 
 ##--   8. DEFINE EXPORT SETTINGS   ---------------------------------------------------------
 simulation_name = "Logo"
