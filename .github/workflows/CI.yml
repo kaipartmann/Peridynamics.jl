@@ -39,7 +39,9 @@ jobs:
         with:
           files: lcov.info
     env:
-      JULIA_NUM_THREADS: 2
+      matrix:
+        JULIA_NUM_THREADS: 1
+        JULIA_NUM_THREADS: 2
   docs:
     name: Documentation
     runs-on: ubuntu-latest
