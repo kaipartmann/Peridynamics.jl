@@ -19,6 +19,7 @@ using SafeTestsets
     @safetestset "PDContactAnalysis" begin include(joinpath("unit_tests","PDContactAnalysis.jl")) end
     @safetestset "ExportSettings" begin include(joinpath("unit_tests","ExportSettings.jl")) end
     @safetestset "BondBasedMaterial" begin include(joinpath("unit_tests","BondBasedMaterial.jl")) end
+    @safetestset "ContinuumBasedMaterial" begin include(joinpath("unit_tests","ContinuumBasedMaterial.jl")) end
     @safetestset "sphere_radius" begin include(joinpath("unit_tests","sphere_radius.jl")) end
     @safetestset "pcmerge" begin include(joinpath("unit_tests","pcmerge.jl")) end
     @safetestset "define_precrack!" begin include(joinpath("unit_tests","define_precrack!.jl")) end
@@ -27,6 +28,7 @@ using SafeTestsets
     @safetestset "calc_stable_timestep" begin include(joinpath("unit_tests","calc_stable_timestep.jl")) end
     @safetestset "time_loop!" begin include(joinpath("unit_tests","time_loop!.jl")) end
     @safetestset "apply_boundarycondition!" begin include(joinpath("unit_tests","apply_boundarycondition!.jl")) end
+    @safetestset "apply_initialcondition!" begin include(joinpath("unit_tests","apply_initialcondition!.jl")) end
     @safetestset "get_points_with_interaction" begin include(joinpath("unit_tests","get_points_with_interaction.jl")) end
 
     # integration tests
