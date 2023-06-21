@@ -27,6 +27,7 @@ using SafeTestsets
     @safetestset "calc_stable_timestep" begin include(joinpath("unit_tests","calc_stable_timestep.jl")) end
     @safetestset "time_loop!" begin include(joinpath("unit_tests","time_loop!.jl")) end
     @safetestset "apply_boundarycondition!" begin include(joinpath("unit_tests","apply_boundarycondition!.jl")) end
+    @safetestset "get_points_with_interaction" begin include(joinpath("unit_tests","get_points_with_interaction.jl")) end
 
     # integration tests
     @safetestset "Symmetry tests BondBasedMaterial" begin include(joinpath("integration_tests","symmetry_bond_based.jl")) end
@@ -34,9 +35,12 @@ using SafeTestsets
     @safetestset "Symmetry tests ContinuumBasedMaterial" begin include(joinpath("integration_tests","symmetry_continuum_based.jl")) end
     @safetestset "Symmetry tests ContinuumBasedMaterial ADR" begin include(joinpath("integration_tests","symmetry_continuum_based_adr.jl")) end
     @safetestset "Bonds" begin include(joinpath("integration_tests","bonds.jl")) end
+    @safetestset "Interactions" begin include(joinpath("integration_tests","interactions.jl")) end
     @safetestset "Force density calculation BondBased" begin include(joinpath("integration_tests","b_int_bond_based.jl")) end
     @safetestset "create_simmodel BondBased" begin include(joinpath("integration_tests","create_simmodel_bond_based.jl")) end
+    @safetestset "create_simmodel ContinuumBased" begin include(joinpath("integration_tests","create_simmodel_continuum_based.jl")) end
     @safetestset "Contact example 4 points" begin include(joinpath("integration_tests","contact_example_4p.jl")) end
+    @safetestset "MultiMaterial interactions" begin include(joinpath("integration_tests","multimat_interactions.jl")) end
 
     # VtkReader
     @safetestset "read_vtk" begin include(joinpath("VtkReader","read_vtk.jl")) end
