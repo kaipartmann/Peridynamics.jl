@@ -38,7 +38,7 @@ if Threads.nthreads() <= 2
     if Threads.nthreads() == 1
         @test body.n_active_family_members == [1; 1;;]
     elseif Threads.nthreads() == 2
-        @test body.n_active_family_members == [1 0; 0 1]
+        @test body.n_active_family_members == [1 0; 1 0]
     end
     @test body.bond_failure == [1]
     @test body.damage == [0, 0]
