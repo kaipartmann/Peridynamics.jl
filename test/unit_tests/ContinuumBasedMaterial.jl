@@ -7,9 +7,6 @@ mat1 = ContinuumBasedMaterial(; horizon = 1, rho = 1, E = 1, nu = 1/4, Gc = 1)
 @test mat1.nu == 1/4
 @test mat1.G ≈ 1 / (2 * (1 + 1/4))
 @test mat1.K ≈ 1 / (3 * (1 - 2 * 1/4))
-# C1 = 30/π * μ/horizon^4
-# C2 = 0.0
-# C3 = 32/π^4 * (λ - μ)/horizon^12
 @test mat1.C1 == 30/π * 1 / (2 * (1 + 1/4))/1^4
 @test mat1.C2 == 0
 @test mat1.C3 == 0
