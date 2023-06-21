@@ -22,9 +22,26 @@ mat2 = BondBasedMaterial(; horizon = 0, rho = 0, E = 0, Gc = 0)
 @test mat2.Gc == 0
 @test isnan(mat2.εc)
 
-mat3 = BondBasedMaterial(horizon=1.5, rho=7850.0, E=210e9, Gc=1.0)
+mat3 = BondBasedMaterial(; horizon = 1, rho = 8e-6, E = 210e3, epsilon_c = 0.01)
+@test mat3.δ == 1
+@test mat3.rho == 8e-6
+@test mat3.E == 210e3
+@test mat3.nu == 1/4
+@test mat3.G ≈ 210e3 / (2 * (1 + 0.25))
+@test mat3.K ≈ 210e3 / (3 * (1 - 2 * 0.25))
+@test mat3.bc ≈ 18 * 210e3 / (3 * (1 - 2 * 0.25)) / (π * 1^4)
+@test mat3.Gc ≈ 9.0/5.0 * 210e3 / (3 * (1 - 2 * 0.25)) * 1 * 0.01^2
+@test mat3.εc == 0.01
+
+err = ArgumentError("Duplicate definition: define either Gc or epsilon_c, not both!")
+@test_throws err BondBasedMaterial(; horizon = 1, rho = 8e-6, E = 210e3, epsilon_c = 0.01, Gc = 1)
+
+err = ArgumentError("Either Gc or epsilon_c have to be defined!")
+@test_throws err BondBasedMaterial(; horizon = 1, rho = 8e-6, E = 210e3)
+
+mat4 = BondBasedMaterial(horizon=1.5, rho=7850.0, E=210e9, Gc=1.0)
 io = IOBuffer()
-show(io, "text/plain", mat3)
+show(io, "text/plain", mat4)
 msg = String(take!(io))
 
 correct_msg1 = "BondBasedMaterial:\n  δ:   1.5\n  rho: 7850.0\n  E:   2.1e11\n  "
