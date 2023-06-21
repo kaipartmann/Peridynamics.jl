@@ -411,19 +411,17 @@ function get_points_with_interaction(
 )
     nt = nthreads()
     _point_ids = Vector{Vector{Int}}(undef, nt)
-    n_points_with_twoni = 0
     @threads for tid in 1:nt
         local_point_ids = Vector{Int}()
         for id in owned_points[tid]
-            if isapprox(getfield(mat[id], interaction), 0)
-                n_points_with_twoni += 1
+            if !isapprox(getfield(mat[id], interaction), 0)
                 push!(local_point_ids, id)
             end
         end
         _point_ids[tid] = local_point_ids
     end
     point_ids = reduce(append!, _point_ids)
-    owned_point_ids = defaultdist(n_points_with_twoni, nt)
+    owned_point_ids = defaultdist(sum(length.(point_ids)), nt)
 
     return [point_ids[opid] for opid in owned_point_ids]
 end
