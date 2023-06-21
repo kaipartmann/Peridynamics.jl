@@ -28,15 +28,12 @@ bc1 = VelocityBC(fun1,1:4,1)
 bc2 = VelocityBC(fun2,13:16,1)
 bcs = [bc1, bc2]
 
-# settings
 td = DynamicRelaxation(100)
 es = ExportSettings()
 
-# simulation jobs
 job = deepcopy(PDSingleBodyAnalysis(name="mmi_1",pc=pc,mat=mat1,bcs=bcs,td=td,es=es))
 job_mm = deepcopy(PDSingleBodyAnalysis(name="mmi_same",pc=pc,mat=mat_same,bcs=bcs,td=td,es=es))
 
-#
 body = submit(job)
 body_mm = submit(job_mm)
 
