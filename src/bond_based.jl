@@ -122,11 +122,10 @@ function BondBasedBody(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud)
     _sum_tids = zeros(Bool, (n_points, n_threads))
     _sum_tids .= false
     @threads for tid in 1:n_threads
-        for i in owned_points[tid]
-            n_active_family_members[i, tid] = n_family_members[i]
-        end
         for current_bond in owned_bonds[tid]
             (i, j, _, _) = bond_data[current_bond]
+            n_active_family_members[i, tid] += 1
+            n_active_family_members[j, tid] += 1
             _sum_tids[i, tid] = true
             _sum_tids[j, tid] = true
         end

@@ -191,11 +191,9 @@ function ContinuumBasedSimBody(
     _sum_tids = zeros(Bool, (n_points, n_threads))
     _sum_tids .= false
     @threads for tid in 1:n_threads
-        for i in owned_points[tid]
-            n_active_family_members[i, tid] = n_family_members[i]
-        end
         for current_bond in owned_bonds[tid]
             (i, _, _, _) = bond_data[current_bond]
+            n_active_family_members[i, tid] += 1
             _sum_tids[i, tid] = true
         end
         for two_ni in owned_two_ni[tid]
