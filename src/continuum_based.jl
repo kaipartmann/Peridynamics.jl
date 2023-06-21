@@ -41,6 +41,10 @@ function ContinuumBasedMaterial(;
         C1 = 30/π * μ/horizon^4
         C2 = 0.0
         C3 = 32/π^4 * (λ - μ)/horizon^12
+    else
+        msg = "CPD parameters choosen manually!\n"
+        msg *= "Be careful when adjusting CPD parameters to avoid unexpected outcomes!"
+        @warn msg
     end
     return ContinuumBasedMaterial(
         horizon,

@@ -54,3 +54,17 @@ correct_msg1 = "ContinuumBasedMaterial:\n  δ: 1.5\n  rho: 7850\n  E: 2.1e+11\n 
 correct_msg2 = "Peridynamics.ContinuumBasedMaterial:\n  δ: 1.5\n  rho: 7850\n  E: 2.1e+11\n  nu: 0.3\n  G: 8.07692e+10\n  K: 1.75e+11\n  C1: 1.52353e+11\n  C2: 0\n  C3: 1.02252e+08\n  Gc: 1\n  εc: 1.45479e-06\n"
 
 @test msg == correct_msg1 || msg == correct_msg2
+
+warn_msg = "CPD parameters choosen manually!\nBe careful when adjusting CPD parameters to avoid unexpected outcomes!"
+mat5 = @test_logs (:warn, warn_msg) ContinuumBasedMaterial(; horizon = 1, rho = 1, E = 1, nu = 1/4, Gc = 1, C1=1)
+@test mat5.δ == 1
+@test mat5.rho == 1
+@test mat5.E == 1
+@test mat5.nu == 1/4
+@test mat5.G ≈ 1 / (2 * (1 + 1/4))
+@test mat5.K ≈ 1 / (3 * (1 - 2 * 1/4))
+@test mat5.C1 == 1
+@test mat5.C2 == 0
+@test mat5.C3 == 0
+@test mat5.Gc == 1
+@test mat5.εc == sqrt(5.0 * 1 / (9.0 * 1 / (3 * (1 - 2 * 1/4)) * 1))
