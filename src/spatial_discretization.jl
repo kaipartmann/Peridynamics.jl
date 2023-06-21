@@ -294,7 +294,7 @@ end
 
 function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
     @inbounds @threads for tid in 1:body.n_threads
-        (@view body.n_active_family_members[:, tid]) .= 0
+        body.n_active_family_members[:, tid] .= 0
         for current_one_ni in body.owned_bonds[tid]
             i, j, _, _ = body.bond_data[current_one_ni]
             i_is_in_set_a = in(i, precrack.point_id_set_a)
