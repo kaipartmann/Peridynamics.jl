@@ -26,6 +26,7 @@ using SafeTestsets
     @safetestset "export_vtk" begin include(joinpath("unit_tests","export_vtk.jl")) end
     @safetestset "calc_stable_timestep" begin include(joinpath("unit_tests","calc_stable_timestep.jl")) end
     @safetestset "time_loop!" begin include(joinpath("unit_tests","time_loop!.jl")) end
+    @safetestset "apply_boundarycondition!" begin include(joinpath("unit_tests","apply_boundarycondition!.jl")) end
 
     # integration tests
     @safetestset "Symmetry tests BondBasedMaterial" begin include(joinpath("integration_tests","symmetry_bond_based.jl")) end
