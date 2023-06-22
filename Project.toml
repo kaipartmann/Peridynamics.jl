@@ -1,6 +1,6 @@
 name = "Peridynamics"
 uuid = "4dc47793-80f3-4232-b30e-ca78ca9d621b"
-authors = ["Kai Friebertshäuser"]
+authors = ["Kai Partmann"]
 version = "0.1.1"
 
 [deps]

@@ -38,7 +38,7 @@ pkg> add Peridynamics
 
 ## Authors
 
-- Kai Friebertshäuser (University of Siegen)
+- Kai Partmann (University of Siegen)
 - Kerstin Weinberg (University of Siegen)
 
 ## Acknowledgement

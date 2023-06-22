@@ -5,7 +5,7 @@ DocMeta.setdocmeta!(Peridynamics, :DocTestSetup, :(using Peridynamics); recursiv
 
 makedocs(;
     modules=[Peridynamics],
-    authors="Kai Friebertshäuser",
+    authors="Kai Partmann",
     repo="https://github.com/kaipartmann/Peridynamics.jl/blob/{commit}{path}#{line}",
     sitename="Peridynamics.jl",
     format=Documenter.HTML(;
