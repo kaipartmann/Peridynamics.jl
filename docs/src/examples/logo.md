@@ -1,7 +1,4 @@
-```@raw html
-<img src="../assets/logo.png" width="450" />
-```
-[Download video](https://github.com/kaipartmann/Peridynamics.jl/blob/main/docs/src/assets/logo.mp4)
+![](../assets/logo.gif)
 
 (Visualization made with [ParaView](https://www.paraview.org))
 
