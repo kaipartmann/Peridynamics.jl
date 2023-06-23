@@ -15,7 +15,6 @@ Pages = ["public_api.md"]
 PointCloud
 BondBasedMaterial
 PreCrack
-TimeDiscretization
 ExportSettings
 BodySetup
 Contact
@@ -30,7 +29,6 @@ ForceDensityBC
 ## Functions
 ```@docs
 pcmerge
-calc_stable_user_timestep
 read_inp
 read_vtk
 sphere_radius

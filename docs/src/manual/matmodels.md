@@ -77,7 +77,7 @@ job = PDSingleBodyAnalysis(;
     pc=pc,
     mat=mm,
     bcs=bcs,
-    td=TimeDiscretization(500),
+    td=VelocityVerlet(500),
     es=ExportSettings(),
 )
 

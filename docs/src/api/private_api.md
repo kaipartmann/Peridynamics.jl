@@ -16,6 +16,7 @@ Peridynamics.AbstractIC
 Peridynamics.AbstractBC
 Peridynamics.AbstractPDAnalysis
 Peridynamics.AbstractPDMaterial
+Peridynamics.AbstractTimeDiscretization
 ```
 
 ## Functions
