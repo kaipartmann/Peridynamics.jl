@@ -40,13 +40,8 @@ struct BondBasedMaterial <: AbstractPDMaterial
     εc::Float64
 end
 
-function BondBasedMaterial(;
-    horizon::Real,
-    rho::Real,
-    E::Real,
-    Gc::Real=-1,
-    epsilon_c::Real=-1,
-)
+function BondBasedMaterial(; horizon::Real, rho::Real, E::Real, Gc::Real = -1,
+                           epsilon_c::Real = -1)
     nu = 0.25 # limitation of the bond-based formulation
     G = E / (2 * (1 + nu))
     K = E / (3 * (1 - 2 * nu))
@@ -54,7 +49,7 @@ function BondBasedMaterial(;
     if (Gc !== -1) && (epsilon_c == -1)
         epsilon_c = sqrt(5.0 * Gc / (9.0 * K * horizon))
     elseif (Gc == -1) && (epsilon_c !== -1)
-        Gc = 9.0/5.0 * K * horizon * epsilon_c^2
+        Gc = 9.0 / 5.0 * K * horizon * epsilon_c^2
     elseif (Gc !== -1) && (epsilon_c !== -1)
         msg = "Duplicate definition: define either Gc or epsilon_c, not both!"
         throw(ArgumentError(msg))
@@ -80,11 +75,11 @@ struct BondBasedBody <: AbstractPDBody
     unique_bonds::Bool
     owned_points::Vector{UnitRange{Int}}
     owned_bonds::Vector{UnitRange{Int}}
-    single_tids::Vector{Tuple{Int,Int}}
-    multi_tids::Vector{Tuple{Int,Vector{Int}}}
-    bond_data::Vector{Tuple{Int,Int,Float64,Bool}}
+    single_tids::Vector{Tuple{Int, Int}}
+    multi_tids::Vector{Tuple{Int, Vector{Int}}}
+    bond_data::Vector{Tuple{Int, Int, Float64, Bool}}
     volume::Vector{Float64}
-    cells::Vector{MeshCell{VTKCellType,Tuple{Int64}}}
+    cells::Vector{MeshCell{VTKCellType, Tuple{Int64}}}
     n_family_members::Vector{Int}
     n_active_family_members::Matrix{Int}
     position::Matrix{Float64}
@@ -92,7 +87,7 @@ struct BondBasedBody <: AbstractPDBody
     velocity::Matrix{Float64}
     velocity_half::Matrix{Float64}
     acceleration::Matrix{Float64}
-    b_int::Array{Float64,3}
+    b_int::Array{Float64, 3}
     b_ext::Matrix{Float64}
     damage::Vector{Float64}
     bond_failure::Vector{Int}
@@ -101,7 +96,7 @@ end
 function BondBasedBody(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud)
     n_threads = nthreads()
     n_points = pc.n_points
-    @assert n_points >= n_threads "n_points < n_threads"
+    @assert n_points>=n_threads "n_points < n_threads"
     owned_points = defaultdist(n_points, n_threads)
     volume = pc.volume
     cells = get_cells(n_points)
@@ -132,30 +127,11 @@ function BondBasedBody(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud)
     end
     sum_tids = [findall(row) for row in eachrow(_sum_tids)]
     single_tids, multi_tids = find_tids(sum_tids)
-    return BondBasedBody(
-        n_points,
-        n_bonds,
-        n_threads,
-        unique_bonds,
-        owned_points,
-        owned_bonds,
-        single_tids,
-        multi_tids,
-        bond_data,
-        volume,
-        cells,
-        n_family_members,
-        n_active_family_members,
-        position,
-        displacement,
-        velocity,
-        velocity_half,
-        acceleration,
-        forcedensity_int,
-        forcedensity_ext,
-        damage,
-        bond_failure,
-    )
+    return BondBasedBody(n_points, n_bonds, n_threads, unique_bonds, owned_points,
+                         owned_bonds, single_tids, multi_tids, bond_data, volume, cells,
+                         n_family_members, n_active_family_members, position, displacement,
+                         velocity, velocity_half, acceleration, forcedensity_int,
+                         forcedensity_ext, damage, bond_failure)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", body::BondBasedBody)

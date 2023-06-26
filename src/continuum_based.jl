@@ -12,25 +12,17 @@ struct ContinuumBasedMaterial <: AbstractPDMaterial
     εc::Float64
 end
 
-function ContinuumBasedMaterial(;
-    horizon::Real,
-    rho::Real,
-    E::Real,
-    nu::Real,
-    Gc::Real=-1,
-    epsilon_c::Real=-1,
-    C1::Real=0,
-    C2::Real=0,
-    C3::Real=0,
-)
+function ContinuumBasedMaterial(; horizon::Real, rho::Real, E::Real, nu::Real,
+                                Gc::Real = -1, epsilon_c::Real = -1, C1::Real = 0,
+                                C2::Real = 0, C3::Real = 0)
     K = E / (3 * (1 - 2 * nu))
     G = E / (2 * (1 + nu))
-    λ = E * nu /((1 + nu) * (1 - 2nu))
+    λ = E * nu / ((1 + nu) * (1 - 2nu))
     μ = G
     if (Gc !== -1) && (epsilon_c == -1)
         epsilon_c = sqrt(5.0 * Gc / (9.0 * K * horizon))
     elseif (Gc == -1) && (epsilon_c !== -1)
-        Gc = 9.0/5.0 * K * horizon * epsilon_c^2
+        Gc = 9.0 / 5.0 * K * horizon * epsilon_c^2
     elseif (Gc !== -1) && (epsilon_c !== -1)
         msg = "Duplicate definition: define either Gc or epsilon_c, not both!"
         throw(ArgumentError(msg))
@@ -38,27 +30,15 @@ function ContinuumBasedMaterial(;
         throw(ArgumentError("Either Gc or epsilon_c have to be defined!"))
     end
     if C1 == 0 && C2 == 0 && C3 == 0
-        C1 = 30/π * μ/horizon^4
+        C1 = 30 / π * μ / horizon^4
         C2 = 0.0
-        C3 = 32/π^4 * (λ - μ)/horizon^12
+        C3 = 32 / π^4 * (λ - μ) / horizon^12
     else
         msg = "CPD parameters choosen manually!\n"
         msg *= "Be careful when adjusting CPD parameters to avoid unexpected outcomes!"
         @warn msg
     end
-    return ContinuumBasedMaterial(
-        horizon,
-        rho,
-        E,
-        nu,
-        G,
-        K,
-        C1,
-        C2,
-        C3,
-        Gc,
-        epsilon_c,
-    )
+    return ContinuumBasedMaterial(horizon, rho, E, nu, G, K, C1, C2, C3, Gc, epsilon_c)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", mat::ContinuumBasedMaterial)
@@ -84,13 +64,13 @@ struct ContinuumBasedSimBody <: AbstractPDBody
     owned_bonds::Vector{UnitRange{Int}}
     owned_two_ni::Vector{UnitRange{Int}}
     owned_three_ni::Vector{UnitRange{Int}}
-    single_tids::Vector{Tuple{Int,Int}}
-    multi_tids::Vector{Tuple{Int,Vector{Int}}}
-    bond_data::Vector{Tuple{Int,Int,Float64,Bool}}
-    two_ni_data::Vector{Tuple{Int,Int,Float64}}
-    three_ni_data::Vector{Tuple{Int,Int,Int,Float64}}
+    single_tids::Vector{Tuple{Int, Int}}
+    multi_tids::Vector{Tuple{Int, Vector{Int}}}
+    bond_data::Vector{Tuple{Int, Int, Float64, Bool}}
+    two_ni_data::Vector{Tuple{Int, Int, Float64}}
+    three_ni_data::Vector{Tuple{Int, Int, Int, Float64}}
     volume::Vector{Float64}
-    cells::Vector{MeshCell{VTKCellType,Tuple{Int64}}}
+    cells::Vector{MeshCell{VTKCellType, Tuple{Int64}}}
     n_family_members::Vector{Int}
     n_active_family_members::Matrix{Int}
     position::Matrix{Float64}
@@ -98,7 +78,7 @@ struct ContinuumBasedSimBody <: AbstractPDBody
     velocity::Matrix{Float64}
     velocity_half::Matrix{Float64}
     acceleration::Matrix{Float64}
-    b_int::Array{Float64,3}
+    b_int::Array{Float64, 3}
     b_ext::Matrix{Float64}
     damage::Vector{Float64}
     bond_failure::Vector{Int}
@@ -109,13 +89,10 @@ struct ContinuumBasedSimBody <: AbstractPDBody
     energy::Vector{Float64}
 end
 
-function ContinuumBasedSimBody(
-    mat::PDMaterial{ContinuumBasedMaterial},
-    pc::PointCloud,
-)
+function ContinuumBasedSimBody(mat::PDMaterial{ContinuumBasedMaterial}, pc::PointCloud)
     n_threads = nthreads()
     n_points = pc.n_points
-    @assert n_points >= n_threads "n_points < n_threads"
+    @assert n_points>=n_threads "n_points < n_threads"
     owned_points = defaultdist(n_points, n_threads)
     volume = pc.volume
     cells = get_cells(n_points)
@@ -136,32 +113,22 @@ function ContinuumBasedSimBody(
     n_active_family_members = zeros(Int, (n_points, n_threads))
 
     hood_range = find_hood_range(n_family_members, n_points)
-    volume_hood = calc_volume_of_neighborhood(
-        pc,
-        bond_data,
-        n_family_members,
-        hood_range,
-        mat,
-    )
-    volume_one_ni = [volume_hood[i]/n for (i, n) in enumerate(n_family_members)]
+    volume_hood = calc_volume_of_neighborhood(pc, bond_data, n_family_members, hood_range,
+                                              mat)
+    volume_one_ni = [volume_hood[i] / n for (i, n) in enumerate(n_family_members)]
 
     # two ni
     has_two_ni = false
     if mat_has_twoni(mat)
-        two_ni_data, n_two_ni, n_two_ni_per_point = find_two_ni(
-            pc,
-            mat,
-            bond_data,
-            hood_range,
-            owned_points,
-        )
+        two_ni_data, n_two_ni, n_two_ni_per_point = find_two_ni(pc, mat, bond_data,
+                                                                hood_range, owned_points)
         if !isempty(two_ni_data)
             has_two_ni = true
-            volume_two_ni = [volume_hood[i]/n for (i, n) in enumerate(n_two_ni_per_point)]
+            volume_two_ni = [volume_hood[i] / n for (i, n) in enumerate(n_two_ni_per_point)]
         end
     end
     if !has_two_ni
-        two_ni_data = Vector{Tuple{Int,Int,Float64}}(undef, 0)
+        two_ni_data = Vector{Tuple{Int, Int, Float64}}(undef, 0)
         n_two_ni = 0
         n_two_ni_per_point = Vector{Int}(undef, 0)
         volume_two_ni = Vector{Float64}(undef, 0)
@@ -171,21 +138,17 @@ function ContinuumBasedSimBody(
     # three ni
     has_three_ni = false
     if mat_has_threeni(mat)
-        three_ni_data, n_three_ni, n_three_ni_per_point = find_three_ni(
-            pc,
-            mat,
-            bond_data,
-            hood_range,
-            owned_points,
-        )
+        three_ni_data, n_three_ni, n_three_ni_per_point = find_three_ni(pc, mat, bond_data,
+                                                                        hood_range,
+                                                                        owned_points)
         if !isempty(three_ni_data)
             has_three_ni = true
-            volume_three_ni =
-                [volume_hood[i]/n for (i, n) in enumerate(n_three_ni_per_point)]
+            volume_three_ni = [volume_hood[i] / n
+                               for (i, n) in enumerate(n_three_ni_per_point)]
         end
     end
     if !has_three_ni
-        three_ni_data = Vector{Tuple{Int,Int,Int,Float64}}(undef, 0)
+        three_ni_data = Vector{Tuple{Int, Int, Int, Float64}}(undef, 0)
         n_three_ni = 0
         n_three_ni_per_point = Vector{Int}(undef, 0)
         volume_three_ni = Vector{Float64}(undef, 0)
@@ -228,45 +191,15 @@ function ContinuumBasedSimBody(
         has_only_one_ni = true
     end
 
-    return ContinuumBasedSimBody(
-        n_points,
-        n_bonds,
-        n_two_ni,
-        n_three_ni,
-        n_threads,
-        unique_bonds,
-        has_only_one_ni,
-        has_one_and_two_ni,
-        has_one_and_three_ni,
-        has_one_two_three_ni,
-        owned_points,
-        owned_bonds,
-        owned_two_ni,
-        owned_three_ni,
-        single_tids,
-        multi_tids,
-        bond_data,
-        two_ni_data,
-        three_ni_data,
-        volume,
-        cells,
-        n_family_members,
-        n_active_family_members,
-        position,
-        displacement,
-        velocity,
-        velocity_half,
-        acceleration,
-        b_int,
-        b_ext,
-        damage,
-        bond_failure,
-        volume_hood,
-        volume_one_ni,
-        volume_two_ni,
-        volume_three_ni,
-        energy,
-    )
+    return ContinuumBasedSimBody(n_points, n_bonds, n_two_ni, n_three_ni, n_threads,
+                                 unique_bonds, has_only_one_ni, has_one_and_two_ni,
+                                 has_one_and_three_ni, has_one_two_three_ni, owned_points,
+                                 owned_bonds, owned_two_ni, owned_three_ni, single_tids,
+                                 multi_tids, bond_data, two_ni_data, three_ni_data, volume,
+                                 cells, n_family_members, n_active_family_members, position,
+                                 displacement, velocity, velocity_half, acceleration, b_int,
+                                 b_ext, damage, bond_failure, volume_hood, volume_one_ni,
+                                 volume_two_ni, volume_three_ni, energy)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", body::ContinuumBasedSimBody)
@@ -278,19 +211,21 @@ function Base.show(io::IO, ::MIME"text/plain", body::ContinuumBasedSimBody)
 end
 
 function mat_has_twoni(mat::MultiMaterial{ContinuumBasedMaterial})
-    return sum([isapprox(m.C2, 0; atol=20eps()) ? 0 : 1 for m in mat[:]]) > 0 ? true : false
+    return sum([isapprox(m.C2, 0; atol = 20eps()) ? 0 : 1 for m in mat[:]]) > 0 ? true :
+           false
 end
 
 function mat_has_twoni(mat::ContinuumBasedMaterial)
-    return isapprox(mat.C2, 0; atol=20eps()) ? false : true
+    return isapprox(mat.C2, 0; atol = 20eps()) ? false : true
 end
 
 function mat_has_threeni(mat::MultiMaterial{ContinuumBasedMaterial})
-    return sum([isapprox(m.C3, 0; atol=20eps()) ? 0 : 1 for m in mat[:]]) > 0 ? true : false
+    return sum([isapprox(m.C3, 0; atol = 20eps()) ? 0 : 1 for m in mat[:]]) > 0 ? true :
+           false
 end
 
 function mat_has_threeni(mat::ContinuumBasedMaterial)
-    return isapprox(mat.C3, 0; atol=20eps()) ? false : true
+    return isapprox(mat.C3, 0; atol = 20eps()) ? false : true
 end
 
 function find_hood_range(n_family_members::Vector{Int}, n_points::Int)
@@ -303,23 +238,21 @@ function find_hood_range(n_family_members::Vector{Int}, n_points::Int)
     return hood_range
 end
 
-function calc_volume_of_neighborhood(
-    pc::PointCloud,
-    bond_data::Vector{Tuple{Int,Int,Float64,Bool}},
-    n_family_members::Vector{Int},
-    hood_range::Vector{UnitRange{Int}},
-    mat::PDMaterial{ContinuumBasedMaterial}
-)
+function calc_volume_of_neighborhood(pc::PointCloud,
+                                     bond_data::Vector{Tuple{Int, Int, Float64, Bool}},
+                                     n_family_members::Vector{Int},
+                                     hood_range::Vector{UnitRange{Int}},
+                                     mat::PDMaterial{ContinuumBasedMaterial})
     Δx_mean = calc_mean_point_spacing(pc, bond_data, n_family_members, hood_range)
     n_members_full_neighborhood = zeros(Int, pc.n_points)
     δ = [mat[i].δ for i in 1:pc.n_points]
     for i in 1:pc.n_points
         max_val = ceil(δ[i] / Δx_mean[i]) * Δx_mean[i]
-        grid = range(start=-max_val, stop=max_val, step=Δx_mean[i])
+        grid = range(start = -max_val, stop = max_val, step = Δx_mean[i])
         _position = hcat(([x; y; z] for x in grid for y in grid for z in grid)...)
-        idx = findall(
-            sqrt.(_position[1, :].^2 + _position[2, :].^2 + _position[3, :].^2) .<= δ[i]
-        )
+        idx = findall(sqrt.(_position[1, :].^2 +
+                            _position[2, :].^2 +
+                            _position[3, :].^2) .<= δ[i])
         n_members_full_neighborhood[i] = length(idx)
     end
     β = [n_family_members[i] / n_members_full_neighborhood[i] for i in 1:pc.n_points]
@@ -327,15 +260,13 @@ function calc_volume_of_neighborhood(
     return volume_neighborhood
 end
 
-function calc_mean_point_spacing(
-    pc::PointCloud,
-    bond_data::Vector{Tuple{Int,Int,Float64,Bool}},
-    n_family_members::Vector{Int},
-    hood_range::Vector{UnitRange{Int}},
-)
+function calc_mean_point_spacing(pc::PointCloud,
+                                 bond_data::Vector{Tuple{Int, Int, Float64, Bool}},
+                                 n_family_members::Vector{Int},
+                                 hood_range::Vector{UnitRange{Int}})
     Δx_mean = zeros(pc.n_points)
     point_distance = [Xi for (_, _, Xi, _) in bond_data]
-    Xi_min = [minimum(point_distance[hood_range[i]]) for i in 1:pc.n_points]
+    Xi_min = [minimum(point_distance[hood_range[i]]) for i in 1:(pc.n_points)]
     for (i, j, _, _) in bond_data
         Δx_mean[i] += Xi_min[j]
     end
@@ -345,31 +276,24 @@ function calc_mean_point_spacing(
     return Δx_mean
 end
 
-function find_two_ni(
-    pc::PointCloud,
-    mat::PDMaterial{ContinuumBasedMaterial},
-    one_ni_data::Vector{Tuple{Int,Int,Float64,Bool}},
-    hood_range::Vector{UnitRange{Int}},
-    owned_points::Vector{UnitRange{Int}},
-)
+function find_two_ni(pc::PointCloud,
+                     mat::PDMaterial{ContinuumBasedMaterial},
+                     one_ni_data::Vector{Tuple{Int, Int, Float64, Bool}},
+                     hood_range::Vector{UnitRange{Int}},
+                     owned_points::Vector{UnitRange{Int}})
     n_threads = nthreads()
     _two_ni_data = fill([(0, 0, 0.0)], n_threads)
     number_of_twoni = zeros(Int, pc.n_points)
-    p = Progress(pc.n_points;
-        dt=1,
-        desc="Two-NI search...    ",
-        barlen=30,
-        color=:normal,
-        enabled=!is_logging(stderr),
-    )
+    p = Progress(pc.n_points; dt = 1, desc = "Two-NI search...    ", barlen = 30,
+                 color = :normal, enabled = !is_logging(stderr))
     owned_points_with_twoni = points_with_twoni(mat, owned_points)
     @threads for tid in 1:n_threads
-        local_two_ni_data = Vector{Tuple{Int,Int,Float64}}(undef, 0)
+        local_two_ni_data = Vector{Tuple{Int, Int, Float64}}(undef, 0)
         sizehint!(local_two_ni_data, pc.n_points * 1000)
         for i in owned_points_with_twoni[tid]
             num = 0
             δ = mat[i].δ
-            ijseen = Set{Tuple{Int,Int}}()
+            ijseen = Set{Tuple{Int, Int}}()
             for j_int in hood_range[i], k_int in hood_range[i]
                 _, j, _, _ = one_ni_data[j_int]
                 _, k, _, _ = one_ni_data[k_int]
@@ -408,11 +332,9 @@ function points_with_twoni(::ContinuumBasedMaterial, owned_points::Vector{UnitRa
     return owned_points
 end
 
-function get_points_with_interaction(
-    mat::MultiMaterial{ContinuumBasedMaterial},
-    owned_points::Vector{UnitRange{Int}},
-    interaction::Symbol,
-)
+function get_points_with_interaction(mat::MultiMaterial{ContinuumBasedMaterial},
+                                     owned_points::Vector{UnitRange{Int}},
+                                     interaction::Symbol)
     nt = nthreads()
     _point_ids = Vector{Vector{Int}}(undef, nt)
     @threads for tid in 1:nt
@@ -430,39 +352,29 @@ function get_points_with_interaction(
     return [point_ids[opid] for opid in owned_point_ids]
 end
 
-function points_with_twoni(
-    mat::MultiMaterial{ContinuumBasedMaterial},
-    owned_points::Vector{UnitRange{Int}},
-)
+function points_with_twoni(mat::MultiMaterial{ContinuumBasedMaterial},
+                           owned_points::Vector{UnitRange{Int}})
     return get_points_with_interaction(mat, owned_points, :C2)
 end
 
-
-function find_three_ni(
-    pc::PointCloud,
-    mat::PDMaterial{ContinuumBasedMaterial},
-    one_ni_data::Vector{Tuple{Int,Int,Float64,Bool}},
-    hood_range::Vector{UnitRange{Int}},
-    owned_points::Vector{UnitRange{Int}},
-)
+function find_three_ni(pc::PointCloud,
+                       mat::PDMaterial{ContinuumBasedMaterial},
+                       one_ni_data::Vector{Tuple{Int, Int, Float64, Bool}},
+                       hood_range::Vector{UnitRange{Int}},
+                       owned_points::Vector{UnitRange{Int}})
     n_threads = nthreads()
     _three_ni_data = fill([(0, 0, 0, 0.0)], n_threads)
     n_three_ni_per_point = zeros(Int, pc.n_points)
-    p = Progress(pc.n_points;
-        dt=1,
-        desc="Three-NI search...  ",
-        barlen=30,
-        color=:normal,
-        enabled=!is_logging(stderr),
-    )
+    p = Progress(pc.n_points; dt = 1, desc = "Three-NI search...  ", barlen = 30,
+                 color = :normal, enabled = !is_logging(stderr))
     owned_points_with_threeni = points_with_threeni(mat, owned_points)
     @threads for tid in 1:n_threads
-        local_three_ni_data = Vector{Tuple{Int,Int,Int,Float64}}(undef, 0)
+        local_three_ni_data = Vector{Tuple{Int, Int, Int, Float64}}(undef, 0)
         sizehint!(local_three_ni_data, pc.n_points * 1000)
         for i in owned_points_with_threeni[tid]
             num = 0
             δ = mat[i].δ
-            jklseen = Set{Tuple{Int,Int,Int}}()
+            jklseen = Set{Tuple{Int, Int, Int}}()
             for j_int in hood_range[i], k_int in hood_range[i], l_int in hood_range[i]
                 _, j, _, _ = one_ni_data[j_int]
                 _, k, _, _ = one_ni_data[k_int]
@@ -520,36 +432,24 @@ function points_with_threeni(::ContinuumBasedMaterial, owned_points::Vector{Unit
     return owned_points
 end
 
-function points_with_threeni(
-    mat::MultiMaterial{ContinuumBasedMaterial},
-    owned_points::Vector{UnitRange{Int}},
-)
+function points_with_threeni(mat::MultiMaterial{ContinuumBasedMaterial},
+                             owned_points::Vector{UnitRange{Int}})
     return get_points_with_interaction(mat, owned_points, :C3)
 end
 
-function surf_two_neigh(
-    ξijx::Float64,
-    ξijy::Float64,
-    ξijz::Float64,
-    ξikx::Float64,
-    ξiky::Float64,
-    ξikz::Float64,
-)
-    return sqrt(
-        (ξijy * ξikz - ξijz * ξiky)^2 +
-        (ξijz * ξikx - ξijx * ξikz)^2 +
-        (ξijx * ξiky - ξijy * ξikx)^2
-    )
+function surf_two_neigh(ξijx::Float64, ξijy::Float64, ξijz::Float64, ξikx::Float64,
+                        ξiky::Float64, ξikz::Float64)
+    return sqrt((ξijy * ξikz - ξijz * ξiky)^2 +
+                (ξijz * ξikx - ξijx * ξikz)^2 +
+                (ξijx * ξiky - ξijy * ξikx)^2)
 end
 
-create_simmodel(mat::PDMaterial{ContinuumBasedMaterial}, pc::PointCloud) =
-    ContinuumBasedSimBody(mat, pc)
+function create_simmodel(mat::PDMaterial{ContinuumBasedMaterial}, pc::PointCloud)
+    return ContinuumBasedSimBody(mat, pc)
+end
 
-
-function compute_forcedensity!(
-    body::ContinuumBasedSimBody,
-    mat::PDMaterial{ContinuumBasedMaterial},
-)
+function compute_forcedensity!(body::ContinuumBasedSimBody,
+                               mat::PDMaterial{ContinuumBasedMaterial})
     body.b_int .= 0.0
     body.n_active_family_members .= 0
     if body.has_only_one_ni
@@ -576,11 +476,8 @@ function compute_forcedensity!(
     return nothing
 end
 
-function compute_forcedensity_one!(
-    body::ContinuumBasedSimBody,
-    mat::PDMaterial{ContinuumBasedMaterial},
-    tid::Int,
-)
+function compute_forcedensity_one!(body::ContinuumBasedSimBody,
+                                   mat::PDMaterial{ContinuumBasedMaterial}, tid::Int)
     for one_ni in body.owned_bonds[tid]
         i, j, length_ref, failure_flag = body.bond_data[one_ni]
         ξijx = body.position[1, j] - body.position[1, i]
@@ -595,7 +492,7 @@ function compute_forcedensity_one!(
         end
         body.n_active_family_members[i, tid] += body.bond_failure[one_ni]
         temp = body.bond_failure[one_ni] * mat[i].C1 * (1 / length_ref - 1 / length) *
-            body.volume_one_ni[i]
+               body.volume_one_ni[i]
         body.b_int[1, i, tid] += temp * ξijx
         body.b_int[2, i, tid] += temp * ξijy
         body.b_int[3, i, tid] += temp * ξijz
@@ -603,11 +500,8 @@ function compute_forcedensity_one!(
     return nothing
 end
 
-function compute_forcedensity_two!(
-    body::ContinuumBasedSimBody,
-    mat::PDMaterial{ContinuumBasedMaterial},
-    tid::Int,
-)
+function compute_forcedensity_two!(body::ContinuumBasedSimBody,
+                                   mat::PDMaterial{ContinuumBasedMaterial}, tid::Int)
     for two_ni in body.owned_two_ni[tid]
         j_int, k_int, surface_ref = body.two_ni_data[two_ni]
         i, j, _ = body.bond_data[j_int]
@@ -626,26 +520,23 @@ function compute_forcedensity_two!(
             surface = 1e-40
         end
         temp = body.bond_failure[j_int] * body.bond_failure[k_int] * 2 * mat[i].C2 *
-            (1 / surface_ref - 1 / surface) * body.volume_two_ni[i]
+               (1 / surface_ref - 1 / surface) * body.volume_two_ni[i]
         body.b_int[1, i, tid] += temp * (ξiky * aijkz - ξikz * aijky)
         body.b_int[2, i, tid] += temp * (ξikz * aijkx - ξikx * aijkz)
         body.b_int[3, i, tid] += temp * (ξikx * aijky - ξiky * aijkx)
         # variable switch: i,j = j,i
         body.b_int[1, i, tid] += temp * (ξijy * (ξikx * ξijy - ξiky * ξijx) -
-            ξijz * (ξikz * ξijx - ξikx * ξijz))
+                                 ξijz * (ξikz * ξijx - ξikx * ξijz))
         body.b_int[2, i, tid] += temp * (ξijz * (ξiky * ξijz - ξikz * ξijy) -
-            ξijx * (ξikx * ξijy - ξiky * ξijx))
+                                 ξijx * (ξikx * ξijy - ξiky * ξijx))
         body.b_int[3, i, tid] += temp * (ξijx * (ξikz * ξijx - ξikx * ξijz) -
-            ξijy * (ξiky * ξijz - ξikz * ξijy))
+                                 ξijy * (ξiky * ξijz - ξikz * ξijy))
     end
     return nothing
 end
 
-function compute_forcedensity_three!(
-    body::ContinuumBasedSimBody,
-    mat::PDMaterial{ContinuumBasedMaterial},
-    tid::Int,
-)
+function compute_forcedensity_three!(body::ContinuumBasedSimBody,
+                                     mat::PDMaterial{ContinuumBasedMaterial}, tid::Int)
     for three_ni in body.owned_three_ni[tid]
         j_int, k_int, l_int, volume_ref = body.three_ni_data[three_ni]
         i, j, _ = body.bond_data[j_int]
@@ -670,8 +561,9 @@ function compute_forcedensity_three!(
         end
         abs_volume = abs(volume)
         temp = body.bond_failure[j_int] * body.bond_failure[k_int] *
-            body.bond_failure[l_int] * 3 * mat[i].C3 * (1 / volume_ref - 1 / abs_volume) *
-            volume * body.volume_three_ni[i]
+               body.bond_failure[l_int] * 3 * mat[i].C3 *
+               (1 / volume_ref - 1 / abs_volume) *
+               volume * body.volume_three_ni[i]
         body.b_int[1, i, tid] += temp * (ξiky * ξilz - ξikz * ξily)
         body.b_int[2, i, tid] += temp * (ξikz * ξilx - ξikx * ξilz)
         body.b_int[3, i, tid] += temp * (ξikx * ξily - ξiky * ξilx)

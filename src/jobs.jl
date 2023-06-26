@@ -1,4 +1,4 @@
-function Base.show(io::IO, ::MIME"text/plain", pdsba::T) where {T<:AbstractPDAnalysis}
+function Base.show(io::IO, ::MIME"text/plain", pdsba::T) where {T <: AbstractPDAnalysis}
     print(io, typeof(pdsba), ": ", pdsba.name)
     return nothing
 end
@@ -18,25 +18,23 @@ Peridynamic single body analysis.
 - `td::TimeDiscretization`: time discretization
 - `es::ExportSettings`: export settings
 """
-struct PDSingleBodyAnalysis{M<:AbstractPDMaterial, T<:AbstractTimeDiscretization} <: AbstractPDAnalysis
+struct PDSingleBodyAnalysis{M <: AbstractPDMaterial, T <: AbstractTimeDiscretization} <:
+       AbstractPDAnalysis
     name::String
     pc::PointCloud
-    mat::Union{M,MultiMaterial{M}}
+    mat::Union{M, MultiMaterial{M}}
     precracks::Vector{PreCrack}
     bcs::Vector{<:AbstractBC}
     ics::Vector{<:AbstractIC}
     td::T
     es::ExportSettings
-    function PDSingleBodyAnalysis(;
-        name::String,
-        pc::PointCloud,
-        mat::PDMaterial{M},
-        precracks::Vector{PreCrack}=Vector{PreCrack}(),
-        bcs::Vector{<:AbstractBC}=Vector{AbstractBC}(),
-        ics::Vector{<:AbstractIC}=Vector{AbstractIC}(),
-        td::T,
-        es::ExportSettings,
-    ) where {M<:AbstractPDMaterial, T<:AbstractTimeDiscretization}
+    function PDSingleBodyAnalysis(; name::String, pc::PointCloud, mat::PDMaterial{M},
+                                  precracks::Vector{PreCrack} = Vector{PreCrack}(),
+                                  bcs::Vector{<:AbstractBC} = Vector{AbstractBC}(),
+                                  ics::Vector{<:AbstractIC} = Vector{AbstractIC}(), td::T,
+                                  es::ExportSettings) where {M <: AbstractPDMaterial,
+                                                             T <:
+                                                             AbstractTimeDiscretization}
         es.resultfile_prefix = joinpath(es.path, name)
         es.logfile = es.resultfile_prefix * ".log"
         if !es.exportflag

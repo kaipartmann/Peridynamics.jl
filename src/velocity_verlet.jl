@@ -3,12 +3,13 @@ mutable struct VelocityVerlet <: AbstractTimeDiscretization
     Δt::Float64
     safety_factor::Float64
 
-    function VelocityVerlet(n_steps::Int, Δt::Real=-1; safety_factor::Real=0.7)
+    function VelocityVerlet(n_steps::Int, Δt::Real = -1; safety_factor::Real = 0.7)
         new(n_steps, Δt, safety_factor)
     end
 end
 
-function init_time_discretization!(vv::VelocityVerlet, body::AbstractPDBody, mat::PDMaterial)
+function init_time_discretization!(vv::VelocityVerlet, body::AbstractPDBody,
+                                   mat::PDMaterial)
     if vv.Δt < 0
         Δt = calc_stable_timestep(body, mat, vv.safety_factor)
         vv.Δt = Δt
@@ -36,15 +37,16 @@ function calc_stable_timestep(body::AbstractPDBody, mat::PDMaterial, safety_fact
 end
 
 function time_loop!(body::AbstractPDBody, vv::VelocityVerlet, mat::PDMaterial,
-                    bcs::Vector{<:AbstractBC}, ics::Vector{<:AbstractIC}, es::ExportSettings)
+                    bcs::Vector{<:AbstractBC}, ics::Vector{<:AbstractIC},
+                    es::ExportSettings)
     apply_ics!(body, ics)
     if es.exportflag
         export_vtk(body, es.resultfile_prefix, 0, 0.0)
     end
-    p = Progress(vv.n_steps; dt=1, desc="Time integration... ", barlen=30, color=:normal,
-                 enabled=!is_logging(stderr))
+    p = Progress(vv.n_steps; dt = 1, desc = "Time integration... ", barlen = 30,
+                 color = :normal, enabled = !is_logging(stderr))
     Δt½ = 0.5 * vv.Δt
-    for t in 1:vv.n_steps
+    for t in 1:(vv.n_steps)
         time = t * vv.Δt
         update_velhalf!(body, Δt½)
         apply_bcs!(body, bcs, time)

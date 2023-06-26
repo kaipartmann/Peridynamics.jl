@@ -38,7 +38,6 @@ function Base.show(io::IO, ::MIME"text/plain", es::ExportSettings)
     return nothing
 end
 
-
 function log_header(es::ExportSettings)
     msg = "="^70 * "\n"
     msg *= string("PERIDYNAMIC SIMULATION ON ", nthreads(), " THREADS\n")
@@ -52,9 +51,8 @@ function log_header(es::ExportSettings)
     return nothing
 end
 
-function log_describe_sim(
-    simname::String, pc::PointCloud, mat::PDMaterial, es::ExportSettings
-)
+function log_describe_sim(simname::String, pc::PointCloud, mat::PDMaterial,
+                          es::ExportSettings)
     msg = "Peridynamic single body analysis: " * simname * "\n"
     msg *= "Geometry:\n"
     msg *= describe_geometry(pc)
@@ -70,23 +68,20 @@ function log_describe_sim(
 end
 
 function describe_geometry(pc::PointCloud)
+    minima = minimum(pc.position; dims = 2)
+    maxima = maximum(pc.position; dims = 2)
+    minmax_x = @sprintf("%.6g / %.6g", minima[1], maxima[1])
+    minmax_y = @sprintf("%.6g / %.6g", minima[2], maxima[2])
+    minmax_z = @sprintf("%.6g / %.6g", minima[3], maxima[3])
     msg = @sprintf("  - Number of material points [-]:      %30g\n", pc.n_points)
-    msg *= @views @sprintf(
-        "  - Min. / Max. x-axis [m]:             %30s\n",
-        @sprintf("%.6g / %.6g", minimum(pc.position[1,:]), maximum(pc.position[1,:])),
-    )
-    msg *= @views @sprintf(
-        "  - Min. / Max. y-axis [m]:             %30s\n",
-        @sprintf("%.6g / %.6g", minimum(pc.position[2,:]), maximum(pc.position[2,:])),
-    )
-    msg *= @views @sprintf(
-        "  - Min. / Max. z-axis [m]:             %30s\n",
-        @sprintf("%.6g / %.6g", minimum(pc.position[3,:]), maximum(pc.position[3,:])),
-    )
+    msg *= @sprintf("  - Min. / Max. x-axis [m]:             %30s\n", minmax_x)
+    msg *= @sprintf("  - Min. / Max. y-axis [m]:             %30s\n", minmax_y)
+    msg *= @sprintf("  - Min. / Max. z-axis [m]:             %30s\n", minmax_z)
+    return nothing
 end
 
 function describe_mat(mat::AbstractPDMaterial)
-    msg =  @sprintf "  - Horizon δ [m]:                      %30g\n" mat.δ
+    msg = @sprintf "  - Horizon δ [m]:                      %30g\n" mat.δ
     msg *= @sprintf "  - Density ρ [kg/m³]:                  %30g\n" mat.rho
     msg *= @sprintf "  - Young's modulus E [N/m²]:           %30g\n" mat.E
     msg *= @sprintf "  - Poisson ratio ν [-]:                %30g\n" mat.nu
@@ -97,22 +92,19 @@ end
 
 function describe_mat(mat::MultiMaterial)
     msg = ""
-    for (i,m) in enumerate(mat.materials)
-        msg *= @sprintf(
-            "Parameters for %d points:\n",
-            length(findall(mat.matofpoint .== i)),
-        )
+    for (i, m) in enumerate(mat.materials)
+        n_points_mat = length(findall(mat.matofpoint .== i))
+        msg *= @sprintf("Parameters for %d points:\n", n_points_mat)
         msg *= describe_mat(m)
     end
     return msg
 end
 
 function log_describe_interactions(part::AbstractPDBody, es::ExportSettings)
+    mem_used_mb = Base.summarysize(part) * 1e-6
     msg = "Interactions:\n"
     msg *= describe_interactions(part)
-    msg *= @sprintf(
-        "Total memory used by body [MB]:         %30g\n", Base.summarysize(part) * 1e-6
-    )
+    msg *= @sprintf("Total memory used by body [MB]:         %30g\n", mem_used_mb)
     print(msg)
     if es.exportflag
         open(es.logfile, "a") do io
@@ -142,8 +134,8 @@ function log_simsetup(sim::AbstractPDAnalysis)
     msg *= @sprintf "Time discretization: %49s\n" typeof(sim.td)
     msg *= @sprintf "  - Time step Δt [s]:                   %30g\n" sim.td.Δt
     msg *= @sprintf "  - Number of time steps [-]:           %30g\n" sim.td.n_steps
-    msg *= @sprintf "  - Simulation time horizon [s]:        %30g\n" sim.td.n_steps *
-        sim.td.Δt
+    time_horizon = sim.td.n_steps * sim.td.Δt
+    msg *= @sprintf "  - Simulation time horizon [s]:        %30g\n" time_horizon
     print(msg)
     if sim.es.exportflag
         open(sim.es.logfile, "a") do io
@@ -154,9 +146,8 @@ function log_simsetup(sim::AbstractPDAnalysis)
 end
 
 function log_closesim(body::AbstractPDBody, timingsummary::NamedTuple, es::ExportSettings)
-    msg = @sprintf(
-        "✓ Simulation completed after %g seconds\nResults:\n", timingsummary.time
-    )
+    msg = @sprintf("✓ Simulation completed after %g seconds\nResults:\n",
+                   timingsummary.time)
     msg *= log_displacement_and_damage(body)
     print(msg)
     if es.exportflag
@@ -168,35 +159,18 @@ function log_closesim(body::AbstractPDBody, timingsummary::NamedTuple, es::Expor
 end
 
 function log_displacement_and_damage(body::AbstractPDBody)
+    minima = minimum(body.displacement; dims = 2)
+    maxima = maximum(body.displacement; dims = 2)
+    minmax_x = @sprintf("%.6g / %.6g", minima[1], maxima[1])
+    minmax_y = @sprintf("%.6g / %.6g", minima[2], maxima[2])
+    minmax_z = @sprintf("%.6g / %.6g", minima[3], maxima[3])
     msg = ""
-    msg *= @views @sprintf(
-        "  - Min. / Max. x-displacement [m]:     %30s\n",
-        @sprintf(
-            "%.6g / %.6g",
-            minimum(body.displacement[1,:]),
-            maximum(body.displacement[1,:]),
-        ),
-    )
-    msg *= @views @sprintf(
-        "  - Min. / Max. y-displacement [m]:     %30s\n",
-        @sprintf(
-            "%.6g / %.6g",
-            minimum(body.displacement[2,:]),
-            maximum(body.displacement[2,:]),
-        ),
-    )
-    msg *= @views @sprintf(
-        "  - Min. / Max. z-displacement [m]:     %30s\n",
-        @sprintf(
-            "%.6g / %.6g",
-            minimum(body.displacement[3,:]),
-            maximum(body.displacement[3,:]),
-        ),
-    )
+    msg *= @views @sprintf("  - Min. / Max. x-displacement [m]:     %30s\n", minmax_x)
+    msg *= @views @sprintf("  - Min. / Max. y-displacement [m]:     %30s\n", minmax_y)
+    msg *= @views @sprintf("  - Min. / Max. z-displacement [m]:     %30s\n", minmax_z)
     msg *= @sprintf("  - Max. damage [-]:                    %30g\n", maximum(body.damage))
     return msg
 end
-
 
 function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::Float64)
     filename = @sprintf("%s_t%04d", expfile, timestep)

@@ -1,4 +1,4 @@
-function Base.show(io::IO, ::MIME"text/plain", bc::T) where {T<:AbstractBC}
+function Base.show(io::IO, ::MIME"text/plain", bc::T) where {T <: AbstractBC}
     msg = string(length(bc.point_id_set), "-points ", T)
     if bc.dim == 1
         msg *= " in x-direction (dim=1)"
@@ -11,7 +11,7 @@ function Base.show(io::IO, ::MIME"text/plain", bc::T) where {T<:AbstractBC}
     return nothing
 end
 
-function Base.show(io::IO, ::MIME"text/plain", ic::T) where {T<:AbstractIC}
+function Base.show(io::IO, ::MIME"text/plain", ic::T) where {T <: AbstractIC}
     msg = string(length(ic.point_id_set), "-points ", T)
     if ic.dim == 1
         msg *= " in x-direction (dim=1)"
@@ -151,9 +151,8 @@ end
 function apply_boundarycondition!(body::AbstractPDBody, bc::PosDepVelBC, t::Float64)
     dim = bc.dim
     @inbounds @simd for i in bc.point_id_set
-        body.velocity_half[dim, i] = bc.fun(
-            body.position[1, i], body.position[2, i], body.position[3, i], t
-        )
+        body.velocity_half[dim, i] = bc.fun(body.position[1, i], body.position[2, i],
+                                            body.position[3, i], t)
     end
     return nothing
 end

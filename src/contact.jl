@@ -10,12 +10,11 @@ Contact definition.
   value: `spring_constant = 1.0e12`
 """
 struct Contact
-    body_id_set::Tuple{Int,Int}
+    body_id_set::Tuple{Int, Int}
     search_radius::Float64
     spring_constant::Float64
-    function Contact(
-        body_id_set::Tuple{Int,Int}, search_radius::Float64, spring_constant::Float64=1.0e12
-    )
+    function Contact(body_id_set::Tuple{Int, Int}, search_radius::Float64,
+                     spring_constant::Float64 = 1.0e12)
         return new(body_id_set, search_radius, spring_constant)
     end
 end
@@ -40,14 +39,11 @@ struct BodySetup
     bcs::Vector{<:AbstractBC}
     ics::Vector{<:AbstractIC}
     calc_timestep::Bool
-    function BodySetup(
-        pc::PointCloud,
-        mat::PDMaterial;
-        precracks::Vector{PreCrack}=Vector{PreCrack}(),
-        bcs::Vector{<:AbstractBC}=Vector{AbstractBC}(),
-        ics::Vector{<:AbstractIC}=Vector{AbstractIC}(),
-        calc_timestep::Bool=true,
-    )
+    function BodySetup(pc::PointCloud, mat::PDMaterial;
+                       precracks::Vector{PreCrack} = Vector{PreCrack}(),
+                       bcs::Vector{<:AbstractBC} = Vector{AbstractBC}(),
+                       ics::Vector{<:AbstractIC} = Vector{AbstractIC}(),
+                       calc_timestep::Bool = true)
         return new(pc, mat, precracks, bcs, ics, calc_timestep)
     end
 end
@@ -72,13 +68,9 @@ struct PDContactAnalysis <: AbstractPDAnalysis
     contact::Vector{Contact}
     td::VelocityVerlet
     es::ExportSettings
-    function PDContactAnalysis(;
-        name::String,
-        body_setup::Vector{BodySetup},
-        contact::Vector{Contact},
-        td::VelocityVerlet,
-        es::ExportSettings,
-    )
+    function PDContactAnalysis(; name::String, body_setup::Vector{BodySetup},
+                               contact::Vector{Contact}, td::VelocityVerlet,
+                               es::ExportSettings)
         es.resultfile_prefix = joinpath(es.path, name)
         es.logfile = es.resultfile_prefix * ".log"
         if !es.exportflag
@@ -105,14 +97,9 @@ function submit(sim::PDContactAnalysis)
             _Δt = Vector{Float64}(undef, 0)
             for i in 1:sim.n_bodies
                 if sim.body_setup[i].calc_timestep
-                    push!(
-                        _Δt,
-                        calc_stable_timestep(
-                            bodies[i],
-                            sim.body_setup[i].mat,
-                            sim.td.safety_factor,
-                        ),
-                    )
+                    Δti = calc_stable_timestep(bodies[i], sim.body_setup[i].mat,
+                                               sim.td.safety_factor)
+                    push!(_Δt, Δti)
                 end
             end
             sim.td.Δt = minimum(_Δt)
@@ -156,9 +143,8 @@ function log_describe_interactions(bodies::Vector{<:AbstractPDBody}, es::ExportS
         msg *= @sprintf "Body %d:\n" i
         msg *= describe_interactions(bodies[i])
     end
-    msg *= @sprintf "Total memory used for all parts [MB]:   %30g\n" Base.summarysize(
-        bodies
-    ) * 1e-6
+    mem_used_mb = Base.summarysize(bodies) * 1e-6
+    msg *= @sprintf "Total memory used for all parts [MB]:   %30g\n" mem_used_mb
     print(msg)
     if es.exportflag
         open(es.logfile, "a") do io
@@ -168,9 +154,8 @@ function log_describe_interactions(bodies::Vector{<:AbstractPDBody}, es::ExportS
     return nothing
 end
 
-function log_closesim(
-    bodies::Vector{<:AbstractPDBody}, timingsummary::NamedTuple, es::ExportSettings
-)
+function log_closesim(bodies::Vector{<:AbstractPDBody}, timingsummary::NamedTuple,
+                      es::ExportSettings)
     msg = @sprintf "✓ Simulation completed after %g seconds\nResults:\n" timingsummary.time
     for i in 1:length(bodies)
         msg *= @sprintf "Body %d:\n" i
@@ -186,13 +171,8 @@ function log_closesim(
 end
 
 function velocity_verlet!(bodies::Vector{<:AbstractPDBody}, sim::PDContactAnalysis)
-    p = Progress(sim.td.n_steps;
-        dt=1,
-        desc="Time integration... ",
-        barlen=30,
-        color=:normal,
-        enabled=!is_logging(stderr),
-    )
+    p = Progress(sim.td.n_steps; dt = 1, desc = "Time integration... ", barlen = 30,
+                 color = :normal, enabled = !is_logging(stderr))
     Δt½ = 0.5 * sim.td.Δt
     for t in 1:sim.td.n_steps
         time = t * sim.td.Δt
@@ -219,11 +199,8 @@ function velocity_verlet!(bodies::Vector{<:AbstractPDBody}, sim::PDContactAnalys
     return nothing
 end
 
-function compute_equation_of_motion_contact!(
-    body::AbstractPDBody,
-    Δt½::Float64,
-    rho::Float64,
-)
+function compute_equation_of_motion_contact!(body::AbstractPDBody, Δt½::Float64,
+                                             rho::Float64)
     @threads for i in 1:body.n_points
         body.b_int[1, i, 1] = sum(@view body.b_int[1, i, :])
         body.b_int[2, i, 1] = sum(@view body.b_int[2, i, :])
@@ -238,9 +215,8 @@ function compute_equation_of_motion_contact!(
     return nothing
 end
 
-function compute_contactforcedensity!(
-    bodies::Vector{<:AbstractPDBody}, sim::PDContactAnalysis
-)
+function compute_contactforcedensity!(bodies::Vector{<:AbstractPDBody},
+                                      sim::PDContactAnalysis)
     for contact in sim.contact
         ii, jj = contact.body_id_set
         body_a = bodies[ii]

@@ -5,16 +5,13 @@ using ProgressMeter
 using WriteVTK
 using Base.Threads
 
-export PointCloud, pcmerge
-export PreCrack
+export PointCloud, PreCrack, pcmerge
 export VelocityBC, VelocityIC, ForceDensityBC, PosDepVelBC
 export VelocityVerlet, DynamicRelaxation, ExportSettings
 export MultiMaterial, BondBasedMaterial, ContinuumBasedMaterial
 export Contact, BodySetup
-export PDSingleBodyAnalysis, PDContactAnalysis
-export submit
-export read_inp
-export read_vtk
+export PDSingleBodyAnalysis, PDContactAnalysis, submit
+export read_inp, read_vtk
 
 # Basics for peridynamics and contact problems
 include("abstract_types.jl")

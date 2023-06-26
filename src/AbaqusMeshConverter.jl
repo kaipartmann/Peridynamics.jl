@@ -7,11 +7,8 @@ using ..Peridynamics: PointCloud
 
 const SUPPORTED_ELEMENT_TYPES = [:Tet4, :Hex8]
 
-function get_points(
-    nodes::Dict{Int,Vector{Float64}},
-    elements::Dict{Int,Vector{Int}},
-    element_types::Dict{Int,Symbol},
-)
+function get_points(nodes::Dict{Int, Vector{Float64}}, elements::Dict{Int, Vector{Int}},
+                    element_types::Dict{Int, Symbol})
     nel = length(elements)
     midpoints = zeros(3, nel)
     volumes = zeros(nel)
@@ -81,7 +78,8 @@ Currently supported mesh elements: $SUPPORTED_ELEMENT_TYPES
 
 # Examples
 The specimen of the
-[`TensileTest.jl`](https://kaipartmann.github.io/Peridynamics.jl/dev/tensiletest/) example script:
+[`TensileTest.jl`](https://kaipartmann.github.io/Peridynamics.jl/dev/tensiletest/) example
+script:
 ```julia-repl
 julia> pointcloud = read_inp("examples/models/TensileTestMesh.inp")
 [ Info: 21420 nodes found
@@ -107,17 +105,18 @@ function read_inp(file::String)
     return PointCloud(position, volume, point_sets)
 end
 
-function midpoint(a::T, b::T, c::T, d::T) where {T<:AbstractVector}
+function midpoint(a::T, b::T, c::T, d::T) where {T <: AbstractVector}
     mp = 1 / 4 .* (a + b + c + d)
     return mp
 end
 
-function midpoint(a::T, b::T, c::T, d::T, e::T, f::T, g::T, h::T) where {T<:AbstractVector}
+function midpoint(a::T, b::T, c::T, d::T, e::T, f::T, g::T,
+                  h::T) where {T <: AbstractVector}
     mp = 1 / 8 .* (a + b + c + d + e + f + g + h)
     return mp
 end
 
-function tetvol(a::T, b::T, c::T, d::T) where {T<:AbstractVector}
+function tetvol(a::T, b::T, c::T, d::T) where {T <: AbstractVector}
     v1 = SVector{3}(b - a)
     v2 = SVector{3}(c - a)
     v3 = SVector{3}(d - a)

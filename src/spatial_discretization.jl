@@ -102,7 +102,7 @@ struct PointCloud
     volume::Vector{Float64}
     failure_flag::BitVector
     radius::Vector{Float64}
-    point_sets::Dict{String,Vector{Int}}
+    point_sets::Dict{String, Vector{Int}}
 
     function PointCloud(n_points::Int, position::Matrix{Float64}, volume::Vector{Float64},
                         failure_flag::BitVector, radius::Vector{Float64},
@@ -173,27 +173,20 @@ struct PointCloud
 end
 
 function PointCloud(position::Matrix{Float64}, volume::Vector{Float64},
-                    point_sets::Dict{String,Vector{Int}} = Dict{String,Vector{Int}}())
+                    point_sets::Dict{String, Vector{Int}} = Dict{String, Vector{Int}}())
     n_points = length(volume)
     radius = sphere_radius.(volume)
     failure_flag = BitVector(fill(true, n_points))
     return PointCloud(n_points, position, volume, failure_flag, radius, point_sets)
 end
 
-function PointCloud(
-    lx::Real,
-    ly::Real,
-    lz::Real,
-    Δx::Real;
-    center_x::Real=0,
-    center_y::Real=0,
-    center_z::Real=0,
-)
-    _gridX = range(; start=(-lx + Δx) / 2, stop=(lx - Δx) / 2, step=Δx)
+function PointCloud(lx::Real, ly::Real, lz::Real, Δx::Real; center_x::Real = 0,
+                    center_y::Real = 0, center_z::Real = 0)
+    _gridX = range(; start = (-lx + Δx) / 2, stop = (lx - Δx) / 2, step = Δx)
     gridX = _gridX .- sum(_gridX) / length(_gridX)
-    _gridY = range(; start=(-ly + Δx) / 2, stop=(ly - Δx) / 2, step=Δx)
+    _gridY = range(; start = (-ly + Δx) / 2, stop = (ly - Δx) / 2, step = Δx)
     gridY = _gridY .- sum(_gridY) / length(_gridY)
-    _gridZ = range(; start=(-lz + Δx) / 2, stop=(lz - Δx) / 2, step=Δx)
+    _gridZ = range(; start = (-lz + Δx) / 2, stop = (lz - Δx) / 2, step = Δx)
     gridZ = _gridZ .- sum(_gridZ) / length(_gridZ)
     positions = hcat(([x; y; z] for x in gridX for y in gridY for z in gridZ)...)
     if center_x !== 0
@@ -209,7 +202,7 @@ function PointCloud(
     volumes = fill(Δx^3, n_points)
     radius = sphere_radius.(volumes)
     failure_flag = BitVector(fill(true, n_points))
-    point_sets = Dict{String,Vector{Int}}()
+    point_sets = Dict{String, Vector{Int}}()
     return PointCloud(n_points, positions, volumes, failure_flag, radius, point_sets)
 end
 
@@ -228,7 +221,7 @@ with specified sphere volume $V$.
 # Returns
 - `Float64`: radius $r$ of sphere with volume `vol`
 """
-function sphere_radius(vol::T) where {T<:Real}
+function sphere_radius(vol::T) where {T <: Real}
     r = (3 * vol / (4 * π))^(1 / 3)
     return r
 end
@@ -255,12 +248,12 @@ function pcmerge(v::Vector{PointCloud})
     volume = reduce(vcat, [pc.volume for pc in v])
     failure_flag = reduce(vcat, [pc.failure_flag for pc in v])
     radius = reduce(vcat, [pc.radius for pc in v])
-    point_sets = Dict{String,Vector{Int}}()
+    point_sets = Dict{String, Vector{Int}}()
     n_points_cnt = first(v).n_points
     for (key, val) in first(v).point_sets
         point_sets[key] = val
     end
-    for pc_id in firstindex(v)+1:lastindex(v)
+    for pc_id in (firstindex(v) + 1):lastindex(v)
         for (key, val) in v[pc_id].point_sets
             point_sets[key] = val .+ n_points_cnt
         end
@@ -324,15 +317,10 @@ function find_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRa
     n_threads = nthreads()
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)
     n_family_members = zeros(Int, pc.n_points)
-    p = Progress(pc.n_points;
-        dt=1,
-        desc="Search bonds...     ",
-        barlen=30,
-        color=:normal,
-        enabled=!is_logging(stderr),
-    )
+    p = Progress(pc.n_points; dt = 1, desc = "Search bonds...     ", barlen = 30,
+                 color = :normal, enabled = !is_logging(stderr))
     @threads for tid in 1:n_threads
-        local_bond_data = Vector{Tuple{Int,Int,Float64,Bool}}(undef, 0)
+        local_bond_data = Vector{Tuple{Int, Int, Float64, Bool}}(undef, 0)
         sizehint!(local_bond_data, pc.n_points * 500)
         idst = 0.0
         num = 0
@@ -342,11 +330,9 @@ function find_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRa
             δ = mat[a].δ
             for i in 1:pc.n_points
                 if a !== i
-                    idst = sqrt(
-                        (pc.position[1, i] - pc.position[1, a])^2 +
-                        (pc.position[2, i] - pc.position[2, a])^2 +
-                        (pc.position[3, i] - pc.position[3, a])^2,
-                    )
+                    idst = sqrt((pc.position[1, i] - pc.position[1, a])^2 +
+                                (pc.position[2, i] - pc.position[2, a])^2 +
+                                (pc.position[3, i] - pc.position[3, a])^2)
                     if idst <= δ
                         num += 1
                         fail = pc.failure_flag[a] & pc.failure_flag[i]
@@ -364,19 +350,15 @@ function find_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRa
     return bond_data, n_family_members
 end
 
-function find_unique_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRange{Int}})
+function find_unique_bonds(pc::PointCloud, mat::PDMaterial,
+                           owned_points::Vector{UnitRange{Int}})
     n_threads = nthreads()
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)
     n_family_members = zeros(Int, pc.n_points)
-    p = Progress(pc.n_points;
-        dt=1,
-        desc="Search bonds...     ",
-        barlen=30,
-        color=:normal,
-        enabled=!is_logging(stderr),
-    )
+    p = Progress(pc.n_points; dt = 1, desc = "Search bonds...     ", barlen = 30,
+                 color = :normal, enabled = !is_logging(stderr))
     @threads for tid in 1:n_threads
-        local_bonds_data = Vector{Tuple{Int,Int,Float64,Bool}}(undef, 0)
+        local_bonds_data = Vector{Tuple{Int, Int, Float64, Bool}}(undef, 0)
         sizehint!(local_bonds_data, pc.n_points * 500)
         idst = 0.0
         num = 0
@@ -386,18 +368,14 @@ function find_unique_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector
             δ = mat[a].δ
             for i in 1:pc.n_points
                 if a !== i
-                    idst = sqrt(
-                        (pc.position[1, i] - pc.position[1, a])^2 +
-                        (pc.position[2, i] - pc.position[2, a])^2 +
-                        (pc.position[3, i] - pc.position[3, a])^2,
-                    )
+                    idst = sqrt((pc.position[1, i] - pc.position[1, a])^2 +
+                                (pc.position[2, i] - pc.position[2, a])^2 +
+                                (pc.position[3, i] - pc.position[3, a])^2)
                     if idst <= δ
                         num += 1
                         fail = pc.failure_flag[a] & pc.failure_flag[i]
-                        push!(
-                            local_bonds_data,
-                            a < i ? (a, i, idst, fail) : (i, a, idst, fail),
-                        )
+                        push!(local_bonds_data,
+                              a < i ? (a, i, idst, fail) : (i, a, idst, fail))
                     end
                 end
             end

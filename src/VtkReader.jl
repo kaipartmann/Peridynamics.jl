@@ -2,8 +2,8 @@ module VtkReader
 
 using Base64: base64decode
 using CodecZlib: ZlibDecompressor
-using LightXML:
-    LightXML, XMLElement, parse_string, attribute, child_elements, free, find_element
+using LightXML: LightXML, XMLElement, parse_string, attribute, child_elements, free,
+                find_element
 
 export read_vtk
 
@@ -19,16 +19,16 @@ struct DataArray{T}
     offset::Int
     function DataArray(xml::XMLElement)
         LightXML.name(xml) !== "DataArray" && error("Need a DataArray!")
-        type = DATATYPE_MAPPING[attribute(xml, "type"; required=true)]
-        name = attribute(xml, "Name"; required=true)
-        noc = parse(Int, attribute(xml, "NumberOfComponents"; required=true))
+        type = DATATYPE_MAPPING[attribute(xml, "type"; required = true)]
+        name = attribute(xml, "Name"; required = true)
+        noc = parse(Int, attribute(xml, "NumberOfComponents"; required = true))
         _not = attribute(xml, "NumberOfTuples")
         not = isnothing(_not) ? 0 : parse(Int, _not)
-        format = Symbol(attribute(xml, "format"; required=true))
+        format = Symbol(attribute(xml, "format"; required = true))
         if format !== :appended
             error("Only appended data format valid!\n")
         end
-        offset = parse(Int, attribute(xml, "offset"; required=true))
+        offset = parse(Int, attribute(xml, "offset"; required = true))
         new{type}(type, name, noc, not, format, offset)
     end
 end
@@ -46,36 +46,30 @@ function get_xml_and_data(file::String)
     # find appended data
     marker = findfirst("<AppendedData encoding=\"raw\">", raw_file)
     if isnothing(marker)
-        error(
-            "Invalid VTK-file!\n",
-            "Can only read files with raw encoded data, specified by block:\n",
-            "  <AppendedData encoding=\"raw\">\n    ...raw data...\n  </AppendedData>\n",
-            "Could not find `<AppendedData encoding=\"raw\">` in file!\n",
-        )
+        error("Invalid VTK-file!\n",
+              "Can only read files with raw encoded data, specified by block:\n",
+              "  <AppendedData encoding=\"raw\">\n    ...raw data...\n  </AppendedData>\n",
+              "Could not find `<AppendedData encoding=\"raw\">` in file!\n")
     end
     offset_begin_marker = findnext("_", raw_file, last(marker))
     if isnothing(offset_begin_marker)
-        error(
-            "Could not find the begin of the appended data!\n",
-            "Usually this is marked after the _ character, which could not ",
-            "be found after the <AppendedData encoding=\"raw\"> statement.\n",
-        )
+        error("Could not find the begin of the appended data!\n",
+              "Usually this is marked after the _ character, which could not ",
+              "be found after the <AppendedData encoding=\"raw\"> statement.\n")
     end
     offset_begin = first(offset_begin_marker) + 1
     offset_end_marker = findnext("\n  </AppendedData>", raw_file, offset_begin)
     if isnothing(offset_end_marker)
-        error(
-            "Invalid VTK-file!\n",
-            "Can only read files with raw encoded data, specified by block:\n",
-            "  <AppendedData encoding=\"raw\">\n    ...raw data...\n  </AppendedData>\n",
-            "Could not find `\\n  </AppendedData>` in file!\n",
-        )
+        error("Invalid VTK-file!\n",
+              "Can only read files with raw encoded data, specified by block:\n",
+              "  <AppendedData encoding=\"raw\">\n    ...raw data...\n  </AppendedData>\n",
+              "Could not find `\\n  </AppendedData>` in file!\n")
     end
     offset_end = first(offset_end_marker) - 1
     data = Vector{UInt8}(raw_file[offset_begin:offset_end])
 
     # xml contents
-    xml_string = raw_file[begin:(offset_begin-1)] * raw_file[(offset_end+1):end]
+    xml_string = raw_file[begin:(offset_begin - 1)] * raw_file[(offset_end + 1):end]
 
     return xml_string, data
 end
