@@ -77,7 +77,7 @@ function describe_geometry(pc::PointCloud)
     msg *= @sprintf("  - Min. / Max. x-axis [m]:             %30s\n", minmax_x)
     msg *= @sprintf("  - Min. / Max. y-axis [m]:             %30s\n", minmax_y)
     msg *= @sprintf("  - Min. / Max. z-axis [m]:             %30s\n", minmax_z)
-    return nothing
+    return msg
 end
 
 function describe_mat(mat::AbstractPDMaterial)
