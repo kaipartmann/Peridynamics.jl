@@ -10,7 +10,7 @@ import Pkg
 Pkg.activate(@__DIR__)
 Pkg.instantiate()
 
-# Communicate with `make.jl` that docs are build in live mode
+# Communicate with make.jl that docs are build in live mode
 push!(ARGS, "LIVE_MODE")
 
 using LiveServer
