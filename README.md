@@ -2,11 +2,11 @@
 
 # Peridynamics.jl
 
-|**Documentation**| **Build Status**| **Code Quality** |
+|**Documentation**| **Build status**| **Code quality** |
 |---|---|---|
 | [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://kaipartmann.github.io/Peridynamics.jl/stable/) [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://kaipartmann.github.io/Peridynamics.jl/dev/) | [![Build Status](https://github.com/kaipartmann/Peridynamics.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/kaipartmann/Peridynamics.jl/actions/workflows/CI.yml?query=branch%3Amain) [![Coverage](https://codecov.io/gh/kaipartmann/Peridynamics.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/kaipartmann/Peridynamics.jl) | [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2)](https://github.com/SciML/SciMLStyle) |
 
-| **Cite the package** |**Downloads**|
+| **Cite the package** |**Downloads counter**|
 |---|---|
 | ... | [![Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/Peridynamics/label:-color:blue)](https://pkgs.genieframework.com?packages=Peridynamics) |
 

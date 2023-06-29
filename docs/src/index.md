@@ -6,11 +6,11 @@
 
 Documentation for the [Peridynamics](https://github.com/kaipartmann/Peridynamics.jl) julia package.
 
-|**Build Status**| **Code Quality** |
+|**Build status**| **Code quality** |
 |:---|:---|
 | [![Build Status](https://github.com/kaipartmann/Peridynamics.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/kaipartmann/Peridynamics.jl/actions/workflows/CI.yml?query=branch%3Amain) [![Coverage](https://codecov.io/gh/kaipartmann/Peridynamics.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/kaipartmann/Peridynamics.jl) | [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2)](https://github.com/SciML/SciMLStyle) |
 
-| **Cite the package** |**Download counter**|
+| **Cite the package** |**Downloads counter**|
 |:---|:---|
 | ... | [![Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/Peridynamics/label:-color:blue)](https://pkgs.genieframework.com?packages=Peridynamics) |
 
