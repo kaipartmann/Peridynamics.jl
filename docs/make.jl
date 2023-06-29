@@ -14,13 +14,13 @@ LIT_NB_OUT = joinpath(@__DIR__, "..", "notebooks")
 rm(LIT_MD_OUT; recursive = true, force = true)
 rm(LIT_NB_OUT; recursive = true, force = true)
 
-LIT_MANUAL_IN = ["spatial_discretization.jl",
-                 "matmodels.jl",
-                 "temporal_discretization.jl",
-                 "conditions.jl",
-                 "jobs.jl",
-                 "workflow.jl",
-                 "vtk_reader.jl"]
+LIT_MANUAL_IN = ["howto_spatial_discretization.jl",
+                 "howto_matmodels.jl",
+                 "howto_temporal_discretization.jl",
+                 "howto_conditions.jl",
+                 "howto_jobs.jl",
+                 "howto_workflow.jl",
+                 "howto_vtk_reader.jl"]
 LIT_MANUAL_IN .= joinpath.(@__DIR__, "src", "literate", LIT_MANUAL_IN)
 Literate.markdown.(LIT_MANUAL_IN, LIT_MD_OUT)
 
@@ -47,24 +47,25 @@ makedocs(;
     pages = [
         "Home" => "index.md",
         "quickstart.md",
-        "Manual" => [
-            joinpath("generated", "spatial_discretization.md"),
-            joinpath("generated", "matmodels.md"),
-            joinpath("generated", "temporal_discretization.md"),
-            joinpath("generated", "conditions.md"),
-            joinpath("generated", "jobs.md"),
-            joinpath("generated", "workflow.md"),
-            "visualization.md",
-            joinpath("generated", "vtk_reader.md"),
+        "theory.md",
+        "How-to guides" => [
+            joinpath("generated", "howto_spatial_discretization.md"),
+            joinpath("generated", "howto_matmodels.md"),
+            joinpath("generated", "howto_temporal_discretization.md"),
+            joinpath("generated", "howto_conditions.md"),
+            joinpath("generated", "howto_jobs.md"),
+            joinpath("generated", "howto_workflow.md"),
+            "howto_visualization.md",
+            joinpath("generated", "howto_vtk_reader.md"),
         ],
         "Tutorials" => [
-            "tensiletest.md",
-            "crackedplateundertension.md",
-            "logo.md",
+            "tutorial_tensiletest.md",
+            "tutorial_crackedplateundertension.md",
+            "tutorial_logo.md",
         ],
         "API" => [
-            "public_api.md",
-            "private_api.md",
+            "api_public.md",
+            "api_private.md",
         ]
     ],
 )
