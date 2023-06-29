@@ -9,7 +9,7 @@
 | [Temporal discretization](@ref time_discretization) ||| 
 | [Conditions](@ref conditions) |||
 
-## Examples
+## Tutorials
 
 ### [Tensile test](@ref tensile_test)
 ```@raw html

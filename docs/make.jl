@@ -57,7 +57,7 @@ makedocs(;
             "visualization.md",
             joinpath("generated", "vtk_reader.md"),
         ],
-        "Examples" => [
+        "Tutorials" => [
             "tensiletest.md",
             "crackedplateundertension.md",
             "logo.md",
