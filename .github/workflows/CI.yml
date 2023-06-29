@@ -43,6 +43,8 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
+    env:
+      JULIA_NUM_THREADS: auto
     permissions:
       contents: write
     steps:
