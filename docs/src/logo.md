@@ -1,4 +1,4 @@
-![](../assets/logo.gif)
+![](assets/logo.gif)
 
 (Visualization made with [ParaView](https://www.paraview.org))
 

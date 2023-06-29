@@ -13,15 +13,15 @@
 
 ### [Tensile test](@ref tensile_test)
 ```@raw html
-<img src="../assets/TensileTest.png" width="250" />
+<img src="assets/TensileTest.png" width="250" />
 ```
 
 ### [Cracked plate under tension](@ref cracked-plate-under-tension)
 ```@raw html
-<img src="../assets/CrackedPlateUnderTension2000.png" width="250" />
+<img src="assets/CrackedPlateUnderTension2000.png" width="250" />
 ```
 
 ### [Peridynamics.jl logo](@ref logo)
 ```@raw html
-<img src="../assets/logo.png" width="250" />
+<img src="assets/logo.gif" width="250" />
 ```

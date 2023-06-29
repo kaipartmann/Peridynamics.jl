@@ -3,7 +3,7 @@
 Here, all exported types and methods are listed, which the user needs when using the package.
 
 ```@meta
-CurrentModule = Peridynamics
+
 ```
 
 ```@index
@@ -31,6 +31,5 @@ ForceDensityBC
 pcmerge
 read_inp
 read_vtk
-sphere_radius
 submit
 ```

@@ -21,5 +21,5 @@ Peridynamics.AbstractTimeDiscretization
 
 ## Functions
 ```@docs
-
+Peridynamics.sphere_radius
 ```
