@@ -7,7 +7,7 @@ Here, all exported types and methods are listed, which the user needs when using
 ```
 
 ```@index
-Pages = ["public_api.md"]
+Pages = ["api_public.md"]
 ```
 
 ## Types

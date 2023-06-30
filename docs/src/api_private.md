@@ -7,7 +7,7 @@ Here, all non-exported types and methods are listed, which the average user does
 ```
 
 ```@index
-Pages = ["private_api.md"]
+Pages = ["api_private.md"]
 ```
 
 ## Types
