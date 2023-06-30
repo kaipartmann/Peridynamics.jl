@@ -26,6 +26,7 @@ include("contact.jl")
 include("utilities.jl")
 
 # Material models
+include("material_interface.jl")
 include("bond_based.jl")
 include("continuum_based.jl")
 
