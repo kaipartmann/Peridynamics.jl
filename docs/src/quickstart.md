@@ -1,6 +1,6 @@
 # Quick start
 
-## Manual
+## How-to guides
 
 | Preprocessing | Simulation | Postprocessing |
 |:---|:---|:---|
