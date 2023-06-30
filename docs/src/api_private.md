@@ -17,9 +17,11 @@ Peridynamics.AbstractBC
 Peridynamics.AbstractPDAnalysis
 Peridynamics.AbstractPDMaterial
 Peridynamics.AbstractTimeDiscretization
+Peridynamics.BondBasedBody
 ```
 
 ## Functions
 ```@docs
+Peridynamics.init_body
 Peridynamics.sphere_radius
 ```
