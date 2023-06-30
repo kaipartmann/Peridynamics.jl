@@ -3,8 +3,8 @@ using Peridynamics, Test
 pc = PointCloud(1,1,1,0.25)
 mat1 = BondBasedMaterial(; horizon = 1, rho = 1, E = 1, Gc = 1)
 mat2 = ContinuumBasedMaterial(; horizon = 1, rho = 1, E = 1, nu = 1/4, Gc = 1)
-body1 = Peridynamics.create_simmodel(mat1, pc)
-body2 = Peridynamics.create_simmodel(mat2, pc)
+body1 = Peridynamics.init_body(mat1, pc)
+body2 = Peridynamics.init_body(mat2, pc)
 
 vic1 = VelocityIC(2.0, 1:5, 1)
 

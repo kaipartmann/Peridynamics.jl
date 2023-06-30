@@ -32,7 +32,7 @@ if Threads.nthreads() <= 2
     @test bond_data == Vector{Tuple{Int,Int,Float64,Bool}}()
     @test n_family_members == [0,0]
 
-    body = Peridynamics.create_simmodel(mat, pc)
+    body = Peridynamics.init_body(mat, pc)
     precrack = PreCrack([1], [2])
 
     if Threads.nthreads() == 1

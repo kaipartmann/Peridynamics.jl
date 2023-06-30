@@ -8,7 +8,7 @@ if Threads.nthreads() <= 2
     volumes = fill(point_spacing^3, n_points)
     pc = PointCloud(positions, volumes)
     mat = BondBasedMaterial(; horizon=δ, rho=1, E=1, Gc=1)
-    body = Peridynamics.create_simmodel(mat, pc)
+    body = Peridynamics.init_body(mat, pc)
     sim = PDSingleBodyAnalysis(;
         name="",
         pc=pc,
@@ -45,7 +45,7 @@ if Threads.nthreads() <= 2
     volumes = fill(point_spacing^3, n_points)
     pc = PointCloud(positions, volumes)
     mat = BondBasedMaterial(; horizon=δ, rho=1, E=1, Gc=1)
-    body = Peridynamics.create_simmodel(mat, pc)
+    body = Peridynamics.init_body(mat, pc)
     sim = PDSingleBodyAnalysis(;
         name="",
         pc=pc,

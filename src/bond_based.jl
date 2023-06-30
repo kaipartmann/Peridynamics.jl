@@ -68,6 +68,46 @@ function Base.show(io::IO, ::MIME"text/plain", mat::BondBasedMaterial)
     return nothing
 end
 
+"""
+    BondBasedBody
+
+Simulation body that contains all needed informations to run a simulation with bond-based
+peridynamics.
+
+# Fields
+- `n_points::Int`:
+- `n_bonds::Int`:
+- `n_threads::Int`:
+- `unique_bonds::Bool`:
+- `owned_points::Vector{UnitRange{Int}}`:
+- `owned_bonds::Vector{UnitRange{Int}}`:
+- `single_tids::Vector{Tuple{Int, Int}}`:
+- `multi_tids::Vector{Tuple{Int, Vector{Int}}}`:
+- `bond_data::Vector{Tuple{Int, Int, Float64, Bool}}`:
+- `volume::Vector{Float64}`:
+- `cells::Vector{MeshCell{VTKCellType, Tuple{Int64}}}`:
+- `n_family_members::Vector{Int}`:
+- `n_active_family_members::Matrix{Int}`:
+- `position::Matrix{Float64}`:
+- `displacement::Matrix{Float64}`:
+- `velocity::Matrix{Float64}`:
+- `velocity_half::Matrix{Float64}`:
+- `acceleration::Matrix{Float64}`:
+- `b_int::Array{Float64, 3}`:
+- `b_ext::Matrix{Float64}`:
+- `damage::Vector{Float64}`:
+- `bond_failure::Vector{Int}`:
+
+---
+```julia
+BondBasedBody(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud)
+```
+
+# Arguments:
+- `mat::PDMaterial{BondBasedMaterial}`:
+- `pc::PointCloud`:
+
+"""
 struct BondBasedBody <: AbstractPDBody
     n_points::Int
     n_bonds::Int
@@ -140,7 +180,7 @@ function Base.show(io::IO, ::MIME"text/plain", body::BondBasedBody)
     return nothing
 end
 
-create_simmodel(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud) = BondBasedBody(mat, pc)
+init_body(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud) = BondBasedBody(mat, pc)
 
 function compute_forcedensity!(body::BondBasedBody, mat::PDMaterial{BondBasedMaterial})
     body.b_int .= 0.0

@@ -13,7 +13,7 @@ if Threads.nthreads() <= 2
     volumes = fill(point_spacing^3, n_points)
     pc = PointCloud(positions, volumes)
     mat = BondBasedMaterial(; horizon=δ, rho=1, E=1, Gc=1)
-    body = Peridynamics.create_simmodel(mat, pc)
+    body = Peridynamics.init_body(mat, pc)
     sf = 0.7
     Δt = sf * sqrt(2 * 1 / (body.volume[2] * 1 / 1 * 18 * 2/3 / (π * δ^4)))
     @test Peridynamics.calc_stable_timestep(body, mat, sf) == Δt

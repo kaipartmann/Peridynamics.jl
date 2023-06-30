@@ -84,7 +84,7 @@ function submit(sim::PDContactAnalysis)
     timingsummary = @timed begin
         log_header(sim.es)
         log_describe_sim(sim)
-        bodies = [create_simmodel(ps.mat, ps.pc) for ps in sim.body_setup]
+        bodies = [init_body(ps.mat, ps.pc) for ps in sim.body_setup]
         log_describe_interactions(bodies, sim.es)
         for i in 1:sim.n_bodies
             for precrack in sim.body_setup[i].precracks

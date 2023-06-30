@@ -444,7 +444,7 @@ function surf_two_neigh(ξijx::Float64, ξijy::Float64, ξijz::Float64, ξikx::F
                 (ξijx * ξiky - ξijy * ξikx)^2)
 end
 
-function create_simmodel(mat::PDMaterial{ContinuumBasedMaterial}, pc::PointCloud)
+function init_body(mat::PDMaterial{ContinuumBasedMaterial}, pc::PointCloud)
     return ContinuumBasedSimBody(mat, pc)
 end
 

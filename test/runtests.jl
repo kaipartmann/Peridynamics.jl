@@ -39,8 +39,8 @@ using SafeTestsets
     @safetestset "Bonds" begin include(joinpath("integration_tests","bonds.jl")) end
     @safetestset "Interactions" begin include(joinpath("integration_tests","interactions.jl")) end
     @safetestset "Force density calculation BondBased" begin include(joinpath("integration_tests","b_int_bond_based.jl")) end
-    @safetestset "create_simmodel BondBased" begin include(joinpath("integration_tests","create_simmodel_bond_based.jl")) end
-    @safetestset "create_simmodel ContinuumBased" begin include(joinpath("integration_tests","create_simmodel_continuum_based.jl")) end
+    @safetestset "init_body BondBased" begin include(joinpath("integration_tests","init_body_bond_based.jl")) end
+    @safetestset "init_body ContinuumBased" begin include(joinpath("integration_tests","init_body_continuum_based.jl")) end
     @safetestset "Contact example 4 points" begin include(joinpath("integration_tests","contact_example_4p.jl")) end
     @safetestset "MultiMaterial interactions" begin include(joinpath("integration_tests","multimat_interactions.jl")) end
 
