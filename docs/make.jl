@@ -40,14 +40,12 @@ makedocs(;
         prettyurls = get(ENV, "CI", "false") == "true",
         canonical = "https://kaipartmann.github.io/Peridynamics.jl",
         edit_link = "main",
-        assets = String[],
+        assets = [joinpath("assets", "custom.css")],
         collapselevel = 1,
     ),
     draft = LIVE_MODE,
     pages = [
         "Home" => "index.md",
-        "quickstart.md",
-        "theory.md",
         "How-to guides" => [
             joinpath("generated", "howto_spatial_discretization.md"),
             joinpath("generated", "howto_matmodels.md"),
