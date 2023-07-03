@@ -1,45 +1,69 @@
-```@raw html
-<img src="assets/logo.png" width="450" />
-```
-
 # Peridynamics
 
-Documentation for the [Peridynamics](https://github.com/kaipartmann/Peridynamics.jl) julia package.
-
-|**Build status**| **Code quality** |
-|:---|:---|
-| [![Build Status](https://github.com/kaipartmann/Peridynamics.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/kaipartmann/Peridynamics.jl/actions/workflows/CI.yml?query=branch%3Amain) [![Coverage](https://codecov.io/gh/kaipartmann/Peridynamics.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/kaipartmann/Peridynamics.jl) | [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2)](https://github.com/SciML/SciMLStyle) |
+A high-level Julia package for multithreaded peridynamics simulations
 
 | **Cite the package** |**Downloads counter**|
 |:---|:---|
 | ... | [![Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/Peridynamics/label:-color:blue)](https://pkgs.genieframework.com?packages=Peridynamics) |
 
-## Overview
+## What is peridynamics?
+Peridynamics is a non-local formulation of continuum mechanics where material points represent the continuum, and the relative displacements and forces are governed by an integro-differential equation that allows discontinuities. As a result, peridynamics is particularly well-suited for dynamic fracture simulations involving numerous cracks.
 
-Peridynamics is a non-local formulation of continuum mechanics.
-Material points map the continuum, and the relative displacements and forces are described by an integral equation that is also fulfilled for discontinuities. Therefore, peridynamics is ideally suited for dynamic fracture simulations with many cracks!
+## Who can benefit from this package?
+This package is designed for anyone interested in performing peridynamics simulations. With its intuitive high-level API and the incredible performance of Julia, users can seamlessly delve into the world of peridynamics. While the current feature set provides a solid foundation, we are continuously working to enhance and expand the capabilities of `Peridynamics.jl`. We encourage you to open an issue or submit a pull request to share your feedback and make this package even more valuable to the community!
 
-This package aims at making it easy for everyone to perform peridynamics simulations with a high-level API and the speed of Julia.
-Currently, only a limited feature set is supported, but many upgrades are in the pipeline, so stay tuned for upcoming versions!
+## How-to guides
 
-#### Features
-- Bond-based peridynamics, see [Silling (2000)](https://doi.org/10.1016/S0022-5096(99)00029-0)
-- Import and convert meshes from Abaqus
-- Explicit time integration with Velocity Verlet algorithm
-- Adaptive dynamic relaxation for quasistatic analysis, see [Kilic and Madenci (2010)](https://doi.org/10.1016/j.tafmec.2010.08.001)
-- Multi-body contact analysis with short-range forces, see [Silling and Askari (2005)](https://doi.org/10.1016/j.compstruc.2004.11.026)
+- [Spatial discretization](@ref spatial_discretization)
+- [Material models](@ref mat_models)
+- [Temporal discretization](@ref time_discretization)
+- [Conditions](@ref conditions)
+- [Jobs / PD-Analysis](@ref jobs)
+- [Workflow](@ref workflow)
+- [Visualization with ParaView](@ref visualization)
+- [Read VTK results](@ref vtk_reader)
 
-#### An incomplete list of upcoming features
-- Volume and surface correction
-- Ordinary and non-ordinary state-based peridynamics, see [Silling et al. (2007)](https://link.springer.com/article/10.1007/s10659-007-9125-1)
-- Continuum-kinematics-based peridynamics, see [Javili, McBride, and Steinmann (2019)](https://doi.org/10.1016/j.jmps.2019.06.016)
+## Tutorials
 
-## Installation
-
-To install, use Julia's built-in package manager. Open the Julia REPL and type `]` to enter the package mode and install Peridynamics as follows:
-
+```@raw html
+<div class="tutorial-grid"> 
 ```
-pkg> add Peridynamics
+
+```@raw html
+<div class="tutorial-element"> 
+```
+
+### [Tensile test](@ref tensile_test)
+[![](assets/TensileTest.png)](@ref tensile_test)
+
+```@raw html
+</div> 
+```
+
+```@raw html
+<div class="tutorial-element"> 
+```
+
+### [Cracked plate under tension](@ref cracked-plate-under-tension)
+[![](assets/CrackedPlateUnderTension2000.png)](@ref cracked-plate-under-tension)
+
+```@raw html
+</div> 
+```
+
+```@raw html
+<div class="tutorial-element"> 
+```
+
+### [Peridynamics.jl logo](@ref logo)
+[![](assets/logo.gif)](@ref logo)
+
+```@raw html
+</div> 
+```
+
+```@raw html
+</div> 
 ```
 
 ## Authors
@@ -48,6 +72,7 @@ pkg> add Peridynamics
 - Kerstin Weinberg (University of Siegen)
 
 ## Acknowledgement
-
+```@raw html
+<img src=https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/0d14a65b-4e05-4408-8107-59ac9c1477d2 width=500>
+```
 The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) under the project WE2525-14/1.
-
