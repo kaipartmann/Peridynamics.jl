@@ -277,6 +277,11 @@ let
     @test isempty(pc.point_sets)
 end
 
+#-- PointCloud from length, width, height and too big Δx:
+let
+    @test_throws ArgumentError PointCloud(1, 1, 0.1, 0.5)
+end
+
 #-- test the Base.show method of PointClouds
 # for pc1 -> 2 points
 let

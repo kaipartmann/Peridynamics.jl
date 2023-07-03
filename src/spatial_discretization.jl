@@ -189,6 +189,10 @@ function PointCloud(lx::Real, ly::Real, lz::Real, Δx::Real; center_x::Real = 0,
     _gridZ = range(; start = (-lz + Δx) / 2, stop = (lz - Δx) / 2, step = Δx)
     gridZ = _gridZ .- sum(_gridZ) / length(_gridZ)
     positions = hcat(([x; y; z] for x in gridX for y in gridY for z in gridZ)...)
+    if isempty(positions)
+        err_msg = "Size of Δx too big to create point cloud! Decrease the value!\n"
+        throw(ArgumentError(err_msg))
+    end
     if center_x !== 0
         positions[1, :] .+= center_x
     end
