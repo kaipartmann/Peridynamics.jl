@@ -14,7 +14,8 @@ This package is designed for anyone interested in performing peridynamics simula
 
 ## How-to guides
 
-- [Spatial discretization](@ref spatial_discretization)
+- [Point clouds](@ref pointclouds)
+- [Predefined cracks](@ref precracks)
 - [Material models](@ref mat_models)
 - [Temporal discretization](@ref time_discretization)
 - [Conditions](@ref conditions)

@@ -14,7 +14,8 @@ LIT_NB_OUT = joinpath(@__DIR__, "..", "notebooks")
 rm(LIT_MD_OUT; recursive = true, force = true)
 rm(LIT_NB_OUT; recursive = true, force = true)
 
-LIT_MANUAL_IN = ["howto_spatial_discretization.jl",
+LIT_MANUAL_IN = ["howto_pointclouds.jl",
+                 "howto_precracks.jl",
                  "howto_matmodels.jl",
                  "howto_temporal_discretization.jl",
                  "howto_conditions.jl",
@@ -47,7 +48,8 @@ makedocs(;
     pages = [
         "Home" => "index.md",
         "How-to guides" => [
-            joinpath("generated", "howto_spatial_discretization.md"),
+            joinpath("generated", "howto_pointclouds.md"),
+            joinpath("generated", "howto_precracks.md"),
             joinpath("generated", "howto_matmodels.md"),
             joinpath("generated", "howto_temporal_discretization.md"),
             joinpath("generated", "howto_conditions.md"),

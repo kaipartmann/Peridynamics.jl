@@ -1,11 +1,10 @@
 #-
 using Peridynamics #hide
-using CairoMakie #hide
-CairoMakie.activate!(px_per_unit=1) #hide
+using CairoMakie #src
+CairoMakie.activate!(px_per_unit=2) #src
 #-
 
-#md # # [Spatial discretization](@id spatial_discretization)
-#nb # # Spatial discretization
+# # [Point clouds](@id pointclouds)
 
 # ## Point clouds
 # In peridynamics, the continuum is mapped by material points.
@@ -21,12 +20,14 @@ lz1 = 1
 Δx = 0.2
 pc1 = PointCloud(lx1, ly1, lz1, Δx)
 #-
-fig = Figure(resolution = (1000,700), backgroundcolor = :transparent) #hide
-ax = Axis3(fig[1,1]; aspect =:data) #hide
-hidespines!(ax) #hide
-hidedecorations!(ax) #hide
-meshscatter!(ax, pc1.position; markersize=0.5Δx, color=:red) #hide
-fig #hide
+fig = Figure(resolution = (1000,700), backgroundcolor = :transparent) #src
+ax = Axis3(fig[1,1]; aspect =:data) #src
+hidespines!(ax) #src
+hidedecorations!(ax) #src
+meshscatter!(ax, pc1.position; markersize=0.5Δx, color=:red) #src
+save(joinpath(@__DIR__, "..", "assets", "pc1.png"), fig; px_per_unit=3) #src
+fig #src
+# ![](../assets/pc1.png) #md
 
 #-
 # The optional keyword arguments `center_x`, `center_y`, and `center_z` provide the
@@ -38,13 +39,15 @@ ly2 = 1
 lz2 = 2
 pc2 = PointCloud(lx2, ly2, lz2, Δx; center_x=(lx1-lx2)/2, center_z=(lz1+lz2)/2)
 #-
-fig = Figure(resolution = (700,700), backgroundcolor = :transparent) #hide
-ax = Axis3(fig[1,1]; aspect=:data) #hide
-hidespines!(ax) #hide
-hidedecorations!(ax) #hide
-meshscatter!(ax, pc1.position; markersize=0.5Δx, color=:red) #hide
-meshscatter!(ax, pc2.position; markersize=0.5Δx, color=:blue) #hide
-fig #hide
+fig = Figure(resolution = (700,700), backgroundcolor = :transparent) #src
+ax = Axis3(fig[1,1]; aspect=:data) #src
+hidespines!(ax) #src
+hidedecorations!(ax) #src
+meshscatter!(ax, pc1.position; markersize=0.5Δx, color=:red) #src
+meshscatter!(ax, pc2.position; markersize=0.5Δx, color=:blue) #src
+save(joinpath(@__DIR__, "..", "assets", "pc1_and_pc2.png"), fig; px_per_unit=3) #src
+fig #src
+# ![](../assets/pc1_and_pc2.png) #md
 #-
 
 # ### Merging of multiple point clouds
@@ -54,12 +57,14 @@ fig #hide
 #-
 pc = pcmerge([pc1, pc2])
 #- plot 3
-fig = Figure(resolution = (700,700), backgroundcolor = :transparent) #hide
-ax = Axis3(fig[1,1]; aspect=:data) #hide
-hidespines!(ax) #hide
-hidedecorations!(ax) #hide
-meshscatter!(ax, pc.position; markersize=0.5Δx, color=:green) #hide
-fig #hide
+fig = Figure(resolution = (700,700), backgroundcolor = :transparent) #src
+ax = Axis3(fig[1,1]; aspect=:data) #src
+hidespines!(ax) #src
+hidedecorations!(ax) #src
+meshscatter!(ax, pc.position; markersize=0.5Δx, color=:green) #src
+save(joinpath(@__DIR__, "..", "assets", "pc.png"), fig; px_per_unit=3) #src
+fig #src
+# ![](../assets/pc.png) #md
 #-
 
 # ### [Filtering of points regarding their position](@id filtering_points)
@@ -72,12 +77,14 @@ t = 0.1
 Δx = 0.03
 pc0 = PointCloud(Ø, Ø, t, Δx)
 #-
-fig = Figure(backgroundcolor = :transparent, resolution = (1000, 500)) #hide
-ax = Axis3(fig[1,1]; aspect=:data) #hide
-hidespines!(ax) #hide
-hidedecorations!(ax) #hide
-meshscatter!(ax, pc0.position; markersize=0.5Δx, color=:blue) #hide
-fig #hide
+fig = Figure(backgroundcolor = :transparent, resolution = (1000, 500)) #src
+ax = Axis3(fig[1,1]; aspect=:data) #src
+hidespines!(ax) #src
+hidedecorations!(ax) #src
+meshscatter!(ax, pc0.position; markersize=0.5Δx, color=:blue) #src
+save(joinpath(@__DIR__, "..", "assets", "pc0.png"), fig; px_per_unit=3) #src
+fig #src
+# ![](../assets/pc0.png) #md
 #-
 
 # Now we filter every point, that lies outside of the cylinder.
@@ -92,33 +99,12 @@ fig #hide
 cyl_id = findall(p -> sqrt(p[1]^2 + p[2]^2) <= Ø/2, eachcol(pc0.position))
 pc = PointCloud(pc0.position[:,cyl_id], pc0.volume[cyl_id])
 #-
-fig = Figure(backgroundcolor = :transparent, resolution = (1000, 500)) #hide
-ax = Axis3(fig[1,1]; aspect=:data) #hide
-hidespines!(ax) #hide
-hidedecorations!(ax) #hide
-meshscatter!(ax, pc.position; markersize=0.5Δx, color=:blue) #hide
-fig #hide
-#-
-
-# ## Predefined cracks
-# Initially defined cracks can be defined with [`PreCrack`](@ref).
-# Now, we include an initial crack in `pc0`, our
-# [previously defined point cloud](@ref filtering_points). Therefore, we create two point
-# sets:
-#-
-cracklength = 0.5 * Ø
-#-
-precrack_set_a = findall(
-    (pc.position[2, :] .>= 0) .&
-    (pc.position[2, :] .< 6Δx) .&
-    (pc.position[1, :] .<= -Ø/2 + cracklength),
-)
-#-
-precrack_set_b = findall(
-    (pc.position[2, :] .<= 0) .&
-    (pc.position[2, :] .> -12 * Δx) .&
-    (pc.position[1, :] .<= -Ø/2 + cracklength),
-)
-#-
-precracks = [PreCrack(precrack_set_a, precrack_set_b)]
+fig = Figure(backgroundcolor = :transparent, resolution = (1000, 500)) #src
+ax = Axis3(fig[1,1]; aspect=:data) #src
+hidespines!(ax) #src
+hidedecorations!(ax) #src
+meshscatter!(ax, pc.position; markersize=0.5Δx, color=:blue) #src
+save(joinpath(@__DIR__, "..", "assets", "pc0_filtered.png"), fig; px_per_unit=3) #src
+fig #src
+# ![](../assets/pc0_filtered.png) #md
 #-
