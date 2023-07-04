@@ -246,6 +246,9 @@ function calc_volume_of_neighborhood(pc::PointCloud,
     Δx_mean = calc_mean_point_spacing(pc, bond_data, n_family_members, hood_range)
     n_members_full_neighborhood = zeros(Int, pc.n_points)
     δ = [mat[i].δ for i in 1:pc.n_points]
+    p = Progress(pc.n_points; dt = 1, desc = "Family volume...    ", barlen = 30,
+                 color = :normal, enabled = !is_logging(stderr))
+    #TODO: make parallel with multiple threads!
     for i in 1:pc.n_points
         max_val = ceil(δ[i] / Δx_mean[i]) * Δx_mean[i]
         grid = range(start = -max_val, stop = max_val, step = Δx_mean[i])
@@ -254,7 +257,9 @@ function calc_volume_of_neighborhood(pc::PointCloud,
                             _position[2, :].^2 +
                             _position[3, :].^2) .<= δ[i])
         n_members_full_neighborhood[i] = length(idx)
+        next!(p)
     end
+    finish!(p)
     β = [n_family_members[i] / n_members_full_neighborhood[i] for i in 1:pc.n_points]
     volume_neighborhood = @. 4 / 3 * π * δ^3 * β
     return volume_neighborhood
@@ -267,12 +272,20 @@ function calc_mean_point_spacing(pc::PointCloud,
     Δx_mean = zeros(pc.n_points)
     point_distance = [Xi for (_, _, Xi, _) in bond_data]
     Xi_min = [minimum(point_distance[hood_range[i]]) for i in 1:(pc.n_points)]
+    n_steps = pc.n_points + length(bond_data)
+    p = Progress(n_steps; dt = 1, desc = "Mean value of Δx... ", barlen = 30,
+                 color = :normal, enabled = !is_logging(stderr))
+    #TODO: make parallel with multiple threads
     for (i, j, _, _) in bond_data
         Δx_mean[i] += Xi_min[j]
+        next!(p)
     end
+    #TODO: make parallel with multiple threads
     for i in eachindex(Δx_mean)
         Δx_mean[i] /= n_family_members[i]
+        next!(p)
     end
+    finish!(p)
     return Δx_mean
 end
 
