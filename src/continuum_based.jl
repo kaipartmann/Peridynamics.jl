@@ -245,14 +245,14 @@ function calc_volume_of_neighborhood(pc::PointCloud,
                                      mat::PDMaterial{ContinuumBasedMaterial})
     Δx_mean = calc_mean_point_spacing(pc, bond_data, n_family_members, hood_range)
     n_members_full_neighborhood = zeros(Int, pc.n_points)
-    δ = [mat[i].δ for i in eachindex(mat.matofpoint)]
+    δ = [mat[i].δ for i in 1:pc.n_points]
     p = Progress(pc.n_points; dt = 1, desc = "Family volume...    ", barlen = 30,
                  color = :normal, enabled = !is_logging(stderr))
     #TODO: improve performance & use multiple threads!
     for i in 1:pc.n_points
         max_val = ceil(δ[i] / Δx_mean[i]) * Δx_mean[i]
         grid = range(start = -max_val, stop = max_val, step = Δx_mean[i])
-        _position = hcat(([x; y; z] for x in grid for y in grid for z in grid)...)
+        _position = position_matrix(grid, grid, grid)
         idx = findall(sqrt.(_position[1, :].^2 +
                             _position[2, :].^2 +
                             _position[3, :].^2) .<= δ[i])

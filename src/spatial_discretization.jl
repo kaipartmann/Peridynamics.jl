@@ -104,8 +104,8 @@ struct PointCloud
     radius::Vector{Float64}
     point_sets::Dict{String, Vector{Int}}
 
-    function PointCloud(n_points::Int, position::Matrix{Float64}, volume::Vector{Float64},
-                        failure_flag::BitVector, radius::Vector{Float64},
+    function PointCloud(n_points::Int, position::AbstractMatrix, volume::AbstractVector,
+                        failure_flag::BitVector, radius::AbstractVector,
                         point_sets::Dict{String, Vector{Int}})
 
         # check if n_points is greater than zero
@@ -182,13 +182,13 @@ end
 
 function PointCloud(lx::Real, ly::Real, lz::Real, Δx::Real; center_x::Real = 0,
                     center_y::Real = 0, center_z::Real = 0)
-    _gridX = range(; start = (-lx + Δx) / 2, stop = (lx - Δx) / 2, step = Δx)
-    gridX = _gridX .- sum(_gridX) / length(_gridX)
-    _gridY = range(; start = (-ly + Δx) / 2, stop = (ly - Δx) / 2, step = Δx)
-    gridY = _gridY .- sum(_gridY) / length(_gridY)
-    _gridZ = range(; start = (-lz + Δx) / 2, stop = (lz - Δx) / 2, step = Δx)
-    gridZ = _gridZ .- sum(_gridZ) / length(_gridZ)
-    positions = hcat(([x; y; z] for x in gridX for y in gridY for z in gridZ)...)
+    _gridx = range(; start = (-lx + Δx) / 2, stop = (lx - Δx) / 2, step = Δx)
+    gridx = _gridx .- sum(_gridx) / length(_gridx)
+    _gridy = range(; start = (-ly + Δx) / 2, stop = (ly - Δx) / 2, step = Δx)
+    gridy = _gridy .- sum(_gridy) / length(_gridy)
+    _gridz = range(; start = (-lz + Δx) / 2, stop = (lz - Δx) / 2, step = Δx)
+    gridz = _gridz .- sum(_gridz) / length(_gridz)
+    positions = position_matrix(gridx, gridy, gridz)
     if isempty(positions)
         err_msg = "Size of Δx too big to create point cloud! Decrease the value!\n"
         throw(ArgumentError(err_msg))
@@ -208,6 +208,12 @@ function PointCloud(lx::Real, ly::Real, lz::Real, Δx::Real; center_x::Real = 0,
     failure_flag = BitVector(fill(true, n_points))
     point_sets = Dict{String, Vector{Int}}()
     return PointCloud(n_points, positions, volumes, failure_flag, radius, point_sets)
+end
+
+function position_matrix(x::AbstractVector, y::AbstractVector, z::AbstractVector)
+    _pos = vec(collect(Iterators.product(x, y, z)))
+    pos = reinterpret(reshape, eltype(eltype(_pos)), _pos)
+    return pos
 end
 
 @doc raw"""

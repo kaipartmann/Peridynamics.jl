@@ -30,6 +30,7 @@ using SafeTestsets
     @safetestset "apply_boundarycondition!" begin include(joinpath("unit_tests","apply_boundarycondition!.jl")) end
     @safetestset "apply_initialcondition!" begin include(joinpath("unit_tests","apply_initialcondition!.jl")) end
     @safetestset "get_points_with_interaction" begin include(joinpath("unit_tests","get_points_with_interaction.jl")) end
+    @safetestset "position_matrix" begin include(joinpath("unit_tests","position_matrix.jl")) end
 
     # integration tests
     @safetestset "Symmetry tests BondBasedMaterial" begin include(joinpath("integration_tests","symmetry_bond_based.jl")) end
