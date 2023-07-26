@@ -1,0 +1,11 @@
+.tutorial-grid { 
+    display: grid; 
+    grid-template-columns: repeat(2, 1fr); 
+    grid-template-rows: repeat(2, 1fr); 
+    grid-column-gap: 40px;
+    grid-row-gap: 20px;
+    padding: 25px;
+}
+.tutorial-element {
+    text-align: center;
+}

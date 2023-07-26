@@ -2,140 +2,156 @@ module VtkReader
 
 using Base64: base64decode
 using CodecZlib: ZlibDecompressor
-using LightXML:
-    LightXML, XMLElement, parse_string, attribute, child_elements, free, find_element
+using LightXML: LightXML, XMLElement, parse_string, attribute, child_elements, free,
+                find_element
 
-export SimResult, read_vtk
+export read_vtk
 
 const HEADER_TYPE = UInt64
+const DATATYPE_MAPPING = Dict("Float64" => Float64)
 
-"""
-    SimResult
-
-Simulation results for one time step imported from a .vtu file.
-
-# Fields
-- `position::Matrix{Float64}`: point position
-- `time::Float64`: time for time step
-- `damage::Vector{Float64}`: point damage
-- `displacement::Matrix{Float64}`: point displacement
-"""
-struct SimResult
-    position::Matrix{Float64}
-    time::Float64
-    damage::Vector{Float64}
-    displacement::Matrix{Float64}
+struct DataArray{T}
+    type::DataType
+    name::String
+    number_of_components::Int
+    number_of_tuples::Int
+    format::Symbol
+    offset::Int
+    function DataArray(xml::XMLElement)
+        LightXML.name(xml) !== "DataArray" && error("Need a DataArray!")
+        type = DATATYPE_MAPPING[attribute(xml, "type"; required = true)]
+        name = attribute(xml, "Name"; required = true)
+        noc = parse(Int, attribute(xml, "NumberOfComponents"; required = true))
+        _not = attribute(xml, "NumberOfTuples")
+        not = isnothing(_not) ? 0 : parse(Int, _not)
+        format = Symbol(attribute(xml, "format"; required = true))
+        if format !== :appended
+            error("Only appended data format valid!\n")
+        end
+        offset = parse(Int, attribute(xml, "offset"; required = true))
+        new{type}(type, name, noc, not, format, offset)
+    end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", sr::SimResult)
-    print(io, typeof(sr), " with fields:")
-    for field in fieldnames(typeof(sr))
-        field_val = getfield(sr, field)
-        field_type = typeof(field_val)
-        if !isempty(field_val)
-            if field_type <: AbstractArray
-                print(io, "\n ", rpad(string(field) * ":", 14))
-                Base.array_summary(io, field_val, axes(field_val))
-            else
-                print(io, "\n ", rpad(string(field) * ":", 14), field_type)
-            end
-        end
-    end
-    return nothing
+struct DataArrayMapping
+    points::DataArray
+    point_data::Vector{DataArray}
+    field_data::Vector{DataArray}
+    data::Vector{UInt8}
 end
 
 function get_xml_and_data(file::String)
-    ## function read_vtk(file::String)
     raw_file = read(file, String)
 
-    ## find appended data
+    # find appended data
     marker = findfirst("<AppendedData encoding=\"raw\">", raw_file)
-    offset_begin = first(findnext("_", raw_file, last(marker))) + 1
-    offset_end = first(findnext("</AppendedData>", raw_file, offset_begin)) - 1
-    data = Vector{UInt8}(rstrip(raw_file[offset_begin:offset_end]))
+    if isnothing(marker)
+        error("Invalid VTK-file!\n",
+              "Can only read files with raw encoded data, specified by block:\n",
+              "  <AppendedData encoding=\"raw\">\n    ...raw data...\n  </AppendedData>\n",
+              "Could not find `<AppendedData encoding=\"raw\">` in file!\n")
+    end
+    offset_begin_marker = findnext("_", raw_file, last(marker))
+    if isnothing(offset_begin_marker)
+        error("Could not find the begin of the appended data!\n",
+              "Usually this is marked after the _ character, which could not ",
+              "be found after the <AppendedData encoding=\"raw\"> statement.\n")
+    end
+    offset_begin = first(offset_begin_marker) + 1
+    offset_end_marker = findnext("\n  </AppendedData>", raw_file, offset_begin)
+    if isnothing(offset_end_marker)
+        error("Invalid VTK-file!\n",
+              "Can only read files with raw encoded data, specified by block:\n",
+              "  <AppendedData encoding=\"raw\">\n    ...raw data...\n  </AppendedData>\n",
+              "Could not find `\\n  </AppendedData>` in file!\n")
+    end
+    offset_end = first(offset_end_marker) - 1
+    data = Vector{UInt8}(raw_file[offset_begin:offset_end])
 
-    ## xml contents
-    xml_contents = raw_file[1:(offset_begin - 1)] * "\n  </AppendedData>\n</VTKFile>"
+    # xml contents
+    xml_string = raw_file[begin:(offset_begin - 1)] * raw_file[(offset_end + 1):end]
 
-    ## open end extract xml document
-    xml_doc = parse_string(xml_contents)
-
-    return xml_doc, data
+    return xml_string, data
 end
 
-function get_data_arrays(xml_doc)
+function extract_data_arrays(xml_string::String)
+
+    # parse xml document
+    xml_doc = parse_string(xml_string)
     root = LightXML.root(xml_doc)
-    @assert LightXML.name(root) == "VTKFile"
-    points = root["UnstructuredGrid"][1]["Piece"][1]["Points"][1]
-    point_data = root["UnstructuredGrid"][1]["Piece"][1]["PointData"][1]
-    field_data = root["UnstructuredGrid"][1]["FieldData"][1]
+    LightXML.name(root) !== "VTKFile" && error("File should be a valid VTKFile!")
 
-    ## extract points
-    position_da = find_element(points, "DataArray")
+    # get elements...
+    unstructured_grid = find_element(root, "UnstructuredGrid")
+    isnothing(unstructured_grid) && error("VTK-file has to contain a `UnstructuredGrid`!\n")
 
-    ## extract time
-    time_da = find_element(field_data, "DataArray")
-    @assert LightXML.attribute(time_da, "Name"; required=true) == "time"
+    piece = find_element(unstructured_grid, "Piece")
+    isnothing(piece) && error("UnstructuredGrid does not contain `Piece`!\n")
 
-    ## get point data
-    point_da_names = Vector{String}()
-    point_da = Vector{XMLElement}()
-    for xml_element in child_elements(point_data)
-        @assert LightXML.name(xml_element) == "DataArray"
-        push!(point_da_names, attribute(xml_element, "Name"; required=true))
-        push!(point_da, xml_element)
+    points = find_element(piece, "Points")
+    isnothing(points) && error("Piece does not contain `Points`!\n")
+    points_da_xml = find_element(points, "DataArray")
+    isnothing(points_da_xml) && error("No DataArray found for `Points`!\n")
+    points_da = DataArray(points_da_xml)
+
+    point_data = find_element(piece, "PointData")
+    isnothing(point_data) && error("Piece does not contain `PointData`!\n")
+    point_data_arrays = Vector{DataArray}()
+    for xml_elem in child_elements(point_data)
+        push!(point_data_arrays, DataArray(xml_elem))
     end
 
-    return position_da, time_da, point_da_names, point_da
+    field_data = find_element(unstructured_grid, "FieldData")
+    isnothing(field_data) && error("UnstructuredGrid does not contain `FieldData`!\n")
+    field_data_arrays = Vector{DataArray}()
+    for xml_elem in child_elements(field_data)
+        push!(field_data_arrays, DataArray(xml_elem))
+    end
+
+    free(xml_doc)
+
+    return points_da, point_data_arrays, field_data_arrays
 end
 
-function get_data(xml_element, data)
-    # Ensure the correct type of of the XML element
-    @assert LightXML.name(xml_element) == "DataArray"
+function get_data_array_mapping(file::String)
+    xml_string, data = get_xml_and_data(file)
+    points, point_data, field_data = extract_data_arrays(xml_string)
+    return DataArrayMapping(points, point_data, field_data, data)
+end
 
+function get_data(da::DataArray, data::Vector{UInt8})::VecOrMat{Float64}
     # extract number of bytes from header
-    offset = parse(Int, attribute(xml_element, "offset"; required=true))
-    start = offset + 1
-    stop = offset + 4 * sizeof(HEADER_TYPE)
+    start = da.offset + 1
+    stop = da.offset + 4 * sizeof(HEADER_TYPE)
     header = Int.(reinterpret(HEADER_TYPE, data[start:stop]))
     n_bytes = header[4]
 
     # get start and stop index for element in data
-    start = offset + 4 * sizeof(HEADER_TYPE) + 1
+    start = da.offset + 4 * sizeof(HEADER_TYPE) + 1
     stop = start + n_bytes - 1
 
     # get the array out of compressed data
     data_decompressed = transcode(ZlibDecompressor, data[start:stop])
-    data_float::Vector{Float64} = reinterpret(Float64, data_decompressed)
+    data_float::Vector{da.type} = reinterpret(Float64, data_decompressed)
 
-    return data_float
-end
-
-get_position(da, data) = reshape(get_data(da, data), 3, :)
-
-get_time(da, data) = first(get_data(da, data))
-
-function get_damage(pdan, pda, data)
-    id = findfirst(x -> x == "damage", pdan)
-    return get_data(pda[id], data)
-end
-
-function get_displacement(pdan, pda, data)
-    id = findfirst(x -> x == "displacement", pdan)
-    if !isnothing(id)
-        displacement = reshape(get_data(pda[id], data), 3, :)
+    if da.number_of_components > 1
+        return reshape(data_float, da.number_of_components, :)
     else
-        displacement = Array{Float64,2}(undef, 0, 0)
+        return data_float
     end
-    return displacement
 end
 
-function get_result(position_da, time_da, point_da_names, point_da, data)
-    position = get_position(position_da, data)
-    time = get_time(time_da, data)
-    damage = get_damage(point_da_names, point_da, data)
-    displacement = get_displacement(point_da_names, point_da, data)
-    return SimResult(position, time, damage, displacement)
+function get_dict(dam::DataArrayMapping)
+    d = Dict{String, VecOrMat{Float64}}()
+    d["Position"] = get_data(dam.points, dam.data)
+    for pd in dam.point_data
+        d[pd.name] = get_data(pd, dam.data)
+    end
+    for pd in dam.field_data
+        d[pd.name] = get_data(pd, dam.data)
+    end
+
+    return d
 end
 
 """
@@ -147,17 +163,19 @@ Read .vtu-file containing simulation results of a time step.
 - `file::String`: path to VTK .vtu-file
 
 # Returns
-- [`SimResult`](@ref): simulation result
+- `Dict{String, VecOrMat{Float64}}`: simulation results as a dictionary
 
 # Examples
 
 ```julia-repl
 julia> read_vtk("ExampleSimulation_t3000.vtu")
-SimResult with fields:
-  position:     3×100 Matrix{Float64}
-  time:         Float64
-  damage:       100-element Vector{Float64}
-  displacement: 3×100 Matrix{Float64}
+Dict{String, VecOrMat{Float64}} with 6 entries:
+  "Position"     => [-0.497302 -0.497303 … 0.497303 0.497302; -0.0225023 -0…
+  "Damage"       => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0…
+  "Time"         => [0.000237879]
+  "Displacement" => [0.00019766 0.000196793 … -0.000196793 -0.00019766; -2.…
+  "Velocity"     => [-2.55436 -1.5897 … 1.5897 2.55436; 0.827107 0.234996 ……
+  "ForceDensity" => [-7.00131e9 -8.45411e9 … 8.45411e9 7.00131e9; -5.0164e8…
 ```
 """
 function read_vtk(file::String)
@@ -166,11 +184,9 @@ function read_vtk(file::String)
         msg = "cannot read file with extension $extension, specify a valid .vtu-file!"
         throw(AssertionError(msg))
     end
-    xml_file, data = get_xml_and_data(file)
-    position_da, time_da, point_da_names, point_da = get_data_arrays(xml_file)
-    result = get_result(position_da, time_da, point_da_names, point_da, data)
-    free(xml_file)
-    return result
+    dam = get_data_array_mapping(file)
+    d = get_dict(dam)
+    return d
 end
 
 end # module VtkReader
