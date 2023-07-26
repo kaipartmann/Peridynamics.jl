@@ -2,27 +2,41 @@
 
 A high-level Julia package for multithreaded peridynamics simulations
 
-| **Cite the package** |**Downloads counter**|
-|:---|:---|
-| ... | [![Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/Peridynamics/label:-color:blue)](https://pkgs.genieframework.com?packages=Peridynamics) |
-
 ## What is peridynamics?
 Peridynamics is a non-local formulation of continuum mechanics where material points represent the continuum, and the relative displacements and forces are governed by an integro-differential equation that allows discontinuities. As a result, peridynamics is particularly well-suited for dynamic fracture simulations involving numerous cracks.
 
 ## Who can benefit from this package?
-This package is designed for anyone interested in performing peridynamics simulations. With its intuitive high-level API and the incredible performance of Julia, users can seamlessly delve into the world of peridynamics. While the current feature set provides a solid foundation, we are continuously working to enhance and expand the capabilities of `Peridynamics.jl`. We encourage you to open an issue or submit a pull request to share your feedback and make this package even more valuable to the community!
+This package is designed for anyone interested in performing peridynamics simulations. While the current feature set provides a solid foundation, we are continuously working to enhance and expand the capabilities of `Peridynamics.jl`. We encourage you to open an issue or submit a pull request to share your feedback or contribute to making this package even more valuable to the community!
+
+## Installation
+
+To install `Peridynamics.jl`, follow these steps:
+
+1. Install Julia from the [official Julia website](https://julialang.org/) if you haven't already.
+
+2. Launch Julia and open the Julia REPL.
+
+3. Enter the package manager by pressing `]` in the REPL.
+
+4. In the package manager, type:
+   ```
+   add Peridynamics
+   ```
+
+5. Press `Backspace` or `Ctrl + C` to exit the package manager.
 
 ## How-to guides
+#### How to perform a
+- [Single body analysis](@ref howto_single_body_analysis)
+- [Contact analysis](@ref howto_contact_analysis)
 
-- [Point clouds](@ref pointclouds)
-- [Predefined cracks](@ref precracks)
-- [Material models](@ref mat_models)
-- [Temporal discretization](@ref time_discretization)
-- [Conditions](@ref conditions)
-- [Jobs / PD-Analysis](@ref jobs)
-- [Workflow](@ref workflow)
-- [Visualization with ParaView](@ref visualization)
-- [Read VTK results](@ref vtk_reader)
+#### How to define
+- [Point clouds](@ref howto_pointclouds)
+- [Predefined cracks](@ref howto_precracks)
+- [Material formulations](@ref howto_matformulations)
+
+#### How to
+- [Visualize results with ParaView](@ref visualization)
 
 ## Tutorials
 
@@ -34,8 +48,8 @@ This package is designed for anyone interested in performing peridynamics simula
 <div class="tutorial-element"> 
 ```
 
-### [Tensile test](@ref tensile_test)
-[![](assets/TensileTest.png)](@ref tensile_test)
+### [Mode I tension quasi-static](@ref tutorial_tension_static)
+[![](assets/tension_static.gif)](@ref tutorial_tension_static)
 
 ```@raw html
 </div> 
@@ -45,8 +59,19 @@ This package is designed for anyone interested in performing peridynamics simula
 <div class="tutorial-element"> 
 ```
 
-### [Cracked plate under tension](@ref cracked-plate-under-tension)
-[![](assets/CrackedPlateUnderTension2000.png)](@ref cracked-plate-under-tension)
+### [Mode I tension dynamic](@ref tutorial_tension_dynfrac)
+[![](assets/tension_dynfrac.gif)](@ref tutorial_tension_dynfrac)
+
+```@raw html
+</div>
+```
+
+```@raw html
+<div class="tutorial-element"> 
+```
+
+### [Mode I tension dynamic with predefined crack](@ref tutorial_tension_precrack)
+[![](assets/tension_precrack_damage.gif)](@ref tutorial_tension_precrack)
 
 ```@raw html
 </div> 
@@ -56,13 +81,12 @@ This package is designed for anyone interested in performing peridynamics simula
 <div class="tutorial-element"> 
 ```
 
-### [Peridynamics.jl logo](@ref logo)
-[![](assets/logo.gif)](@ref logo)
+### [Peridynamics.jl logo](@ref tutorial_logo)
+[![](assets/logo.gif)](@ref tutorial_logo)
 
 ```@raw html
-</div> 
+</div>
 ```
-
 ```@raw html
 </div> 
 ```

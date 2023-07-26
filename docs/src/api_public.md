@@ -14,16 +14,20 @@ Pages = ["api_public.md"]
 ```@docs
 PointCloud
 BondBasedMaterial
+ContinuumBasedMaterial
+MultiMaterial
 PreCrack
+VelocityBC
+VelocityIC
+PosDepVelBC
+ForceDensityBC
+VelocityVerlet
+DynamicRelaxation
 ExportSettings
 BodySetup
 Contact
 PDSingleBodyAnalysis
 PDContactAnalysis
-VelocityBC
-VelocityIC
-PosDepVelBC
-ForceDensityBC
 ```
 
 ## Functions

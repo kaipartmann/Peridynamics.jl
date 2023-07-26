@@ -16,17 +16,18 @@ Bond based peridynamic material model.
 
 ---
 ```julia
-BondBasedMaterial(; horizon::Real, rho::Real, E::Real, Gc::Real)
+BondBasedMaterial(; horizon::Real, rho::Real, E::Real, [Gc::Real, epsilon_c::Real])
 ```
 
-Specify a material only with `horizon`, density `rho`, Young's modulus `E` and critical
-energy release rate `Gc`.
+Specify a material with `horizon`, density `rho`, Young's modulus `E` and either the
+critical energy release rate `Gc` or the critical bond strain `epsilon_c`.
 
 # Keywords
 - `horizon::Real`: horizon
 - `rho::Real`:density
 - `E::Real`: young's modulus
 - `Gc::Real`: critical energy release rate
+- `epsilon_c::Real`: critical bond strain
 """
 struct BondBasedMaterial <: AbstractPDMaterial
     δ::Float64

@@ -1,19 +1,11 @@
+# # [Point clouds](@id howto_pointclouds)
+# Short guide on how to define point clouds.
+#
+# ## Block with uniform distributed points
+# [`PointCloud`](@ref)s have a method implemented to create a uniform distributed grid of
+# points with lengths `lx`, `ly`, `lz`, and the point spacing `Δx`.
 #-
 using Peridynamics #hide
-using CairoMakie #src
-CairoMakie.activate!(px_per_unit=2) #src
-#-
-
-# # [Point clouds](@id pointclouds)
-
-# ## Point clouds
-# In peridynamics, the continuum is mapped by material points.
-# The point clouds are represented as [`PointCloud`](@ref) objects.
-#
-# ### Block with uniform distributed points:
-# To generate a uniformly distributed `PointCloud` with the lengths `lx`, `ly`, `lz`, and
-# point spacing `Δx`, simply type:
-#-
 lx1 = 3
 ly1 = 1
 lz1 = 1
@@ -50,7 +42,7 @@ fig #src
 # ![](../assets/pc1_and_pc2.png) #md
 #-
 
-# ### Merging of multiple point clouds
+# ## Merging of multiple point clouds
 
 # The point clouds `pc1` and `pc2` can be merged to create one L-shaped `PointCloud` for a
 # single body simulation. That can be accomplished with the [`pcmerge`](@ref) function:
@@ -67,7 +59,7 @@ fig #src
 # ![](../assets/pc.png) #md
 #-
 
-# ### [Filtering of points regarding their position](@id filtering_points)
+# ## [Filtering of points regarding their position](@id filtering_points)
 # To generate more complicated geometries from a uniform distributed block, points can be
 # filtered out. For example, we want to model a cylinder with diameter $\text{\O}$ and
 # thickness $t$:
@@ -108,3 +100,17 @@ save(joinpath(@__DIR__, "..", "assets", "pc0_filtered.png"), fig; px_per_unit=3)
 fig #src
 # ![](../assets/pc0_filtered.png) #md
 #-
+
+# ## Reading of Abaqus inp-files
+# Point clouds can be created by conversion from a FEM mesh. Each element is converted to a
+# material point. The point position is defined as the center of the element, and the
+# point volume as the element volume.
+
+# To convert a Abaqus FEM mesh to a `PointCloud` instance, use the [`read_inp`](@ref)
+# function.
+
+#md # !!! danger "Limitations"
+#md #     The [AbaqusReader.jl](https://github.com/JuliaFEM/AbaqusReader.jl) package
+#md #     is used to import the mesh. Currently the type of supported elements is limited to
+#md #     `C3D4` (`:Tet4`) and `C3D8` (`:Hex8`). Only one body per `inp`-file will be
+#md #     correctly imported as a `PointCloud` instance.

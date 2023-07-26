@@ -1,71 +1,47 @@
+# # [Predefined cracks](@id howto_precracks)
+# Short guide on how to define initial cracks.
+
+# ## Definition with two point sets
+# All interactions of points in set $a$ with points in set $b$ will be set as failed.
+
+# ## Example
+
+#-
 using Peridynamics #hide
-using GLMakie #src
+l = 1.0
+a = 0.1l # crack length
+Δx = l / 50
+pc = PointCloud(l, l, 0.1l, Δx)
+# ![](../assets/tutorial_tension_1.png) #md
 
 #-
-# # [Predefined cracks](@id precracks)
-# Initially defined cracks can be defined with [`PreCrack`](@ref).
-# First, we define a point cloud:
-lx = 10
-ly = 10
-lz = 1
-Δx = 0.5
-pc = PointCloud(lx, ly, lz, Δx)
-
-#-
-fig = Figure(resolution = (1000,700), backgroundcolor = :transparent) #src
-ax = Axis3(fig[1,1]; aspect = :data, elevation = 0.4π, azimuth = 1.45π) #src
-enlfac = 1.05 #src
-xlims!(ax, (-lx/2 * enlfac, lx/2 * enlfac)) #src
-ylims!(ax, (-ly/2 * enlfac, ly/2 * enlfac)) #src
-zlims!(ax, (-lz/2 * enlfac, lz/2 * enlfac)) #src
-hidespines!(ax) #src
-hidedecorations!(ax) #src
-meshscatter!(ax, pc.position; markersize=0.5Δx, color=:grey70) #src
-save(joinpath(@__DIR__, "..", "assets", "pc_precrack.png"), fig; px_per_unit=3) #src
-fig #src
-# ![](../assets/pc_precrack.png) #md
-
-#-
-# Then, we define a crack length and specify the point sets of points that should not
+# We define a crack length `a` and specify the point sets of points that should not
 # interact with each other.
+# ##### Conditions for the coordinates of the point sets
+# ###### First set:
+# ```math
+# x_p \leq -\frac{l}{2}+a \; ,
+# ```
+# ```math
+# 0 \leq y_p \leq 6\Delta x \; .
+# ```
+set_a = findall(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 6Δx, eachcol(pc.position))
+
+# ###### Second set:
+# ```math
+# x_p \leq -\frac{l}{2}+a \; ,
+# ```
+# ```math
+# -6\Delta x \leq y_p < 0 \; ,
+# ```
+
 
 #-
-cracklength = 0.5 * lx
+set_b = findall(p -> p[1] ≤ -l/2+a && -6Δx ≤ p[2] < 0, eachcol(pc.position))
 
 #-
-set_a = findall(
-    (pc.position[2, :] .>= 0) .&
-    (pc.position[2, :] .< 6Δx) .&
-    (pc.position[1, :] .<= -lx/2 + cracklength),
-)
+# ![](../assets/tutorial_tension_2.png) #md
 
 #-
-set_b = findall(
-    (pc.position[2, :] .<= 0) .&
-    (pc.position[2, :] .> -6Δx) .&
-    (pc.position[1, :] .<= -lx/2 + cracklength),
-)
-
-#-
-fig = Figure(resolution = (1000,700), backgroundcolor = :transparent) #src
-ax = Axis3(fig[1,1]; aspect = :data, elevation = 0.4π, azimuth = 1.45π) #src
-enlfac = 1.05 #src
-xlims!(ax, (-lx/2 * enlfac, lx/2 * enlfac)) #src
-ylims!(ax, (-ly/2 * enlfac, ly/2 * enlfac)) #src
-zlims!(ax, (-lz/2 * enlfac, lz/2 * enlfac)) #src
-hidespines!(ax) #src
-hidedecorations!(ax) #src
-meshscatter!(ax, pc.position; markersize=0.5Δx, color=:grey70) #src
-meshscatter!(ax, pc.position[:, set_a]; markersize=0.5Δx, color=:blue) #src
-meshscatter!(ax, pc.position[:, set_b]; markersize=0.5Δx, color=:red) #src
-pca = scatter!(ax, [0,0,0]; markersize=30, color=:blue, label="set_a") #src
-pcb = scatter!(ax, [0,0,0]; markersize=30, color=:red, label="set_b") #src
-pca.visible[] = false #src
-pcb.visible[] = false #src
-Legend(fig[1,2], ax; framevisible=false, bgcolor=:transparent, labelsize=28) #src
-save(joinpath(@__DIR__, "..", "assets", "pc_precrack_with_sets.png"), fig; px_per_unit=3) #src
-fig #src
-# ![](../assets/pc_precrack_with_sets.png) #md
-
-#-
+# The initial crack is specified as a [`PreCrack`](@ref) instance:
 precrack = PreCrack(set_a, set_b)

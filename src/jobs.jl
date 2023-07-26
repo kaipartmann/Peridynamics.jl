@@ -4,22 +4,23 @@ function Base.show(io::IO, ::MIME"text/plain", pdsba::T) where {T <: AbstractPDA
 end
 
 @doc raw"""
-    PDSingleBodyAnalysis{T<:AbstractPDMaterial} <: AbstractPDAnalysis
+    struct PDSingleBodyAnalysis{M, T} <:
+        AbstractPDAnalysis where {M <: AbstractPDMaterial, T <: AbstractTimeDiscretization}
 
 Peridynamic single body analysis.
 
 # Fields
 - `name::String`: simulation name
 - `pc::PointCloud`: point cloud
-- `mat::T`: material model for the body
+- `mat::M`: material model for the body
 - `precracks::Vector{PreCrack}`: predefined cracks
 - `bcs::Vector{<:AbstractBC}`: boundary conditions
 - `ics::Vector{<:AbstractIC}`: initial conditions
-- `td::TimeDiscretization`: time discretization
+- `td::T`: time discretization
 - `es::ExportSettings`: export settings
 """
-struct PDSingleBodyAnalysis{M <: AbstractPDMaterial, T <: AbstractTimeDiscretization} <:
-       AbstractPDAnalysis
+struct PDSingleBodyAnalysis{M, T} <:
+       AbstractPDAnalysis where {M <: AbstractPDMaterial, T <: AbstractTimeDiscretization}
     name::String
     pc::PointCloud
     mat::Union{M, MultiMaterial{M}}

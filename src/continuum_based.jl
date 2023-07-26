@@ -1,3 +1,41 @@
+@doc raw"""
+    BondBasedMaterial <: AbstractPDMaterial
+
+Bond based peridynamic material model.
+
+# Fields
+- `δ::Float64`: horizon
+- `rho::Float64`: density
+- `E::Float64`: young's modulus
+- `nu::Float64`: poisson ratio
+- `G::Float64`: shear modulus
+- `K::Float64`: bulk modulus
+- `C1::Float64`: parameter for one-neighbor interactions
+- `C2::Float64`: parameter for two-neighbor interactions
+- `C3::Float64`: parameter for three-neighbor interactions
+- `Gc::Float64`: critical energy release rate
+- `εc::Float64`: critical bond strain
+
+---
+```julia
+ContinuumBasedMaterial(kwargs...)
+```
+Specify a material with `horizon`, density `rho`, Young's modulus `E`, Poisson ratio `nu`
+and either the critical energy release rate `Gc` or the critical bond strain `epsilon_c`.
+The continuum-kinematics-based formulation has in it's core formulas three material
+parameters $C_1$, $C_2$, and $C_3$. They can be defined by the user, which then overrides
+the usage of the other material parameters. Be careful if you use this!
+
+# Keywords
+- `horizon::Real`: horizon
+- `rho::Real`:density
+- `E::Real`: young's modulus
+- `Gc::Real`, optional: critical energy release rate
+- `epsilon_c::Real`, optional: critical bond strain
+- `C1::Real`, optional: parameter for one-neighbor interactions
+- `C2::Real`, optional: parameter for two-neighbor interactions
+- `C3::Real`, optional: parameter for three-neighbor interactions
+"""
 struct ContinuumBasedMaterial <: AbstractPDMaterial
     δ::Float64
     rho::Float64

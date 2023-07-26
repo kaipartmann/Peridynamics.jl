@@ -1,11 +1,10 @@
-![](assets/logo.gif)
+![](../assets/logo.gif)
 
 (Visualization made with [ParaView](https://www.paraview.org))
 
-# [Logo.jl](@id logo)
+# [Peridynamics.jl Logo](@id tutorial_logo)
 
 The Julia logo crashing into a plate and braking it into many pieces.
-The complete script for this tutorial can be found here: [Logo.jl](https://github.com/kaipartmann/Peridynamics.jl/blob/main/examples/Logo.jl).
 
 First, we have to load the `Peridynamics.jl` package.
 
@@ -89,7 +88,7 @@ contact = [Contact((1, 2), Δxₚ), Contact((1, 3), Δxₚ), Contact((1, 4), Δx
 ```
 For this simulation, 3000 time steps with explicit time integration and the velocity verlet algorithm are used.
 ```julia
-td = TimeDiscretization(3000)
+td = VelocityVerlet(3000)
 ```
 Now we give the simulation a name and create a directory for the results. 
 ```julia

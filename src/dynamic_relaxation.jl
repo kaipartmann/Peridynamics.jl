@@ -1,3 +1,20 @@
+"""
+    DynamicRelaxation <: AbstractTimeDiscretization
+
+Dynamic Relaxation algorithm for quasi-static simulations.
+
+# Fields
+- `n_steps::Int`: number of time steps
+- `Δt::Float64`: time step
+- `Λ::Float64`: damping factor for the mass matrix
+
+---
+```julia
+DynamicRelaxation(n_steps::Int, Δt::Real = 1; damping_factor::Real = 1)
+```
+Only the number of time steps `n_steps` is needed. Specification of `Δt` and the
+damping factor are optional.
+"""
 mutable struct DynamicRelaxation <: AbstractTimeDiscretization
     n_steps::Int
     Δt::Float64

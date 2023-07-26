@@ -1,3 +1,20 @@
+"""
+    VelocityVerlet <: AbstractTimeDiscretization
+
+Velocity Verlet algorithm for dynamic simulations.
+
+# Fields
+- `n_steps::Int`: number of time steps
+- `Δt::Float64`: critical stable time step
+- `safety_factor::Float64`: safety factor for time step
+
+---
+```julia
+VelocityVerlet(n_steps::Int, Δt::Real = -1; safety_factor::Real = 0.7)
+```
+Only the number of time steps `n_steps` is needed. Specification of `Δt` and the
+safety factor are optional.
+"""
 mutable struct VelocityVerlet <: AbstractTimeDiscretization
     n_steps::Int
     Δt::Float64
