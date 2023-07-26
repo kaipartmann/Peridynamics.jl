@@ -36,17 +36,6 @@ Literate.markdown.(LIT_TUTORIALS_IN, LIT_MD_OUT; credit=false)
 DocMeta.setdocmeta!(Peridynamics, :DocTestSetup, :(using Peridynamics); recursive=true)
 
 makedocs(;
-<<<<<<< HEAD
-    modules=[Peridynamics],
-    authors="Kai Friebertshäuser",
-    repo="https://github.com/kaipartmann/Peridynamics.jl/blob/{commit}{path}#{line}",
-    sitename="Peridynamics.jl",
-    format=Documenter.HTML(;
-        prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://kaipartmann.github.io/Peridynamics.jl",
-        edit_link="main",
-        assets=String[],
-=======
     modules = [Peridynamics],
     authors = "Kai Partmann",
     repo = "https://github.com/kaipartmann/Peridynamics.jl/blob/{commit}{path}#{line}",
@@ -57,7 +46,6 @@ makedocs(;
         edit_link = "main",
         assets = [joinpath("assets", "custom.css")],
         collapselevel = 1,
->>>>>>> dev
     ),
     draft = LIVE_MODE,
     pages = [
@@ -83,16 +71,9 @@ makedocs(;
     ],
 )
 
-<<<<<<< HEAD
-deploydocs(;
-    repo="github.com/kaipartmann/Peridynamics.jl",
-    devbranch="main",
-)
-=======
 if !LIVE_MODE
     deploydocs(;
         repo = "github.com/kaipartmann/Peridynamics.jl",
         devbranch = "main",
     )
 end
->>>>>>> dev
