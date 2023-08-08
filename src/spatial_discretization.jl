@@ -295,7 +295,7 @@ function Base.show(io::IO, ::MIME"text/plain", precrack::PreCrack)
     return nothing
 end
 
-function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
+@timeit TO function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
     @inbounds @threads for tid in 1:body.n_threads
         body.n_active_family_members[:, tid] .= 0
         for current_one_ni in body.owned_bonds[tid]
@@ -316,14 +316,14 @@ function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
     return nothing
 end
 
-function calc_damage!(body::AbstractPDBody)
+@timeit TO function calc_damage!(body::AbstractPDBody)
     @inbounds @threads for i in 1:body.n_points
         body.damage[i] = 1 - body.n_active_family_members[i, 1] / body.n_family_members[i]
     end
     return nothing
 end
 
-function find_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRange{Int}})
+@timeit TO function find_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRange{Int}})
     n_threads = nthreads()
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)
     n_family_members = zeros(Int, pc.n_points)
@@ -360,7 +360,7 @@ function find_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRa
     return bond_data, n_family_members
 end
 
-function find_unique_bonds(pc::PointCloud, mat::PDMaterial,
+@timeit TO function find_unique_bonds(pc::PointCloud, mat::PDMaterial,
                            owned_points::Vector{UnitRange{Int}})
     n_threads = nthreads()
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)

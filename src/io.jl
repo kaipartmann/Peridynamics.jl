@@ -172,7 +172,7 @@ function log_displacement_and_damage(body::AbstractPDBody)
     return msg
 end
 
-function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::Float64)
+@timeit TO function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::Float64)
     filename = @sprintf("%s_t%04d", expfile, timestep)
     vtkfile = vtk_grid(filename, body.position, body.cells)
     vtkfile["Damage", VTKPointData()] = body.damage
@@ -181,5 +181,19 @@ function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::
     vtkfile["Velocity", VTKPointData()] = body.velocity
     vtkfile["Time", VTKFieldData()] = time
     vtk_save(vtkfile)
+    return nothing
+end
+
+function log_timers(es::ExportSettings)
+    if es.exportflag
+        open(es.logfile, "a") do io
+            write(io, "\n")
+            show(IOContext(io, :displaysize => (24,150)), TO)
+        end
+    else
+        println()
+        show(TO)
+        println()
+    end
     return nothing
 end

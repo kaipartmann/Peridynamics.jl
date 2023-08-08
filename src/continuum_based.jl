@@ -327,7 +327,7 @@ function calc_mean_point_spacing(pc::PointCloud,
     return Δx_mean
 end
 
-function find_two_ni(pc::PointCloud,
+@timeit TO function find_two_ni(pc::PointCloud,
                      mat::PDMaterial{ContinuumBasedMaterial},
                      one_ni_data::Vector{Tuple{Int, Int, Float64, Bool}},
                      hood_range::Vector{UnitRange{Int}},
@@ -408,7 +408,7 @@ function points_with_twoni(mat::MultiMaterial{ContinuumBasedMaterial},
     return get_points_with_interaction(mat, owned_points, :C2)
 end
 
-function find_three_ni(pc::PointCloud,
+@timeit TO function find_three_ni(pc::PointCloud,
                        mat::PDMaterial{ContinuumBasedMaterial},
                        one_ni_data::Vector{Tuple{Int, Int, Float64, Bool}},
                        hood_range::Vector{UnitRange{Int}},
@@ -495,11 +495,11 @@ function surf_two_neigh(ξijx::Float64, ξijy::Float64, ξijz::Float64, ξikx::F
                 (ξijx * ξiky - ξijy * ξikx)^2)
 end
 
-function init_body(mat::PDMaterial{ContinuumBasedMaterial}, pc::PointCloud)
+@timeit TO function init_body(mat::PDMaterial{ContinuumBasedMaterial}, pc::PointCloud)
     return ContinuumBasedSimBody(mat, pc)
 end
 
-function compute_forcedensity!(body::ContinuumBasedSimBody,
+@timeit TO function compute_forcedensity!(body::ContinuumBasedSimBody,
                                mat::PDMaterial{ContinuumBasedMaterial})
     body.b_int .= 0.0
     body.n_active_family_members .= 0

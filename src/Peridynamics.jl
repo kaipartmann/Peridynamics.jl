@@ -4,6 +4,7 @@ using Printf
 using ProgressMeter
 using WriteVTK
 using Base.Threads
+using TimerOutputs
 
 export PointCloud, PreCrack, pcmerge
 export VelocityBC, VelocityIC, ForceDensityBC, PosDepVelBC
@@ -12,6 +13,8 @@ export MultiMaterial, BondBasedMaterial, ContinuumBasedMaterial
 export Contact, BodySetup
 export PDSingleBodyAnalysis, PDContactAnalysis, submit
 export read_inp, read_vtk
+
+const TO = TimerOutput()
 
 # Basics for peridynamics and contact problems
 include("abstract_types.jl")

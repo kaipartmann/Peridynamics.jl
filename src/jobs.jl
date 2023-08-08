@@ -56,6 +56,7 @@ Submit a simulation job to determine the results of the specified analysis.
 function submit end
 
 function submit(sim::PDSingleBodyAnalysis)
+    reset_timer!(TO)
     timingsummary = @timed begin
         log_header(sim.es)
         log_describe_sim(sim.name, sim.pc, sim.mat, sim.es)
@@ -71,5 +72,6 @@ function submit(sim::PDSingleBodyAnalysis)
         time_loop!(body, sim.td, sim.mat, sim.bcs, sim.ics, sim.es)
     end
     log_closesim(body, timingsummary, sim.es)
+    log_timers(sim.es)
     return body
 end

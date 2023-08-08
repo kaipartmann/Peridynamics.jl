@@ -26,7 +26,7 @@ function defaultdist(sz::Int, nc::Int)
     end
 end
 
-function find_tids(sum_tids::Vector{Vector{Int}})
+@timeit TO function find_tids(sum_tids::Vector{Vector{Int}})
     single_tids_ids = findall(x -> length(x) == 1 && x[1] != 1, sum_tids)
     single_tids = Vector{Tuple{Int, Int}}(undef, length(single_tids_ids))
     for i in eachindex(single_tids_ids)
@@ -42,7 +42,7 @@ function find_tids(sum_tids::Vector{Vector{Int}})
     return single_tids, multi_tids
 end
 
-function update_thread_cache!(body::AbstractPDBody)
+@timeit TO function update_thread_cache!(body::AbstractPDBody)
     @threads for (i, tid) in body.single_tids
         body.b_int[1, i, 1] = body.b_int[1, i, tid]
         body.b_int[2, i, 1] = body.b_int[2, i, tid]

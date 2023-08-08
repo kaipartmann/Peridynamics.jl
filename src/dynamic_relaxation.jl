@@ -67,7 +67,7 @@ function time_loop!(body::AbstractPDBody, dr::DynamicRelaxation, mat::PDMaterial
     return nothing
 end
 
-function calc_damping(body::AbstractPDBody, damping_matrix::Matrix{Float64},
+@timeit TO function calc_damping(body::AbstractPDBody, damping_matrix::Matrix{Float64},
                       velocity_half_old::Matrix{Float64}, b_int_old::Matrix{Float64},
                       Δt::Float64)
     cn1 = 0.0
@@ -96,7 +96,7 @@ function calc_damping(body::AbstractPDBody, damping_matrix::Matrix{Float64},
     return cn
 end
 
-function finite_difference_first_step!(body::AbstractPDBody,
+@timeit TO function finite_difference_first_step!(body::AbstractPDBody,
                                        damping_matrix::Matrix{Float64},
                                        velocity_half_old::Matrix{Float64},
                                        b_int_old::Matrix{Float64}, Δt::Float64)
@@ -112,7 +112,7 @@ function finite_difference_first_step!(body::AbstractPDBody,
     return nothing
 end
 
-function finite_difference!(body::AbstractPDBody, damping_matrix::Matrix{Float64},
+@timeit TO function finite_difference!(body::AbstractPDBody, damping_matrix::Matrix{Float64},
                             velocity_half_old::Matrix{Float64}, b_int_old::Matrix{Float64},
                             Δt::Float64, cn::Float64)
     @threads for i in 1:body.n_points

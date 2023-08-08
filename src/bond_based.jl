@@ -181,9 +181,11 @@ function Base.show(io::IO, ::MIME"text/plain", body::BondBasedBody)
     return nothing
 end
 
-init_body(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud) = BondBasedBody(mat, pc)
+@timeit TO function init_body(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud)
+    return BondBasedBody(mat, pc)
+end
 
-function compute_forcedensity!(body::BondBasedBody, mat::PDMaterial{BondBasedMaterial})
+@timeit TO function compute_forcedensity!(body::BondBasedBody, mat::PDMaterial{BondBasedMaterial})
     body.b_int .= 0.0
     body.n_active_family_members .= 0
     @inbounds @threads for tid in 1:body.n_threads

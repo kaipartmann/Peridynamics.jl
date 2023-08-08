@@ -123,7 +123,7 @@ struct PosDepVelBC <: AbstractBC
     dim::Int
 end
 
-function apply_bcs!(body::AbstractPDBody, bcs::Vector{<:AbstractBC}, t::Float64)
+@timeit TO function apply_bcs!(body::AbstractPDBody, bcs::Vector{<:AbstractBC}, t::Float64)
     @sync for bc in bcs
         Threads.@spawn apply_boundarycondition!(body, bc, t)
     end
@@ -157,7 +157,7 @@ function apply_boundarycondition!(body::AbstractPDBody, bc::PosDepVelBC, t::Floa
     return nothing
 end
 
-function apply_ics!(body::AbstractPDBody, ics::Vector{<:AbstractIC})
+@timeit TO function apply_ics!(body::AbstractPDBody, ics::Vector{<:AbstractIC})
     @sync for ic in ics
         Threads.@spawn apply_initialcondition!(body, ic)
     end

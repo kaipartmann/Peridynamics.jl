@@ -25,7 +25,7 @@ mutable struct VelocityVerlet <: AbstractTimeDiscretization
     end
 end
 
-function init_time_discretization!(vv::VelocityVerlet, body::AbstractPDBody,
+@timeit TO function init_time_discretization!(vv::VelocityVerlet, body::AbstractPDBody,
                                    mat::PDMaterial)
     if vv.Δt < 0
         Δt = calc_stable_timestep(body, mat, vv.safety_factor)
@@ -53,7 +53,7 @@ function calc_stable_timestep(body::AbstractPDBody, mat::PDMaterial, safety_fact
     return Δt
 end
 
-function time_loop!(body::AbstractPDBody, vv::VelocityVerlet, mat::PDMaterial,
+@timeit TO function time_loop!(body::AbstractPDBody, vv::VelocityVerlet, mat::PDMaterial,
                     bcs::Vector{<:AbstractBC}, ics::Vector{<:AbstractIC},
                     es::ExportSettings)
     apply_ics!(body, ics)
@@ -81,7 +81,7 @@ function time_loop!(body::AbstractPDBody, vv::VelocityVerlet, mat::PDMaterial,
     return nothing
 end
 
-function update_velhalf!(body::AbstractPDBody, Δt½::Float64)
+@timeit TO function update_velhalf!(body::AbstractPDBody, Δt½::Float64)
     @inbounds @threads for i in 1:body.n_points
         body.velocity_half[1, i] = body.velocity[1, i] + body.acceleration[1, i] * Δt½
         body.velocity_half[2, i] = body.velocity[2, i] + body.acceleration[2, i] * Δt½
@@ -90,7 +90,7 @@ function update_velhalf!(body::AbstractPDBody, Δt½::Float64)
     return nothing
 end
 
-function update_disp_and_position!(body::AbstractPDBody, Δt::Float64)
+@timeit TO function update_disp_and_position!(body::AbstractPDBody, Δt::Float64)
     @inbounds @threads for i in 1:body.n_points
         body.displacement[1, i] += body.velocity_half[1, i] * Δt
         body.displacement[2, i] += body.velocity_half[2, i] * Δt
@@ -102,7 +102,7 @@ function update_disp_and_position!(body::AbstractPDBody, Δt::Float64)
     return nothing
 end
 
-function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, mat::PDMaterial)
+@timeit TO function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, mat::PDMaterial)
     @inbounds @threads for i in 1:body.n_points
         body.acceleration[1, i] = (body.b_int[1, i, 1] + body.b_ext[1, i]) / mat[i].rho
         body.acceleration[2, i] = (body.b_int[2, i, 1] + body.b_ext[2, i]) / mat[i].rho
