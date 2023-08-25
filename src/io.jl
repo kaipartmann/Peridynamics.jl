@@ -174,13 +174,13 @@ end
 
 @timeit TO function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::Float64)
     filename = @sprintf("%s_t%04d", expfile, timestep)
-    vtkfile = vtk_grid(filename, body.position, body.cells)
-    vtkfile["Damage", VTKPointData()] = body.damage
-    # vtkfile["ForceDensity", VTKPointData()] = @views body.b_int[:, :, 1]
-    vtkfile["Displacement", VTKPointData()] = body.displacement
-    # vtkfile["Velocity", VTKPointData()] = body.velocity
-    vtkfile["Time", VTKFieldData()] = time
-    vtk_save(vtkfile)
+    vtk_grid(filename, body.position, body.cells) do vtk
+        vtk["Damage", VTKPointData()] = body.damage
+        # vtk["ForceDensity", VTKPointData()] = @views body.b_int[:, :, 1]
+        vtk["Displacement", VTKPointData()] = body.displacement
+        # vtk["Velocity", VTKPointData()] = body.velocity
+        vtk["Time", VTKFieldData()] = time
+    end
     return nothing
 end
 

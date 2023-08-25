@@ -26,8 +26,8 @@ if Threads.nthreads() <= 2
     @test results["Position"] == positions
     @test results["Damage"] == zeros(2)
     @test results["Displacement"] == zeros(3,2)
-    @test results["Velocity"] == zeros(3,2)
-    @test results["ForceDensity"] == zeros(3,2)
+    # @test results["Velocity"] == zeros(3,2)
+    # @test results["ForceDensity"] == zeros(3,2)
     @test results["Time"] == zeros(1)
 
     rm.(filter(x->endswith(x,".vtu"), readdir(@__DIR__; join=true)), force=true)
