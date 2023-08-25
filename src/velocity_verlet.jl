@@ -25,7 +25,7 @@ mutable struct VelocityVerlet <: AbstractTimeDiscretization
     end
 end
 
-@timeit TO function init_time_discretization!(vv::VelocityVerlet, body::AbstractPDBody,
+function init_time_discretization!(vv::VelocityVerlet, body::AbstractPDBody,
                                    mat::PDMaterial)
     if vv.Δt < 0
         Δt = calc_stable_timestep(body, mat, vv.safety_factor)
@@ -53,7 +53,7 @@ function calc_stable_timestep(body::AbstractPDBody, mat::PDMaterial, safety_fact
     return Δt
 end
 
-@timeit TO function time_loop!(body::AbstractPDBody, vv::VelocityVerlet, mat::PDMaterial,
+function time_loop!(body::AbstractPDBody, vv::VelocityVerlet, mat::PDMaterial,
                     bcs::Vector{<:AbstractBC}, ics::Vector{<:AbstractIC},
                     es::ExportSettings)
     apply_ics!(body, ics)

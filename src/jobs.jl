@@ -58,18 +58,24 @@ function submit end
 function submit(sim::PDSingleBodyAnalysis)
     reset_timer!(TO)
     timingsummary = @timed begin
-        log_header(sim.es)
-        log_describe_sim(sim.name, sim.pc, sim.mat, sim.es)
-        body = init_body(sim.mat, sim.pc)
-        log_describe_interactions(body, sim.es)
-        for precrack in sim.precracks
-            define_precrack!(body, precrack)
+        @timeit TO "init time loop" begin
+            log_header(sim.es)
+            log_describe_sim(sim.name, sim.pc, sim.mat, sim.es)
+            body = init_body(sim.mat, sim.pc)
+            log_describe_interactions(body, sim.es)
+            @timeit TO "define cracks" begin
+                for precrack in sim.precracks
+                    define_precrack!(body, precrack)
+                end
+                update_thread_cache!(body)
+                calc_damage!(body)
+            end
+            @timeit TO "init time discretization" begin
+                init_time_discretization!(sim.td, body, sim.mat)
+            end
+            log_simsetup(sim)
         end
-        update_thread_cache!(body)
-        calc_damage!(body)
-        init_time_discretization!(sim.td, body, sim.mat)
-        log_simsetup(sim)
-        time_loop!(body, sim.td, sim.mat, sim.bcs, sim.ics, sim.es)
+        @timeit TO "time loop" time_loop!(body, sim.td, sim.mat, sim.bcs, sim.ics, sim.es)
     end
     log_closesim(body, timingsummary, sim.es)
     log_timers(sim.es)

@@ -81,41 +81,51 @@ struct PDContactAnalysis <: AbstractPDAnalysis
 end
 
 function submit(sim::PDContactAnalysis)
+    reset_timer!(TO)
     timingsummary = @timed begin
-        log_header(sim.es)
-        log_describe_sim(sim)
-        bodies = [init_body(ps.mat, ps.pc) for ps in sim.body_setup]
-        log_describe_interactions(bodies, sim.es)
-        for i in 1:sim.n_bodies
-            for precrack in sim.body_setup[i].precracks
-                define_precrack!(bodies[i], precrack)
-            end
-            update_thread_cache_contact!(bodies[i])
-            calc_damage!(bodies[i])
-        end
-        if sim.td.Δt < 0.0
-            _Δt = Vector{Float64}(undef, 0)
-            for i in 1:sim.n_bodies
-                if sim.body_setup[i].calc_timestep
-                    Δti = calc_stable_timestep(bodies[i], sim.body_setup[i].mat,
-                                               sim.td.safety_factor)
-                    push!(_Δt, Δti)
+        @timeit TO "init time loop" begin
+            log_header(sim.es)
+            log_describe_sim(sim)
+            bodies = [init_body(ps.mat, ps.pc) for ps in sim.body_setup]
+            log_describe_interactions(bodies, sim.es)
+            @timeit TO "define cracks" begin
+                for i in 1:sim.n_bodies
+                    for precrack in sim.body_setup[i].precracks
+                        define_precrack!(bodies[i], precrack)
+                    end
+                    update_thread_cache_contact!(bodies[i])
+                    calc_damage!(bodies[i])
                 end
             end
-            sim.td.Δt = minimum(_Δt)
-        end
-        log_simsetup(sim)
-        for i in 1:sim.n_bodies
-            apply_ics!(bodies[i], sim.body_setup[i].ics)
-        end
-        if sim.es.exportflag
-            for i in 1:sim.n_bodies
-                export_vtk(bodies[i], string(sim.es.resultfile_prefix, "_b", i), 0, 0.0)
+            @timeit TO "init time discretization" begin
+                if sim.td.Δt < 0.0
+                    _Δt = Vector{Float64}(undef, 0)
+                    for i in 1:sim.n_bodies
+                        if sim.body_setup[i].calc_timestep
+                            Δti = calc_stable_timestep(bodies[i], sim.body_setup[i].mat,
+                                                    sim.td.safety_factor)
+                            push!(_Δt, Δti)
+                        end
+                    end
+                    sim.td.Δt = minimum(_Δt)
+                end
             end
+            log_simsetup(sim)
         end
-        velocity_verlet!(bodies, sim)
+        @timeit TO "time loop" begin
+            for i in 1:sim.n_bodies
+                apply_ics!(bodies[i], sim.body_setup[i].ics)
+            end
+            if sim.es.exportflag
+                for i in 1:sim.n_bodies
+                    export_vtk(bodies[i], string(sim.es.resultfile_prefix, "_b", i), 0, 0.0)
+                end
+            end
+            velocity_verlet!(bodies, sim)
+        end
     end
     log_closesim(bodies, timingsummary, sim.es)
+    log_timers(sim.es)
     return bodies
 end
 
@@ -199,7 +209,7 @@ function velocity_verlet!(bodies::Vector{<:AbstractPDBody}, sim::PDContactAnalys
     return nothing
 end
 
-function compute_equation_of_motion_contact!(body::AbstractPDBody, Δt½::Float64,
+@timeit TO function compute_equation_of_motion_contact!(body::AbstractPDBody, Δt½::Float64,
                                              rho::Float64)
     @threads for i in 1:body.n_points
         body.b_int[1, i, 1] = sum(@view body.b_int[1, i, :])
@@ -215,8 +225,8 @@ function compute_equation_of_motion_contact!(body::AbstractPDBody, Δt½::Float6
     return nothing
 end
 
-function compute_contactforcedensity!(bodies::Vector{<:AbstractPDBody},
-                                      sim::PDContactAnalysis)
+@timeit TO function compute_contactforcedensity!(bodies::Vector{<:AbstractPDBody},
+                                                 sim::PDContactAnalysis)
     for contact in sim.contact
         ii, jj = contact.body_id_set
         body_a = bodies[ii]
@@ -246,7 +256,7 @@ function compute_contactforcedensity!(bodies::Vector{<:AbstractPDBody},
     return nothing
 end
 
-function update_thread_cache_contact!(body::AbstractPDBody)
+@timeit TO function update_thread_cache_contact!(body::AbstractPDBody)
     @threads for (i, tid) in body.single_tids
         body.n_active_family_members[i, 1] = body.n_active_family_members[i, tid]
     end
