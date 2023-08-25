@@ -176,9 +176,9 @@ end
     filename = @sprintf("%s_t%04d", expfile, timestep)
     vtkfile = vtk_grid(filename, body.position, body.cells)
     vtkfile["Damage", VTKPointData()] = body.damage
-    vtkfile["ForceDensity", VTKPointData()] = @views body.b_int[:, :, 1]
+    # vtkfile["ForceDensity", VTKPointData()] = @views body.b_int[:, :, 1]
     vtkfile["Displacement", VTKPointData()] = body.displacement
-    vtkfile["Velocity", VTKPointData()] = body.velocity
+    # vtkfile["Velocity", VTKPointData()] = body.velocity
     vtkfile["Time", VTKFieldData()] = time
     vtk_save(vtkfile)
     return nothing
