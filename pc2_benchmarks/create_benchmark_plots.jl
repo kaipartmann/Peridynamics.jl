@@ -376,10 +376,11 @@ end
 
 #==========================================================================================#
 #--- IMPORT DATA
-RES_PATH = joinpath(@__DIR__, "pc2_bench_v1")
-@assert isdir(RES_PATH)
+_RESPATH = length(ARGS) ≥ 1 ? ARGS[1] : "pc2_benchmarks"
+RESPATH = joinpath(@__DIR__, _RESPATH)
+@assert isdir(RESPATH)
 LOGFILES = Vector{String}()
-for (root, dirs, files) in walkdir(RES_PATH)
+for (root, dirs, files) in walkdir(RESPATH)
     for file in files
         if endswith(file, ".log")
             push!(LOGFILES, joinpath(root, file))
@@ -388,7 +389,7 @@ for (root, dirs, files) in walkdir(RES_PATH)
 end
 
 #--- CREATE IMG DIRECTORY
-IMG_PATH = joinpath(RES_PATH, "img")
+IMG_PATH = joinpath(RESPATH, "img")
 rm(IMG_PATH, recursive = true, force = true)
 mkpath(joinpath(IMG_PATH, "pdf"))
 mkpath(joinpath(IMG_PATH, "png"))

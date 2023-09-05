@@ -10,7 +10,7 @@ module load JuliaHPC   # loading the latest JuliaHPC
 
 julia setup.jl
 
-respath="pc2_bench_v1"
+respath="pc2_benchmarks"
 rm -rf $respath
 export_vtk=(true)
 threads=(1 8 16 32)
@@ -19,3 +19,5 @@ for t in ${threads[@]}; do
         julia --project -t $t bbvv.jl $respath "bbvv_t=${t}_e=$e" $e
     done
 done
+
+julia --project -t 8 create_benchmark_plots.jl $respath
