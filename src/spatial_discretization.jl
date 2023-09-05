@@ -296,7 +296,7 @@ function Base.show(io::IO, ::MIME"text/plain", precrack::PreCrack)
 end
 
 @timeit TO function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
-    @inbounds @threads for tid in 1:body.n_threads
+    @inbounds @threads :static for tid in 1:body.n_threads
         body.n_active_family_members[:, tid] .= 0
         for current_one_ni in body.owned_bonds[tid]
             i, j, _, _ = body.bond_data[current_one_ni]
@@ -317,7 +317,7 @@ end
 end
 
 @timeit TO function calc_damage!(body::AbstractPDBody)
-    @inbounds @threads for i in 1:body.n_points
+    @inbounds @threads :static for i in 1:body.n_points
         body.damage[i] = 1 - body.n_active_family_members[i, 1] / body.n_family_members[i]
     end
     return nothing
@@ -329,7 +329,7 @@ end
     n_family_members = zeros(Int, pc.n_points)
     p = Progress(pc.n_points; dt = 1, desc = "Search bonds...     ", barlen = 30,
                  color = :normal, enabled = !is_logging(stderr))
-    @threads for tid in 1:n_threads
+    @threads :static for tid in 1:n_threads
         local_bond_data = Vector{Tuple{Int, Int, Float64, Bool}}(undef, 0)
         sizehint!(local_bond_data, pc.n_points * 500)
         idst = 0.0
@@ -367,7 +367,7 @@ end
     n_family_members = zeros(Int, pc.n_points)
     p = Progress(pc.n_points; dt = 1, desc = "Search bonds...     ", barlen = 30,
                  color = :normal, enabled = !is_logging(stderr))
-    @threads for tid in 1:n_threads
+    @threads :static for tid in 1:n_threads
         local_bonds_data = Vector{Tuple{Int, Int, Float64, Bool}}(undef, 0)
         sizehint!(local_bonds_data, pc.n_points * 500)
         idst = 0.0

@@ -211,7 +211,7 @@ end
 
 @timeit TO function compute_equation_of_motion_contact!(body::AbstractPDBody, Δt½::Float64,
                                              rho::Float64)
-    @threads for i in 1:body.n_points
+    @threads :static for i in 1:body.n_points
         body.b_int[1, i, 1] = sum(@view body.b_int[1, i, :])
         body.b_int[2, i, 1] = sum(@view body.b_int[2, i, :])
         body.b_int[3, i, 1] = sum(@view body.b_int[3, i, :])
@@ -233,7 +233,7 @@ end
         body_b = bodies[jj]
         r = contact.search_radius
         C = 9 * contact.spring_constant / (π * sim.body_setup[ii].mat.δ^4)
-        @threads for tid in 1:nthreads()
+        @threads :static for tid in 1:nthreads()
             for i in body_a.owned_points[tid]
                 for j in 1:body_b.n_points
                     ϑx = body_b.position[1, j] - body_a.position[1, i]
@@ -257,10 +257,10 @@ end
 end
 
 @timeit TO function update_thread_cache_contact!(body::AbstractPDBody)
-    @threads for (i, tid) in body.single_tids
+    @threads :static for (i, tid) in body.single_tids
         body.n_active_family_members[i, 1] = body.n_active_family_members[i, tid]
     end
-    @threads for (i, tids) in body.multi_tids
+    @threads :static for (i, tids) in body.multi_tids
         for tid in tids
             body.n_active_family_members[i, 1] += body.n_active_family_members[i, tid]
         end

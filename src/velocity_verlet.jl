@@ -36,7 +36,7 @@ end
 
 function calc_stable_timestep(body::AbstractPDBody, mat::PDMaterial, safety_factor::Float64)
     _Δt = zeros(Float64, body.n_threads)
-    @inbounds @threads for tid in 1:body.n_threads
+    @inbounds @threads :static for tid in 1:body.n_threads
         timesteps = zeros(Float64, body.n_points)
         dtsum = zeros(Float64, (body.n_points, body.n_threads))
         for current_one_ni in body.owned_bonds[tid]
@@ -82,7 +82,7 @@ function time_loop!(body::AbstractPDBody, vv::VelocityVerlet, mat::PDMaterial,
 end
 
 @timeit TO function update_velhalf!(body::AbstractPDBody, Δt½::Float64)
-    @inbounds @threads for i in 1:body.n_points
+    @inbounds @threads :static for i in 1:body.n_points
         body.velocity_half[1, i] = body.velocity[1, i] + body.acceleration[1, i] * Δt½
         body.velocity_half[2, i] = body.velocity[2, i] + body.acceleration[2, i] * Δt½
         body.velocity_half[3, i] = body.velocity[3, i] + body.acceleration[3, i] * Δt½
@@ -91,7 +91,7 @@ end
 end
 
 @timeit TO function update_disp_and_position!(body::AbstractPDBody, Δt::Float64)
-    @inbounds @threads for i in 1:body.n_points
+    @inbounds @threads :static for i in 1:body.n_points
         body.displacement[1, i] += body.velocity_half[1, i] * Δt
         body.displacement[2, i] += body.velocity_half[2, i] * Δt
         body.displacement[3, i] += body.velocity_half[3, i] * Δt
@@ -103,7 +103,7 @@ end
 end
 
 @timeit TO function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, mat::PDMaterial)
-    @inbounds @threads for i in 1:body.n_points
+    @inbounds @threads :static for i in 1:body.n_points
         body.acceleration[1, i] = (body.b_int[1, i, 1] + body.b_ext[1, i]) / mat[i].rho
         body.acceleration[2, i] = (body.b_int[2, i, 1] + body.b_ext[2, i]) / mat[i].rho
         body.acceleration[3, i] = (body.b_int[3, i, 1] + body.b_ext[3, i]) / mat[i].rho

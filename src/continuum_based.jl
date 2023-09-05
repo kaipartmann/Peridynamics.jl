@@ -195,7 +195,7 @@ function ContinuumBasedSimBody(mat::PDMaterial{ContinuumBasedMaterial}, pc::Poin
 
     _sum_tids = zeros(Bool, (n_points, n_threads))
     _sum_tids .= false
-    @threads for tid in 1:n_threads
+    @threads :static for tid in 1:n_threads
         for current_bond in owned_bonds[tid]
             (i, _, _, _) = bond_data[current_bond]
             n_active_family_members[i, tid] += 1
@@ -338,7 +338,7 @@ end
     p = Progress(pc.n_points; dt = 1, desc = "Two-NI search...    ", barlen = 30,
                  color = :normal, enabled = !is_logging(stderr))
     owned_points_with_twoni = points_with_twoni(mat, owned_points)
-    @threads for tid in 1:n_threads
+    @threads :static for tid in 1:n_threads
         local_two_ni_data = Vector{Tuple{Int, Int, Float64}}(undef, 0)
         sizehint!(local_two_ni_data, pc.n_points * 1000)
         for i in owned_points_with_twoni[tid]
@@ -388,7 +388,7 @@ function get_points_with_interaction(mat::MultiMaterial{ContinuumBasedMaterial},
                                      interaction::Symbol)
     nt = nthreads()
     _point_ids = Vector{Vector{Int}}(undef, nt)
-    @threads for tid in 1:nt
+    @threads :static for tid in 1:nt
         local_point_ids = Vector{Int}()
         for id in owned_points[tid]
             if !isapprox(getfield(mat[id], interaction), 0)
@@ -419,7 +419,7 @@ end
     p = Progress(pc.n_points; dt = 1, desc = "Three-NI search...  ", barlen = 30,
                  color = :normal, enabled = !is_logging(stderr))
     owned_points_with_threeni = points_with_threeni(mat, owned_points)
-    @threads for tid in 1:n_threads
+    @threads :static for tid in 1:n_threads
         local_three_ni_data = Vector{Tuple{Int, Int, Int, Float64}}(undef, 0)
         sizehint!(local_three_ni_data, pc.n_points * 1000)
         for i in owned_points_with_threeni[tid]
@@ -504,21 +504,21 @@ end
     body.b_int .= 0.0
     body.n_active_family_members .= 0
     if body.has_only_one_ni
-        @threads for tid in 1:body.n_threads
+        @threads :static for tid in 1:body.n_threads
             compute_forcedensity_one!(body, mat, tid)
         end
     elseif body.has_one_and_two_ni
-        @threads for tid in 1:body.n_threads
+        @threads :static for tid in 1:body.n_threads
             compute_forcedensity_one!(body, mat, tid)
             compute_forcedensity_two!(body, mat, tid)
         end
     elseif body.has_one_and_three_ni
-        @threads for tid in 1:body.n_threads
+        @threads :static for tid in 1:body.n_threads
             compute_forcedensity_one!(body, mat, tid)
             compute_forcedensity_three!(body, mat, tid)
         end
     elseif body.has_one_two_three_ni
-        @threads for tid in 1:body.n_threads
+        @threads :static for tid in 1:body.n_threads
             compute_forcedensity_one!(body, mat, tid)
             compute_forcedensity_two!(body, mat, tid)
             compute_forcedensity_three!(body, mat, tid)

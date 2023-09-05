@@ -100,7 +100,7 @@ end
                                        damping_matrix::Matrix{Float64},
                                        velocity_half_old::Matrix{Float64},
                                        b_int_old::Matrix{Float64}, Δt::Float64)
-    @threads for i in 1:body.n_points
+    @threads :static for i in 1:body.n_points
         for d in 1:3
             body.velocity_half[d, i] = 0.5 * Δt / damping_matrix[d, i] *
                                        (body.b_int[d, i, 1] + body.b_ext[d, i])
@@ -115,7 +115,7 @@ end
 @timeit TO function finite_difference!(body::AbstractPDBody, damping_matrix::Matrix{Float64},
                             velocity_half_old::Matrix{Float64}, b_int_old::Matrix{Float64},
                             Δt::Float64, cn::Float64)
-    @threads for i in 1:body.n_points
+    @threads :static for i in 1:body.n_points
         for d in 1:3
             body.velocity_half[d, i] = ((2 - cn * Δt) * velocity_half_old[d, i] +
                                        2 * Δt / damping_matrix[d, i] *
