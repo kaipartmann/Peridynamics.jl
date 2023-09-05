@@ -60,3 +60,16 @@ end
 end
 
 is_logging(io) = isa(io, Base.TTY) == false || (get(ENV, "CI", nothing) == "true")
+
+# TODO: can work only with a offset value! no mapping for every global id needed
+function find_mappings(dist::Vector{UnitRange{Int}})
+    mappings = Vector{Dict{Int, Int}}(undef, length(dist))
+    for (tid,gids) in enumerate(dist)
+        mapping = Dict{Int, Int}()
+        for lid in eachindex(gids)
+            mapping[gids[lid]] = lid
+        end
+        mappings[tid] = mapping
+    end
+    return mappings
+end

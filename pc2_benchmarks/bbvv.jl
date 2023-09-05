@@ -36,3 +36,10 @@ println()
 
 @time mode_I_tension_dynamic(1.0, 1/50, 10, 1000) # compilation run
 @time mode_I_tension_dynamic(1.0, 1/70, 10, 2000)
+
+
+##--
+l = 1.0
+Δx = 1/50
+v0 = 10
+nt = 1000
