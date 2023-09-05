@@ -35,4 +35,4 @@ println("-"^70)
 println()
 
 @time mode_I_tension_dynamic(1.0, 1/50, 10, 1000) # compilation run
-@time mode_I_tension_dynamic(1.0, 1/50, 10, 2000)
+@time mode_I_tension_dynamic(1.0, 1/70, 10, 2000)

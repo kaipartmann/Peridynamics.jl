@@ -1042,8 +1042,8 @@ version = "2.7.2"
 
 [[deps.Peridynamics]]
 deps = ["AbaqusReader", "Base64", "CodecZlib", "LightXML", "LinearAlgebra", "Printf", "ProgressMeter", "StaticArrays", "TimerOutputs", "WriteVTK"]
-git-tree-sha1 = "b193f0375d6578fb33b8818b44089d6ea9b44587"
-repo-rev = "v0.2.0-benchmark"
+git-tree-sha1 = "710881669b5bda7eb42793bf76be91d66f7a5966"
+repo-rev = "pc2_remove_false_sharing"
 repo-url = ".."
 uuid = "4dc47793-80f3-4232-b30e-ca78ca9d621b"
 version = "0.2.0"

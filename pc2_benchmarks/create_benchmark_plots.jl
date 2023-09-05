@@ -210,10 +210,7 @@ function speedup_plot(df::DataFrame)
     max_speedup = maximum(df.speedup)
     lines!(ax, 1:0.01:max_speedup, 1:0.01:max_speedup, label = "ideal", linestyle = :dash,
            color = :black)
-    scatterlines!(ax, df.t, df.speedup, color = colors[1],
-                  label = "with vtk export")
-    scatterlines!(ax, df.t, df.speedup, color = colors[2], linestyle = :dash,
-                  marker = :star4, label = "no vtk export")
+    scatterlines!(ax, df.t, df.speedup, color = colors[1], label = "simulation")
     axislegend(ax; position = :rb)
     save(joinpath(IMG_PATH, "pdf", "$(benchmark)_speedup.pdf"), fig)
     save(joinpath(IMG_PATH, "png", "$(benchmark)_speedup.png"), fig; px_per_unit = 3)
@@ -379,7 +376,7 @@ end
 
 #==========================================================================================#
 #--- IMPORT DATA
-RES_PATH = joinpath(@__DIR__, "benchmark_results")
+RES_PATH = joinpath(@__DIR__, "pc2_bench_v1")
 @assert isdir(RES_PATH)
 LOGFILES = Vector{String}()
 for (root, dirs, files) in walkdir(RES_PATH)
@@ -391,7 +388,7 @@ for (root, dirs, files) in walkdir(RES_PATH)
 end
 
 #--- CREATE IMG DIRECTORY
-const IMG_PATH = joinpath(@__DIR__, "img")
+IMG_PATH = joinpath(RES_PATH, "img")
 rm(IMG_PATH, recursive = true, force = true)
 mkpath(joinpath(IMG_PATH, "pdf"))
 mkpath(joinpath(IMG_PATH, "png"))
@@ -403,5 +400,7 @@ df = get_data(LOGFILES)
 benchmark = "bbvv"
 sort!(df, :t)
 df[!, :speedup] = df[1, :walltime] ./ df[!, :walltime]
-speedup_plot(df)
-profiling_plot(df)
+sfig = speedup_plot(df)
+display(sfig)
+pfig = profiling_plot(df)
+display(pfig)
