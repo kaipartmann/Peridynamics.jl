@@ -60,8 +60,8 @@ function time_loop!(body::AbstractPDBody, vv::VelocityVerlet, mat::PDMaterial,
     if es.exportflag
         export_vtk(body, es.resultfile_prefix, 0, 0.0)
     end
-    p = Progress(vv.n_steps; dt = 1, desc = "Time integration... ", barlen = 30,
-                 color = :normal, enabled = !is_logging(stderr))
+    # p = Progress(vv.n_steps; dt = 1, desc = "Time integration... ", barlen = 30,
+    #              color = :normal, enabled = !is_logging(stderr))
     Δt½ = 0.5 * vv.Δt
     for t in 1:(vv.n_steps)
         time = t * vv.Δt
@@ -69,15 +69,15 @@ function time_loop!(body::AbstractPDBody, vv::VelocityVerlet, mat::PDMaterial,
         apply_bcs!(body, bcs, time)
         update_disp_and_position!(body, vv.Δt)
         compute_forcedensity!(body, mat)
-        update_thread_cache!(body)
+        update_thread_cache!(body) #TODO: BAD NAME!
         calc_damage!(body)
         compute_equation_of_motion!(body, Δt½, mat)
         if mod(t, es.exportfreq) == 0
             export_vtk(body, es.resultfile_prefix, t, time)
         end
-        next!(p)
+        # next!(p)
     end
-    finish!(p)
+    # finish!(p)
     return nothing
 end
 
