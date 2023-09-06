@@ -185,34 +185,48 @@ end
     return BondBasedBody(mat, pc)
 end
 
-@timeit TO function compute_forcedensity!(body::BondBasedBody, mat::PDMaterial{BondBasedMaterial})
-    body.b_int .= 0.0
-    body.n_active_family_members .= 0
-    @inbounds @threads :static for tid in 1:body.n_threads
-        for current_bond in body.owned_bonds[tid]
-            (i, j, ξ, failureflag) = body.bond_data[current_bond]
-            ϑx = body.position[1, j] - body.position[1, i]
-            ϑy = body.position[2, j] - body.position[2, i]
-            ϑz = body.position[3, j] - body.position[3, i]
+@timeit TO function compute_forcedensity!(pdp::PDProblem)
+    @threads :static for tid in 1:pdp.sp.n_threads
+        tls = pdp.tls[tid]
+        tls.b_int .= 0
+        tls.n_active_family_members .= 0
+        for current_bond in pdp.sp.owned_bonds[tid]
+            (i, j, ξ, failureflag) = pdp.sp.bond_data[current_bond]
+            li = tls.pointmap[i]
+            lj = tls.pointmap[j]
+            ϑx = pdp.gs.position[1, j] - pdp.gs.position[1, i]
+            ϑy = pdp.gs.position[2, j] - pdp.gs.position[2, i]
+            ϑz = pdp.gs.position[3, j] - pdp.gs.position[3, i]
             η = sqrt(ϑx * ϑx + ϑy * ϑy + ϑz * ϑz)
             ε = (η - ξ) / ξ
-            temp = body.bond_failure[current_bond] * ε / η
-            tempi = temp * mat[i].bc * body.volume[j]
-            tempj = temp * mat[j].bc * body.volume[i]
-            body.b_int[1, i, tid] += tempi * ϑx
-            body.b_int[2, i, tid] += tempi * ϑy
-            body.b_int[3, i, tid] += tempi * ϑz
-            body.b_int[1, j, tid] -= tempj * ϑx
-            body.b_int[2, j, tid] -= tempj * ϑy
-            body.b_int[3, j, tid] -= tempj * ϑz
-            if ε > mat[i].εc || ε > mat[j].εc
+            temp = pdp.gs.bond_failure[current_bond] * ε / η
+            tempi = temp * pdp.sp.mat.bc * pdp.sp.pc.volume[j]
+            tempj = temp * pdp.sp.mat.bc * pdp.sp.pc.volume[i]
+            # tls.b_int[1, li] += tempi * ϑx
+            # tls.b_int[2, li] += tempi * ϑy
+            # tls.b_int[3, li] += tempi * ϑz
+            # tls.b_int[1, lj] -= tempj * ϑx
+            # tls.b_int[2, lj] -= tempj * ϑy
+            # tls.b_int[3, lj] -= tempj * ϑz
+            update_tls_b_int!(tls.b_int, 1, li, tempi * ϑx)
+            update_tls_b_int!(tls.b_int, 2, li, tempi * ϑy)
+            update_tls_b_int!(tls.b_int, 3, li, tempi * ϑz)
+            update_tls_b_int!(tls.b_int, 1, lj, tempj * ϑx)
+            update_tls_b_int!(tls.b_int, 2, lj, tempj * ϑy)
+            update_tls_b_int!(tls.b_int, 3, lj, tempj * ϑz)
+
+            if ε > pdp.sp.mat.εc || ε > pdp.sp.mat.εc
                 if failureflag
-                    body.bond_failure[current_bond] = 0
+                    pdp.gs.bond_failure[current_bond] = 0
                 end
             end
-            body.n_active_family_members[i, tid] += body.bond_failure[current_bond]
-            body.n_active_family_members[j, tid] += body.bond_failure[current_bond]
+            tls.n_active_family_members[li] += pdp.gs.bond_failure[current_bond]
+            tls.n_active_family_members[lj] += pdp.gs.bond_failure[current_bond]
         end
     end
     return nothing
+end
+
+function update_tls_b_int!(b_int, d, li, val)
+    b_int[d, li] += val
 end

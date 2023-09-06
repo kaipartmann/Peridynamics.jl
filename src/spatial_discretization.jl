@@ -273,56 +273,6 @@ function pcmerge(v::Vector{PointCloud})
     return pc
 end
 
-"""
-    PreCrack(point_id_set_a::Vector{Int}, point_id_set_b::Vector{Int})
-
-Definition of an preexisting crack in the model. Points in `point_id_set_a` cannot have
-interactions with points in `point_id_set_b`.
-
-# Fields
-- `point_id_set_a::Vector{Int}`: first point-id set
-- `point_id_set_b::Vector{Int}`: second point-id set
-"""
-struct PreCrack
-    point_id_set_a::Vector{Int}
-    point_id_set_b::Vector{Int}
-end
-
-function Base.show(io::IO, ::MIME"text/plain", precrack::PreCrack)
-    println(io, typeof(precrack), ":")
-    println(io, " ", length(precrack.point_id_set_a), " points in set a")
-    print(io, " ", length(precrack.point_id_set_b), " points in set b")
-    return nothing
-end
-
-@timeit TO function define_precrack!(body::AbstractPDBody, precrack::PreCrack)
-    @inbounds @threads :static for tid in 1:body.n_threads
-        body.n_active_family_members[:, tid] .= 0
-        for current_one_ni in body.owned_bonds[tid]
-            i, j, _, _ = body.bond_data[current_one_ni]
-            i_is_in_set_a = in(i, precrack.point_id_set_a)
-            i_is_in_set_b = in(i, precrack.point_id_set_b)
-            j_is_in_set_a = in(j, precrack.point_id_set_a)
-            j_is_in_set_b = in(j, precrack.point_id_set_b)
-            if i_is_in_set_a && j_is_in_set_b || i_is_in_set_b && j_is_in_set_a
-                body.bond_failure[current_one_ni] = 0
-            end
-            body.n_active_family_members[i, tid] += body.bond_failure[current_one_ni]
-            if body.unique_bonds
-                body.n_active_family_members[j, tid] += body.bond_failure[current_one_ni]
-            end
-        end
-    end
-    return nothing
-end
-
-@timeit TO function calc_damage!(body::AbstractPDBody)
-    @inbounds @threads :static for i in 1:body.n_points
-        body.damage[i] = 1 - body.n_active_family_members[i, 1] / body.n_family_members[i]
-    end
-    return nothing
-end
-
 @timeit TO function find_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRange{Int}})
     n_threads = nthreads()
     _bond_data = fill([(0, 0, 0.0, true)], n_threads)

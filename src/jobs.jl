@@ -61,23 +61,23 @@ function submit(sim::PDSingleBodyAnalysis)
         @timeit TO "init time loop" begin
             log_header(sim.es)
             log_describe_sim(sim.name, sim.pc, sim.mat, sim.es)
-            body = init_body(sim.mat, sim.pc)
-            log_describe_interactions(body, sim.es)
+            pdp = init_pdp(sim)
+            # log_describe_interactions(body, sim.es)
             @timeit TO "define cracks" begin
                 for precrack in sim.precracks
-                    define_precrack!(body, precrack)
+                    define_precrack!(pdp, precrack)
                 end
-                update_thread_cache!(body)
-                calc_damage!(body)
+                reduce_tls_to_gs!(pdp)
+                calc_damage!(pdp)
             end
             @timeit TO "init time discretization" begin
-                init_time_discretization!(sim.td, body, sim.mat)
+                init_time_discretization!(pdp)
             end
             log_simsetup(sim)
         end
-        @timeit TO "time loop" time_loop!(body, sim.td, sim.mat, sim.bcs, sim.ics, sim.es)
+        @timeit TO "time loop" time_loop!(pdp)
     end
-    log_closesim(body, timingsummary, sim.es)
+    # log_closesim(body, timingsummary, sim.es)
     log_timers(sim.es)
-    return body
+    return pdp
 end

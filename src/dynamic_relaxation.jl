@@ -48,7 +48,7 @@ function time_loop!(body::AbstractPDBody, dr::DynamicRelaxation, mat::PDMaterial
         apply_bcs!(body, bcs, time)
         update_disp_and_position!(body, dr.Δt)
         compute_forcedensity!(body, mat)
-        update_thread_cache!(body)
+        reduce_tls_to_gs!(body)
         calc_damage!(body)
         cn = calc_damping(body, damping_matrix, velocity_half_old, b_int_old, dr.Δt)
         if t == 1

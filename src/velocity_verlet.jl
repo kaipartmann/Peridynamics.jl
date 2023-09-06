@@ -25,91 +25,88 @@ mutable struct VelocityVerlet <: AbstractTimeDiscretization
     end
 end
 
-function init_time_discretization!(vv::VelocityVerlet, body::AbstractPDBody,
-                                   mat::PDMaterial)
-    if vv.Δt < 0
-        Δt = calc_stable_timestep(body, mat, vv.safety_factor)
-        vv.Δt = Δt
+function init_time_discretization!(pdp::PDProblem)
+    if pdp.sp.td.Δt < 0
+        Δt = calc_stable_timestep(pdp)
+        pdp.sp.td.Δt = Δt
     end
     return nothing
 end
 
-function calc_stable_timestep(body::AbstractPDBody, mat::PDMaterial, safety_factor::Float64)
-    _Δt = zeros(Float64, body.n_threads)
-    @inbounds @threads :static for tid in 1:body.n_threads
-        timesteps = zeros(Float64, body.n_points)
-        dtsum = zeros(Float64, (body.n_points, body.n_threads))
-        for current_one_ni in body.owned_bonds[tid]
-            (a, i, L, _) = body.bond_data[current_one_ni]
-            dtsum[a, tid] += body.volume[i] * 1 / L * 18 * mat[a].K / (π * mat[a].δ^4)
+function calc_stable_timestep(pdp::PDProblem)
+    _Δt = zeros(Float64, pdp.sp.n_threads)
+    @inbounds @threads :static for tid in 1:pdp.sp.n_threads
+        timesteps = zeros(Float64, pdp.sp.pc.n_points)
+        dtsum = zeros(Float64, (pdp.sp.pc.n_points, pdp.sp.n_threads))
+        for current_one_ni in pdp.sp.owned_bonds[tid]
+            (a, i, L, _) = pdp.sp.bond_data[current_one_ni]
+            dtsum[a, tid] += pdp.sp.pc.volume[i] * 1 / L * 18 * pdp.sp.mat[a].K / (π * pdp.sp.mat[a].δ^4)
         end
-        for a in body.owned_points[tid]
+        for a in pdp.sp.owned_points[tid]
             dtsum[a, 1] = sum(@view dtsum[a, :])
-            timesteps[a] = √(2 * mat[a].rho / dtsum[a, 1])
+            timesteps[a] = √(2 * pdp.sp.mat[a].rho / dtsum[a, 1])
         end
-        _Δt[tid] = safety_factor * minimum(timesteps[timesteps .> 0])
+        _Δt[tid] = pdp.sp.td.safety_factor * minimum(timesteps[timesteps .> 0])
     end
     Δt = minimum(_Δt)
     return Δt
 end
 
-function time_loop!(body::AbstractPDBody, vv::VelocityVerlet, mat::PDMaterial,
-                    bcs::Vector{<:AbstractBC}, ics::Vector{<:AbstractIC},
-                    es::ExportSettings)
-    apply_ics!(body, ics)
-    if es.exportflag
-        export_vtk(body, es.resultfile_prefix, 0, 0.0)
+function time_loop!(pdp::PDProblem)
+    apply_ics!(pdp)
+    if pdp.sp.es.exportflag
+        export_vtk(pdp, 0, 0.0)
     end
-    # p = Progress(vv.n_steps; dt = 1, desc = "Time integration... ", barlen = 30,
-    #              color = :normal, enabled = !is_logging(stderr))
-    Δt½ = 0.5 * vv.Δt
-    for t in 1:(vv.n_steps)
-        time = t * vv.Δt
-        update_velhalf!(body, Δt½)
-        apply_bcs!(body, bcs, time)
-        update_disp_and_position!(body, vv.Δt)
-        compute_forcedensity!(body, mat)
-        update_thread_cache!(body) #TODO: BAD NAME!
-        calc_damage!(body)
-        compute_equation_of_motion!(body, Δt½, mat)
-        if mod(t, es.exportfreq) == 0
-            export_vtk(body, es.resultfile_prefix, t, time)
+    p = Progress(pdp.sp.td.n_steps; dt = 1, desc = "Time integration... ", barlen = 30,
+                 color = :normal, enabled = !is_logging(stderr))
+    Δt½ = 0.5 * pdp.sp.td.Δt
+    for t in 1:pdp.sp.td.n_steps
+        time = t * pdp.sp.td.Δt
+        update_velhalf!(pdp.gs, Δt½)
+        apply_bcs!(pdp, time)
+        update_disp_and_position!(pdp.gs, pdp.sp.td.Δt)
+        compute_forcedensity!(pdp)
+        reduce_tls_to_gs!(pdp)
+        calc_damage!(pdp)
+        compute_equation_of_motion!(pdp, Δt½)
+        if mod(t, pdp.sp.es.exportfreq) == 0
+            export_vtk(pdp, t, time)
         end
-        # next!(p)
+        next!(p)
     end
-    # finish!(p)
+    finish!(p)
     return nothing
 end
 
-@timeit TO function update_velhalf!(body::AbstractPDBody, Δt½::Float64)
-    @inbounds @threads :static for i in 1:body.n_points
-        body.velocity_half[1, i] = body.velocity[1, i] + body.acceleration[1, i] * Δt½
-        body.velocity_half[2, i] = body.velocity[2, i] + body.acceleration[2, i] * Δt½
-        body.velocity_half[3, i] = body.velocity[3, i] + body.acceleration[3, i] * Δt½
-    end
-    return nothing
-end
-
-@timeit TO function update_disp_and_position!(body::AbstractPDBody, Δt::Float64)
-    @inbounds @threads :static for i in 1:body.n_points
-        body.displacement[1, i] += body.velocity_half[1, i] * Δt
-        body.displacement[2, i] += body.velocity_half[2, i] * Δt
-        body.displacement[3, i] += body.velocity_half[3, i] * Δt
-        body.position[1, i] += body.velocity_half[1, i] * Δt
-        body.position[2, i] += body.velocity_half[2, i] * Δt
-        body.position[3, i] += body.velocity_half[3, i] * Δt
+@timeit TO function update_velhalf!(gs::GlobalStorage, Δt½::Float64)
+    @inbounds @threads :static for i in axes(gs.velocity_half, 2)
+        gs.velocity_half[1, i] = gs.velocity[1, i] + gs.acceleration[1, i] * Δt½
+        gs.velocity_half[2, i] = gs.velocity[2, i] + gs.acceleration[2, i] * Δt½
+        gs.velocity_half[3, i] = gs.velocity[3, i] + gs.acceleration[3, i] * Δt½
     end
     return nothing
 end
 
-@timeit TO function compute_equation_of_motion!(body::AbstractPDBody, Δt½::Float64, mat::PDMaterial)
-    @inbounds @threads :static for i in 1:body.n_points
-        body.acceleration[1, i] = (body.b_int[1, i, 1] + body.b_ext[1, i]) / mat[i].rho
-        body.acceleration[2, i] = (body.b_int[2, i, 1] + body.b_ext[2, i]) / mat[i].rho
-        body.acceleration[3, i] = (body.b_int[3, i, 1] + body.b_ext[3, i]) / mat[i].rho
-        body.velocity[1, i] = body.velocity_half[1, i] + body.acceleration[1, i] * Δt½
-        body.velocity[2, i] = body.velocity_half[2, i] + body.acceleration[2, i] * Δt½
-        body.velocity[3, i] = body.velocity_half[3, i] + body.acceleration[3, i] * Δt½
+@timeit TO function update_disp_and_position!(gs::GlobalStorage, Δt::Float64)
+    @inbounds @threads :static for i in axes(gs.displacement, 2)
+        gs.displacement[1, i] += gs.velocity_half[1, i] * Δt
+        gs.displacement[2, i] += gs.velocity_half[2, i] * Δt
+        gs.displacement[3, i] += gs.velocity_half[3, i] * Δt
+        gs.position[1, i] += gs.velocity_half[1, i] * Δt
+        gs.position[2, i] += gs.velocity_half[2, i] * Δt
+        gs.position[3, i] += gs.velocity_half[3, i] * Δt
+    end
+    return nothing
+end
+
+@timeit TO function compute_equation_of_motion!(pdp::PDProblem, Δt½::Float64)
+    @inbounds @threads :static for i in 1:pdp.sp.pc.n_points
+        pdp.gs.acceleration[1, i] = (pdp.gs.b_int[1, i, 1] + pdp.gs.b_ext[1, i]) / pdp.sp.mat[i].rho
+        pdp.gs.acceleration[2, i] = (pdp.gs.b_int[2, i, 1] + pdp.gs.b_ext[2, i]) / pdp.sp.mat[i].rho
+        pdp.gs.acceleration[3, i] = (pdp.gs.b_int[3, i, 1] + pdp.gs.b_ext[3, i]) / pdp.sp.mat[i].rho
+        pdp.gs.velocity[1, i] = pdp.gs.velocity_half[1, i] + pdp.gs.acceleration[1, i] * Δt½
+        pdp.gs.velocity[2, i] = pdp.gs.velocity_half[2, i] + pdp.gs.acceleration[2, i] * Δt½
+        pdp.gs.velocity[3, i] = pdp.gs.velocity_half[3, i] + pdp.gs.acceleration[3, i] * Δt½
     end
     return nothing
 end

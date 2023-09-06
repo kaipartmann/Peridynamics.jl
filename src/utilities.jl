@@ -42,21 +42,16 @@ end
     return single_tids, multi_tids
 end
 
-@timeit TO function update_thread_cache!(body::AbstractPDBody)
-    @threads :static for (i, tid) in body.single_tids
-        body.b_int[1, i, 1] = body.b_int[1, i, tid]
-        body.b_int[2, i, 1] = body.b_int[2, i, tid]
-        body.b_int[3, i, 1] = body.b_int[3, i, tid]
-        body.n_active_family_members[i, 1] = body.n_active_family_members[i, tid]
-    end
-    @threads :static for (i, tids) in body.multi_tids
-        for tid in tids
-            body.b_int[1, i, 1] += body.b_int[1, i, tid]
-            body.b_int[2, i, 1] += body.b_int[2, i, tid]
-            body.b_int[3, i, 1] += body.b_int[3, i, tid]
-            body.n_active_family_members[i, 1] += body.n_active_family_members[i, tid]
+@timeit TO function reduce_tls_to_gs!(pdp::PDProblem)
+    for tid in 1:pdp.sp.n_threads
+        for (gi, li) in pdp.tls[tid].pointmap
+            pdp.gs.b_int[1, gi] = pdp.tls[tid].b_int[1, li]
+            pdp.gs.b_int[2, gi] = pdp.tls[tid].b_int[2, li]
+            pdp.gs.b_int[3, gi] = pdp.tls[tid].b_int[3, li]
+            pdp.gs.n_active_family_members[gi] = pdp.tls[tid].n_active_family_members[li]
         end
     end
+    return nothing
 end
 
 is_logging(io) = isa(io, Base.TTY) == false || (get(ENV, "CI", nothing) == "true")

@@ -44,7 +44,7 @@ if Threads.nthreads() <= 2
         0.0
         0.0
     ]
-    Peridynamics.update_thread_cache!(body)
+    Peridynamics.reduce_tls_to_gs!(body)
     @test body.b_int[:,:,1] ≈ [b¹² -b¹²]
 else
     @warn "Test omitted! Threads.nthreads() should be <= 2"

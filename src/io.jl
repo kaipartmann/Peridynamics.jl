@@ -1,42 +1,4 @@
-"""
-    ExportSettings
 
-Export settings.
-
-# Fields
-- `path::String`: path where results will be saved
-- `exportfreq::Int`: export frequency, will export every `exportfreq`-th timestep
-- `resultfile_prefix::String`: prefix of the result-filename
-- `logfile::String`: name of logfile
-- `exportflag::Bool`: disable export for a simulation where saved results are not needed
-
----
-```julia
-ExportSettings([path::String, freq::Int])
-```
-
-Create `ExportSettings` only by `path` and `freq`. If no arguments are specified, the
-`exportflag` will be set to `false` and export disabled.
-
-# Arguments
-- `path::String`: path where results will be saved
-- `freq::Int`: export frequency
-"""
-mutable struct ExportSettings
-    path::String
-    exportfreq::Int
-    resultfile_prefix::String
-    logfile::String
-    exportflag::Bool
-end
-
-ExportSettings() = ExportSettings("", 0, "", "", false)
-ExportSettings(path::String, freq::Int) = ExportSettings(path, freq, "", "", true)
-
-function Base.show(io::IO, ::MIME"text/plain", es::ExportSettings)
-    print(io, typeof(es))
-    return nothing
-end
 
 function log_header(es::ExportSettings)
     msg = "="^70 * "\n"
@@ -172,12 +134,12 @@ function log_displacement_and_damage(body::AbstractPDBody)
     return msg
 end
 
-@timeit TO function export_vtk(body::AbstractPDBody, expfile::String, timestep::Int, time::Float64)
-    filename = @sprintf("%s_t%04d", expfile, timestep)
-    vtk_grid(filename, body.position, body.cells) do vtk
-        vtk["Damage", VTKPointData()] = body.damage
+@timeit TO function export_vtk(pdp::PDProblem, timestep::Int, time::Float64)
+    filename = @sprintf("%s_t%04d", pdp.sp.es.resultfile_prefix, timestep)
+    vtk_grid(filename, pdp.sp.pc.position, pdp.sp.cells) do vtk
+        vtk["Damage", VTKPointData()] = pdp.gs.damage
         # vtk["ForceDensity", VTKPointData()] = @views body.b_int[:, :, 1]
-        vtk["Displacement", VTKPointData()] = body.displacement
+        vtk["Displacement", VTKPointData()] = pdp.gs.displacement
         # vtk["Velocity", VTKPointData()] = body.velocity
         vtk["Time", VTKFieldData()] = time
     end
