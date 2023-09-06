@@ -12,8 +12,8 @@ julia setup.jl
 
 respath="pc2_benchmarks"
 rm -rf $respath
-export_vtk=(true)
-threads=(1 8 16 32)
+export_vtk=(true false)
+threads=(1 4 8 16 32)
 for t in ${threads[@]}; do
     for e in ${export_vtk[@]}; do
         julia --project -t $t bbvv.jl $respath "bbvv_t=${t}_e=$e" $e
