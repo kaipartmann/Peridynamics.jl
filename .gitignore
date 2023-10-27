@@ -8,6 +8,7 @@
 /docs/src/generated/
 
 # Simulation results
+/results/
 /examples/results/
 *.log
 *.vtu
