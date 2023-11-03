@@ -69,12 +69,13 @@ struct NOSBBody <: AbstractPDBody
     b_int::Array{Float64, 3}
     b_ext::Matrix{Float64}
     damage::Vector{Float64}
-    bond_failure::Vector{Int}
+    bond_failure::Vector{Bool}
     sigma::Matrix{Float64}
 end
 
 function NOSBBody(mat::PDMaterial{NOSBMaterial}, pc::PointCloud)
     BLAS.set_num_threads(1)
+    @info "number of BLAS-threads: $(BLAS.get_num_threads())"
     n_threads = nthreads()
     n_points = pc.n_points
     @assert n_points>=n_threads "n_points < n_threads"
@@ -96,7 +97,7 @@ function NOSBBody(mat::PDMaterial{NOSBMaterial}, pc::PointCloud)
     n_bonds = length(bond_data)
     owned_bonds = defaultdist(n_bonds, n_threads)
     hood_range = find_hood_range(n_family_members, pc.n_points)
-    bond_failure = ones(Int, n_bonds)
+    bond_failure = ones(Bool, n_bonds)
     n_active_family_members = zeros(Int, (n_points, n_threads))
     _sum_tids = zeros(Bool, (n_points, n_threads))
     _sum_tids .= false
@@ -111,8 +112,8 @@ function NOSBBody(mat::PDMaterial{NOSBMaterial}, pc::PointCloud)
         for i in owned_points[tid]
             for current_bond in hood_range[i]
                 _, j, _, _ = bond_data[current_bond]
-                n_active_family_members[i, 1] += 1
-                _sum_tids[i, 1] = true
+                n_active_family_members[i, tid] += 1
+                _sum_tids[i, tid] = true
                 _sum_tids[j, tid] = true
             end
         end
@@ -196,12 +197,12 @@ function compute_forcedensity!(body::NOSBBody, mat::PDMaterial{NOSBMaterial})
                         body.bond_failure[current_bond] = 0
                     end
                 end
-                body.n_active_family_members[i, 1] += body.bond_failure[current_bond]
+                body.n_active_family_members[i, tid] += body.bond_failure[current_bond]
 
                 # update of force density
                 ωij = (1 + mat[i].δ / L) * body.bond_failure[current_bond]
                 tij = ωij * PK⁻¹ * ΔXij + T
-                body.b_int[:, i, 1] .+= tij * body.volume[j]
+                body.b_int[:, i, tid] .+= tij * body.volume[j]
                 body.b_int[:, j, tid] .-= tij * body.volume[i]
             end
         end
