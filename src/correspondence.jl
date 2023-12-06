@@ -144,8 +144,11 @@ function compute_forcedensity!(body::NOSBBody, mat::PDMaterial{NOSBMaterial})
         # initializations
         ΔXij = @MVector zeros(3)
         Δxij = @MVector zeros(3)
+        tij = @MVector zeros(3)
         K = @MMatrix zeros(3,3)
         _F = @MMatrix zeros(3,3)
+        PK⁻¹ = @MMatrix zeros(3,3)
+        sigma = @MMatrix zeros(3,3)
 
         # loop over all material points
         for i in body.owned_points[tid]
@@ -153,14 +156,22 @@ function compute_forcedensity!(body::NOSBBody, mat::PDMaterial{NOSBMaterial})
             # K and _F need to start from zero for every point
             K .= 0.0 # symmetric shape tensor
             _F .= 0.0 # part of deformation gradient (calculated inside hood-loop)
-            for current_bond in body.hood_range[i]
-                _, j, L, _ = body.bond_data[current_bond]
-                ΔXij .= @views body.refposition[:, j] - body.refposition[:, i]
-                Δxij .= @views body.position[:, j] - body.position[:, i]
-                Vj = body.volume[j]
-                ωij = (1 + mat[i].δ / L) * body.bond_failure[current_bond]
-                K .+= ωij .* ΔXij * ΔXij' * Vj
-                _F .+= ωij .* Δxij * ΔXij' * Vj
+            ω0 = 0.0
+
+            for cbond in sp.hood_range[i]
+                j = sp.bonds[cbond]
+                L = sp.init_dists[cbond]
+                ΔXij[1] = sp.pc.position[1, j] - sp.pc.position[1, i]
+                ΔXij[2] = sp.pc.position[2, j] - sp.pc.position[2, i]
+                ΔXij[3] = sp.pc.position[3, j] - sp.pc.position[3, i]
+                Δxij[1] = gs.position[1, j] - gs.position[1, i]
+                Δxij[2] = gs.position[2, j] - gs.position[2, i]
+                Δxij[3] = gs.position[3, j] - gs.position[3, i]
+                Vj = sp.pc.volume[j]
+                ωij = (1 + sp.mat.δ / L) * gs.bond_intact[cbond]
+                ω0 += ωij
+                mul!(K, ΔXij, ΔXij', ωij * Vj, 1)
+                mul!(_F, Δxij, ΔXij', ωij * Vj, 1)
             end
             Kinv = inv(K)
             F = _F * Kinv
