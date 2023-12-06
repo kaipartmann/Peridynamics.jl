@@ -88,7 +88,7 @@ To install `Peridynamics.jl`, follow these steps:
 </div>
 ```
 ```@raw html
-</div> 
+</div>
 ```
 
 ## Authors

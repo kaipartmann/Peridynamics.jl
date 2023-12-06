@@ -1,51 +1,51 @@
 <img src="docs/src/assets/logo.png" width="450" />
 
 # Peridynamics.jl
-
-
-|**Documentation**| **Build status**| **Code quality** |
-|---|---|---|
-| [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://kaipartmann.github.io/Peridynamics.jl/stable/) [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://kaipartmann.github.io/Peridynamics.jl/dev/) | [![Build Status](https://github.com/kaipartmann/Peridynamics.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/kaipartmann/Peridynamics.jl/actions/workflows/CI.yml?query=branch%3Amain) [![Coverage](https://codecov.io/gh/kaipartmann/Peridynamics.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/kaipartmann/Peridynamics.jl) | [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2)](https://github.com/SciML/SciMLStyle) |
-
-| **Cite the package** |**Downloads counter**|
-|---|---|
-| ... | [![Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/Peridynamics/label:-color:blue)](https://pkgs.genieframework.com?packages=Peridynamics) |
-
-
 A high-level Julia package for multithreaded peridynamics simulations
 
-## Overview
+**Documentation:**\
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://kaipartmann.github.io/Peridynamics.jl/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://kaipartmann.github.io/Peridynamics.jl/dev/)
 
-Peridynamics is a non-local formulation of continuum mechanics.
-Material points map the continuum, and the relative displacements and forces are described by an integral equation that is also fulfilled for discontinuities. Therefore, peridynamics is ideally suited for dynamic fracture simulations with many cracks!
+**Build status**\
+[![Build Status](https://github.com/kaipartmann/Peridynamics.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/kaipartmann/Peridynamics.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/kaipartmann/Peridynamics.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/kaipartmann/Peridynamics.jl)
 
-This package aims at making it easy for everyone to perform peridynamics simulations with a high-level API and the speed of Julia.
-Currently, only a limited feature set is supported, but many upgrades are in the pipeline, so stay tuned for upcoming versions!
+**Code quality**\
+[![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2)](https://github.com/SciML/SciMLStyle)
 
-#### Features
-- Bond-based peridynamics, see [Silling (2000)](https://doi.org/10.1016/S0022-5096(99)00029-0)
-- Import and convert meshes from Abaqus
-- Explicit time integration with Velocity Verlet algorithm
-- Adaptive dynamic relaxation for quasistatic analysis, see [Kilic and Madenci (2010)](https://doi.org/10.1016/j.tafmec.2010.08.001)
-- Multi-body contact analysis with short-range forces, see [Silling and Askari (2005)](https://doi.org/10.1016/j.compstruc.2004.11.026)
+**Citation:**\
+[![DOI](https://zenodo.org/badge/503281781.svg)](https://zenodo.org/badge/latestdoi/503281781)
 
-#### Incomplete list of upcoming features
-- Volume and surface correction
-- Ordinary and non-ordinary state-based peridynamics, see [Silling et al. (2007)](https://link.springer.com/article/10.1007/s10659-007-9125-1)
-- Continuum-kinematics-based peridynamics, see [Javili, McBride and Steinmann (2019)](https://doi.org/10.1016/j.jmps.2019.06.016)
+**Community**\
+[![Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/Peridynamics)](https://pkgs.genieframework.com?packages=Peridynamics)
+
+## What is peridynamics?
+Peridynamics is a non-local formulation of continuum mechanics where material points represent the continuum, and the relative displacements and forces are governed by an integro-differential equation that allows discontinuities. As a result, peridynamics is particularly well-suited for dynamic fracture simulations involving numerous cracks.
+
+## Who can benefit from this package?
+This package is designed for anyone interested in performing peridynamics simulations. While the current feature set provides a solid foundation, we are continuously working to enhance and expand the capabilities of `Peridynamics.jl`. We encourage you to open an issue or submit a pull request to share your feedback or contribute to making this package even more valuable to the community!
 
 ## Installation
 
-To install, use Julia's built-in package manager. Open the Julia REPL and type `]` to enter the package mode and install Peridynamics as follows:
+To install `Peridynamics.jl`, follow these steps:
 
-```
-pkg> add Peridynamics
-```
+1. Install Julia from the [official Julia website](https://julialang.org/) if you haven't already.
+
+2. Launch Julia and open the Julia REPL.
+
+3. Enter the package manager by pressing `]` in the REPL.
+
+4. In the package manager, type:
+   ```
+   add Peridynamics
+   ```
+
+5. Press `Backspace` or `Ctrl + C` to exit the package manager.
 
 ## Getting Started
 
-We recommend looking at the [manual](https://kaipartmann.github.io/Peridynamics.jl/dev/manual/) and the [tutorials section](https://kaipartmann.github.io/Peridynamics.jl/dev/tensiletest/) to start working with this package!
-
+We recommend looking at the [how-to guides](https://kaipartmann.github.io/Peridynamics.jl/stable/) and the [tutorials](https://kaipartmann.github.io/Peridynamics.jl/stable/) to start working with this package!
 
 ## Authors
 
