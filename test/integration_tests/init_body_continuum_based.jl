@@ -12,7 +12,7 @@ if Threads.nthreads() <= 2
     n_points = 2
     volumes = fill(point_spacing^3, n_points)
     pc = PointCloud(positions, volumes)
-    mat = ContinuumBasedMaterial(horizon=δ, rho=7850.0, E=E, nu=0.3, Gc=1.0)
+    mat = CPDMaterial(horizon=δ, rho=7850.0, E=E, nu=0.3, Gc=1.0)
     body = Peridynamics.init_body(mat, pc)
 
     # show BondBasedBody

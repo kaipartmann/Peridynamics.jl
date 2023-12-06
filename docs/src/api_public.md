@@ -13,8 +13,8 @@ Pages = ["api_public.md"]
 ## Types
 ```@docs
 PointCloud
-BondBasedMaterial
-ContinuumBasedMaterial
+BBMaterial
+CPDMaterial
 MultiMaterial
 PreCrack
 VelocityBC

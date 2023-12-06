@@ -12,7 +12,7 @@ if Threads.nthreads() <= 2
     n_points = 2
     volumes = fill(point_spacing^3, n_points)
     pc = PointCloud(positions, volumes)
-    mat = BondBasedMaterial(horizon=δ, rho=7850.0, E=E, Gc=1.0)
+    mat = BBMaterial(horizon=δ, rho=7850.0, E=E, Gc=1.0)
     body = Peridynamics.init_body(mat, pc)
 
     # export vtk

@@ -1,8 +1,8 @@
 using Peridynamics, Test
 
 pc = PointCloud(1,1,1,0.25)
-mat1 = BondBasedMaterial(; horizon = 1, rho = 1, E = 1, Gc = 1)
-mat2 = ContinuumBasedMaterial(; horizon = 1, rho = 1, E = 1, nu = 1/4, Gc = 1)
+mat1 = BBMaterial(; horizon = 1, rho = 1, E = 1, Gc = 1)
+mat2 = CPDMaterial(; horizon = 1, rho = 1, E = 1, nu = 1/4, Gc = 1)
 body1 = Peridynamics.init_body(mat1, pc)
 body2 = Peridynamics.init_body(mat2, pc)
 

@@ -1,6 +1,6 @@
 using Peridynamics, Test
 
-mat1 = BondBasedMaterial(; horizon = 1, rho = 1, E = 1, Gc = 1)
+mat1 = BBMaterial(; horizon = 1, rho = 1, E = 1, Gc = 1)
 @test mat1.δ == 1
 @test mat1.rho == 1
 @test mat1.E == 1
@@ -11,7 +11,7 @@ mat1 = BondBasedMaterial(; horizon = 1, rho = 1, E = 1, Gc = 1)
 @test mat1.Gc == 1
 @test mat1.εc == sqrt(5.0 * 1 / (9.0 * 1 / (3 * (1 - 2 * 1/4)) * 1))
 
-mat2 = BondBasedMaterial(; horizon = 0, rho = 0, E = 0, Gc = 0)
+mat2 = BBMaterial(; horizon = 0, rho = 0, E = 0, Gc = 0)
 @test mat2.δ == 0
 @test mat2.rho == 0
 @test mat2.E == 0
@@ -22,7 +22,7 @@ mat2 = BondBasedMaterial(; horizon = 0, rho = 0, E = 0, Gc = 0)
 @test mat2.Gc == 0
 @test isnan(mat2.εc)
 
-mat3 = BondBasedMaterial(; horizon = 1, rho = 8e-6, E = 210e3, epsilon_c = 0.01)
+mat3 = BBMaterial(; horizon = 1, rho = 8e-6, E = 210e3, epsilon_c = 0.01)
 @test mat3.δ == 1
 @test mat3.rho == 8e-6
 @test mat3.E == 210e3
@@ -34,21 +34,21 @@ mat3 = BondBasedMaterial(; horizon = 1, rho = 8e-6, E = 210e3, epsilon_c = 0.01)
 @test mat3.εc == 0.01
 
 err = ArgumentError("Duplicate definition: define either Gc or epsilon_c, not both!")
-@test_throws err BondBasedMaterial(; horizon = 1, rho = 8e-6, E = 210e3, epsilon_c = 0.01, Gc = 1)
+@test_throws err BBMaterial(; horizon = 1, rho = 8e-6, E = 210e3, epsilon_c = 0.01, Gc = 1)
 
 err = ArgumentError("Either Gc or epsilon_c have to be defined!")
-@test_throws err BondBasedMaterial(; horizon = 1, rho = 8e-6, E = 210e3)
+@test_throws err BBMaterial(; horizon = 1, rho = 8e-6, E = 210e3)
 
-mat4 = BondBasedMaterial(horizon=1.5, rho=7850.0, E=210e9, Gc=1.0)
+mat4 = BBMaterial(horizon=1.5, rho=7850.0, E=210e9, Gc=1.0)
 io = IOBuffer()
 show(io, "text/plain", mat4)
 msg = String(take!(io))
 
-correct_msg1 = "BondBasedMaterial:\n  δ:   1.5\n  rho: 7850.0\n  E:   2.1e11\n  "
+correct_msg1 = "BBMaterial:\n  δ:   1.5\n  rho: 7850.0\n  E:   2.1e11\n  "
 correct_msg1 *= "nu:  0.25\n  G:   8.4e10\n  K:   1.4e11\n  bc:  1.584475877892647e11\n  "
 correct_msg1 *= "Gc:  1.0\n  εc:  1.6265001215808886e-6"
 
-correct_msg2 = "Peridynamics.BondBasedMaterial:\n  δ:   1.5\n  rho: 7850.0\n  E:   2.1e11\n  "
+correct_msg2 = "Peridynamics.BBMaterial:\n  δ:   1.5\n  rho: 7850.0\n  E:   2.1e11\n  "
 correct_msg2 *= "nu:  0.25\n  G:   8.4e10\n  K:   1.4e11\n  bc:  1.584475877892647e11\n  "
 correct_msg2 *= "Gc:  1.0\n  εc:  1.6265001215808886e-6"
 

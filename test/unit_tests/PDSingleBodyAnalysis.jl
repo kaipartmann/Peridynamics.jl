@@ -3,7 +3,7 @@ using Peridynamics, Test
 pdsba1 = PDSingleBodyAnalysis(;
     name="pdsba1",
     pc=PointCloud(1, 1, 1, 0.5),
-    mat=BondBasedMaterial(; horizon=1, rho=1, E=1, Gc=1),
+    mat=BBMaterial(; horizon=1, rho=1, E=1, Gc=1),
     td=VelocityVerlet(10),
     es=ExportSettings(),
 )
@@ -17,7 +17,7 @@ pdsba1 = PDSingleBodyAnalysis(;
 pdsba2 = PDSingleBodyAnalysis(;
     name="pdsba2",
     pc=PointCloud(1, 1, 1, 0.5),
-    mat=BondBasedMaterial(; horizon=1, rho=1, E=1, Gc=1),
+    mat=BBMaterial(; horizon=1, rho=1, E=1, Gc=1),
     td=VelocityVerlet(10),
     es=ExportSettings("test",2),
 )

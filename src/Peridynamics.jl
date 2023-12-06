@@ -8,7 +8,7 @@ using Base.Threads
 export PointCloud, PreCrack, pcmerge
 export VelocityBC, VelocityIC, ForceDensityBC, PosDepVelBC
 export VelocityVerlet, DynamicRelaxation, ExportSettings
-export MultiMaterial, BondBasedMaterial, ContinuumBasedMaterial
+export MultiMaterial, BBMaterial, CPDMaterial
 export Contact, BodySetup
 export PDSingleBodyAnalysis, PDContactAnalysis, submit
 export read_inp, read_vtk

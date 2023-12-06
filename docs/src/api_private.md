@@ -15,7 +15,7 @@ Pages = ["api_private.md"]
 Peridynamics.AbstractIC
 Peridynamics.AbstractBC
 Peridynamics.AbstractPDAnalysis
-Peridynamics.AbstractPDMaterial
+Peridynamics.AbstractMaterial
 Peridynamics.AbstractTimeDiscretization
 Peridynamics.BondBasedBody
 ```

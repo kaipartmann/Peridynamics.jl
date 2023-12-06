@@ -18,8 +18,8 @@ using SafeTestsets
     @safetestset "PDSingleBodyAnalysis" begin include(joinpath("unit_tests","PDSingleBodyAnalysis.jl")) end
     @safetestset "PDContactAnalysis" begin include(joinpath("unit_tests","PDContactAnalysis.jl")) end
     @safetestset "ExportSettings" begin include(joinpath("unit_tests","ExportSettings.jl")) end
-    @safetestset "BondBasedMaterial" begin include(joinpath("unit_tests","BondBasedMaterial.jl")) end
-    @safetestset "ContinuumBasedMaterial" begin include(joinpath("unit_tests","ContinuumBasedMaterial.jl")) end
+    @safetestset "BBMaterial" begin include(joinpath("unit_tests","BBMaterial.jl")) end
+    @safetestset "CPDMaterial" begin include(joinpath("unit_tests","CPDMaterial.jl")) end
     @safetestset "sphere_radius" begin include(joinpath("unit_tests","sphere_radius.jl")) end
     @safetestset "pcmerge" begin include(joinpath("unit_tests","pcmerge.jl")) end
     @safetestset "define_precrack!" begin include(joinpath("unit_tests","define_precrack!.jl")) end
@@ -33,10 +33,10 @@ using SafeTestsets
     @safetestset "position_matrix" begin include(joinpath("unit_tests","position_matrix.jl")) end
 
     # integration tests
-    @safetestset "Symmetry tests BondBasedMaterial" begin include(joinpath("integration_tests","symmetry_bond_based.jl")) end
-    @safetestset "Symmetry tests BondBasedMaterial ADR" begin include(joinpath("integration_tests","symmetry_bond_based_adr.jl")) end
-    @safetestset "Symmetry tests ContinuumBasedMaterial" begin include(joinpath("integration_tests","symmetry_continuum_based.jl")) end
-    @safetestset "Symmetry tests ContinuumBasedMaterial ADR" begin include(joinpath("integration_tests","symmetry_continuum_based_adr.jl")) end
+    @safetestset "Symmetry tests BBMaterial" begin include(joinpath("integration_tests","symmetry_bond_based.jl")) end
+    @safetestset "Symmetry tests BBMaterial ADR" begin include(joinpath("integration_tests","symmetry_bond_based_adr.jl")) end
+    @safetestset "Symmetry tests CPDMaterial" begin include(joinpath("integration_tests","symmetry_continuum_based.jl")) end
+    @safetestset "Symmetry tests CPDMaterial ADR" begin include(joinpath("integration_tests","symmetry_continuum_based_adr.jl")) end
     @safetestset "Bonds" begin include(joinpath("integration_tests","bonds.jl")) end
     @safetestset "Interactions" begin include(joinpath("integration_tests","interactions.jl")) end
     @safetestset "Force density calculation BondBased" begin include(joinpath("integration_tests","b_int_bond_based.jl")) end

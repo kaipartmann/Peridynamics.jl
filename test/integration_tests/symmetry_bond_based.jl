@@ -21,7 +21,7 @@ zp = findall(positions[3,:] .> 0)
 zm = findall(positions[3,:] .< 0)
 
 # define the material
-mat = BondBasedMaterial(horizon = 3.015point_spacing, rho=7850.0, E=210e9, Gc=1.0)
+mat = BBMaterial(horizon = 3.015point_spacing, rho=7850.0, E=210e9, Gc=1.0)
 
 # boundary conditions
 fun1(t) = 100.

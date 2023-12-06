@@ -1,11 +1,11 @@
 abstract type AbstractPDBody end
 
 """
-    AbstractPDMaterial
+    AbstractMaterial
 
 Abstract type for a peridynamic material.
 """
-abstract type AbstractPDMaterial end
+abstract type AbstractMaterial end
 
 """
     AbstractBC

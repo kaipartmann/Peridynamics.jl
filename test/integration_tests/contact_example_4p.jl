@@ -19,7 +19,7 @@ if Threads.nthreads() <= 2
     volumes = fill(point_spacing^3, n_points)
     pc1 = PointCloud(positions1, volumes)
     pc2 = PointCloud(positions2, volumes)
-    mat = BondBasedMaterial(horizon=δ, rho=rho, E=E, Gc=1.0)
+    mat = BBMaterial(horizon=δ, rho=rho, E=E, Gc=1.0)
     bodies = [BodySetup(pc1, mat), BodySetup(pc2, mat)]
     contact1 = Contact((1, 2), 1.0)
     job1 = PDContactAnalysis(;

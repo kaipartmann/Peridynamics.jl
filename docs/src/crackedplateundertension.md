@@ -22,7 +22,7 @@ pc = PointCloud(length_x, length_y, length_z, Δx)
 As next step, we define the material with the parameters `horizon` (horizon $\delta$ in peridynamics theory), density `rho`, youngs modulus `E` and critical energy release rate `Gc`.
 
 ```julia
-mat = BondBasedMaterial(;
+mat = BBMaterial(;
     horizon = 3.015Δx, # [m]
     rho = 7850.0, # [kg/m^3]
     E = 210e9, # [N/m^2]

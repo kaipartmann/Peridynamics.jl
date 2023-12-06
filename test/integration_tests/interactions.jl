@@ -8,7 +8,7 @@ let
                     0.0 0.0 1.0]
         volume = fill(1.0, 3)
         pc = PointCloud(position, volume)
-        mat = ContinuumBasedMaterial(; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1, C3=1)
+        mat = CPDMaterial(; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1, C3=1)
         owned_points = Peridynamics.defaultdist(pc.n_points, Threads.nthreads())
         bond_data, n_family_members = Peridynamics.find_bonds(pc, mat, owned_points)
         hood_range = Peridynamics.find_hood_range(n_family_members, pc.n_points)
@@ -40,7 +40,7 @@ let
                     0.0 0.0 0.0 1.0 2.0]
         volume = fill(1.0, 5)
         pc = PointCloud(position, volume)
-        mat = ContinuumBasedMaterial(; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1, C3=1)
+        mat = CPDMaterial(; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1, C3=1)
         owned_points = Peridynamics.defaultdist(pc.n_points, Threads.nthreads())
         bond_data, n_family_members = Peridynamics.find_bonds(pc, mat, owned_points)
         hood_range = Peridynamics.find_hood_range(n_family_members, pc.n_points)

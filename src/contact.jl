@@ -26,7 +26,7 @@ Setup of multiple bodies for `PDContactAnalysis`.
 
 # Fields:
 - `pc::PointCloud`: point cloud
-- `mat::AbstractPDMaterial`: material model
+- `mat::AbstractMaterial`: material model
 - `precracks::Vector{PreCrack}`: predefined cracks
 - `bcs::Vector{<:AbstractBC}`: boundary conditions
 - `ics::Vector{<:AbstractIC}`: initial conditions

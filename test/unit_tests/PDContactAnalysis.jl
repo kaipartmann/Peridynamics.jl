@@ -1,6 +1,6 @@
 using Peridynamics, Test
 
-bs1 = BodySetup(PointCloud(1, 1, 1, 0.5), BondBasedMaterial(; horizon=1, rho=1, E=1, Gc=1))
+bs1 = BodySetup(PointCloud(1, 1, 1, 0.5), BBMaterial(; horizon=1, rho=1, E=1, Gc=1))
 c1 = Contact((1,2), 0.1)
 
 pdca1 = PDContactAnalysis(;

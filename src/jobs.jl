@@ -5,7 +5,7 @@ end
 
 @doc raw"""
     struct PDSingleBodyAnalysis{M, T} <:
-        AbstractPDAnalysis where {M <: AbstractPDMaterial, T <: AbstractTimeDiscretization}
+        AbstractPDAnalysis where {M <: AbstractMaterial, T <: AbstractTimeDiscretization}
 
 Peridynamic single body analysis.
 
@@ -20,7 +20,7 @@ Peridynamic single body analysis.
 - `es::ExportSettings`: export settings
 """
 struct PDSingleBodyAnalysis{M, T} <:
-       AbstractPDAnalysis where {M <: AbstractPDMaterial, T <: AbstractTimeDiscretization}
+       AbstractPDAnalysis where {M <: AbstractMaterial, T <: AbstractTimeDiscretization}
     name::String
     pc::PointCloud
     mat::Union{M, MultiMaterial{M}}
@@ -33,7 +33,7 @@ struct PDSingleBodyAnalysis{M, T} <:
                                   precracks::Vector{PreCrack} = Vector{PreCrack}(),
                                   bcs::Vector{<:AbstractBC} = Vector{AbstractBC}(),
                                   ics::Vector{<:AbstractIC} = Vector{AbstractIC}(), td::T,
-                                  es::ExportSettings) where {M <: AbstractPDMaterial,
+                                  es::ExportSettings) where {M <: AbstractMaterial,
                                                              T <:
                                                              AbstractTimeDiscretization}
         es.resultfile_prefix = joinpath(es.path, name)

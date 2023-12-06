@@ -55,13 +55,13 @@ Different material properties are used for the plate and the spheres.
 - Youngs modulus $E = 210 \times 10^9 \, \mathrm{Pa}$
 - Griffith's parameter $G_c = 1000 \, \mathrm{N} \, \mathrm{m}^{-1}$
 ```julia
-matₚ = BondBasedMaterial(;
+matₚ = BBMaterial(;
     horizon=3.015Δxₚ,
     rho=2000.0,
     E=30e9,
     Gc=10.0,
 )
-matₛ = BondBasedMaterial(;
+matₛ = BBMaterial(;
     horizon=3.015Δxₛ,
     rho=7850.0,
     E=210e9,

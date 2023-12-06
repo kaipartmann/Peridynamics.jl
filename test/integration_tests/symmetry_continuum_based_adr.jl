@@ -21,7 +21,7 @@ zp = findall(positions[3,:] .> 0)
 zm = findall(positions[3,:] .< 0)
 
 # define the material
-mat = ContinuumBasedMaterial(horizon = 3.015point_spacing, rho=7850.0, E=210e9, nu=0.3, Gc=1.0)
+mat = CPDMaterial(horizon = 3.015point_spacing, rho=7850.0, E=210e9, nu=0.3, Gc=1.0)
 
 # boundary conditions
 fun1(t) = 0.0001

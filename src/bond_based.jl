@@ -1,5 +1,5 @@
 """
-    BondBasedMaterial <: AbstractPDMaterial
+    BBMaterial <: AbstractMaterial
 
 Bond based peridynamic material model.
 
@@ -16,7 +16,7 @@ Bond based peridynamic material model.
 
 ---
 ```julia
-BondBasedMaterial(; horizon::Real, rho::Real, E::Real, [Gc::Real, epsilon_c::Real])
+BBMaterial(; horizon::Real, rho::Real, E::Real, [Gc::Real, epsilon_c::Real])
 ```
 
 Specify a material with `horizon`, density `rho`, Young's modulus `E` and either the
@@ -29,7 +29,7 @@ critical energy release rate `Gc` or the critical bond strain `epsilon_c`.
 - `Gc::Real`: critical energy release rate
 - `epsilon_c::Real`: critical bond strain
 """
-struct BondBasedMaterial <: AbstractPDMaterial
+struct BBMaterial <: AbstractMaterial
     δ::Float64
     rho::Float64
     E::Float64
@@ -41,7 +41,7 @@ struct BondBasedMaterial <: AbstractPDMaterial
     εc::Float64
 end
 
-function BondBasedMaterial(; horizon::Real, rho::Real, E::Real, Gc::Real = -1,
+function BBMaterial(; horizon::Real, rho::Real, E::Real, Gc::Real = -1,
                            epsilon_c::Real = -1)
     nu = 0.25 # limitation of the bond-based formulation
     G = E / (2 * (1 + nu))
@@ -57,10 +57,10 @@ function BondBasedMaterial(; horizon::Real, rho::Real, E::Real, Gc::Real = -1,
     elseif (Gc == -1) && (epsilon_c == -1)
         throw(ArgumentError("Either Gc or epsilon_c have to be defined!"))
     end
-    return BondBasedMaterial(horizon, rho, E, nu, G, K, bc, Gc, epsilon_c)
+    return BBMaterial(horizon, rho, E, nu, G, K, bc, Gc, epsilon_c)
 end
 
-function Base.show(io::IO, ::MIME"text/plain", mat::BondBasedMaterial)
+function Base.show(io::IO, ::MIME"text/plain", mat::BBMaterial)
     print(io, typeof(mat), ":")
     for field in fieldnames(typeof(mat))
         msg = "\n  " * rpad(string(field) * ":", 5) * string(getfield(mat, field))
@@ -101,11 +101,11 @@ peridynamics.
 
 ---
 ```julia
-BondBasedBody(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud)
+BondBasedBody(mat::PDMaterial{BBMaterial}, pc::PointCloud)
 ```
 
 # Arguments:
-- `mat::PDMaterial{BondBasedMaterial}`:
+- `mat::PDMaterial{BBMaterial}`:
 - `pc::PointCloud`:
 
 """
@@ -134,7 +134,7 @@ struct BondBasedBody <: AbstractPDBody
     bond_failure::Vector{Int}
 end
 
-function BondBasedBody(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud)
+function BondBasedBody(mat::PDMaterial{BBMaterial}, pc::PointCloud)
     n_threads = nthreads()
     n_points = pc.n_points
     @assert n_points>=n_threads "n_points < n_threads"
@@ -181,9 +181,9 @@ function Base.show(io::IO, ::MIME"text/plain", body::BondBasedBody)
     return nothing
 end
 
-init_body(mat::PDMaterial{BondBasedMaterial}, pc::PointCloud) = BondBasedBody(mat, pc)
+init_body(mat::PDMaterial{BBMaterial}, pc::PointCloud) = BondBasedBody(mat, pc)
 
-function compute_forcedensity!(body::BondBasedBody, mat::PDMaterial{BondBasedMaterial})
+function compute_forcedensity!(body::BondBasedBody, mat::PDMaterial{BBMaterial})
     body.b_int .= 0.0
     body.n_active_family_members .= 0
     @inbounds @threads for tid in 1:body.n_threads

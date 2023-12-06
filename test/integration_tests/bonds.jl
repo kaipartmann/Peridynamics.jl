@@ -8,8 +8,8 @@ if Threads.nthreads() <= 2
     ]
     n_points = 2
     pc = PointCloud(positions, ones(n_points))
-    mat = BondBasedMaterial(horizon=1.5, rho=1, E=1, Gc=1)
-    mat_δ⁻ = BondBasedMaterial(horizon=0.9, rho=1, E=1, Gc=1)
+    mat = BBMaterial(horizon=1.5, rho=1, E=1, Gc=1)
+    mat_δ⁻ = BBMaterial(horizon=0.9, rho=1, E=1, Gc=1)
 
     owned_points = Peridynamics.defaultdist(n_points, Threads.nthreads())
     bond_data, n_family_members = Peridynamics.find_bonds(pc, mat, owned_points)

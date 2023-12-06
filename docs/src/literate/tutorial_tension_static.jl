@@ -20,7 +20,7 @@ pc.failure_flag .= false
 # - Density $\rho = 2700\,\mathrm{kg}\,\mathrm{m}^{-3}$
 # - Youngs modulus $E = 70 \times 10^9 \, \mathrm{Pa}$
 # - Griffith's parameter $G_c = 100 \, \mathrm{N} \, \mathrm{m}^{-1}$
-mat = BondBasedMaterial(; horizon=0.01, rho=2700, E=70e9, Gc=100)
+mat = BBMaterial(; horizon=0.01, rho=2700, E=70e9, Gc=100)
 
 #-
 # As loading condition for the specimen, a constant force density of $1 \times 10^9 \, \mathrm{N}\,\mathrm{m}^{-3}$ in $x$-direction is set for the bottom and top.
