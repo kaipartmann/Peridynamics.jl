@@ -51,6 +51,11 @@ makedocs(;
     draft = LIVE_MODE,
     pages = [
         "Home" => "index.md",
+        "Material models" => [
+            "general_pd.md",
+            "bondbased.md",
+            "continuumbased.md",
+        ],
         "How-to guides" => [
             joinpath("generated", "howto_single_body_analysis.md"),
             joinpath("generated", "howto_contact_analysis.md"),
