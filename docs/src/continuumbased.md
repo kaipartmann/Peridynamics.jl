@@ -9,6 +9,10 @@ The internal force density is calculated as the sum of three types of point inte
 
 ## One-neighbor interactions
 
+```@raw html
+<img src="/assets/PD_OneNI_1.png?raw=true" width="250"/>
+```
+
 One-neighbor interactions in CPD correspond to the bonds in bond-based peridynamics, but there is a slightly different way to calculate the internal forces.
 
 First, the neighborhood volume is determined:
@@ -18,9 +22,9 @@ V_\mathcal{H}^i = \beta^i \cdot \frac {4} {3} \cdot\pi\cdot\delta^3
 
 Here $\beta^i\in [0,1]$ is a factor for the completeness of the neighborhood that takes incomplete point families at the surface into account (see figure 1).
 
-![figure 1](../assets/OberflaechenEffekt_3.png)
-
-[<img src="../assets/OberflaechenEffekt_3.png" width="250"/>](../assets/OberflaechenEffekt_3.png)
+```@raw html
+<img src="/assets/OberflaechenEffekt_3.png?raw=true" width="250"/>
+```
 
 Now, the effective one-neighbor volume can be calculated
 ```math
@@ -46,6 +50,10 @@ with the parameters:
 
 
 ## Two-neighbor interactions
+
+```@raw html
+<img src="/assets/PD_TwoNI_1.png?raw=true" width="250"/>
+```
 
 For two-neighbor interactions, the deformation of the area spanned by point $i$ and two of its neighbors $j$ and $k$ is analyzed to calculate the internal force density. For this, relative area measures are defined:
 
@@ -76,6 +84,10 @@ The internal force density induced by two-neighbor interactions is
 | number of two-neighbor interactions   |      $N_2^i$      | $[-]$ |
 
 ## Three-neighbor interactions
+
+```@raw html
+<img src="/assets/PD_ThreeNI_1.png?raw=true" width="250"/>
+```
 
 Three-neighbor interactions regard the volume defined by the bond vectors between point $i$ and its three neighbors $j$, $k$ and $l$:
 
