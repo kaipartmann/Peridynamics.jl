@@ -1,5 +1,11 @@
 abstract type AbstractPDBody end
 
+abstract type AbstractSimParameters end
+
+abstract type AbstractGlobalStorage end
+
+abstract type AbstractChunkLocalStorage end
+
 """
     AbstractMaterial
 

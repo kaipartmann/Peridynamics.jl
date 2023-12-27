@@ -69,119 +69,211 @@ function Base.show(io::IO, ::MIME"text/plain", mat::BBMaterial)
     return nothing
 end
 
-"""
-    BondBasedBody
+# """
+#     BondBasedBody
 
-Simulation body that contains all needed informations to run a simulation with bond-based
-peridynamics.
+# Simulation body that contains all needed informations to run a simulation with bond-based
+# peridynamics.
 
-# Fields
-- `n_points::Int`:
-- `n_bonds::Int`:
-- `n_threads::Int`:
-- `unique_bonds::Bool`:
-- `owned_points::Vector{UnitRange{Int}}`:
-- `owned_bonds::Vector{UnitRange{Int}}`:
-- `single_tids::Vector{Tuple{Int, Int}}`:
-- `multi_tids::Vector{Tuple{Int, Vector{Int}}}`:
-- `bond_data::Vector{Tuple{Int, Int, Float64, Bool}}`:
-- `volume::Vector{Float64}`:
-- `cells::Vector{MeshCell{VTKCellType, Tuple{Int64}}}`:
-- `n_family_members::Vector{Int}`:
-- `n_active_family_members::Matrix{Int}`:
-- `position::Matrix{Float64}`:
-- `displacement::Matrix{Float64}`:
-- `velocity::Matrix{Float64}`:
-- `velocity_half::Matrix{Float64}`:
-- `acceleration::Matrix{Float64}`:
-- `b_int::Array{Float64, 3}`:
-- `b_ext::Matrix{Float64}`:
-- `damage::Vector{Float64}`:
-- `bond_failure::Vector{Int}`:
+# # Fields
+# - `n_points::Int`:
+# - `n_bonds::Int`:
+# - `n_threads::Int`:
+# - `unique_bonds::Bool`:
+# - `owned_points::Vector{UnitRange{Int}}`:
+# - `owned_bonds::Vector{UnitRange{Int}}`:
+# - `single_tids::Vector{Tuple{Int, Int}}`:
+# - `multi_tids::Vector{Tuple{Int, Vector{Int}}}`:
+# - `bond_data::Vector{Tuple{Int, Int, Float64, Bool}}`:
+# - `volume::Vector{Float64}`:
+# - `cells::Vector{MeshCell{VTKCellType, Tuple{Int64}}}`:
+# - `n_family_members::Vector{Int}`:
+# - `n_active_family_members::Matrix{Int}`:
+# - `position::Matrix{Float64}`:
+# - `displacement::Matrix{Float64}`:
+# - `velocity::Matrix{Float64}`:
+# - `velocity_half::Matrix{Float64}`:
+# - `acceleration::Matrix{Float64}`:
+# - `b_int::Array{Float64, 3}`:
+# - `b_ext::Matrix{Float64}`:
+# - `damage::Vector{Float64}`:
+# - `bond_failure::Vector{Int}`:
 
----
-```julia
-BondBasedBody(mat::PDMaterial{BBMaterial}, pc::PointCloud)
-```
+# ---
+# ```julia
+# BondBasedBody(mat::PDMaterial{BBMaterial}, pc::PointCloud)
+# ```
 
-# Arguments:
-- `mat::PDMaterial{BBMaterial}`:
-- `pc::PointCloud`:
+# # Arguments:
+# - `mat::PDMaterial{BBMaterial}`:
+# - `pc::PointCloud`:
 
-"""
-struct BondBasedBody <: AbstractPDBody
-    n_points::Int
-    n_bonds::Int
-    n_threads::Int
-    unique_bonds::Bool
-    owned_points::Vector{UnitRange{Int}}
-    owned_bonds::Vector{UnitRange{Int}}
-    single_tids::Vector{Tuple{Int, Int}}
-    multi_tids::Vector{Tuple{Int, Vector{Int}}}
-    bond_data::Vector{Tuple{Int, Int, Float64, Bool}}
-    volume::Vector{Float64}
+# """
+# struct BondBasedBody <: AbstractPDBody
+#     n_points::Int
+#     n_bonds::Int
+#     n_threads::Int
+#     unique_bonds::Bool
+#     owned_points::Vector{UnitRange{Int}}
+#     owned_bonds::Vector{UnitRange{Int}}
+#     single_tids::Vector{Tuple{Int, Int}}
+#     multi_tids::Vector{Tuple{Int, Vector{Int}}}
+#     bond_data::Vector{Tuple{Int, Int, Float64, Bool}}
+#     volume::Vector{Float64}
+#     cells::Vector{MeshCell{VTKCellType, Tuple{Int64}}}
+#     n_family_members::Vector{Int}
+#     n_active_family_members::Matrix{Int}
+#     position::Matrix{Float64}
+#     displacement::Matrix{Float64}
+#     velocity::Matrix{Float64}
+#     velocity_half::Matrix{Float64}
+#     acceleration::Matrix{Float64}
+#     b_int::Array{Float64, 3}
+#     b_ext::Matrix{Float64}
+#     damage::Vector{Float64}
+#     bond_failure::Vector{Int}
+# end
+
+# function BondBasedBody(mat::PDMaterial{BBMaterial}, pc::PointCloud)
+#     n_threads = nthreads()
+#     n_points = pc.n_points
+#     @assert n_points>=n_threads "n_points < n_threads"
+#     owned_points = defaultdist(n_points, n_threads)
+#     volume = pc.volume
+#     cells = get_cells(n_points)
+#     position = pc.position
+#     displacement = zeros(Float64, (3, n_points))
+#     velocity = zeros(Float64, (3, n_points))
+#     velocity_half = zeros(Float64, (3, n_points))
+#     acceleration = zeros(Float64, (3, n_points))
+#     forcedensity_ext = zeros(Float64, (3, n_points))
+#     damage = zeros(Int, n_points)
+#     forcedensity_int = zeros(Float64, (3, n_points, n_threads))
+#     unique_bonds = true
+#     bond_data, n_family_members = find_unique_bonds(pc, mat, owned_points)
+#     n_bonds = length(bond_data)
+#     owned_bonds = defaultdist(n_bonds, n_threads)
+#     bond_failure = ones(Int, n_bonds)
+#     n_active_family_members = zeros(Int, (n_points, n_threads))
+#     _sum_tids = zeros(Bool, (n_points, n_threads))
+#     _sum_tids .= false
+#     @threads for tid in 1:n_threads
+#         for current_bond in owned_bonds[tid]
+#             (i, j, _, _) = bond_data[current_bond]
+#             n_active_family_members[i, tid] += 1
+#             n_active_family_members[j, tid] += 1
+#             _sum_tids[i, tid] = true
+#             _sum_tids[j, tid] = true
+#         end
+#     end
+#     sum_tids = [findall(row) for row in eachrow(_sum_tids)]
+#     single_tids, multi_tids = find_tids(sum_tids)
+#     return BondBasedBody(n_points, n_bonds, n_threads, unique_bonds, owned_points,
+#                          owned_bonds, single_tids, multi_tids, bond_data, volume, cells,
+#                          n_family_members, n_active_family_members, position, displacement,
+#                          velocity, velocity_half, acceleration, forcedensity_int,
+#                          forcedensity_ext, damage, bond_failure)
+# end
+
+# function Base.show(io::IO, ::MIME"text/plain", body::BondBasedBody)
+#     println(io, body.n_points, "-points ", typeof(body), ":")
+#     print(io, "  ", body.n_bonds, " bonds")
+#     return nothing
+# end
+
+# init_body(mat::PDMaterial{BBMaterial}, pc::PointCloud) = BondBasedBody(mat, pc)
+
+struct BBSimParameters <: AbstractSimParameters
+    n_chunks::Int
+    mat::PDMaterial{BBMaterial}
+    pc::PointCloud
     cells::Vector{MeshCell{VTKCellType, Tuple{Int64}}}
+    n_bonds::Int
+    bonds::Vector{Int}
+    init_dists::Vector{Float64}
+    failure_allowed::Vector{Bool}
     n_family_members::Vector{Int}
-    n_active_family_members::Matrix{Int}
+    hood_range::Vector{UnitRange{Int}}
+    bcs::Vector{<:AbstractBC}
+    ics::Vector{<:AbstractIC}
+
+    function BBSimParameters(mat::PDMaterial{BBMaterial}, pc::PointCloud,
+                             bcs::Vector{<:AbstractBC}, ics::Vector{<:AbstractIC},
+                             n_chunks::Int)
+
+        point_dist = defaultdist(pc.n_points, n_chunks)
+        @assert length(point_dist) == n_chunks
+        bonds, n_family_members, init_dists, failure_allowed = find_bonds(pc, mat.δ, point_dist)
+        n_bonds = length(bonds)
+        cells = get_cells(pc.n_points)
+        hood_range = find_hood_range(n_family_members, pc.n_points)
+        return new(n_chunks, mat, pc, cells, n_bonds, bonds, init_dists, failure_allowed,
+                   n_family_members, hood_range, bcs, ics)
+    end
+end
+
+struct BBGlobalStorage <: AbstractGlobalStorage
     position::Matrix{Float64}
     displacement::Matrix{Float64}
     velocity::Matrix{Float64}
     velocity_half::Matrix{Float64}
     acceleration::Matrix{Float64}
-    b_int::Array{Float64, 3}
-    b_ext::Matrix{Float64}
-    damage::Vector{Float64}
     bond_failure::Vector{Int}
-end
+    damage::Vector{Float64}
+    b_int::Matrix{Float64}
+    b_ext::Matrix{Float64}
+    n_active_family_members::Vector{Int}
 
-function BondBasedBody(mat::PDMaterial{BBMaterial}, pc::PointCloud)
-    n_threads = nthreads()
-    n_points = pc.n_points
-    @assert n_points>=n_threads "n_points < n_threads"
-    owned_points = defaultdist(n_points, n_threads)
-    volume = pc.volume
-    cells = get_cells(n_points)
-    position = pc.position
-    displacement = zeros(Float64, (3, n_points))
-    velocity = zeros(Float64, (3, n_points))
-    velocity_half = zeros(Float64, (3, n_points))
-    acceleration = zeros(Float64, (3, n_points))
-    forcedensity_ext = zeros(Float64, (3, n_points))
-    damage = zeros(Int, n_points)
-    forcedensity_int = zeros(Float64, (3, n_points, n_threads))
-    unique_bonds = true
-    bond_data, n_family_members = find_unique_bonds(pc, mat, owned_points)
-    n_bonds = length(bond_data)
-    owned_bonds = defaultdist(n_bonds, n_threads)
-    bond_failure = ones(Int, n_bonds)
-    n_active_family_members = zeros(Int, (n_points, n_threads))
-    _sum_tids = zeros(Bool, (n_points, n_threads))
-    _sum_tids .= false
-    @threads for tid in 1:n_threads
-        for current_bond in owned_bonds[tid]
-            (i, j, _, _) = bond_data[current_bond]
-            n_active_family_members[i, tid] += 1
-            n_active_family_members[j, tid] += 1
-            _sum_tids[i, tid] = true
-            _sum_tids[j, tid] = true
-        end
+    function BBGlobalStorage(sp::BBSimParameters)
+        position = copy(sp.pc.position)
+        displacement = zeros(3, sp.pc.n_points)
+        velocity = zeros(3, sp.pc.n_points)
+        velocity_half = zeros(3, sp.pc.n_points)
+        acceleration = zeros(3, sp.pc.n_points)
+        b_int = zeros(3, sp.pc.n_points)
+        b_ext = zeros(3, sp.pc.n_points)
+        bond_failure = ones(Int, sp.n_bonds)
+        damage = zeros(sp.pc.n_points)
+        n_active_family_members = copy(sp.n_family_members)
+        return new(position, displacement, velocity, velocity_half, acceleration,
+                   bond_failure, damage, b_int, b_ext, n_active_family_members)
     end
-    sum_tids = [findall(row) for row in eachrow(_sum_tids)]
-    single_tids, multi_tids = find_tids(sum_tids)
-    return BondBasedBody(n_points, n_bonds, n_threads, unique_bonds, owned_points,
-                         owned_bonds, single_tids, multi_tids, bond_data, volume, cells,
-                         n_family_members, n_active_family_members, position, displacement,
-                         velocity, velocity_half, acceleration, forcedensity_int,
-                         forcedensity_ext, damage, bond_failure)
 end
 
-function Base.show(io::IO, ::MIME"text/plain", body::BondBasedBody)
-    println(io, body.n_points, "-points ", typeof(body), ":")
-    print(io, "  ", body.n_bonds, " bonds")
-    return nothing
+struct BBChunkLocalStorage <: AbstractChunkLocalStorage
+    cl_points::UnitRange{Int}
+    pointmap::Dict{Int,Int}
+    b_int::Matrix{Float64}
+    n_active_family_members::Vector{Int}
 end
 
-init_body(mat::PDMaterial{BBMaterial}, pc::PointCloud) = BondBasedBody(mat, pc)
+function init_chunk_local_storages(sp::BBSimParameters)
+    vcls = Vector{BBChunkLocalStorage}(undef, sp.n_chunks)
+    @threads :static for cid in 1:n_chunks
+        cl_points = sp.point_dist[cid]
+        pointmap = Dict{Int,Int}()
+        n_local_points = 0
+        for i in cl_points
+            if i in keys(pointmap)
+                error("key $i is already defined in the pointmap dict!\n")
+            end
+            n_local_points += 1
+            pointmap[i] = n_local_points
+        end
+        @assert length(pointmap) == n_local_points
+        b_int_local = zeros(3, n_local_points)
+        n_active_family_members_local = zeros(n_local_points)
+        for (gi, li) in pointmap
+            if li > n_local_points
+                error("local_index > n_local_points!\n")
+            end
+            n_active_family_members_local[li] = n_family_members[gi]
+        end
+        vcls[cid] = ChunkLocalStorage(cl_points, pointmap, b_int_local,
+                                    n_active_family_members_local)
+    end
+    return vcls
+end
 
 function compute_forcedensity!(body::BondBasedBody, mat::PDMaterial{BBMaterial})
     body.b_int .= 0.0

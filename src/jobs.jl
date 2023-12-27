@@ -59,7 +59,7 @@ function submit(sim::PDSingleBodyAnalysis)
     timingsummary = @timed begin
         log_header(sim.es)
         log_describe_sim(sim.name, sim.pc, sim.mat, sim.es)
-        body = init_body(sim.mat, sim.pc)
+        # sp,  = init_body(sim.mat, sim.pc)
         log_describe_interactions(body, sim.es)
         for precrack in sim.precracks
             define_precrack!(body, precrack)
