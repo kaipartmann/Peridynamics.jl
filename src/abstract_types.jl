@@ -1,17 +1,11 @@
 abstract type AbstractPDBody end
 
-abstract type AbstractSimParameters end
-
-abstract type AbstractGlobalStorage end
-
-abstract type AbstractChunkLocalStorage end
-
 """
-    AbstractMaterial
+    AbstractPDMaterial
 
 Abstract type for a peridynamic material.
 """
-abstract type AbstractMaterial end
+abstract type AbstractPDMaterial end
 
 """
     AbstractBC

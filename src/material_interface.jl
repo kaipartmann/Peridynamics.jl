@@ -1,8 +1,9 @@
+"""
+    init_body(mat::PDMaterial, pc::PointCloud)
 
-function init_sim_parameters end
-
-function init_global_storage end
-
-function init_chunk_local_storage end
+Material interface function for initialization of the `body <: AbstractPDBody` used for
+the simulation.
+"""
+function init_body end
 
 function compute_forcedensity! end

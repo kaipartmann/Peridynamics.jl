@@ -8,7 +8,7 @@ using Base.Threads
 export PointCloud, PreCrack, pcmerge
 export VelocityBC, VelocityIC, ForceDensityBC, PosDepVelBC
 export VelocityVerlet, DynamicRelaxation, ExportSettings
-export MultiMaterial, BBMaterial#, CPDMaterial
+export MultiMaterial, BondBasedMaterial, ContinuumBasedMaterial
 export Contact, BodySetup
 export PDSingleBodyAnalysis, PDContactAnalysis, submit
 export read_inp, read_vtk
@@ -22,13 +22,13 @@ include("io.jl")
 include("velocity_verlet.jl")
 include("dynamic_relaxation.jl")
 include("jobs.jl")
-# include("contact.jl")
+include("contact.jl")
 include("utilities.jl")
 
 # Material models
 include("material_interface.jl")
 include("bond_based.jl")
-# include("continuum_based.jl")
+include("continuum_based.jl")
 
 # Helper modules
 # Convert Abaqus mesh to PointCloud

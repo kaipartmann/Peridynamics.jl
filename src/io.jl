@@ -80,7 +80,7 @@ function describe_geometry(pc::PointCloud)
     return msg
 end
 
-function describe_mat(mat::AbstractMaterial)
+function describe_mat(mat::AbstractPDMaterial)
     msg = @sprintf "  - Horizon δ [m]:                      %30g\n" mat.δ
     msg *= @sprintf "  - Density ρ [kg/m³]:                  %30g\n" mat.rho
     msg *= @sprintf "  - Young's modulus E [N/m²]:           %30g\n" mat.E

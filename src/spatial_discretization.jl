@@ -323,47 +323,41 @@ function calc_damage!(body::AbstractPDBody)
     return nothing
 end
 
-function find_bonds(pc::PointCloud, mat::PDMaterial, point_dist::Vector{UnitRange{Int}})
-    n_chunks = length(point_dist)
-    _bonds = Vector{Vector{Int}}(undef, n_chunks)
-    _init_dists = Vector{Vector{Float64}}(undef, n_chunks)
-    _failure_allowed = Vector{Vector{Bool}}(undef, n_chunks)
+function find_bonds(pc::PointCloud, mat::PDMaterial, owned_points::Vector{UnitRange{Int}})
+    n_threads = nthreads()
+    _bond_data = fill([(0, 0, 0.0, true)], n_threads)
     n_family_members = zeros(Int, pc.n_points)
     p = Progress(pc.n_points; dt = 1, desc = "Search bonds...     ", barlen = 30,
                  color = :normal, enabled = !is_logging(stderr))
-    @threads :static for cid in 1:n_chunks
-        local_bonds = Vector{Int}()
-        local_init_dists = Vector{Float64}()
-        local_failure_allowed = Vector{Bool}()
-        for i in point_dist[cid]
+    @threads for tid in 1:n_threads
+        local_bond_data = Vector{Tuple{Int, Int, Float64, Bool}}(undef, 0)
+        sizehint!(local_bond_data, pc.n_points * 500)
+        idst = 0.0
+        num = 0
+        fail = false
+        for a in owned_points[tid]
             num = 0
-            δ = mat[i].δ
-            for j in 1:pc.n_points
-                if i !== j
-                    idst = sqrt((pc.position[1, j] - pc.position[1, i])^2 +
-                                (pc.position[2, j] - pc.position[2, i])^2 +
-                                (pc.position[3, j] - pc.position[3, i])^2)
+            δ = mat[a].δ
+            for i in 1:pc.n_points
+                if a !== i
+                    idst = sqrt((pc.position[1, i] - pc.position[1, a])^2 +
+                                (pc.position[2, i] - pc.position[2, a])^2 +
+                                (pc.position[3, i] - pc.position[3, a])^2)
                     if idst <= δ
                         num += 1
-                        fail = pc.failure_allowed[i] & pc.failure_allowed[j]
-                        push!(local_bonds, j)
-                        push!(local_init_dists, idst)
-                        push!(local_failure_allowed, fail)
+                        fail = pc.failure_flag[a] & pc.failure_flag[i]
+                        push!(local_bond_data, (a, i, idst, fail))
                     end
                 end
             end
-            n_family_members[i] = num
+            n_family_members[a] = num
             next!(p)
         end
-        _bonds[cid] = local_bonds
-        _init_dists[cid] = local_init_dists
-        _failure_allowed[cid] = local_failure_allowed
+        _bond_data[tid] = local_bond_data
     end
     finish!(p)
-    bonds = reduce(append!, _bonds)
-    init_dists = reduce(append!, _init_dists)
-    failure_allowed = reduce(append!, _failure_allowed)
-    return bonds, n_family_members, init_dists, failure_allowed
+    bond_data = reduce(append!, _bond_data)
+    return bond_data, n_family_members
 end
 
 function find_unique_bonds(pc::PointCloud, mat::PDMaterial,
@@ -403,16 +397,6 @@ function find_unique_bonds(pc::PointCloud, mat::PDMaterial,
     finish!(p)
     one_ni_data = unique(reduce(append!, _bond_data))
     return one_ni_data, n_family_members
-end
-
-function find_hood_range(n_family_members::Vector{Int}, n_points::Int)
-    hood_range = fill(0:0, n_points)
-    cbond = 1
-    for i in 1:n_points
-        hood_range[i] = cbond:(cbond + n_family_members[i] - 1)
-        cbond += n_family_members[i]
-    end
-    return hood_range
 end
 
 get_cells(n::Int) = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in 1:n]

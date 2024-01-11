@@ -1,5 +1,5 @@
 """
-    MultiMaterial{T <: AbstractMaterial, N, I <: Integer}
+    MultiMaterial{T <: AbstractPDMaterial, N, I <: Integer}
 
 Multiple material properties for one body.
 
@@ -9,8 +9,8 @@ Multiple material properties for one body.
 
 # Example
 ```julia-repl
-julia> mat1 = BBMaterial(horizon=1, rho=8e-6, E=2.1e5, Gc=2)
-BBMaterial:
+julia> mat1 = BondBasedMaterial(horizon=1, rho=8e-6, E=2.1e5, Gc=2)
+BondBasedMaterial:
   δ:   1.0
   rho: 8.0e-6
   E:   210000.0
@@ -21,8 +21,8 @@ BBMaterial:
   Gc:  2.0
   εc:  0.0028171808490950554
 
-julia> mat2 = BBMaterial(horizon=1.1, rho=3e-6, E=2.7e4, Gc=1)
-BBMaterial:
+julia> mat2 = BondBasedMaterial(horizon=1.1, rho=3e-6, E=2.7e4, Gc=1)
+BondBasedMaterial:
   δ:   1.1
   rho: 3.0e-6
   E:   27000.0
@@ -41,15 +41,15 @@ julia> matofpoint = [1, 1, 2, 2] # points 1:2 -> mat1; points 3:4 -> mat2
  2
 
 julia> mm = MultiMaterial((mat1, mat2), matofpoint)
-MultiMaterial{BBMaterial, 2, UInt8} for 4 points
+MultiMaterial{BondBasedMaterial, 2, UInt8} for 4 points
 ```
 """
-struct MultiMaterial{T <: AbstractMaterial, N, I <: Integer}
+struct MultiMaterial{T <: AbstractPDMaterial, N, I <: Integer}
     materials::NTuple{N, T}
     matofpoint::Vector{I}
 
     function MultiMaterial(materials::NTuple{N, T},
-                           matofpoint::AbstractVector{I}) where {T <: AbstractMaterial, N,
+                           matofpoint::AbstractVector{I}) where {T <: AbstractPDMaterial, N,
                                                                  I <: Integer}
         if N == 1
             error("N = 1\nUsage of MultiMaterial only makes sense for N > 1")
@@ -75,7 +75,7 @@ function Base.show(io::IO, ::MIME"text/plain", mm::MultiMaterial)
     return nothing
 end
 
-const PDMaterial{T} = Union{T, MultiMaterial{T, N}} where {T <: AbstractMaterial, N}
+const PDMaterial{T} = Union{T, MultiMaterial{T, N}} where {T <: AbstractPDMaterial, N}
 
 Base.getindex(mm::MultiMaterial, i::Int) = mm.materials[mm.matofpoint[i]]
 function Base.getindex(mm::MultiMaterial, I::AbstractVector{T}) where {T <: Integer}
@@ -87,10 +87,10 @@ Base.lastindex(mm::MultiMaterial) = length(mm.matofpoint)
 
 Base.eltype(::MultiMaterial{T}) where {T} = T
 
-Base.getindex(mat::AbstractMaterial, ::Int) = mat
-Base.getindex(mat::AbstractMaterial, ::AbstractVector{T}) where {T <: Integer} = mat
-Base.getindex(mat::AbstractMaterial, ::Colon) = mat
-Base.firstindex(::AbstractMaterial) = 1
-Base.lastindex(::AbstractMaterial) = 1
+Base.getindex(mat::AbstractPDMaterial, ::Int) = mat
+Base.getindex(mat::AbstractPDMaterial, ::AbstractVector{T}) where {T <: Integer} = mat
+Base.getindex(mat::AbstractPDMaterial, ::Colon) = mat
+Base.firstindex(::AbstractPDMaterial) = 1
+Base.lastindex(::AbstractPDMaterial) = 1
 
-Base.eltype(::T) where {T <: AbstractMaterial} = T
+Base.eltype(::T) where {T <: AbstractPDMaterial} = T

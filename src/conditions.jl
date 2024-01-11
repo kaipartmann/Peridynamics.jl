@@ -49,8 +49,8 @@ julia> VelocityBC(t -> 0.1, 1:10, 2)
 VelocityBC(var"#7#8"(), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 2)
 ```
 """
-struct VelocityBC{F <: Function} <: AbstractBC
-    fun::F
+struct VelocityBC <: AbstractBC
+    fun::Function
     point_id_set::Vector{Int}
     dim::Int
 end
@@ -72,8 +72,8 @@ gets applied every timestep
 - y-direction: `dim=2`
 - z-direction: `dim=3`
 """
-struct ForceDensityBC{F <: Function} <: AbstractBC
-    fun::F
+struct ForceDensityBC <: AbstractBC
+    fun::Function
     point_id_set::Vector{Int}
     dim::Int
 end
@@ -117,8 +117,8 @@ gets applied to
 - y-direction: `dim=2`
 - z-direction: `dim=3`
 """
-struct PosDepVelBC{F <: Function} <: AbstractBC
-    fun::F
+struct PosDepVelBC <: AbstractBC
+    fun::Function
     point_id_set::Vector{Int}
     dim::Int
 end
@@ -133,8 +133,8 @@ end
 function apply_boundarycondition!(body::AbstractPDBody, bc::VelocityBC, t::Float64)
     value = bc.fun(t)
     dim = bc.dim
-    @simd for i in bc.point_id_set
-        @inbounds body.velocity_half[dim, i] = value
+    @inbounds @simd for i in bc.point_id_set
+        body.velocity_half[dim, i] = value
     end
     return nothing
 end
@@ -142,16 +142,16 @@ end
 function apply_boundarycondition!(body::AbstractPDBody, bc::ForceDensityBC, t::Float64)
     value = bc.fun(t)
     dim = bc.dim
-    @simd for i in bc.point_id_set
-        @inbounds body.b_ext[dim, i] = value
+    @inbounds @simd for i in bc.point_id_set
+        body.b_ext[dim, i] = value
     end
     return nothing
 end
 
 function apply_boundarycondition!(body::AbstractPDBody, bc::PosDepVelBC, t::Float64)
     dim = bc.dim
-    @simd for i in bc.point_id_set
-        @inbounds body.velocity_half[dim, i] = bc.fun(body.position[1, i], body.position[2, i],
+    @inbounds @simd for i in bc.point_id_set
+        body.velocity_half[dim, i] = bc.fun(body.position[1, i], body.position[2, i],
                                             body.position[3, i], t)
     end
     return nothing
@@ -166,8 +166,8 @@ end
 
 function apply_initialcondition!(body::AbstractPDBody, ic::VelocityIC)
     dim = ic.dim
-    @simd for i in ic.point_id_set
-        @inbounds body.velocity[dim, i] = ic.val
+    @inbounds @simd for i in ic.point_id_set
+        body.velocity[dim, i] = ic.val
     end
     return nothing
 end
