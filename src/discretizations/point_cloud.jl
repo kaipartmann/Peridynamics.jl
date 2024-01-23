@@ -7,7 +7,7 @@ Peridynamic spatial discretization with material points defining a point cloud.
 - `n_points::Int`: number of material points
 - `position::Matrix{Float64}`: coordinates of points in reference configuration
 - `volume::Vector{Float64}`: material point volumes
-- `failure_flag::BitVector`: if failure of point is possible: element=`true`
+- `failure_allowed::BitVector`: if failure of point is possible: element=`true`
 - `radius::Vector{Float64}`: radius of the material point sphere
 
 ---
@@ -17,7 +17,7 @@ PointCloud(position, volume[, point_sets])
 
 Create a `PointCloud` by specifying position and volume of all material points. The radius
 of the point sphere is derived from the volume with the function [`sphere_radius`](@ref) and
-the `failure_flag` set to `true` for all points.
+the `failure_allowed` set to `true` for all points.
 
 # Arguments
 - `position::Matrix{Float64}`: the position of the material points ($3 \times N$-matrix for
@@ -52,7 +52,7 @@ julia> volume = [1.0, 1.0, 1.0, 1.0]
 julia> pc = PointCloud(position, volume)
 4-points PointCloud
 
-julia> pc.failure_flag
+julia> pc.failure_allowed
 4-element BitVector:
  1
  1
@@ -100,12 +100,12 @@ struct PointCloud
     n_points::Int
     position::Matrix{Float64}
     volume::Vector{Float64}
-    failure_flag::BitVector
+    failure_allowed::BitVector
     radius::Vector{Float64}
     point_sets::Dict{String, Vector{Int}}
 
     function PointCloud(n_points::Int, position::AbstractMatrix, volume::AbstractVector,
-                        failure_flag::BitVector, radius::AbstractVector,
+                        failure_allowed::BitVector, radius::AbstractVector,
                         point_sets::Dict{String, Vector{Int}})
 
         # check if n_points is greater than zero
@@ -129,12 +129,12 @@ struct PointCloud
             throw(DimensionMismatch(err_msg))
         end
 
-        # check dimension of failure_flag
-        n_points_failure_flag = length(failure_flag)
-        if n_points_failure_flag != n_points
-            err_msg = "Incorrect length of `failure_flag`!\n"
+        # check dimension of failure_allowed
+        n_points_failure_allowed = length(failure_allowed)
+        if n_points_failure_allowed != n_points
+            err_msg = "Incorrect length of `failure_allowed`!\n"
             err_msg *= @sprintf("  Should be: %d\n", n_points)
-            err_msg *= @sprintf("  Evaluated: %d\n", n_points_failure_flag)
+            err_msg *= @sprintf("  Evaluated: %d\n", n_points_failure_allowed)
             throw(DimensionMismatch(err_msg))
         end
 
@@ -168,7 +168,7 @@ struct PointCloud
             end
         end
 
-        new(n_points, position, volume, failure_flag, radius, point_sets)
+        new(n_points, position, volume, failure_allowed, radius, point_sets)
     end
 end
 
@@ -176,8 +176,8 @@ function PointCloud(position::Matrix{Float64}, volume::Vector{Float64},
                     point_sets::Dict{String, Vector{Int}} = Dict{String, Vector{Int}}())
     n_points = length(volume)
     radius = sphere_radius.(volume)
-    failure_flag = BitVector(fill(true, n_points))
-    return PointCloud(n_points, position, volume, failure_flag, radius, point_sets)
+    failure_allowed = BitVector(fill(true, n_points))
+    return PointCloud(n_points, position, volume, failure_allowed, radius, point_sets)
 end
 
 function PointCloud(lx::Real, ly::Real, lz::Real, Δx::Real; center_x::Real = 0,
@@ -205,9 +205,9 @@ function PointCloud(lx::Real, ly::Real, lz::Real, Δx::Real; center_x::Real = 0,
     n_points = size(positions, 2)
     volumes = fill(Δx^3, n_points)
     radius = sphere_radius.(volumes)
-    failure_flag = BitVector(fill(true, n_points))
+    failure_allowed = BitVector(fill(true, n_points))
     point_sets = Dict{String, Vector{Int}}()
-    return PointCloud(n_points, positions, volumes, failure_flag, radius, point_sets)
+    return PointCloud(n_points, positions, volumes, failure_allowed, radius, point_sets)
 end
 
 function position_matrix(x::AbstractVector, y::AbstractVector, z::AbstractVector)
@@ -256,7 +256,7 @@ function pcmerge(v::Vector{PointCloud})
     n_points = sum([pc.n_points for pc in v])
     position = reduce(hcat, [pc.position for pc in v])
     volume = reduce(vcat, [pc.volume for pc in v])
-    failure_flag = reduce(vcat, [pc.failure_flag for pc in v])
+    failure_allowed = reduce(vcat, [pc.failure_allowed for pc in v])
     radius = reduce(vcat, [pc.radius for pc in v])
     point_sets = Dict{String, Vector{Int}}()
     n_points_cnt = first(v).n_points
@@ -269,6 +269,19 @@ function pcmerge(v::Vector{PointCloud})
         end
         n_points_cnt += v[pc_id].n_points
     end
-    pc = PointCloud(n_points, position, volume, failure_flag, radius, point_sets)
+    pc = PointCloud(n_points, position, volume, failure_allowed, radius, point_sets)
     return pc
+end
+
+function get_pos_and_vol(pc::PointCloud, point_ids::Vector{Int})
+    n_points = length(point_ids)
+    position = zeros(3, n_points)
+    volume = zeros(n_points)
+    for (li, i) in enumerate(point_ids)
+        for d in 1:3
+            position[d, li] = pc.position[d, i]
+        end
+        volume[li] = pc.volume[i]
+    end
+    return position, volume
 end
