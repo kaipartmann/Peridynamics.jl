@@ -1,7 +1,7 @@
-# [Continuum-kinematics-based Peridynamics](@id continuumbased)
+# [Continuum-kinematics-inspired](@id continuumbased)
 
-Continuum-kinematics-based peridynamics (CPD) is a formulation that is supposed to deliver more freedom in specifying material parameters.
-The internal force density is calculated as the sum of three types of point interactions which are one-, two- and three-neighbor interactions:
+Continuum-kinematics-inspired peridynamics (CPD) is a formulation that is supposed to deliver more freedom in specifying material parameters.
+The internal force density is calculated as the sum of three types of point interactions which are one-, two- and three-neighbor interactions [Javili2019](@cite):
 
 ```math
 \boldsymbol{b}^{\mathrm{int},i} = \boldsymbol{b}_1^{\mathrm{int},i} + \boldsymbol{b}_2^{\mathrm{int},i} + \boldsymbol{b}_3^{\mathrm{int},i}
@@ -117,6 +117,3 @@ with the material constant $C_3$ is used.
 | relative volume measures | $V^{ijkl}$, $v^{ijkl}$ | $[\mathrm{m}^3]$ |
 | effective three-neighbor volume |  $V_3^i = \frac{ \left(V_\mathcal{H}^i\right)^3}{N_3^i}$ | $[\mathrm{m}^9]$ |
 | number of three-neighbor interactions |      $N_3^i$      | $[-]$ |
-
-```@bibliography
-```

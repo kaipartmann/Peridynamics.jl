@@ -8,6 +8,9 @@ end
 using Peridynamics
 using Documenter
 using Literate
+using DocumenterCitations
+
+bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
 LIT_MD_OUT = joinpath(@__DIR__, "src", "generated")
 # LIT_NB_OUT = joinpath(@__DIR__, "..", "notebooks") #TODO
@@ -37,6 +40,7 @@ Literate.markdown.(LIT_TUTORIALS_IN, LIT_MD_OUT; credit=false)
 DocMeta.setdocmeta!(Peridynamics, :DocTestSetup, :(using Peridynamics); recursive=true)
 
 makedocs(;
+    plugins = [bib],
     modules = [Peridynamics],
     authors = "Kai Partmann",
     repo = "https://github.com/kaipartmann/Peridynamics.jl/blob/{commit}{path}#{line}",
@@ -51,10 +55,13 @@ makedocs(;
     draft = LIVE_MODE,
     pages = [
         "Home" => "index.md",
-        "Material models" => [
+        "Theory" => [
             "general_pd.md",
             "bondbased.md",
+            "osbased.md",
+            "nosbased.md",
             "continuumbased.md",
+            "references.md"
         ],
         "How-to guides" => [
             joinpath("generated", "howto_single_body_analysis.md"),

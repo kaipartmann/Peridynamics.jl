@@ -1,6 +1,6 @@
-# Peridynamics theory
+# Basics
 
-Peridynamics is a nonlocal formulation of continuum mechanics where in the discrete version a body is represented by a group of interconnected material points.
+Peridynamics is a nonlocal formulation of continuum mechanics whereby in the discrete version a body is represented by a group of interconnected material points.
 The basic idea is that each point interacts with any other point within the distance of the horizon $\delta$. 
 These interactions called *bonds* provoke forces between points which can be calculated and result in internal forces.
 
@@ -19,7 +19,7 @@ $\boldsymbol{\Delta X}^{ij}= \boldsymbol{X}^j - \boldsymbol{X}^i$.
 
 In current configuration $\mathcal{B}_t$, lowercase letters are used to describe points and bonds: $\boldsymbol{x} ^ {i} $ and $\boldsymbol{\Delta x}^{ij}$.
 
-The peridynamic equation of motion is established for each material point $i$ and equals
+The peridynamic equation of motion is established for each material point $i$ and equals [Silling2000](@cite)
 ```math
 \rho \ddot{\boldsymbol{u}} (\boldsymbol{X}^{i} , t) = \boldsymbol{b}^{\mathrm{int}} (\boldsymbol{X}^{i} , t) + \boldsymbol{b}^{\mathrm{ext}} (\boldsymbol{X}^{i} , t) 
     \qquad \forall \; \boldsymbol{X} ^ {i} \in \mathcal{B}_0 \; , \; t \geq 0 \; .

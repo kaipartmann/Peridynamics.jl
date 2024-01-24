@@ -1,6 +1,6 @@
-# [Bond-based Peridynamics](@id bondbased)
+# [Bond-based](@id bondbased)
 
-The initial version of peridynamics is the bond-based (BB) formulation.
+The initial version of peridynamics is the bond-based (BB) formulation. [Silling2000](@cite)
 
 Here, a pairwise force function $\boldsymbol{f}$ is defined and calculated for each bond of two material points, which depends on the strain of the bond and is aligned in its direction: 
 
@@ -13,7 +13,7 @@ with
 | size | symbol |      unit |
 |:--------|:-------------|:------------|
 | bond failure |      $d^{ij} \in \{0;1\}$      | $[-]$ |
-| micro-modulus constant |  $c = \frac{18 \cdot \kappa}{\pi \cdot \delta^4}$ | $[\frac{\mathrm{kg}}{\mathrm{m}^5\mathrm{s}^2}]$ |
+| micro-modulus constant [Silling2005](@cite) |  $c = \frac{18 \cdot \kappa}{\pi \cdot \delta^4}$ | $[\frac{\mathrm{kg}}{\mathrm{m}^5\mathrm{s}^2}]$ |
 | bond strain | $\varepsilon^{ij} = \frac{l^{ij}-L^{ij}}{L^{ij}}$ |      $[-]$ |
 | bond length in $\mathcal{B}_0$ |      $L^{ij} =\left\|\boldsymbol{\Delta X}^{ij}\right\|$     | $[\mathrm{m}]$ |
 | bond length in $\mathcal{B}_t$ |      $l^{ij} =\left\|\boldsymbol{\Delta x}^{ij}\right\|$     | $[\mathrm{m}]$ |
