@@ -3,39 +3,39 @@
 The state-based peridynamics formulation considers not only the deformation of the bonds of one material point, but also the states of all neighbors, to calculate the internal force density $\boldsymbol{b}^{\mathrm{int},i}$ [Silling2007](@cite):
 
 ```math
-\boldsymbol{b}^{\mathrm{int}} (\boldsymbol{X},t) = \int_\mathcal{H} \boldsymbol{t} - \boldsymbol{t}' \; \mathrm{d}V' 
+\boldsymbol{b}^{\mathrm{int}} (\boldsymbol{X}^i,t) = \int_{\mathcal{H}_i} \boldsymbol{t}^i - \boldsymbol{t}^j \; \mathrm{d}V^j 
 ```
-with the force vector states $\boldsymbol{t}=\boldsymbol{t}(\boldsymbol{\Delta X}, t)$ and $\boldsymbol{t}'=\boldsymbol{t}(-\boldsymbol{\Delta X}, t)$, which characterize the state of each bond at time $t$.
+with the force vector states $\boldsymbol{t}^i=\boldsymbol{t}(\boldsymbol{\Delta X}^{ij}, t)$ and $\boldsymbol{t}^j=\boldsymbol{t}(-\boldsymbol{\Delta X}^{ij}, t)$, which characterize the state of each bond at time $t$.
 
 To determine the force vector state, the extension scalar state $\underline{e}$ is required first.
 It describes the change in length of a bond due to deformation, consisting of a spherical and a deviatoric component:
 ```math
-\underline{e} \langle \boldsymbol{\Delta X} \rangle \left( = |\underline{\boldsymbol{Y}}_k \langle \boldsymbol{\Delta X} \rangle | - | \boldsymbol{\underline{X}}_k \langle \boldsymbol{\Delta X} \rangle | \right) = |\boldsymbol{\Delta x}|-|\boldsymbol{\Delta X}|
-= \underline{e}^{sph} \langle \boldsymbol{\Delta X} \rangle + \underline{e}^{dev} \langle \boldsymbol{\Delta X} \rangle
+\underline{e} \langle \boldsymbol{\Delta X}^{ij} \rangle \left( = |\underline{\boldsymbol{Y}}_i \langle \boldsymbol{\Delta X}^{ij} \rangle | - | \boldsymbol{\underline{X}}_i \langle \boldsymbol{\Delta X}^{ij} \rangle | \right) = |\boldsymbol{\Delta x}^{ij}|-|\boldsymbol{\Delta X}^{ij}|
+= \underline{e}^{sph} \langle \boldsymbol{\Delta X}^{ij} \rangle + \underline{e}^{dev} \langle \boldsymbol{\Delta X}^{ij} \rangle
 ```
 
-Next, the weighted volume $m_k$ is calculated as
+Next, the weighted volume $m_i$ is calculated as
 ```math
-m_k = (\underline{w} \langle \boldsymbol{\Delta X} \rangle \cdot | \boldsymbol{\Delta X} |) \bullet | \boldsymbol{\Delta X} | = \int_{\mathcal{H}_k} \underline{w} \langle \boldsymbol{\Delta X} \rangle \cdot | \boldsymbol{\Delta X} |^2 \mathrm{d} V_j \; .
+m_i = (\underline{w} \langle \boldsymbol{\Delta X}^{ij} \rangle \cdot | \boldsymbol{\Delta X}^{ij} |) \bullet | \boldsymbol{\Delta X}^{ij} | = \int_{\mathcal{H}_i} \underline{w} \langle \boldsymbol{\Delta X}^{ij} \rangle \cdot | \boldsymbol{\Delta X}^{ij} |^2 \mathrm{d} V_j \; .
 ```
 Here $\omega$ is an influence function that gives greater weight to shorter bonds. [Silling2007](@cite)
 
-Then the dilataion $\theta_k$ is needed, which is determined with the weighted volume $m_k$:
+Then the dilataion $\theta_i$ is needed, which is determined with the weighted volume $m_i$:
 ```math
-\theta_k = \frac{3}{m_k} (\underline{w} \langle \boldsymbol{\Delta X} \rangle \cdot | \boldsymbol{\Delta X} |) \bullet \underline{e} \langle \boldsymbol{\Delta X} \rangle
-= \frac{3}{m_k} \int_{\mathcal{H}_k} \underline{w} \langle \boldsymbol{\Delta X} \rangle \cdot | \boldsymbol{\Delta X} | \cdot \underline{e} \langle \boldsymbol{\Delta X} \rangle \mathrm{d} V_j
+\theta_i = \frac{3}{m_i} (\underline{w} \langle \boldsymbol{\Delta X}^{ij} \rangle \cdot | \boldsymbol{\Delta X}^{ij} |) \bullet \underline{e} \langle \boldsymbol{\Delta X}^{ij} \rangle
+= \frac{3}{m_i} \int_{\mathcal{H}_i} \underline{w} \langle \boldsymbol{\Delta X}^{ij} \rangle \cdot | \boldsymbol{\Delta X}^{ij} | \cdot \underline{e} \langle \boldsymbol{\Delta X}^{ij} \rangle \mathrm{d} V_j
 ```
 
 The spherical component of the extension scalar state $\underline{e}$ results in 
 ```math
-\underline{e}^{sph} \langle \boldsymbol{\Delta X} \rangle = \frac{\theta_k \cdot |\boldsymbol{\Delta X}|}{3}
+\underline{e}^{sph} \langle \boldsymbol{\Delta X}^{ij} \rangle = \frac{\theta_i \cdot |\boldsymbol{\Delta X}^{ij}|}{3}
 ```
 and the deviatoric component in
 ```math
-\underline{e}^{dev} \langle \boldsymbol{\Delta X} \rangle = |\boldsymbol{\Delta x}|-|\boldsymbol{\Delta X}| - \frac{\theta_k \cdot |\boldsymbol{\Delta X}|}{3} \; .
+\underline{e}^{dev} \langle \boldsymbol{\Delta X}^{ij} \rangle = |\boldsymbol{\Delta x}^{ij}|-|\boldsymbol{\Delta X}^{ij}| - \frac{\theta_i \cdot |\boldsymbol{\Delta X}^{ij}|}{3} \; .
 ```
 
 With the previously determined variables, the force vector state $\boldsymbol{t}$ can now be calculated:
 ```math
-\underline{t}_k \langle \boldsymbol{\Delta X} \rangle = \frac{\kappa \cdot \theta_k}{m_k} \cdot \underline{w} \langle \boldsymbol{\Delta X} \rangle \cdot | \boldsymbol{\Delta X} | + \frac{15 \cdot \mu}{m_k} \cdot \underline{w} \langle \boldsymbol{\Delta X} \rangle \cdot \underline{e}^{dev} \langle \boldsymbol{\Delta X} \rangle
+\underline{t}_i \langle \boldsymbol{\Delta X}^{ij} \rangle = \frac{\kappa \cdot \theta_i}{m_i} \cdot \underline{w} \langle \boldsymbol{\Delta X}^{ij} \rangle \cdot | \boldsymbol{\Delta X}^{ij} | + \frac{15 \cdot \mu}{m_i} \cdot \underline{w} \langle \boldsymbol{\Delta X}^{ij} \rangle \cdot \underline{e}^{dev} \langle \boldsymbol{\Delta X}^{ij} \rangle
 ```
