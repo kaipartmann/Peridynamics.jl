@@ -29,7 +29,7 @@ function find_bonds!(bond_buf::Vector{Bond}, pc::PointCloud, δ::Float64, i::Int
     return n_neighbors
 end
 
-function find_bonds(pc::PointCloud, mat::Material, loc_points::UnitRange{Int})
+function find_bonds(pc::PointCloud, mat::AbstractMaterial, loc_points::UnitRange{Int})
     bonds = Vector{Bond}()
     sizehint!(bonds, pc.n_points * 300)
     n_neighbors = zeros(Int, length(loc_points))

@@ -3,7 +3,7 @@ module Peridynamics
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK,
     TimerOutputs, MPI
 
-export PointCloud, BBMaterial
+export PointCloud, BBMaterial, Body, point_set!, material!
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -29,15 +29,53 @@ function __init__()
     return nothing
 end
 
-include("basic_types.jl")
+abstract type AbstractJob end
 
-include(joinpath("discretizations", "point_cloud.jl"))
-include(joinpath("discretizations", "decomposition.jl"))
-include(joinpath("discretizations", "point_bond_discretization.jl"))
+abstract type AbstractMaterial end
+abstract type AbstractMaterialConfig end
+abstract type MaterialHandler <: AbstractMaterialConfig end
+abstract type Material <: AbstractMaterialConfig end
 
-include(joinpath("materials", "bond_based.jl"))
+abstract type AbstractTimeSolver end
 
-include(joinpath("threads_core", "chunk_local_handler.jl"))
-include(joinpath("threads_core", "threads_data_handler.jl"))
+# abstract type AbstractDiscretizationConfig end
+abstract type AbstractDiscretization end
+
+abstract type AbstractPredefinedCrack end
+
+abstract type AbstractDataHandler end
+# abstract type MPIDataHandler <: AbstractDataHandler end
+# abstract type ThreadsDataHandler <: AbstractDataHandler end
+
+abstract type AbstractStorage end
+
+abstract type AbstractCondition end
+abstract type AbstractBoundaryCondition <: AbstractCondition end
+abstract type AbstractSingleValueBC <: AbstractBoundaryCondition end
+
+abstract type AbstractInitialCondition <: AbstractCondition end
+abstract type AbstractSingleValueIC <: AbstractInitialCondition end
+
+abstract type AbstractPointSetHandler end
+
+
+include("discretizations/point_sets.jl")
+include("discretizations/body.jl")
+include("discretizations/find_points.jl")
+
+include("discretizations/point_cloud.jl")
+include("discretizations/decomposition.jl")
+include("discretizations/point_bond_discretization.jl")
+
+include("conditions/boundary_conditions.jl")
+include("conditions/initial_conditions.jl")
+
+include("materials/bond_based.jl")
+
+include("threads_core/chunk_local_handler.jl")
+include("threads_core/threads_halo_exchange.jl")
+include("threads_core/threads_data_handler.jl")
+
+include("auxiliary/function_arguments.jl")
 
 end

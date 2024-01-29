@@ -1,10 +1,4 @@
 
-struct ThreadsHaloExchange
-    field::Symbol
-    source::Int
-    dest::Int
-    point_ids::Vector{Int}
-end
 
 struct ThreadsDataHandler{M<:AbstractMaterialConfig,D<:AbstractDiscretization,
                           S<:AbstractStorage}
@@ -15,7 +9,7 @@ end
 
 # TODO: dispatch on SingleBodyJob!
 function init_threads_data_handler(job::AbstractJob, n_chunks::Int)
-    vclh = chunk_local_handlers(job, n_chunks)
+    # vclh = chunk_local_handlers(job, n_chunks)
 
     #TODO: ThreadsDataHandler!!!
 end

@@ -30,7 +30,7 @@ critical energy release rate `Gc` or the critical bond strain `epsilon_c`.
 - `Gc::Real`: critical energy release rate
 - `epsilon_c::Real`: critical bond strain
 """
-struct BBMaterial <: Material
+struct BBMaterial <: AbstractMaterial
     δ::Float64
     rho::Float64
     E::Float64
@@ -89,6 +89,10 @@ function init_storage(::BBMaterial, pbd::PointBondDiscretization,
     n_active_bonds = copy(pbd.n_neighbors)
     BBStorage(position, displacement, velocity, velocity_half, acceleration, b_int, b_ext,
               damage, bond_active, n_active_bonds)
+end
+
+function get_halo_exchange_info(::BBMaterial)
+    return Dict(:position => read_from_halo)
 end
 
 function force_density!(s::BBStorage, d::PointBondDiscretization, mat::BBMaterial,

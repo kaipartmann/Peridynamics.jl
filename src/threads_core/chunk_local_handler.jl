@@ -7,8 +7,8 @@ struct ChunkLocalHandler{D<:AbstractDiscretization,S<:AbstractStorage}
     s::S
 end
 
-function chunk_local_handlers(pc::PointCloud, mat::AbstractMaterialConfig, n_chunks::Int)
-    point_decomp = defaultdist(pc.n_points, n_chunks)
+function chunk_local_handlers(pc::PointCloud, mat::AbstractMaterial, n_chunks::Int)
+    point_decomp = defaultdist(pc.n_points, n_chunks) # TODO: this should be one function higher and a argument!
     vclh = Vector{ChunkLocalHandler}(undef, n_chunks)
 
     @threads for cid in eachindex(point_decomp)
@@ -20,7 +20,7 @@ function chunk_local_handlers(pc::PointCloud, mat::AbstractMaterialConfig, n_chu
 end
 
 #TODO: dispatch on time solver for the storage!
-function ChunkLocalHandler(pc::PointCloud, mat::AbstractMaterialConfig,
+function ChunkLocalHandler(pc::PointCloud, mat::AbstractMaterial,
                            loc_points::UnitRange{Int})
     bonds, n_neighbors = find_bonds(pc, mat, loc_points)
     bond_range = find_bond_range(n_neighbors)
