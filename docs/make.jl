@@ -69,6 +69,11 @@ makedocs(;
             # "api_private.md", #TODO
         ]
     ],
+
+    # ONLY DURING EARLY DEVELOPMENT:
+    # MISSING DOCSTRINGS DUE TO API CHANGES DO NOT RESULT IN ERRORS
+    # THAT STOP THE DOCUMENTATION BUILD PROCESS!
+    warnonly = true,
 )
 
 if !LIVE_MODE

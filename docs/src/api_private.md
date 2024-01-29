@@ -12,16 +12,10 @@ Pages = ["api_private.md"]
 
 ## Types
 ```@docs
-Peridynamics.AbstractIC
-Peridynamics.AbstractBC
-Peridynamics.AbstractPDAnalysis
-Peridynamics.AbstractMaterial
-Peridynamics.AbstractTimeDiscretization
-Peridynamics.BondBasedBody
+
 ```
 
 ## Functions
 ```@docs
-Peridynamics.init_body
-Peridynamics.sphere_radius
+
 ```
