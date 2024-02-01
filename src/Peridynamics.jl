@@ -53,8 +53,6 @@ abstract type AbstractStorage end
 
 abstract type AbstractCondition end
 
-abstract type AbstractPointSetHandler end
-
 include("conditions/boundary_conditions.jl")
 include("conditions/initial_conditions.jl")
 include("conditions/condition_checks.jl")

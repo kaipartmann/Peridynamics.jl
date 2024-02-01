@@ -7,7 +7,7 @@ mutable struct Body
     const single_dim_bcs::Vector{SingleDimBC}
     const single_dim_ics::Vector{SingleDimIC}
     const precracks::Vector{AbstractPredefinedCrack}
-    psh::AbstractPointSetHandler
+    psh::PointSetHandler{<:AbstractMaterial}
 
     function Body(position::AbstractMatrix, volume::AbstractVector,
                   failure_allowed::BitVector)
@@ -39,7 +39,7 @@ mutable struct Body
         single_dim_bcs = Vector{SingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         precracks = Vector{AbstractPredefinedCrack}()
-        psh = UndefPointSetHandler()
+        psh = PointSetHandler(AbstractMaterial)
 
         new(n_points, position, volume, failure_allowed, single_dim_bcs, single_dim_ics,
             precracks, psh)
@@ -51,29 +51,28 @@ function Body(position::AbstractMatrix, volume::AbstractVector)
     return Body(position, volume, failure_allowed)
 end
 
-function init_no_mat_point_set_handler!(b::Body)
-    b.psh = NoMatPointSetHandler()
-    return nothing
-end
+# function init_no_mat_point_set_handler!(b::Body)
+#     b.psh = NoMatPointSetHandler()
+#     return nothing
+# end
 
-function init_point_set_handler!(::Type{M}, b::Body) where {M<:AbstractMaterial}
-    b.psh = PointSetHandler(M)
-    return nothing
-end
+# function init_point_set_handler!(::Type{M}, b::Body) where {M<:AbstractMaterial}
+#     b.psh = PointSetHandler(M)
+#     return nothing
+# end
 
-function convert_to_point_set_handler!(::Type{M}, b::Body) where {M<:AbstractMaterial}
-    b.psh = PointSetHandler(M, b.psh)
-end
+# function convert_to_point_set_handler!(::Type{M}, b::Body) where {M<:AbstractMaterial}
+#     b.psh = PointSetHandler(M, b.psh)
+# end
 
-function check_if_undef_psh(psh::H, name::Symbol) where {H<:AbstractPointSetHandler}
-    if isa(psh, UndefPointSetHandler)
-        error("there is no point set with name $(name)! Define the point set first!")
-    end
-    return nothing
-end
+# function check_if_undef_psh(psh::H, name::Symbol) where {H<:AbstractPointSetHandler}
+#     if isa(psh, UndefPointSetHandler)
+#         error("there is no point set with name $(name)! Define the point set first!")
+#     end
+#     return nothing
+# end
 
 function point_set!(b::Body, name::Symbol, points::V) where {V<:AbstractVector}
-    isa(b.psh, UndefPointSetHandler) && init_no_mat_point_set_handler!(b)
     checkbounds(b.volume, points)
     _point_set!(b.psh, name, points)
     return nothing
@@ -86,19 +85,18 @@ function point_set!(f::F, b::Body, name::Symbol) where {F<:Function}
 end
 
 function material!(b::Body, mat::M) where {M<:AbstractMaterial}
-    isa(b.psh, UndefPointSetHandler) && init_point_set_handler!(M, b)
-    isa(b.psh, NoMatPointSetHandler) && convert_to_point_set_handler!(M, b)
-    if haskey(b.psh.point_sets, :__all__)
-        error("body already has a material for all points defined! Choose a point set!")
+    if !haskey(b.psh.point_sets, :__all__)
+        _point_set!(b.psh, :__all__, 1:b.n_points)
     end
-    _point_set!(b.psh, :__all__, 1:b.n_points)
-    _material!(b.psh, :__all__, mat)
+    material!(b, :__all__, mat)
     return nothing
 end
 
 function material!(b::Body, name::Symbol, mat::M) where {M<:AbstractMaterial}
-    check_if_undef_psh(b.psh, name)
-    isa(b.psh, NoMatPointSetHandler) && convert_to_point_set_handler!(M, b)
+    check_if_set_is_defined(b.psh, name)
+    if material_is_undefined(b.psh)
+        b.psh = PointSetHandler(M, b.psh)
+    end
     _material!(b.psh, name, mat)
     return nothing
 end
@@ -126,8 +124,7 @@ function _condition!(conditions::Vector{B}, condition::B) where {B<:AbstractCond
 end
 
 function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
-    check_if_undef_psh(b.psh, name)
-    check_if_set_is_defined(b.psh.point_sets, name)
+    check_if_set_is_defined(b.psh, name)
     check_condition_function(f)
     dim = get_dim(d)
     _condition!(b.single_dim_bcs, SingleDimBC(f, :velocity_half, name, dim))
@@ -135,15 +132,13 @@ function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:F
 end
 
 function velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
-    check_if_undef_psh(b.psh, name)
-    check_if_set_is_defined(b.psh.point_sets, name)
+    check_if_set_is_defined(b.psh, name)
     dim = get_dim(d)
     _condition!(b.single_dim_ics, SingleDimIC(value, :velocity, name, dim))
 end
 
 function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
-    check_if_undef_psh(b.psh, name)
-    check_if_set_is_defined(b.psh.point_sets, name)
+    check_if_set_is_defined(b.psh, name)
     check_condition_function(f)
     dim = get_dim(d)
     _condition!(b.single_dim_bcs, SingleDimBC(f, :b_ext, name, dim))
