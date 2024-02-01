@@ -6,7 +6,7 @@ mutable struct Body
     const failure_allowed::Vector{Bool}
     const single_dim_bcs::Vector{SingleDimBC}
     const single_dim_ics::Vector{SingleDimIC}
-    const precracks::Vector{AbstractPredefinedCrack}
+    const point_sets_precracks::Vector{PointSetsPreCrack}
     psh::PointSetHandler{<:AbstractMaterial}
 
     function Body(position::AbstractMatrix, volume::AbstractVector,
@@ -38,11 +38,11 @@ mutable struct Body
 
         single_dim_bcs = Vector{SingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
-        precracks = Vector{AbstractPredefinedCrack}()
+        point_sets_precracks = Vector{PointSetsPreCrack}()
         psh = PointSetHandler(AbstractMaterial)
 
         new(n_points, position, volume, failure_allowed, single_dim_bcs, single_dim_ics,
-            precracks, psh)
+            point_sets_precracks, psh)
     end
 end
 

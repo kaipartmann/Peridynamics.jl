@@ -57,9 +57,10 @@ include("conditions/boundary_conditions.jl")
 include("conditions/initial_conditions.jl")
 include("conditions/condition_checks.jl")
 
+include("discretizations/predefined_cracks.jl")
 include("discretizations/point_sets.jl")
-include("discretizations/body.jl")
 include("discretizations/find_points.jl")
+include("discretizations/body.jl")
 
 include("discretizations/point_cloud.jl")
 include("discretizations/decomposition.jl")
