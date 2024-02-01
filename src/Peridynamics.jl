@@ -1,9 +1,10 @@
 module Peridynamics
 
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK,
-    TimerOutputs, MPI
+      TimerOutputs, MPI
 
-export PointCloud, BBMaterial, Body, point_set!, material!
+export PointCloud, BBMaterial, Body, point_set!, material!, velocity_bc!, velocity_ic!,
+       forcedensity_bc!, forcedensity_ic!
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -57,7 +58,6 @@ abstract type AbstractInitialCondition <: AbstractCondition end
 abstract type AbstractSingleValueIC <: AbstractInitialCondition end
 
 abstract type AbstractPointSetHandler end
-
 
 include("discretizations/point_sets.jl")
 include("discretizations/body.jl")

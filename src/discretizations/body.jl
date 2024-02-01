@@ -4,6 +4,8 @@ mutable struct Body
     const position::Matrix{Float64}
     const volume::Vector{Float64}
     const failure_allowed::Vector{Bool}
+    const conditions::Set{AbstractCondition}
+    const precracks::Set{AbstractPredefinedCrack}
     psh::AbstractPointSetHandler
 
     function Body(position::AbstractMatrix, volume::AbstractVector,
@@ -33,9 +35,11 @@ mutable struct Body
         sum(isnan.(position)) > 0 && error("matrix `position` contains NaN values!\n")
         sum(isnan.(volume)) > 0 && error("vector `volume` contains NaN values!\n")
 
+        conditions = Set{AbstractCondition}()
+        precracks = Set{AbstractPredefinedCrack}()
         psh = UndefPointSetHandler()
 
-        new(n_points, position, volume, failure_allowed, psh)
+        new(n_points, position, volume, failure_allowed, conditions, precracks, psh)
     end
 end
 
@@ -96,19 +100,52 @@ function material!(b::Body, name::Symbol, mat::M) where {M<:AbstractMaterial}
     return nothing
 end
 
-function velocity_bc!(f::F, b::Body, name::Symbol) where {F<:Function}
-    # add velocity boundary condition
-    check_if_undef_psh(b.psh, name)
+function check_dim(dim::Int)
+    in(dim, 1:3) || error("specified dimension should be 1=x, 2=y, or 3=z!\n")
+    return nothing
 end
 
-function velocity_ic!(f::F, b::Body, name::Symbol) where {F<:Function}
+function _condition!(conditions::Set, condition::C) where {C<:AbstractCondition}
+    # TODO: check if conditions override each other!
+    for existing_condition in conditions
+        same_type = !isabstracttype(typejoin(typeof(existing_condition), C))
+        println()
+        @show condition
+        @show C
+        @show existing_condition
+        @show typeof(existing_condition)
+        @show typejoin(typeof(existing_condition), C)
+        @show same_type
+        same_dim = existing_condition.dim == condition.dim
+        same_set = existing_condition.point_set == condition.point_set
+        if same_type && same_dim && same_set
+            error("duplicate conditions for point set $(condition.point_set)!\n")
+        end
+    end
+    push!(conditions, condition)
+    return nothing
+end
+
+function velocity_bc!(f::F, b::Body, name::Symbol, dim::Integer) where {F<:Function}
+    # add velocity boundary condition
+    check_if_undef_psh(b.psh, name)
+    check_dim(dim)
+    check_if_set_is_defined(b.psh.point_sets, name)
+    _condition!(b.conditions, VelocityBC(f, name, convert(UInt8, dim)))
+    return nothing
+end
+
+function velocity_ic!(f::F, b::Body, name::Symbol, dim) where {F<:Function}
     # add velocity initial condition
     check_if_undef_psh(b.psh, name)
 end
 
-function forcedensity_bc!(f::F, b::Body, name::Symbol) where {F<:Function}
+function forcedensity_bc!(f::F, b::Body, name::Symbol, dim::Integer) where {F<:Function}
     # add force density boundary condition
     check_if_undef_psh(b.psh, name)
+    check_dim(dim)
+    check_if_set_is_defined(b.psh.point_sets, name)
+    _condition!(b.conditions, ForceDensityBC(f, name, convert(UInt8, dim)))
 end
 
 function forcedensity_ic!(f::F, b::Body, name::Symbol) where {F<:Function}

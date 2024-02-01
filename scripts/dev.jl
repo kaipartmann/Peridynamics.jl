@@ -110,7 +110,10 @@ mat = BBMaterial(horizon=1, E=1, rho=1, Gc=1)
 
 material!(b, mat)
 
+velocity_bc!(t -> t, b, :a, 2)
+forcedensity_bc!(t -> t, b, :a, 1)
 
+b.conditions
 
 ##
 function testargs(a)

@@ -19,11 +19,10 @@ end
 
 function apply_bc!(s::S, svbc::SingleValueBCSetup, n::Int) where {S<:AbstractStorage}
     value = svbc.values_in_time[n] # n = time step
-    if !isnan(value)
-        field = getfield(s, svbc.field)
-        for i in svbc.point_set
-            setindex!(field, value, svbc.dim, i)
-        end
+    isnan(value) && return nothing
+    field = getfield(s, svbc.field)
+    for i in svbc.point_set
+        setindex!(field, value, svbc.dim, i)
     end
     return nothing
 end
@@ -33,14 +32,10 @@ function check_single_value_bc_func(f::F) where {F<:Function}
 
 end
 
-struct VelocityBC{F<:Function,V<:AbstractVector{<:Int}} <: AbstractSingleValueBC
+struct VelocityBC{F<:Function} <: AbstractSingleValueBC
     fun::F
-    point_set::V
-    dim::Int
-end
-
-function _velocity_bc!(f::F, b::Body, name::Symbol) where {F<:Function}
-
+    point_set::Symbol
+    dim::UInt8
 end
 
 function get_bc_setup(bc::VelocityBC, times::V) where {V<:AbstractVector{<:Real}}
@@ -48,10 +43,10 @@ function get_bc_setup(bc::VelocityBC, times::V) where {V<:AbstractVector{<:Real}
     return SingleValueBCSetup(:velocity_half, bc.point_set, bc.dim, values_in_time)
 end
 
-struct ForceDensityBC{F<:Function,V<:AbstractVector{<:Int}} <: AbstractSingleValueBC
+struct ForceDensityBC{F<:Function} <: AbstractSingleValueBC
     fun::F
-    point_set::V
-    dim::Int
+    point_set::Symbol
+    dim::UInt8
 end
 
 function get_bc_setup(bc::ForceDensityBC, times::V) where {V<:AbstractVector{<:Real}}
