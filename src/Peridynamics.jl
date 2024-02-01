@@ -16,6 +16,10 @@ const TO = TimerOutput()
 @inline mpi_nranks() = MPI_SIZE[]
 @inline mpi_sim() = MPI_SIM[]
 
+const FIND_POINTS_ALLOWED_SYMBOLS = (:x, :y, :z, :p)
+const SYMBOL_TO_DIM = Dict(:x => 0x1, :y => 0x2, :z => 0x3)
+const DimensionSpec = Union{Integer,Symbol}
+
 function __init__()
     if MPI_INITIALIZED[]
         return nothing
@@ -39,25 +43,21 @@ abstract type Material <: AbstractMaterialConfig end
 
 abstract type AbstractTimeSolver end
 
-# abstract type AbstractDiscretizationConfig end
 abstract type AbstractDiscretization end
 
 abstract type AbstractPredefinedCrack end
 
 abstract type AbstractDataHandler end
-# abstract type MPIDataHandler <: AbstractDataHandler end
-# abstract type ThreadsDataHandler <: AbstractDataHandler end
 
 abstract type AbstractStorage end
 
 abstract type AbstractCondition end
-abstract type AbstractBoundaryCondition <: AbstractCondition end
-abstract type AbstractSingleValueBC <: AbstractBoundaryCondition end
-
-abstract type AbstractInitialCondition <: AbstractCondition end
-abstract type AbstractSingleValueIC <: AbstractInitialCondition end
 
 abstract type AbstractPointSetHandler end
+
+include("conditions/boundary_conditions.jl")
+include("conditions/initial_conditions.jl")
+include("conditions/condition_checks.jl")
 
 include("discretizations/point_sets.jl")
 include("discretizations/body.jl")
@@ -66,9 +66,6 @@ include("discretizations/find_points.jl")
 include("discretizations/point_cloud.jl")
 include("discretizations/decomposition.jl")
 include("discretizations/point_bond_discretization.jl")
-
-include("conditions/boundary_conditions.jl")
-include("conditions/initial_conditions.jl")
 
 include("materials/bond_based.jl")
 

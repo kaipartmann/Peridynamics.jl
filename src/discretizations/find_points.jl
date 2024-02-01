@@ -1,6 +1,3 @@
-const FIND_POINTS_ALLOWED_SYMBOLS = (:x, :y, :z, :p)
-const SYMBOL_TO_DIM = Dict(:x => 1, :y => 2, :z => 3)
-
 function get_function_argument(f::F) where {F<:Function}
     func_method = get_method_of_function(f)
     argnames = get_argument_names_of_function(func_method)
