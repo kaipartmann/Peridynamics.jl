@@ -51,27 +51,6 @@ function Body(position::AbstractMatrix, volume::AbstractVector)
     return Body(position, volume, failure_allowed)
 end
 
-# function init_no_mat_point_set_handler!(b::Body)
-#     b.psh = NoMatPointSetHandler()
-#     return nothing
-# end
-
-# function init_point_set_handler!(::Type{M}, b::Body) where {M<:AbstractMaterial}
-#     b.psh = PointSetHandler(M)
-#     return nothing
-# end
-
-# function convert_to_point_set_handler!(::Type{M}, b::Body) where {M<:AbstractMaterial}
-#     b.psh = PointSetHandler(M, b.psh)
-# end
-
-# function check_if_undef_psh(psh::H, name::Symbol) where {H<:AbstractPointSetHandler}
-#     if isa(psh, UndefPointSetHandler)
-#         error("there is no point set with name $(name)! Define the point set first!")
-#     end
-#     return nothing
-# end
-
 function point_set!(b::Body, name::Symbol, points::V) where {V<:AbstractVector}
     checkbounds(b.volume, points)
     _point_set!(b.psh, name, points)
