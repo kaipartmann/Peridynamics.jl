@@ -11,4 +11,5 @@ using SafeTestsets
     @safetestset "body" begin include("unit/discretizations/test_body.jl") end
     @safetestset "find points" begin include("unit/discretizations/test_find_points.jl") end
     @safetestset "point sets" begin include("unit/discretizations/test_point_sets.jl") end
+    @safetestset "velocity verlet" begin include("unit/time_solvers/test_velocity_verlet.jl") end
 end

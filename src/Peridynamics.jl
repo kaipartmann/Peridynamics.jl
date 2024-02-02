@@ -4,7 +4,7 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK
       TimerOutputs, MPI
 
 export PointCloud, BBMaterial, Body, point_set!, material!, velocity_bc!, velocity_ic!,
-       forcedensity_bc!, forcedensity_ic!, precrack!
+       forcedensity_bc!, forcedensity_ic!, precrack!, VelocityVerlet
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -61,6 +61,8 @@ include("discretizations/predefined_cracks.jl")
 include("discretizations/point_sets.jl")
 include("discretizations/find_points.jl")
 include("discretizations/body.jl")
+
+include("time_solvers/velocity_verlet.jl")
 
 include("discretizations/point_cloud.jl")
 include("discretizations/decomposition.jl")
