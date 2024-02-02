@@ -122,3 +122,20 @@ function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {
     dim = get_dim(d)
     _condition!(b.single_dim_bcs, SingleDimBC(f, :b_ext, name, dim))
 end
+
+function sets_intersect(set_a::U, set_b::V) where {U,V<:AbstractVector{<:Integer}}
+    isempty(set_a ∩ set_b) && return false
+    return true
+end
+
+function precrack!(b::Body, set_a::Symbol, set_b::Symbol)
+    check_if_set_is_defined(b.psh, set_a)
+    check_if_set_is_defined(b.psh, set_b)
+    if sets_intersect(b.psh.point_sets[set_a], b.psh.point_sets[set_b])
+        msg = "set :$set_a and :$set_b intersect!\n"
+        msg *= "No point of the first set is allowed in the second!\n"
+        throw(ArgumentError(msg))
+    end
+    push!(b.point_sets_precracks, PointSetsPreCrack(set_a, set_b))
+    return nothing
+end

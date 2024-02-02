@@ -55,8 +55,6 @@ let
 end
 
 
-
-
 ## bond-based material
 let
     # setup
@@ -295,4 +293,45 @@ let
     @test bc6.field === :b_ext
     @test bc6.point_set === :b
     @test bc6.dim == 0x03
+end
+
+
+## point sets predefined crack
+let
+    # setup
+    position = [
+        0.0 1.0 0.0 0.0
+        0.0 0.0 1.0 0.0
+        0.0 0.0 0.0 1.0
+    ]
+    volume = [1, 1, 1, 1]
+    body = Body(position, volume)
+
+    # test body creation
+    @test body.n_points == 4
+    @test body.position == position
+    @test body.volume == volume
+    @test body.failure_allowed == BitVector(fill(true, 4))
+    @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.AbstractMaterial})
+
+    # add point set
+    point_set!(body, :a, 1:2)
+    @test body.psh.point_sets == Dict(:a => 1:2)
+
+    # add another point set via function definition
+    point_set!(x -> x > 0.5, body, :b)
+    @test body.psh.point_sets == Dict(:a => 1:2, :b => [2])
+
+    # add point set with do syntax
+    point_set!(body, :c) do p
+        p[3] > 0.0
+    end
+    @test body.psh.point_sets == Dict(:a => 1:2, :b => [2], :c => [4])
+
+    # precrack! with set :a and :c
+    precrack!(body, :a, :c)
+    @test body.point_sets_precracks == [Peridynamics.PointSetsPreCrack(:a, :c)]
+
+    # precrack! with set :a and :c
+    @test_throws ArgumentError precrack!(body, :a, :b)
 end

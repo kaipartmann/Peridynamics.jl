@@ -4,7 +4,7 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK
       TimerOutputs, MPI
 
 export PointCloud, BBMaterial, Body, point_set!, material!, velocity_bc!, velocity_ic!,
-       forcedensity_bc!, forcedensity_ic!
+       forcedensity_bc!, forcedensity_ic!, precrack!
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
