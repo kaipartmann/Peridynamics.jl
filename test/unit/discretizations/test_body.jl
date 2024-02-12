@@ -1,7 +1,5 @@
 using Peridynamics, Test
 
-@inline material_type(::Peridynamics.PointSetHandler{M}) where {M} = M
-
 ##
 let
     # setup
@@ -17,7 +15,6 @@ let
     @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
     @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
-    @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.AbstractMaterial})
 end
 
 ## point sets
@@ -34,21 +31,20 @@ let
     @test body.position == position
     @test body.volume == volume
     @test body.failure_allowed == BitVector(fill(true, 4))
-    @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.AbstractMaterial})
 
     # add point set
     point_set!(body, :a, 1:2)
-    @test body.psh.point_sets == Dict(:a => 1:2)
+    @test body.point_sets == Dict(:a => 1:2)
 
     # add another point set via function definition
     point_set!(x -> x > 0.5, body, :b)
-    @test body.psh.point_sets == Dict(:a => 1:2, :b => [2])
+    @test body.point_sets == Dict(:a => 1:2, :b => [2])
 
     # add point set with do syntax
     point_set!(body, :c) do p
         p[3] > 0.0
     end
-    @test body.psh.point_sets == Dict(:a => 1:2, :b => [2], :c => [4])
+    @test body.point_sets == Dict(:a => 1:2, :b => [2], :c => [4])
 
     # point_set!
     @test_throws BoundsError point_set!(body, :d, 1:5)
@@ -68,25 +64,22 @@ let
     @test body.position == position
     @test body.volume == volume
     @test body.failure_allowed == BitVector(fill(true, 4))
-    @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.AbstractMaterial})
 
     # add point set
     point_set!(body, :a, 1:2)
-    @test body.psh.point_sets == Dict(:a => 1:2)
+    @test body.point_sets == Dict(:a => 1:2)
 
     # add material
     mat = BBMaterial(horizon=1, E=1, rho=1, Gc=1)
     material!(body, mat)
-    @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.BBMaterial})
-    @test material_type(body.psh) == Peridynamics.BBMaterial
-    @test body.psh.materials == Dict(:__all__ => BBMaterial(horizon=1, E=1, rho=1, Gc=1))
+    @test Peridynamics.get_material_type(body.materials) == Peridynamics.BBMaterial
+    @test body.materials == Dict(:__all__ => BBMaterial(horizon=1, E=1, rho=1, Gc=1))
 
     # add material to set
     mat2 = BBMaterial(horizon=2, E=2, rho=2, Gc=2)
     material!(body, :a, mat2)
-    @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.BBMaterial})
-    @test material_type(body.psh) == Peridynamics.BBMaterial
-    @test body.psh.materials == Dict(:__all__ => BBMaterial(horizon=1, E=1, rho=1, Gc=1),
+    @test Peridynamics.get_material_type(body.materials) == Peridynamics.BBMaterial
+    @test body.materials == Dict(:__all__ => BBMaterial(horizon=1, E=1, rho=1, Gc=1),
                :a => BBMaterial(horizon=2, E=2, rho=2, Gc=2))
 end
 
@@ -104,21 +97,20 @@ let
     @test body.position == position
     @test body.volume == volume
     @test body.failure_allowed == BitVector(fill(true, 4))
-    @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.AbstractMaterial})
 
     # add point set
     point_set!(body, :a, 1:2)
-    @test body.psh.point_sets == Dict(:a => 1:2)
+    @test body.point_sets == Dict(:a => 1:2)
 
     # add another point set via function definition
     point_set!(x -> x > 0.5, body, :b)
-    @test body.psh.point_sets == Dict(:a => 1:2, :b => [2])
+    @test body.point_sets == Dict(:a => 1:2, :b => [2])
 
     # add point set with do syntax
     point_set!(body, :c) do p
         p[3] > 0.0
     end
-    @test body.psh.point_sets == Dict(:a => 1:2, :b => [2], :c => [4])
+    @test body.point_sets == Dict(:a => 1:2, :b => [2], :c => [4])
 
     # point_set!
     @test_throws BoundsError point_set!(body, :d, 1:5)
@@ -126,8 +118,7 @@ let
     # add material
     mat = BBMaterial(horizon=1, E=1, rho=1, Gc=1)
     material!(body, mat)
-    @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.BBMaterial})
-    @test material_type(body.psh) == Peridynamics.BBMaterial
+    @test Peridynamics.get_material_type(body.materials) == Peridynamics.BBMaterial
 
     # velocity bc 1
     velocity_bc!(t -> 1, body, :a, 1)
@@ -207,11 +198,11 @@ let
 
     # add point set
     point_set!(body, :a, 1:2)
-    @test body.psh.point_sets == Dict(:a => 1:2)
+    @test body.point_sets == Dict(:a => 1:2)
 
     # add another point set via function definition
     point_set!(x -> x > 0.5, body, :b)
-    @test body.psh.point_sets == Dict(:a => 1:2, :b => [2])
+    @test body.point_sets == Dict(:a => 1:2, :b => [2])
 
     # velocity bc 1
     forcedensity_bc!(t -> 1, body, :a, 1)
@@ -294,21 +285,21 @@ let
     @test body.position == position
     @test body.volume == volume
     @test body.failure_allowed == BitVector(fill(true, 4))
-    @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.AbstractMaterial})
+    # @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.AbstractMaterial})
 
     # add point set
     point_set!(body, :a, 1:2)
-    @test body.psh.point_sets == Dict(:a => 1:2)
+    @test body.point_sets == Dict(:a => 1:2)
 
     # add another point set via function definition
     point_set!(x -> x > 0.5, body, :b)
-    @test body.psh.point_sets == Dict(:a => 1:2, :b => [2])
+    @test body.point_sets == Dict(:a => 1:2, :b => [2])
 
     # add point set with do syntax
     point_set!(body, :c) do p
         p[3] > 0.0
     end
-    @test body.psh.point_sets == Dict(:a => 1:2, :b => [2], :c => [4])
+    @test body.point_sets == Dict(:a => 1:2, :b => [2], :c => [4])
 
     # precrack! with set :a and :c
     precrack!(body, :a, :c)

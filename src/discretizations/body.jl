@@ -1,13 +1,14 @@
 
-mutable struct Body
-    const n_points::Int
-    const position::Matrix{Float64}
-    const volume::Vector{Float64}
-    const failure_allowed::Vector{Bool}
-    const single_dim_bcs::Vector{SingleDimBC}
-    const single_dim_ics::Vector{SingleDimIC}
-    const point_sets_precracks::Vector{PointSetsPreCrack}
-    psh::PointSetHandler{<:AbstractMaterial}
+struct Body
+    n_points::Int
+    position::Matrix{Float64}
+    volume::Vector{Float64}
+    failure_allowed::Vector{Bool}
+    point_sets::Dict{Symbol,AbstractVector{<:Integer}}
+    materials::Dict{Symbol,AbstractMaterial}
+    single_dim_bcs::Vector{SingleDimBC}
+    single_dim_ics::Vector{SingleDimIC}
+    point_sets_precracks::Vector{PointSetsPreCrack}
 
     function Body(position::AbstractMatrix, volume::AbstractVector)
         # check if n_points is greater than zero
@@ -27,19 +28,36 @@ mutable struct Body
         sum(isnan.(volume)) > 0 && error("vector `volume` contains NaN values!\n")
 
         failure_allowed = BitVector(fill(true, length(volume)))
+        point_sets = Dict{Symbol,AbstractVector{<:Integer}}()
+        materials = Dict{Symbol,AbstractMaterial}()
         single_dim_bcs = Vector{SingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
-        psh = PointSetHandler(AbstractMaterial)
 
-        new(n_points, position, volume, failure_allowed, single_dim_bcs, single_dim_ics,
-            point_sets_precracks, psh)
+        new(n_points, position, volume, failure_allowed, point_sets, materials,
+            single_dim_bcs, single_dim_ics, point_sets_precracks)
     end
+end
+
+function check_if_set_is_defined(point_sets::Dict{Symbol,V}, name::Symbol) where {V}
+    if !haskey(point_sets, name)
+        error("there is no point set with name $(name)!")
+    end
+    return nothing
+end
+
+function _point_set!(point_sets::Dict{Symbol,V}, name::Symbol,
+                     points::V) where {V<:AbstractVector{<:Integer}}
+    if haskey(point_sets, name)
+        error("there is already a point set with name $(name)!")
+    end
+    point_sets[name] = points
+    return nothing
 end
 
 function point_set!(b::Body, name::Symbol, points::V) where {V<:AbstractVector}
     checkbounds(b.volume, points)
-    _point_set!(b.psh.point_sets, name, points)
+    _point_set!(b.point_sets, name, points)
     return nothing
 end
 
@@ -49,20 +67,51 @@ function point_set!(f::F, b::Body, name::Symbol) where {F<:Function}
     return nothing
 end
 
+function failure_allowed!(b::Body, name::Symbol, failure_allowed::Bool)
+    check_if_set_is_defined(b.point_sets, name)
+    b.failure_allowed[b.point_sets[name]] .= failure_allowed
+    return nothing
+end
+
+function get_material_type(materials::Dict{Symbol,AbstractMaterial})
+    if isempty(materials)
+        return AbstractMaterial
+    end
+    mat_types = typeof.(values(materials))
+    if !allequal(mat_types)
+        error("Materials contains multiple material types!")
+    end
+    mat_type = first(mat_types)
+    return mat_type
+end
+
+function _material!(materials::Dict{Symbol,AbstractMaterial}, name::Symbol,
+                    mat::M) where {M<:AbstractMaterial}
+    mat_type = get_material_type(materials)
+    if mat_type != M && isconcretetype(mat_type)
+        msg = "body is already assigned with material type $(mat_type))), "
+        msg *= "cannot add material with type $(M)!\n"
+        throw(ArgumentError(msg))
+    end
+    if haskey(materials, name)
+        msg = "material for set $(name) already defined!\n"
+        throw(ArgumentError(msg))
+    end
+    materials[name] = mat
+    return nothing
+end
+
 function material!(b::Body, mat::M) where {M<:AbstractMaterial}
-    if !haskey(b.psh.point_sets, :__all__)
-        _point_set!(b.psh.point_sets, :__all__, 1:b.n_points)
+    if !haskey(b.point_sets, :__all__)
+        _point_set!(b.point_sets, :__all__, 1:b.n_points)
     end
     material!(b, :__all__, mat)
     return nothing
 end
 
 function material!(b::Body, name::Symbol, mat::M) where {M<:AbstractMaterial}
-    check_if_set_is_defined(b.psh.point_sets, name)
-    if material_is_undefined(b.psh.materials)
-        b.psh = PointSetHandler(M, b.psh)
-    end
-    _material!(b.psh.materials, name, mat)
+    check_if_set_is_defined(b.point_sets, name)
+    _material!(b.materials, name, mat)
     return nothing
 end
 
@@ -89,7 +138,7 @@ function _condition!(conditions::Vector{B}, condition::B) where {B<:AbstractCond
 end
 
 function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
-    check_if_set_is_defined(b.psh.point_sets, name)
+    check_if_set_is_defined(b.point_sets, name)
     check_condition_function(f)
     dim = get_dim(d)
     _condition!(b.single_dim_bcs, SingleDimBC(f, :velocity_half, name, dim))
@@ -97,13 +146,13 @@ function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:F
 end
 
 function velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
-    check_if_set_is_defined(b.psh.point_sets, name)
+    check_if_set_is_defined(b.point_sets, name)
     dim = get_dim(d)
     _condition!(b.single_dim_ics, SingleDimIC(value, :velocity, name, dim))
 end
 
 function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
-    check_if_set_is_defined(b.psh.point_sets, name)
+    check_if_set_is_defined(b.point_sets, name)
     check_condition_function(f)
     dim = get_dim(d)
     _condition!(b.single_dim_bcs, SingleDimBC(f, :b_ext, name, dim))
@@ -115,9 +164,9 @@ function sets_intersect(set_a::U, set_b::V) where {U,V<:AbstractVector{<:Integer
 end
 
 function precrack!(b::Body, set_a::Symbol, set_b::Symbol)
-    check_if_set_is_defined(b.psh.point_sets, set_a)
-    check_if_set_is_defined(b.psh.point_sets, set_b)
-    if sets_intersect(b.psh.point_sets[set_a], b.psh.point_sets[set_b])
+    check_if_set_is_defined(b.point_sets, set_a)
+    check_if_set_is_defined(b.point_sets, set_b)
+    if sets_intersect(b.point_sets[set_a], b.point_sets[set_b])
         msg = "set :$set_a and :$set_b intersect!\n"
         msg *= "No point of the first set is allowed in the second!\n"
         throw(ArgumentError(msg))
