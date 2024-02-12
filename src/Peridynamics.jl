@@ -3,9 +3,9 @@ module Peridynamics
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK,
       TimerOutputs, MPI
 
-export BBMaterial, Body, point_set!, material!, velocity_bc!, velocity_ic!,
-       forcedensity_bc!, precrack!, VelocityVerlet, MultibodySetup,
-       contact!, Job
+export BBMaterial, CKIMaterial, Body, point_set!, failure_allowed!, material!, velocity_bc!,
+       velocity_ic!, forcedensity_bc!, precrack!, VelocityVerlet, MultibodySetup, contact!,
+       Job
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -61,7 +61,6 @@ include("conditions/initial_conditions.jl")
 include("conditions/condition_checks.jl")
 
 include("discretizations/predefined_cracks.jl")
-include("discretizations/point_sets.jl")
 include("discretizations/find_points.jl")
 include("discretizations/body.jl")
 
@@ -77,6 +76,7 @@ include("discretizations/decomposition.jl")
 include("discretizations/point_bond_discretization.jl")
 
 include("materials/bond_based.jl")
+include("materials/continuum_kinematics_inspired.jl")
 
 include("threads_core/chunk_local_handler.jl")
 include("threads_core/threads_halo_exchange.jl")
