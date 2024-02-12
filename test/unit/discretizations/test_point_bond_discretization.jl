@@ -1,4 +1,5 @@
 using Peridynamics, Test
+import Peridynamics: PointCloud
 
 ## find_bonds!
 let
