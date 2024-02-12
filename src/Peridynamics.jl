@@ -4,7 +4,8 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK
       TimerOutputs, MPI
 
 export PointCloud, BBMaterial, Body, point_set!, material!, velocity_bc!, velocity_ic!,
-       forcedensity_bc!, forcedensity_ic!, precrack!, VelocityVerlet
+       forcedensity_bc!, precrack!, VelocityVerlet, MultibodySetup,
+       contact!, Job
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -18,6 +19,8 @@ const TO = TimerOutput()
 
 const FIND_POINTS_ALLOWED_SYMBOLS = (:x, :y, :z, :p)
 const SYMBOL_TO_DIM = Dict(:x => 0x1, :y => 0x2, :z => 0x3)
+const WRITEFIELDS_DEFAULTS = [:displacement, :velocity, :damage]
+
 const DimensionSpec = Union{Integer,Symbol}
 
 function __init__()
@@ -62,6 +65,11 @@ include("discretizations/point_sets.jl")
 include("discretizations/find_points.jl")
 include("discretizations/body.jl")
 
+include("discretizations/contact.jl")
+include("discretizations/multibody_setup.jl")
+
+const SpatialSetup = Union{Body,MultibodySetup}
+
 include("time_solvers/velocity_verlet.jl")
 
 include("discretizations/point_cloud.jl")
@@ -75,5 +83,8 @@ include("threads_core/threads_halo_exchange.jl")
 include("threads_core/threads_data_handler.jl")
 
 include("auxiliary/function_arguments.jl")
+include("auxiliary/io.jl")
+
+include("sim_core/jobs.jl")
 
 end
