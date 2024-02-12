@@ -9,8 +9,7 @@ mutable struct Body
     const point_sets_precracks::Vector{PointSetsPreCrack}
     psh::PointSetHandler{<:AbstractMaterial}
 
-    function Body(position::AbstractMatrix, volume::AbstractVector,
-                  failure_allowed::BitVector)
+    function Body(position::AbstractMatrix, volume::AbstractVector)
         # check if n_points is greater than zero
         n_points = length(volume)
         n_points > 0 || error("number of points `n_points` must be greater than zero!\n")
@@ -24,18 +23,10 @@ mutable struct Body
             throw(DimensionMismatch(err_msg))
         end
 
-        # check dimension of failure_allowed
-        n_points_failure_allowed = length(failure_allowed)
-        if n_points_failure_allowed != n_points
-            err_msg = "Incorrect length of `failure_allowed`!\n"
-            err_msg *= @sprintf("  should be: %d\n", n_points)
-            err_msg *= @sprintf("  evaluated: %d\n", n_points_failure_allowed)
-            throw(DimensionMismatch(err_msg))
-        end
-
         sum(isnan.(position)) > 0 && error("matrix `position` contains NaN values!\n")
         sum(isnan.(volume)) > 0 && error("vector `volume` contains NaN values!\n")
 
+        failure_allowed = BitVector(fill(true, length(volume)))
         single_dim_bcs = Vector{SingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
@@ -46,14 +37,9 @@ mutable struct Body
     end
 end
 
-function Body(position::AbstractMatrix, volume::AbstractVector)
-    failure_allowed = BitVector(fill(true, length(volume)))
-    return Body(position, volume, failure_allowed)
-end
-
 function point_set!(b::Body, name::Symbol, points::V) where {V<:AbstractVector}
     checkbounds(b.volume, points)
-    _point_set!(b.psh, name, points)
+    _point_set!(b.psh.point_sets, name, points)
     return nothing
 end
 
@@ -65,18 +51,18 @@ end
 
 function material!(b::Body, mat::M) where {M<:AbstractMaterial}
     if !haskey(b.psh.point_sets, :__all__)
-        _point_set!(b.psh, :__all__, 1:b.n_points)
+        _point_set!(b.psh.point_sets, :__all__, 1:b.n_points)
     end
     material!(b, :__all__, mat)
     return nothing
 end
 
 function material!(b::Body, name::Symbol, mat::M) where {M<:AbstractMaterial}
-    check_if_set_is_defined(b.psh, name)
-    if material_is_undefined(b.psh)
+    check_if_set_is_defined(b.psh.point_sets, name)
+    if material_is_undefined(b.psh.materials)
         b.psh = PointSetHandler(M, b.psh)
     end
-    _material!(b.psh, name, mat)
+    _material!(b.psh.materials, name, mat)
     return nothing
 end
 
@@ -103,7 +89,7 @@ function _condition!(conditions::Vector{B}, condition::B) where {B<:AbstractCond
 end
 
 function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
-    check_if_set_is_defined(b.psh, name)
+    check_if_set_is_defined(b.psh.point_sets, name)
     check_condition_function(f)
     dim = get_dim(d)
     _condition!(b.single_dim_bcs, SingleDimBC(f, :velocity_half, name, dim))
@@ -111,13 +97,13 @@ function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:F
 end
 
 function velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
-    check_if_set_is_defined(b.psh, name)
+    check_if_set_is_defined(b.psh.point_sets, name)
     dim = get_dim(d)
     _condition!(b.single_dim_ics, SingleDimIC(value, :velocity, name, dim))
 end
 
 function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
-    check_if_set_is_defined(b.psh, name)
+    check_if_set_is_defined(b.psh.point_sets, name)
     check_condition_function(f)
     dim = get_dim(d)
     _condition!(b.single_dim_bcs, SingleDimBC(f, :b_ext, name, dim))
@@ -129,8 +115,8 @@ function sets_intersect(set_a::U, set_b::V) where {U,V<:AbstractVector{<:Integer
 end
 
 function precrack!(b::Body, set_a::Symbol, set_b::Symbol)
-    check_if_set_is_defined(b.psh, set_a)
-    check_if_set_is_defined(b.psh, set_b)
+    check_if_set_is_defined(b.psh.point_sets, set_a)
+    check_if_set_is_defined(b.psh.point_sets, set_b)
     if sets_intersect(b.psh.point_sets[set_a], b.psh.point_sets[set_b])
         msg = "set :$set_a and :$set_b intersect!\n"
         msg *= "No point of the first set is allowed in the second!\n"

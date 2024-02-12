@@ -29,4 +29,5 @@ function contact!(ms::MultibodySetup, body_a::Symbol, body_b::Symbol, contact_ra
         throw(ArgumentError("contact spring constant should be larger than zero!\n"))
     end
     push!(ms.contacts, Contact(body_a, body_b, contact_radius, contact_constant))
+    return nothing
 end
