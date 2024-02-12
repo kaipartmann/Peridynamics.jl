@@ -1,5 +1,7 @@
 using Peridynamics, Test
 
+@inline material_type(::Peridynamics.PointSetHandler{M}) where {M} = M
+
 ##
 let
     # setup
@@ -21,11 +23,9 @@ end
 ## point sets
 let
     # setup
-    position = [
-        0.0 1.0 0.0 0.0
-        0.0 0.0 1.0 0.0
-        0.0 0.0 0.0 1.0
-    ]
+    position = [0.0 1.0 0.0 0.0
+                0.0 0.0 1.0 0.0
+                0.0 0.0 0.0 1.0]
     volume = [1, 1, 1, 1]
     body = Body(position, volume)
 
@@ -54,15 +54,12 @@ let
     @test_throws BoundsError point_set!(body, :d, 1:5)
 end
 
-
 ## bond-based material
 let
     # setup
-    position = [
-        0.0 1.0 0.0 0.0
-        0.0 0.0 1.0 0.0
-        0.0 0.0 0.0 1.0
-    ]
+    position = [0.0 1.0 0.0 0.0
+                0.0 0.0 1.0 0.0
+                0.0 0.0 0.0 1.0]
     volume = [1, 1, 1, 1]
     body = Body(position, volume)
 
@@ -81,27 +78,24 @@ let
     mat = BBMaterial(horizon=1, E=1, rho=1, Gc=1)
     material!(body, mat)
     @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.BBMaterial})
-    @test Peridynamics.material_type(body.psh) == Peridynamics.BBMaterial
+    @test material_type(body.psh) == Peridynamics.BBMaterial
     @test body.psh.materials == Dict(:__all__ => BBMaterial(horizon=1, E=1, rho=1, Gc=1))
 
     # add material to set
     mat2 = BBMaterial(horizon=2, E=2, rho=2, Gc=2)
     material!(body, :a, mat2)
     @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.BBMaterial})
-    @test Peridynamics.material_type(body.psh) == Peridynamics.BBMaterial
+    @test material_type(body.psh) == Peridynamics.BBMaterial
     @test body.psh.materials == Dict(:__all__ => BBMaterial(horizon=1, E=1, rho=1, Gc=1),
-                                     :a => BBMaterial(horizon=2, E=2, rho=2, Gc=2))
+               :a => BBMaterial(horizon=2, E=2, rho=2, Gc=2))
 end
-
 
 ## velocity boundary conditions
 let
     # setup
-    position = [
-        0.0 1.0 0.0 0.0
-        0.0 0.0 1.0 0.0
-        0.0 0.0 0.0 1.0
-    ]
+    position = [0.0 1.0 0.0 0.0
+                0.0 0.0 1.0 0.0
+                0.0 0.0 0.0 1.0]
     volume = [1, 1, 1, 1]
     body = Body(position, volume)
 
@@ -133,7 +127,7 @@ let
     mat = BBMaterial(horizon=1, E=1, rho=1, Gc=1)
     material!(body, mat)
     @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.BBMaterial})
-    @test Peridynamics.material_type(body.psh) == Peridynamics.BBMaterial
+    @test material_type(body.psh) == Peridynamics.BBMaterial
 
     # velocity bc 1
     velocity_bc!(t -> 1, body, :a, 1)
@@ -202,15 +196,12 @@ let
     @test bc6.dim == 0x03
 end
 
-
 ## force density boundary conditions
 let
     # setup
-    position = [
-        0.0 1.0 0.0 0.0
-        0.0 0.0 1.0 0.0
-        0.0 0.0 0.0 1.0
-    ]
+    position = [0.0 1.0 0.0 0.0
+                0.0 0.0 1.0 0.0
+                0.0 0.0 0.0 1.0]
     volume = [1, 1, 1, 1]
     body = Body(position, volume)
 
@@ -221,12 +212,6 @@ let
     # add another point set via function definition
     point_set!(x -> x > 0.5, body, :b)
     @test body.psh.point_sets == Dict(:a => 1:2, :b => [2])
-
-    # # add material
-    # mat = BBMaterial(horizon=1, E=1, rho=1, Gc=1)
-    # material!(body, mat)
-    # @test isa(body.psh, Peridynamics.PointSetHandler{Peridynamics.BBMaterial})
-    # @test Peridynamics.material_type(body.psh) == Peridynamics.BBMaterial
 
     # velocity bc 1
     forcedensity_bc!(t -> 1, body, :a, 1)
@@ -295,15 +280,12 @@ let
     @test bc6.dim == 0x03
 end
 
-
 ## point sets predefined crack
 let
     # setup
-    position = [
-        0.0 1.0 0.0 0.0
-        0.0 0.0 1.0 0.0
-        0.0 0.0 0.0 1.0
-    ]
+    position = [0.0 1.0 0.0 0.0
+                0.0 0.0 1.0 0.0
+                0.0 0.0 0.0 1.0]
     volume = [1, 1, 1, 1]
     body = Body(position, volume)
 
