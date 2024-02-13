@@ -4,10 +4,11 @@ using Peridynamics, Test
 let
     # setup
     n_points = 10
-    position, volume = rand(3, n_points), rand(n_points)
-    body = Body(position, volume)
+    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
+    body = Body(mat, position, volume)
 
     # test body creation
+    @test body.mat == BBMaterial()
     @test body.n_points == n_points
     @test body.position == position
     @test body.volume == volume
@@ -15,6 +16,9 @@ let
     @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
     @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
+    @test isempty(body.point_sets)
+    @test body.point_params == Vector{Peridynamics.BBPointParameters}()
+    @test body.params_mapping == zeros(Int, n_points)
 end
 
 ## point sets
@@ -24,13 +28,21 @@ let
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
     volume = [1, 1, 1, 1]
-    body = Body(position, volume)
+    mat = BBMaterial()
+    body = Body(mat, position, volume)
 
     # test body creation
+    @test body.mat == BBMaterial()
     @test body.n_points == 4
     @test body.position == position
     @test body.volume == volume
     @test body.failure_allowed == BitVector(fill(true, 4))
+    @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
+    @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
+    @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
+    @test isempty(body.point_sets)
+    @test body.point_params == Vector{Peridynamics.BBPointParameters}()
+    @test body.params_mapping == zeros(Int, 4)
 
     # add point set
     point_set!(body, :a, 1:2)
@@ -50,37 +62,58 @@ let
     @test_throws BoundsError point_set!(body, :d, 1:5)
 end
 
-## bond-based material
+## material!
 let
     # setup
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
     volume = [1, 1, 1, 1]
-    body = Body(position, volume)
+    mat = BBMaterial()
+    body = Body(mat, position, volume)
 
     # test body creation
+    @test body.mat == BBMaterial()
     @test body.n_points == 4
     @test body.position == position
     @test body.volume == volume
     @test body.failure_allowed == BitVector(fill(true, 4))
+    @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
+    @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
+    @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
+    @test isempty(body.point_sets)
+    @test body.point_params == Vector{Peridynamics.BBPointParameters}()
+    @test body.params_mapping == zeros(Int, 4)
 
     # add point set
     point_set!(body, :a, 1:2)
     @test body.point_sets == Dict(:a => 1:2)
 
     # add material
-    mat = BBMaterial(horizon=1, E=1, rho=1, Gc=1)
-    material!(body, mat)
-    @test Peridynamics.get_material_type(body.materials) == Peridynamics.BBMaterial
-    @test body.materials == Dict(:__all__ => BBMaterial(horizon=1, E=1, rho=1, Gc=1))
+    material!(body; horizon=1, E=1, rho=1, Gc=1)
+    @test body.point_params == [
+        Peridynamics.BBPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666, 0.4,
+                                       0.4, 1.0, 0.9128709291752769, 3.819718634205488),
+    ]
+    @test body.params_mapping == [1, 1, 1, 1]
 
     # add material to set
-    mat2 = BBMaterial(horizon=2, E=2, rho=2, Gc=2)
-    material!(body, :a, mat2)
-    @test Peridynamics.get_material_type(body.materials) == Peridynamics.BBMaterial
-    @test body.materials == Dict(:__all__ => BBMaterial(horizon=1, E=1, rho=1, Gc=1),
-               :a => BBMaterial(horizon=2, E=2, rho=2, Gc=2))
+    material!(body, :a; horizon=2, E=2, rho=2, Gc=2)
+    @test body.point_params == [
+        Peridynamics.BBPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666, 0.4,
+                                       0.4, 1.0, 0.9128709291752769, 3.819718634205488),
+        Peridynamics.BBPointParameters(2.0, 2.0, 2.0, 0.25, 0.8, 1.3333333333333333, 0.8,
+                                       0.8, 2.0, 0.6454972243679028, 0.477464829275686),
+    ]
+    @test body.params_mapping == [2, 2, 1, 1]
+
+    # add material to body -> overwriting everything!
+    material!(body; horizon=3, E=3, rho=3, Gc=3)
+    @test body.point_params == [
+        Peridynamics.BBPointParameters(3.0, 3.0, 3.0, 0.25, 1.2, 2.0, 1.2, 1.2, 3.0,
+                                       0.5270462766947299, 0.1414710605261292),
+    ]
+    @test body.params_mapping == [1, 1, 1, 1]
 end
 
 ## velocity boundary conditions
@@ -90,7 +123,8 @@ let
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
     volume = [1, 1, 1, 1]
-    body = Body(position, volume)
+    mat = BBMaterial()
+    body = Body(mat, position, volume)
 
     # test body creation
     @test body.n_points == 4
@@ -116,9 +150,12 @@ let
     @test_throws BoundsError point_set!(body, :d, 1:5)
 
     # add material
-    mat = BBMaterial(horizon=1, E=1, rho=1, Gc=1)
-    material!(body, mat)
-    @test Peridynamics.get_material_type(body.materials) == Peridynamics.BBMaterial
+    material!(body; horizon=1, E=1, rho=1, Gc=1)
+    @test body.point_params == [
+        Peridynamics.BBPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666, 0.4,
+                                       0.4, 1.0, 0.9128709291752769, 3.819718634205488),
+    ]
+    @test body.params_mapping == [1, 1, 1, 1]
 
     # velocity bc 1
     velocity_bc!(t -> 1, body, :a, 1)
@@ -194,7 +231,8 @@ let
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
     volume = [1, 1, 1, 1]
-    body = Body(position, volume)
+    mat = BBMaterial()
+    body = Body(mat, position, volume)
 
     # add point set
     point_set!(body, :a, 1:2)
@@ -278,7 +316,8 @@ let
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
     volume = [1, 1, 1, 1]
-    body = Body(position, volume)
+    mat = BBMaterial()
+    body = Body(mat, position, volume)
 
     # test body creation
     @test body.n_points == 4

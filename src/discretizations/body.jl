@@ -1,42 +1,55 @@
 
-struct Body
+struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
+    mat::M
     n_points::Int
     position::Matrix{Float64}
     volume::Vector{Float64}
     failure_allowed::Vector{Bool}
-    point_sets::Dict{Symbol,AbstractVector{<:Integer}}
-    materials::Dict{Symbol,AbstractMaterial}
+    point_sets::Dict{Symbol,Vector{Int}}
+    point_params::Vector{P}
+    params_mapping::Vector{Int}
     single_dim_bcs::Vector{SingleDimBC}
     single_dim_ics::Vector{SingleDimIC}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
-    function Body(position::AbstractMatrix, volume::AbstractVector)
-        # check if n_points is greater than zero
+    function Body(mat::M, position::AbstractMatrix,
+                  volume::AbstractVector) where {M<:AbstractMaterial}
         n_points = length(volume)
-        n_points > 0 || error("number of points `n_points` must be greater than zero!\n")
-
-        # check dimension of position
-        dim_position, n_points_position = size(position)
-        if dim_position != 3 || n_points_position != n_points
-            err_msg = "incorrect dimensions of `position`!\n"
-            err_msg *= @sprintf("  should be: (%d, %d)\n", 3, n_points)
-            err_msg *= @sprintf("  evaluated: (%d, %d)\n", dim_position, n_points_position)
-            throw(DimensionMismatch(err_msg))
-        end
-
-        sum(isnan.(position)) > 0 && error("matrix `position` contains NaN values!\n")
-        sum(isnan.(volume)) > 0 && error("vector `volume` contains NaN values!\n")
-
+        check_pos_and_vol(n_points, position, volume)
         failure_allowed = BitVector(fill(true, length(volume)))
-        point_sets = Dict{Symbol,AbstractVector{<:Integer}}()
-        materials = Dict{Symbol,AbstractMaterial}()
+        point_sets = Dict{Symbol,Vector{Int}}()
+
+        P = point_param_type(mat)
+        point_params = Vector{P}()
+        params_mapping = zeros(Int, n_points)
+
         single_dim_bcs = Vector{SingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
-        new(n_points, position, volume, failure_allowed, point_sets, materials,
-            single_dim_bcs, single_dim_ics, point_sets_precracks)
+        new{M,P}(mat, n_points, position, volume, failure_allowed, point_sets, point_params,
+                 params_mapping, single_dim_bcs, single_dim_ics, point_sets_precracks)
     end
+end
+
+function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
+    # check if n_points is greater than zero
+    n_points > 0 || error("number of points `n_points` must be greater than zero!\n")
+
+    # check dimension of position
+    dim_position, n_points_position = size(position)
+    if dim_position != 3 || n_points_position != n_points
+        err_msg = "incorrect dimensions of `position`!\n"
+        err_msg *= @sprintf("  should be: (%d, %d)\n", 3, n_points)
+        err_msg *= @sprintf("  evaluated: (%d, %d)\n", dim_position, n_points_position)
+        throw(DimensionMismatch(err_msg))
+    end
+
+    # check if they contain NaN's
+    sum(isnan.(position)) > 0 && error("matrix `position` contains NaN values!\n")
+    sum(isnan.(volume)) > 0 && error("vector `volume` contains NaN values!\n")
+
+    return nothing
 end
 
 function check_if_set_is_defined(point_sets::Dict{Symbol,V}, name::Symbol) where {V}
@@ -46,7 +59,7 @@ function check_if_set_is_defined(point_sets::Dict{Symbol,V}, name::Symbol) where
     return nothing
 end
 
-function _point_set!(point_sets::Dict{Symbol,V}, name::Symbol,
+function _point_set!(point_sets::Dict{Symbol,Vector{Int}}, name::Symbol,
                      points::V) where {V<:AbstractVector{<:Integer}}
     if haskey(point_sets, name)
         error("there is already a point set with name $(name)!")
@@ -73,45 +86,60 @@ function failure_allowed!(b::Body, name::Symbol, failure_allowed::Bool)
     return nothing
 end
 
-function get_material_type(materials::Dict{Symbol,AbstractMaterial})
-    if isempty(materials)
-        return AbstractMaterial
+function check_kwargs(mat::M, p::Dict{Symbol,Any}) where {M<:AbstractMaterial}
+    allowed_kwargs = allowed_material_kwargs(mat)
+    for (key, _) in p
+        if !in(key, allowed_kwargs)
+            msg = "keyword $key not allowed for material of type $(M)!\n"
+            throw(ArgumentError(msg))
+        end
     end
-    mat_types = typeof.(values(materials))
-    if !allequal(mat_types)
-        error("Materials contains multiple material types!")
-    end
-    mat_type = first(mat_types)
-    return mat_type
 end
 
-function _material!(materials::Dict{Symbol,AbstractMaterial}, name::Symbol,
-                    mat::M) where {M<:AbstractMaterial}
-    mat_type = get_material_type(materials)
-    if mat_type != M && isconcretetype(mat_type)
-        msg = "body is already assigned with material type $(mat_type))), "
-        msg *= "cannot add material with type $(M)!\n"
-        throw(ArgumentError(msg))
-    end
-    if haskey(materials, name)
-        msg = "material for set $(name) already defined!\n"
-        throw(ArgumentError(msg))
-    end
-    materials[name] = mat
-    return nothing
-end
-
-function material!(b::Body, mat::M) where {M<:AbstractMaterial}
-    if !haskey(b.point_sets, :__all__)
-        _point_set!(b.point_sets, :__all__, 1:b.n_points)
-    end
-    material!(b, :__all__, mat)
-    return nothing
-end
-
-function material!(b::Body, name::Symbol, mat::M) where {M<:AbstractMaterial}
+function material!(b::Body{M,P}, name::Symbol; kwargs...) where {M,P}
     check_if_set_is_defined(b.point_sets, name)
-    _material!(b.materials, name, mat)
+
+    p = Dict{Symbol,Any}(kwargs)
+    check_kwargs(b.mat, p)
+
+    points = b.point_sets[name]
+    params = get_point_params(b.mat, p)
+
+    _material!(b, points, params)
+
+    return nothing
+end
+
+function delete_all_point_params!(b::Body{M,P}) where {M,P}
+    n = length(b.point_params)
+    if n > 0
+        for _ in 1:n
+            pop!(b.point_params)
+        end
+    end
+    return nothing
+end
+
+function material!(b::Body{M,P}; kwargs...) where {M,P}
+    p = Dict{Symbol,Any}(kwargs)
+    check_kwargs(b.mat, p)
+
+    if length(b.point_params) > 0
+        @warn "overwriting all previous material definitions!"
+        delete_all_point_params!(b)
+    end
+
+    points = 1:b.n_points
+    params = get_point_params(b.mat, p)
+
+    _material!(b, points, params)
+    return nothing
+end
+
+function _material!(b::Body{M,P}, points::V, params::P) where {M,P,V}
+    push!(b.point_params, params)
+    id = length(b.point_params)
+    b.params_mapping[points] .= id
     return nothing
 end
 
@@ -158,19 +186,21 @@ function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {
     _condition!(b.single_dim_bcs, SingleDimBC(f, :b_ext, name, dim))
 end
 
-function sets_intersect(set_a::U, set_b::V) where {U,V<:AbstractVector{<:Integer}}
-    isempty(set_a ∩ set_b) && return false
-    return true
+function check_if_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Symbol,
+                                 key_b::Symbol)
+    set_a, set_b = point_sets[key_a], point_sets[key_b]
+    if !isempty(set_a ∩ set_b)
+        msg = "set :$key_a and :$key_b intersect!\n"
+        msg *= "No point of the first set is allowed in the second!\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
 end
 
 function precrack!(b::Body, set_a::Symbol, set_b::Symbol)
     check_if_set_is_defined(b.point_sets, set_a)
     check_if_set_is_defined(b.point_sets, set_b)
-    if sets_intersect(b.point_sets[set_a], b.point_sets[set_b])
-        msg = "set :$set_a and :$set_b intersect!\n"
-        msg *= "No point of the first set is allowed in the second!\n"
-        throw(ArgumentError(msg))
-    end
+    check_if_sets_intersect(b.point_sets, set_a, set_b)
     push!(b.point_sets_precracks, PointSetsPreCrack(set_a, set_b))
     return nothing
 end

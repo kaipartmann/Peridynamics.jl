@@ -20,6 +20,9 @@ const TO = TimerOutput()
 const FIND_POINTS_ALLOWED_SYMBOLS = (:x, :y, :z, :p)
 const SYMBOL_TO_DIM = Dict(:x => 0x1, :y => 0x2, :z => 0x3)
 const WRITEFIELDS_DEFAULTS = [:displacement, :velocity, :damage]
+const ELASTIC_KWARGS = (:E, :nu)
+const FRAC_KWARGS = (:Gc, :epsilon_c)
+const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
 
 const DimensionSpec = Union{Integer,Symbol}
 
@@ -40,9 +43,7 @@ end
 abstract type AbstractJob end
 
 abstract type AbstractMaterial end
-abstract type AbstractMaterialConfig end
-abstract type MaterialHandler <: AbstractMaterialConfig end
-abstract type Material <: AbstractMaterialConfig end
+abstract type AbstractPointParameters end
 
 abstract type AbstractTimeSolver end
 
@@ -71,16 +72,18 @@ const SpatialSetup = Union{Body,MultibodySetup}
 
 include("time_solvers/velocity_verlet.jl")
 
-include("discretizations/point_cloud.jl")
 include("discretizations/decomposition.jl")
-include("discretizations/point_bond_discretization.jl")
+# include("discretizations/point_bond_discretization.jl")
 
+include("materials/material_interface.jl")
+include("materials/material_parameters.jl")
+include("materials/fracture.jl")
 include("materials/bond_based.jl")
 include("materials/continuum_kinematics_inspired.jl")
 
-include("threads_core/chunk_local_handler.jl")
-include("threads_core/threads_halo_exchange.jl")
-include("threads_core/threads_data_handler.jl")
+# include("threads_core/chunk_local_handler.jl")
+# include("threads_core/threads_halo_exchange.jl")
+# include("threads_core/threads_data_handler.jl")
 
 include("auxiliary/function_arguments.jl")
 include("auxiliary/io.jl")

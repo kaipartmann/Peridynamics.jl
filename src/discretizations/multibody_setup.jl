@@ -1,7 +1,7 @@
 mutable struct MultibodySetup
     bodies::Dict{Symbol,Body}
     contacts::Vector{Contact}
-    function MultibodySetup(body_pairs::Vararg{Pair{Symbol,Body},N}) where {N}
+    function MultibodySetup(body_pairs::Vararg{Any,N}) where {N}
         bodies = Dict{Symbol,Body}()
         for body_pair in body_pairs
             bodies[body_pair.first] = body_pair.second
