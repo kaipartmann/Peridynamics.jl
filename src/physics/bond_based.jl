@@ -39,6 +39,8 @@ end
 
 @inline allowed_material_kwargs(::BBMaterial) = DEFAULT_POINT_KWARGS
 
+@inline default_export_fields(::BBMaterial) = (:displacement, :damage)
+
 # struct BBStorage <: AbstractStorage
 #     position::Matrix{Float64}
 #     displacement::Matrix{Float64}
