@@ -14,3 +14,12 @@ function get_argument_names_of_function(func_method::Method)
     first(argnames) === Symbol("#self#") && popfirst!(argnames)
     return argnames
 end
+
+function check_kwargs(p::Dict{Symbol,Any}, allowed_kwargs::NTuple{N,Symbol}) where {N}
+    for key in keys(p)
+        if !in(key, allowed_kwargs)
+            throw(ArgumentError("keyword $key not allowed!\n"))
+        end
+    end
+    return nothing
+end

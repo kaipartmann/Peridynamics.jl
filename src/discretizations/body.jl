@@ -12,8 +12,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
     single_dim_ics::Vector{SingleDimIC}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
-    function Body(mat::M, position::AbstractMatrix,
-                  volume::AbstractVector) where {M<:AbstractMaterial}
+    function Body(mat::M, position::AbstractMatrix, volume::AbstractVector) where {M}
         n_points = length(volume)
         check_pos_and_vol(n_points, position, volume)
         failure_allowed = BitVector(fill(true, length(volume)))
@@ -31,6 +30,8 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
                  params_mapping, single_dim_bcs, single_dim_ics, point_sets_precracks)
     end
 end
+
+@inline material_type(::Body{M,P}) where {M,P} = M
 
 function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
     # check if n_points is greater than zero
@@ -86,21 +87,17 @@ function failure_allowed!(b::Body, name::Symbol, failure_allowed::Bool)
     return nothing
 end
 
-function check_kwargs(mat::M, p::Dict{Symbol,Any}) where {M<:AbstractMaterial}
+function check_material_kwargs(mat::M, p::Dict{Symbol,Any}) where {M<:AbstractMaterial}
     allowed_kwargs = allowed_material_kwargs(mat)
-    for (key, _) in p
-        if !in(key, allowed_kwargs)
-            msg = "keyword $key not allowed for material of type $(M)!\n"
-            throw(ArgumentError(msg))
-        end
-    end
+    check_kwargs(p, allowed_kwargs)
+    return nothing
 end
 
 function material!(b::Body{M,P}, name::Symbol; kwargs...) where {M,P}
     check_if_set_is_defined(b.point_sets, name)
 
     p = Dict{Symbol,Any}(kwargs)
-    check_kwargs(b.mat, p)
+    check_material_kwargs(b.mat, p)
 
     points = b.point_sets[name]
     params = get_point_params(b.mat, p)
@@ -110,24 +107,11 @@ function material!(b::Body{M,P}, name::Symbol; kwargs...) where {M,P}
     return nothing
 end
 
-function delete_all_point_params!(b::Body{M,P}) where {M,P}
-    n = length(b.point_params)
-    if n > 0
-        for _ in 1:n
-            pop!(b.point_params)
-        end
-    end
-    return nothing
-end
-
 function material!(b::Body{M,P}; kwargs...) where {M,P}
     p = Dict{Symbol,Any}(kwargs)
-    check_kwargs(b.mat, p)
+    check_material_kwargs(b.mat, p)
 
-    if length(b.point_params) > 0
-        @warn "overwriting all previous material definitions!"
-        delete_all_point_params!(b)
-    end
+    isempty(b.point_params) || empty!(b.point_params)
 
     points = 1:b.n_points
     params = get_point_params(b.mat, p)
