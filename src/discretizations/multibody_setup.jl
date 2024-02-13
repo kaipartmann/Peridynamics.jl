@@ -13,6 +13,13 @@ mutable struct MultibodySetup{M}
     end
 end
 
+function MultibodySetup(body_pairs...)
+    msg = "bodies have different material types!\n"
+    msg *= "Only bodies with the same material types can be used for MultibodySetup!\n"
+    throw(ArgumentError(msg))
+    return nothing
+end
+
 @inline material_type(::MultibodySetup{M}) where {M} = M
 
 function check_if_same_material(bodies)
