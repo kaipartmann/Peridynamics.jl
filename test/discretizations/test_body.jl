@@ -9,7 +9,7 @@
     @test body.n_points == n_points
     @test body.position == position
     @test body.volume == volume
-    @test body.failure_allowed == BitVector(fill(true, n_points))
+    @test body.fail_permit == fill(true, n_points)
     @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
     @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
@@ -29,7 +29,7 @@ end
     @test body.n_points == n_points
     @test body.position == position
     @test body.volume == volume
-    @test body.failure_allowed == BitVector(fill(true, n_points))
+    @test body.fail_permit == fill(true, n_points)
     @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
     @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
@@ -303,7 +303,7 @@ end
     @test body.n_points == 4
     @test body.position == position
     @test body.volume == volume
-    @test body.failure_allowed == BitVector(fill(true, 4))
+    @test body.fail_permit == fill(true, 4)
 
     # add point set
     point_set!(body, :a, 1:2)

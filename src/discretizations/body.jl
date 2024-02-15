@@ -4,7 +4,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
     n_points::Int
     position::Matrix{Float64}
     volume::Vector{Float64}
-    failure_allowed::Vector{Bool}
+    fail_permit::Vector{Bool}
     point_sets::Dict{Symbol,Vector{Int}}
     point_params::Vector{P}
     params_mapping::Vector{Int}
@@ -15,7 +15,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
     function Body(mat::M, position::AbstractMatrix, volume::AbstractVector) where {M}
         n_points = length(volume)
         check_pos_and_vol(n_points, position, volume)
-        failure_allowed = BitVector(fill(true, length(volume)))
+        fail_permit = fill(true, length(volume))
         point_sets = Dict{Symbol,Vector{Int}}()
 
         P = point_param_type(mat)
@@ -26,7 +26,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
         single_dim_ics = Vector{SingleDimIC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
-        new{M,P}(mat, n_points, position, volume, failure_allowed, point_sets, point_params,
+        new{M,P}(mat, n_points, position, volume, fail_permit, point_sets, point_params,
                  params_mapping, single_dim_bcs, single_dim_ics, point_sets_precracks)
     end
 end
@@ -81,9 +81,9 @@ function point_set!(f::F, b::Body, name::Symbol) where {F<:Function}
     return nothing
 end
 
-function failure_allowed!(b::Body, name::Symbol, failure_allowed::Bool)
+function failure_permit!(b::Body, name::Symbol, fail_permit::Bool)
     check_if_set_is_defined(b.point_sets, name)
-    b.failure_allowed[b.point_sets[name]] .= failure_allowed
+    b.fail_permit[b.point_sets[name]] .= fail_permit
     return nothing
 end
 

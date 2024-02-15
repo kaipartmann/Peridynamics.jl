@@ -89,7 +89,7 @@ end
 #         ε = (l - L) / L
 
 #         # failure mechanism
-#         if ε > mat.εc && bond.failure_allowed
+#         if ε > mat.εc && bond.fail_permit
 #             s.bond_active[bond_id] = false
 #         end
 #         s.n_active_bonds[i] += s.bond_failure[bond_id]

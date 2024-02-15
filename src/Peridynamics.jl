@@ -3,7 +3,7 @@ module Peridynamics
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK,
       TimerOutputs, MPI
 
-export BBMaterial, CKIMaterial, Body, point_set!, failure_allowed!, material!, velocity_bc!,
+export BBMaterial, CKIMaterial, Body, point_set!, failure_permit!, material!, velocity_bc!,
        velocity_ic!, forcedensity_bc!, precrack!, VelocityVerlet, MultibodySetup, contact!,
        Job, read_vtk
 
