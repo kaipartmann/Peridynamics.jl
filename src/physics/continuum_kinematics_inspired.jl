@@ -30,5 +30,3 @@ function get_point_params(::CKIMaterial, p::Dict{Symbol,Any})
 end
 
 @inline allowed_material_kwargs(::CKIMaterial) = DEFAULT_POINT_KWARGS
-
-@inline default_export_fields(::Type{CKIMaterial}) = (:displacement, :damage)

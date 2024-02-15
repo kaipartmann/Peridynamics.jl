@@ -11,10 +11,10 @@ end
 
 # fallback
 function get_point_params(mat::AbstractMaterial, ::Dict{Symbol,Any})
-    throw(MethodError(get_elastic_params, mat))
+    throw(MethodError(get_point_params, mat))
 end
 
 # fallback
-function default_export_fields(mat::AbstractMaterial)
-    throw(MethodError(default_export_fields, mat))
+@inline function default_export_fields(::Type{M}) where {M<:AbstractMaterial}
+    return (:displacement, :damage)
 end
