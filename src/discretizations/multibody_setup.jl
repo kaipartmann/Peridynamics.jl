@@ -1,36 +1,23 @@
-mutable struct MultibodySetup{M}
-    bodies::Dict{Symbol,Body{M}}
+mutable struct MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
+    bodies::Dict{Symbol,Body{M,P}}
     contacts::Vector{Contact}
 
-    function MultibodySetup(body_pairs::Vararg{Pair{Symbol,Body{M,P}},N}) where {M,P,N}
-        bodies = Dict{Symbol,Body}()
-        for body_pair in body_pairs
-            bodies[body_pair.first] = body_pair.second
-        end
-        check_if_same_material(bodies)
+    function MultibodySetup(bodies::Dict{Symbol,Body{M,P}}) where {M,P}
         contacts = Vector{Contact}()
-        return new{M}(bodies, contacts)
+        return new{M,P}(bodies, contacts)
     end
 end
 
-function MultibodySetup(body_pairs...)
+function MultibodySetup(::Dict{Symbol,Body})
     msg = "bodies have different material types!\n"
     msg *= "Only bodies with the same material types can be used for MultibodySetup!\n"
     throw(ArgumentError(msg))
     return nothing
 end
 
-@inline material_type(::MultibodySetup{M}) where {M} = M
+MultibodySetup(body_pairs...) = MultibodySetup(Dict(body_pairs...))
 
-function check_if_same_material(bodies)
-    mat_types = material_type.(values(bodies))
-    if !allequal(mat_types)
-        msg = "bodies have different material types!\n"
-        msg *= "Only bodies with the same material types can be used for MultibodySetup!\n"
-        throw(ArgumentError(msg))
-    end
-    return nothing
-end
+@inline material_type(::MultibodySetup{M}) where {M} = M
 
 function check_if_bodyname_is_defined(ms::MultibodySetup, name::Symbol)
     if !haskey(ms.bodies, name)
