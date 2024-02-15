@@ -94,7 +94,9 @@ include("auxiliary/function_arguments.jl")
 include("auxiliary/logs.jl")
 include("auxiliary/io.jl")
 
-include("sim_core/job.jl")
-include("sim_core/submit.jl")
+include("core/job.jl")
+include("core/submit.jl")
+include("core/submit_threads.jl")
+include("core/submit_mpi.jl")
 
 end
