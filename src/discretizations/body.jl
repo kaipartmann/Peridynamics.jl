@@ -188,3 +188,8 @@ function precrack!(b::Body, set_a::Symbol, set_b::Symbol)
     push!(b.point_sets_precracks, PointSetsPreCrack(set_a, set_b))
     return nothing
 end
+
+function pre_submission_check(b::Body)
+    #TODO: check if everything is defined for job submission!
+    return nothing
+end

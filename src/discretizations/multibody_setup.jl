@@ -3,6 +3,11 @@ mutable struct MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
     contacts::Vector{Contact}
 
     function MultibodySetup(bodies::Dict{Symbol,Body{M,P}}) where {M,P}
+        if length(bodies) < 2
+            msg = "not enough bodies given!\n"
+            msg *= "Please specify 2 or more!\n"
+            throw(ArgumentError(msg))
+        end
         contacts = Vector{Contact}()
         return new{M,P}(bodies, contacts)
     end
@@ -35,5 +40,10 @@ function contact!(ms::MultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
     radius, sc = get_contact_params(p)
 
     push!(ms.contacts, Contact(body_a, body_b, radius, sc))
+    return nothing
+end
+
+function pre_submission_check(ms::MultibodySetup)
+    #TODO: check if everything is defined for job submission!
     return nothing
 end
