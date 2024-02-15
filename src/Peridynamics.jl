@@ -74,15 +74,13 @@ include("conditions/condition_checks.jl")
 include("discretizations/predefined_cracks.jl")
 include("discretizations/find_points.jl")
 include("discretizations/body.jl")
-
 include("discretizations/contact.jl")
 include("discretizations/multibody_setup.jl")
-
 const SpatialSetup = Union{Body,MultibodySetup}
+include("discretizations/decomposition.jl")
+include("discretizations/bond_discretization.jl")
 
 include("time_solvers/velocity_verlet.jl")
-
-include("discretizations/decomposition.jl")
 
 include("physics/material_interface.jl")
 include("physics/material_parameters.jl")

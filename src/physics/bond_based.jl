@@ -20,6 +20,8 @@ end
 
 @inline point_param_type(::BBMaterial) = BBPointParameters
 
+@inline allowed_material_kwargs(::BBMaterial) = DEFAULT_POINT_KWARGS
+
 function get_point_params(::BBMaterial, p::Dict{Symbol,Any})
     δ = get_horizon(p)
     rho = get_density(p)
@@ -37,20 +39,22 @@ function get_point_params(::BBMaterial, p::Dict{Symbol,Any})
     return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@inline allowed_material_kwargs(::BBMaterial) = DEFAULT_POINT_KWARGS
+@inline discretization_type(::BBMaterial) = BondDiscretization
 
-# struct BBStorage <: AbstractStorage
-#     position::Matrix{Float64}
-#     displacement::Matrix{Float64}
-#     velocity::Matrix{Float64}
-#     velocity_half::Matrix{Float64}
-#     acceleration::Matrix{Float64}
-#     b_int::Matrix{Float64}
-#     b_ext::Matrix{Float64}
-#     damage::Vector{Float64}
-#     bond_active::Vector{Bool}
-#     n_active_bonds::Vector{Int}
-# end
+struct BBStorage <: AbstractStorage
+    position::Matrix{Float64}
+    displacement::Matrix{Float64}
+    velocity::Matrix{Float64}
+    velocity_half::Matrix{Float64}
+    acceleration::Matrix{Float64}
+    b_int::Matrix{Float64}
+    b_ext::Matrix{Float64}
+    damage::Vector{Float64}
+    bond_active::Vector{Bool}
+    n_active_bonds::Vector{Int}
+end
+
+@inline storage_type(::BBMaterial) = BBStorage
 
 # function init_storage(::BBMaterial, pbd::PointBondDiscretization,
 #                       loc_points::UnitRange{Int}, halo_points::Vector{Int})
