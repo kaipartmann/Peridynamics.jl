@@ -3,9 +3,10 @@ module AbaqusMeshConverter
 using StaticArrays
 using LinearAlgebra
 using AbaqusReader: abaqus_read_mesh
-using ..Peridynamics: PointCloud
 
 const SUPPORTED_ELEMENT_TYPES = [:Tet4, :Hex8]
+
+export read_inp
 
 function get_points(nodes::Dict{Int, Vector{Float64}}, elements::Dict{Int, Vector{Int}},
                     element_types::Dict{Int, Symbol})
@@ -62,7 +63,7 @@ end
 """
     read_inp(file::String)
 
-Read Abaqus .inp-file and convert meshes to `PointCloud` objects with the help of the
+Read Abaqus .inp-file and convert meshes to a point cloud with the help of the
 [`AbaqusReader.jl`](https://github.com/JuliaFEM/AbaqusReader.jl) package.
 Every element is converted to a point. The center of the element becomes the position of the
 point and the element volume becomes the point volume.
@@ -74,25 +75,9 @@ Currently supported mesh elements: $SUPPORTED_ELEMENT_TYPES
 - `file::String`: path to Abaqus .inp-file
 
 # Returns
-- `PointCloud`: generated point cloud with element volume as point volume
-
-# Examples
-The specimen of the
-[`TensileTest.jl`](https://kaipartmann.github.io/Peridynamics.jl/dev/tensiletest/) example
-script:
-```julia-repl
-julia> pointcloud = read_inp("examples/models/TensileTestMesh.inp")
-[ Info: 21420 nodes found
-[ Info: Parsing elements. Type: C3D8. Topology: Hex8
-[ Info: Creating elset bottom
-[ Info: Creating elset top
-16900-points PointCloud
-
-julia> pointcloud.point_sets
-Dict{String, Vector{Int64}} with 2 entries:
-  "bottom" => [11701, 11702, 11703, 11704, 11705, 11706, 11707, 11708, 117…
-  "top"    => [7501, 7502, 7503, 7504, 7505, 7506, 7507, 7508, 7509, 7510 …
-```
+- `position::Matrix{Float64}`: point position (midpoint of every element)
+- `volume::Vector{Float64}`: point volume (volume of every element)
+- `point_sets`: element sets defined in the .inp-file
 """
 function read_inp(file::String)
     if !endswith(file, ".inp")
@@ -102,7 +87,7 @@ function read_inp(file::String)
     am = abaqus_read_mesh(file)
     position, volume = get_points(am["nodes"], am["elements"], am["element_types"])
     point_sets = am["element_sets"]
-    return PointCloud(position, volume, point_sets)
+    return position, volume, point_sets
 end
 
 function midpoint(a::T, b::T, c::T, d::T) where {T <: AbstractVector}

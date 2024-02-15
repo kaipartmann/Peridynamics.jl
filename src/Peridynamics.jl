@@ -5,7 +5,7 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK
 
 export BBMaterial, CKIMaterial, Body, point_set!, failure_allowed!, material!, velocity_bc!,
        velocity_ic!, forcedensity_bc!, precrack!, VelocityVerlet, MultibodySetup, contact!,
-       Job
+       Job, read_vtk
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -98,5 +98,11 @@ include("core/job.jl")
 include("core/submit.jl")
 include("core/submit_threads.jl")
 include("core/submit_mpi.jl")
+
+include("VtkReader/VtkReader.jl")
+using .VtkReader
+
+include("AbaqusMeshConverter/AbaqusMeshConverter.jl")
+using .AbaqusMeshConverter
 
 end
