@@ -15,7 +15,7 @@
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
     @test body.point_sets == Dict{Symbol,Vector{Int}}()
     @test body.point_params == Vector{Peridynamics.BBPointParameters}()
-    @test body.params_mapping == zeros(Int, n_points)
+    @test body.params_map == zeros(Int, n_points)
 end
 
 @testitem "Body CKIMaterial" begin
@@ -35,7 +35,7 @@ end
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
     @test body.point_sets == Dict{Symbol,Vector{Int}}()
     @test body.point_params == Vector{Peridynamics.BBPointParameters}()
-    @test body.params_mapping == zeros(Int, n_points)
+    @test body.params_map == zeros(Int, n_points)
 end
 
 @testitem "point_set!" begin
@@ -80,7 +80,7 @@ end
     @test body.mat == BBMaterial()
     @test body.n_points == n_points
     @test body.point_params == Vector{Peridynamics.BBPointParameters}()
-    @test body.params_mapping == zeros(Int, n_points)
+    @test body.params_map == zeros(Int, n_points)
     @test isempty(body.point_sets)
 
     # add point set
@@ -93,7 +93,7 @@ end
         Peridynamics.BBPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666, 0.4,
                                        0.4, 1.0, 0.9128709291752769, 3.819718634205488),
     ]
-    @test body.params_mapping == [1, 1, 1, 1]
+    @test body.params_map == [1, 1, 1, 1]
 
     # add material to set
     material!(body, :a; horizon=2, E=2, rho=2, Gc=2)
@@ -103,7 +103,7 @@ end
         Peridynamics.BBPointParameters(2.0, 2.0, 2.0, 0.25, 0.8, 1.3333333333333333, 0.8,
                                        0.8, 2.0, 0.6454972243679028, 0.477464829275686),
     ]
-    @test body.params_mapping == [2, 2, 1, 1]
+    @test body.params_map == [2, 2, 1, 1]
 
     # add material to body -> overwriting everything!
     material!(body; horizon=3, E=3, rho=3, Gc=3)
@@ -111,7 +111,7 @@ end
         Peridynamics.BBPointParameters(3.0, 3.0, 3.0, 0.25, 1.2, 2.0, 1.2, 1.2, 3.0,
                                        0.5270462766947299, 0.1414710605261292),
     ]
-    @test body.params_mapping == [1, 1, 1, 1]
+    @test body.params_map == [1, 1, 1, 1]
 end
 
 @testitem "velocity_bc!" begin
@@ -137,7 +137,7 @@ end
         Peridynamics.BBPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666, 0.4,
                                        0.4, 1.0, 0.9128709291752769, 3.819718634205488),
     ]
-    @test body.params_mapping == [1, 1, 1, 1]
+    @test body.params_map == [1, 1, 1, 1]
 
     # velocity bc 1
     velocity_bc!(t -> 1, body, :a, 1)

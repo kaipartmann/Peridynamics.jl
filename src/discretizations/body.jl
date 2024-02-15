@@ -7,7 +7,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
     fail_permit::Vector{Bool}
     point_sets::Dict{Symbol,Vector{Int}}
     point_params::Vector{P}
-    params_mapping::Vector{Int}
+    params_map::Vector{Int}
     single_dim_bcs::Vector{SingleDimBC}
     single_dim_ics::Vector{SingleDimIC}
     point_sets_precracks::Vector{PointSetsPreCrack}
@@ -20,14 +20,14 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
 
         P = point_param_type(mat)
         point_params = Vector{P}()
-        params_mapping = zeros(Int, n_points)
+        params_map = zeros(Int, n_points)
 
         single_dim_bcs = Vector{SingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
         new{M,P}(mat, n_points, position, volume, fail_permit, point_sets, point_params,
-                 params_mapping, single_dim_bcs, single_dim_ics, point_sets_precracks)
+                 params_map, single_dim_bcs, single_dim_ics, point_sets_precracks)
     end
 end
 
@@ -123,7 +123,7 @@ end
 function _material!(b::Body{M,P}, points::V, params::P) where {M,P,V}
     push!(b.point_params, params)
     id = length(b.point_params)
-    b.params_mapping[points] .= id
+    b.params_map[points] .= id
     return nothing
 end
 
