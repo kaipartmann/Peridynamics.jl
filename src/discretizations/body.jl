@@ -193,3 +193,7 @@ function pre_submission_check(b::Body)
     #TODO: check if everything is defined for job submission!
     return nothing
 end
+
+@inline function get_point_param(b::Body, key::Symbol, i::Int)
+    return getfield(b.point_params[b.params_map[i]], key)
+end
