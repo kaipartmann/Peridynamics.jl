@@ -5,7 +5,7 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK
 
 export BBMaterial, CKIMaterial, Body, point_set!, failure_permit!, material!, velocity_bc!,
        velocity_ic!, forcedensity_bc!, precrack!, VelocityVerlet, MultibodySetup, contact!,
-       Job, read_vtk
+       Job, read_vtk, uniform_box
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -71,6 +71,7 @@ include("conditions/boundary_conditions.jl")
 include("conditions/initial_conditions.jl")
 include("conditions/condition_checks.jl")
 
+include("discretizations/point_generators.jl")
 include("discretizations/predefined_cracks.jl")
 include("discretizations/find_points.jl")
 include("discretizations/body.jl")
