@@ -12,7 +12,6 @@ end
 
 function init_body_chunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
                          chunk_id::Int) where {M,P,T}
-    loc_points = pd.decomp[chunk_id]
     mat = body.mat
     discret, ch = init_discretization(body, pd, chunk_id)
     storage = init_storage(body, ts, discret, ch)
