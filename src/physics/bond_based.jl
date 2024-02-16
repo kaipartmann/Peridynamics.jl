@@ -42,7 +42,7 @@ end
 @inline discretization_type(::BBMaterial) = BondDiscretization
 
 @inline function init_discretization(body::Body{BBMaterial}, loc_points)
-    init_bond_discretization(body, loc_points)
+    return init_bond_discretization(body, loc_points)
 end
 
 struct BBVerletStorage <: AbstractStorage
@@ -77,26 +77,8 @@ function init_storage(::Body{BBMaterial}, ::VelocityVerlet, bd::BondDiscretizati
                            b_int, b_ext, damage, bond_active, n_active_bonds)
 end
 
-# function init_storage(::BBMaterial, pbd::PointBondDiscretization,
-#                       loc_points::UnitRange{Int}, halo_points::Vector{Int})
-#     n_loc_points = length(loc_points)
-#     position = copy(pbd.position)
-#     displacement = zeros(3, n_loc_points)
-#     velocity = zeros(3, n_loc_points)
-#     velocity_half = zeros(3, n_loc_points)
-#     acceleration = zeros(3, n_loc_points)
-#     b_int = zeros(3, n_loc_points)
-#     b_ext = zeros(3, n_loc_points)
-#     damage = zeros(n_loc_points)
-#     bond_active = ones(Bool, length(pbd.bonds))
-#     n_active_bonds = copy(pbd.n_neighbors)
-#     BBStorage(position, displacement, velocity, velocity_half, acceleration, b_int, b_ext,
-#               damage, bond_active, n_active_bonds)
-# end
-
-# function get_halo_exchange_info(::BBMaterial)
-#     return Dict(:position => read_from_halo)
-# end
+@inline reads_from_halo(::BBMaterial) = (:position,)
+@inline writes_to_halo(::BBMaterial) = ()
 
 # function force_density!(s::BBStorage, d::PointBondDiscretization, mat::BBMaterial,
 #                         i::Int)
