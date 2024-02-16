@@ -17,8 +17,8 @@ function discretization_type(mat::AbstractMaterial)
     throw(MethodError(discretization_type, mat))
 end
 
-function storage_type(mat::AbstractMaterial)
-    throw(MethodError(storage_type, mat))
+function storage_type(mat::AbstractMaterial, ts::AbstractTimeSolver)
+    throw(MethodError(storage_type, mat, ts))
 end
 
 #---- optional interface functions ----#

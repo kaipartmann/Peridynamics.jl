@@ -25,11 +25,3 @@ function defaultdist(sz::Int, nc::Int)
         return grid
     end
 end
-
-function find_localizer(point_ids::Vector{Int})
-    localizer = Dict{Int,Int}()
-    for (li, i) in enumerate(point_ids)
-        localizer[i] = li
-    end
-    return localizer
-end

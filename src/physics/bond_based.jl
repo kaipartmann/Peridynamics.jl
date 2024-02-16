@@ -41,7 +41,11 @@ end
 
 @inline discretization_type(::BBMaterial) = BondDiscretization
 
-struct BBStorage <: AbstractStorage
+@inline function init_discretization(body::Body{BBMaterial}, loc_points)
+    init_bond_discretization(body, loc_points)
+end
+
+struct BBVerletStorage <: AbstractStorage
     position::Matrix{Float64}
     displacement::Matrix{Float64}
     velocity::Matrix{Float64}
@@ -54,7 +58,24 @@ struct BBStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-@inline storage_type(::BBMaterial) = BBStorage
+@inline storage_type(::BBMaterial, ::VelocityVerlet) = BBVerletStorage
+
+function init_storage(::Body{BBMaterial}, ::VelocityVerlet, bd::BondDiscretization,
+                      ch::ChunkHandler)
+    n_loc_points = length(ch.loc_points)
+    position = copy(bd.position)
+    displacement = zeros(3, n_loc_points)
+    velocity = zeros(3, n_loc_points)
+    velocity_half = zeros(3, n_loc_points)
+    acceleration = zeros(3, n_loc_points)
+    b_int = zeros(3, n_loc_points)
+    b_ext = zeros(3, n_loc_points)
+    damage = zeros(n_loc_points)
+    bond_active = ones(Bool, length(bd.bonds))
+    n_active_bonds = copy(bd.n_neighbors)
+    return BBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
+                           b_int, b_ext, damage, bond_active, n_active_bonds)
+end
 
 # function init_storage(::BBMaterial, pbd::PointBondDiscretization,
 #                       loc_points::UnitRange{Int}, halo_points::Vector{Int})

@@ -8,7 +8,7 @@ function submit(job::Job; kwargs...)
     if mpi_sim()
         ret = submit_mpi(job)
     else
-        ret = submit_threads(job)
+        ret = submit_threads(job, nthreads())
     end
 
     return ret
