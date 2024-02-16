@@ -1,7 +1,7 @@
-@testitem "default_decomp" begin
-    @test Peridynamics.default_decomp(4, 2) == [1:2, 3:4]
-    @test Peridynamics.default_decomp(3, 2) == [1:2, 3:3]
-    @test Peridynamics.default_decomp(2, 3) == [1:1, 2:2, 0:-1]
+@testitem "distribute_points" begin
+    @test Peridynamics.distribute_points(4, 2) == [1:2, 3:4]
+    @test Peridynamics.distribute_points(3, 2) == [1:2, 3:3]
+    @test Peridynamics.distribute_points(2, 3) == [1:1, 2:2, 0:-1]
 end
 
 @testitem "find_localizer" begin

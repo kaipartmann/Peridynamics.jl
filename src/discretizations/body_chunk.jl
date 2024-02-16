@@ -10,7 +10,9 @@ struct BodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,D<:AbstractDiscr
     ch::ChunkHandler
 end
 
-function init_body_chunk(body::Body{M,P}, ts::T, loc_points::UnitRange{Int}) where {M,P,T}
+function init_body_chunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
+                         chunk_id::Int) where {M,P,T}
+    loc_points = pd.decomp[chunk_id]
     mat = body.mat
     discret, ch = init_discretization(body, loc_points)
     storage = init_storage(body, ts, discret, ch)
@@ -26,16 +28,17 @@ end
     return getfield(b.point_params[b.params_map[i]], key)
 end
 
-function chop_body_threads(body::Body{M,P}, ts::T, point_decomp::V) where {M,P,T,V}
+function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition) where {M,P,T}
     D = discretization_type(body.mat)
     S = storage_type(body.mat, ts)
-    body_chunks = Vector{BodyChunk{M,P,D,S}}(undef, length(point_decomp))
+    body_chunks = Vector{BodyChunk{M,P,D,S}}(undef, pd.n_chunks)
 
-    @threads :static for cid in eachindex(point_decomp)
-        loc_points = point_decomp[cid]
-        body_chunks[cid] = init_body_chunk(body, ts, loc_points)
+    @threads :static for chunk_id in eachindex(pd.decomp)
+        body_chunk = init_body_chunk(body, ts, pd, chunk_id)
         #TODO: define precracks
         #TODO: apply initial conditions
+        #TODO: get ExchangePulls
+        body_chunks[chunk_id] = body_chunk
     end
 
     return body_chunks

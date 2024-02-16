@@ -13,9 +13,9 @@
     forcedensity_bc!(t->t, body, :a, :x)
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
+    pd = Peridynamics.PointDecomposition(body, 2)
 
-    loc_points = 1:2
-    bc = Peridynamics.init_body_chunk(body, ts, loc_points)
+    bc = Peridynamics.init_body_chunk(body, ts, pd, 1)
     @test bc.mat == mat
     @test bc.discret isa Peridynamics.BondDiscretization
     @test bc.discret.position == position
@@ -32,7 +32,7 @@
     @test bc.discret.bond_ids == [1:3, 4:6]
 
     @test bc.ch.point_ids == [1, 2, 3, 4]
-    @test bc.ch.loc_points == loc_points
+    @test bc.ch.loc_points == pd.decomp[1]
     @test bc.ch.halo_points == [3, 4]
     for i in 1:4
         @test bc.ch.localizer[i] == i
@@ -57,7 +57,7 @@ end
     forcedensity_bc!(t->t, body, :a, :x)
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
-    point_decomp = Peridynamics.point_decomposition(body, 2)
+    point_decomp = Peridynamics.PointDecomposition(body, 2)
 
     body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
 end
