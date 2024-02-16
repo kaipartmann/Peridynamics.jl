@@ -5,6 +5,13 @@ struct ChunkHandler
     localizer::Dict{Int,Int}
 end
 
+function ChunkHandler(bonds::Vector{Bond}, loc_points::UnitRange{Int})
+    halo_points = find_halo_points(bonds, loc_points)
+    point_ids = vcat(loc_points, halo_points)
+    localizer = find_localizer(point_ids)
+    return ChunkHandler(point_ids, loc_points, halo_points, localizer)
+end
+
 function find_localizer(point_ids::Vector{Int})
     localizer = Dict{Int,Int}()
     for (li, i) in enumerate(point_ids)

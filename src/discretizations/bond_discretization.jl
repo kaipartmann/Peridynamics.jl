@@ -17,10 +17,7 @@ function init_bond_discretization(body::Body, loc_points::UnitRange{Int})
 
     bonds, n_neighbors = find_bonds(body, loc_points)
 
-    halo_points = find_halo_points(bonds, loc_points)
-    point_ids = vcat(loc_points, halo_points)
-    localizer = find_localizer(point_ids)
-    ch = ChunkHandler(point_ids, loc_points, halo_points, localizer)
+    ch = ChunkHandler(bonds, loc_points)
     localize!(bonds, ch.localizer)
 
     bond_ids = find_bond_ids(n_neighbors)
