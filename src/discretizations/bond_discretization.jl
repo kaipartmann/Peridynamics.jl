@@ -76,17 +76,6 @@ function find_bond_ids(n_neighbors::Vector{Int})
     return bond_ids
 end
 
-function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})
-    halo_points = Vector{Int}()
-    for bond in bonds
-        j = bond.neighbor
-        if !in(j, loc_points) && !in(j, halo_points)
-            push!(halo_points, j)
-        end
-    end
-    return halo_points
-end
-
 function get_pos_and_vol_chunk(body::Body, point_ids::AbstractVector{<:Integer})
     position = @views body.position[:, point_ids]
     volume = @views body.volume[point_ids]

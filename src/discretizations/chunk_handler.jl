@@ -12,6 +12,17 @@ function ChunkHandler(bonds::Vector{Bond}, loc_points::UnitRange{Int})
     return ChunkHandler(point_ids, loc_points, halo_points, localizer)
 end
 
+function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})
+    halo_points = Vector{Int}()
+    for bond in bonds
+        j = bond.neighbor
+        if !in(j, loc_points) && !in(j, halo_points)
+            push!(halo_points, j)
+        end
+    end
+    return halo_points
+end
+
 function find_localizer(point_ids::Vector{Int})
     localizer = Dict{Int,Int}()
     for (li, i) in enumerate(point_ids)
