@@ -5,7 +5,7 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK
 
 export BBMaterial, CKIMaterial, Body, point_set!, failure_permit!, material!, velocity_bc!,
        velocity_ic!, forcedensity_bc!, precrack!, VelocityVerlet, MultibodySetup, contact!,
-       Job, read_vtk, uniform_box
+       Job, read_vtk, uniform_box, submit
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -32,7 +32,7 @@ const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
 const CONTACT_KWARGS = (:radius, :sc)
 const EXPORT_KWARGS = (:path, :freq, :write)
 const JOB_KWARGS = (EXPORT_KWARGS...,)
-const SUBMIT_KWARGS = (:quiet)
+const SUBMIT_KWARGS = (:quiet,)
 
 const DimensionSpec = Union{Integer,Symbol}
 

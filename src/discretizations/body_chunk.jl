@@ -40,3 +40,9 @@ function chop_body_threads(body::Body{M,P}, ts::T, point_decomp::V) where {M,P,T
 
     return body_chunks
 end
+
+function chop_body_threads(body::MultibodySetup{M,P}, ts::T,
+                           point_decomp::V) where {M,P,T,V}
+    #TODO
+    return nothing
+end
