@@ -79,6 +79,8 @@ include("discretizations/multibody_setup.jl")
 const SpatialSetup = Union{Body,MultibodySetup}
 include("discretizations/decomposition.jl")
 include("discretizations/bond_discretization.jl")
+include("discretizations/chunk_handler.jl")
+include("discretizations/body_chunk.jl")
 
 include("time_solvers/velocity_verlet.jl")
 
