@@ -41,8 +41,8 @@ end
 
 @inline discretization_type(::BBMaterial) = BondDiscretization
 
-@inline function init_discretization(body::Body{BBMaterial}, loc_points)
-    return init_bond_discretization(body, loc_points)
+@inline function init_discretization(body::Body{BBMaterial}, args...)
+    return init_bond_discretization(body, args...)
 end
 
 struct BBVerletStorage <: AbstractStorage

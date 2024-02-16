@@ -12,12 +12,12 @@ struct BondDiscretization <: AbstractDiscretization
     bond_ids::Vector{UnitRange{Int}}
 end
 
-function init_bond_discretization(body::Body, loc_points::UnitRange{Int})
+function init_bond_discretization(body::Body, pd::PointDecomposition, chunk_id::Int)
     check_bond_discretization_compat(body.mat)
 
-    bonds, n_neighbors = find_bonds(body, loc_points)
+    bonds, n_neighbors = find_bonds(body, pd.decomp[chunk_id])
 
-    ch = ChunkHandler(bonds, loc_points)
+    ch = ChunkHandler(bonds, pd, chunk_id)
     localize!(bonds, ch.localizer)
 
     bond_ids = find_bond_ids(n_neighbors)

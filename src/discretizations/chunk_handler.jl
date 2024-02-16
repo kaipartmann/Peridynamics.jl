@@ -5,7 +5,8 @@ struct ChunkHandler
     localizer::Dict{Int,Int}
 end
 
-function ChunkHandler(bonds::Vector{Bond}, loc_points::UnitRange{Int})
+function ChunkHandler(bonds::Vector{Bond}, pd::PointDecomposition, chunk_id::Int)
+    loc_points = pd.decomp[chunk_id]
     halo_points = find_halo_points(bonds, loc_points)
     point_ids = vcat(loc_points, halo_points)
     localizer = find_localizer(point_ids)

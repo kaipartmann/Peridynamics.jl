@@ -7,10 +7,10 @@
     mat = BBMaterial()
     body = Body(mat, position, volume)
     material!(body, horizon=2, rho=1, E=1, Gc=1)
+    pd = Peridynamics.PointDecomposition(body, 2)
 
     # 1
-    loc_points = 1:2
-    bd, ch = Peridynamics.init_bond_discretization(body, loc_points)
+    bd, ch = Peridynamics.init_bond_discretization(body, pd, 1)
 
     @test bd.position == position
     @test bd.volume == volume
@@ -26,15 +26,14 @@
     @test bd.bond_ids == [1:3, 4:6]
 
     @test ch.point_ids == [1, 2, 3, 4]
-    @test ch.loc_points == loc_points
+    @test ch.loc_points == [1, 2]
     @test ch.halo_points == [3, 4]
     for i in 1:4
         @test ch.localizer[i] == i
     end
 
     # 2
-    loc_points = 3:4
-    bd, ch = Peridynamics.init_bond_discretization(body, loc_points)
+    bd, ch = Peridynamics.init_bond_discretization(body, pd, 2)
 
     @test bd.position == position[:, [3, 4, 1, 2]]
     @test bd.volume == volume[[3, 4, 1, 2]]
@@ -50,7 +49,7 @@
     @test bd.bond_ids == [1:3, 4:6]
 
     @test ch.point_ids == [3, 4, 1, 2]
-    @test ch.loc_points == loc_points
+    @test ch.loc_points == [3, 4]
     @test ch.halo_points == [1, 2]
     @test ch.localizer[3] == 1
     @test ch.localizer[4] == 2

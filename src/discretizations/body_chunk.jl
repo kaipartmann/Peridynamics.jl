@@ -14,7 +14,7 @@ function init_body_chunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
                          chunk_id::Int) where {M,P,T}
     loc_points = pd.decomp[chunk_id]
     mat = body.mat
-    discret, ch = init_discretization(body, loc_points)
+    discret, ch = init_discretization(body, pd, chunk_id)
     storage = init_storage(body, ts, discret, ch)
     params_map = localize(body.params_map, ch)
     point_params = body.point_params[sort(unique(params_map))]

@@ -1,7 +1,21 @@
 @testitem "init_storage" begin
-    body = Body(BBMaterial(), rand(3,10), rand(10))
+    position, volume = uniform_box(1,1,1,0.25)
+    body = Body(BBMaterial(), position, volume)
     material!(body, horizon=2, rho=1, E=1, Gc=1)
     ts = VelocityVerlet(steps=10)
-    db, ch = Peridynamics.init_discretization(body, 1:10)
+    pd = Peridynamics.PointDecomposition(body, 1)
+    db, ch = Peridynamics.init_discretization(body, pd, 1)
     s = Peridynamics.init_storage(body, ts, db, ch)
+
+    @test s isa Peridynamics.BBVerletStorage
+    @test s.position == position
+    @test s.displacement == zeros(3, 64)
+    @test s.velocity == zeros(3, 64)
+    @test s.velocity_half == zeros(3, 64)
+    @test s.acceleration == zeros(3, 64)
+    @test s.b_int == zeros(3, 64)
+    @test s.b_ext == zeros(3, 64)
+    @test s.damage == zeros(64)
+    @test s.bond_active == ones(Bool, 4032)
+    @test s.n_active_bonds == fill(63, 64)
 end
