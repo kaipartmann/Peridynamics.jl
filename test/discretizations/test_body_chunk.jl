@@ -57,7 +57,7 @@ end
     forcedensity_bc!(t->t, body, :a, :x)
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
-    point_decomp = Peridynamics.defaultdist(body.n_points, 2)
+    point_decomp = Peridynamics.point_decomposition(body, 2)
 
     body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
 end
