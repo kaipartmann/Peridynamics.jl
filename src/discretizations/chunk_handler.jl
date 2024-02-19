@@ -2,15 +2,17 @@ struct ChunkHandler
     point_ids::Vector{Int}
     loc_points::UnitRange{Int}
     halo_points::Vector{Int}
+    halo_by_src::Dict{Int,UnitRange{Int}}
     localizer::Dict{Int,Int}
 end
 
 function ChunkHandler(bonds::Vector{Bond}, pd::PointDecomposition, chunk_id::Int)
     loc_points = pd.decomp[chunk_id]
     halo_points = find_halo_points(bonds, loc_points)
+    halo_by_src = sort_halo_by_src!(halo_points, pd.point_src)
     point_ids = vcat(loc_points, halo_points)
     localizer = find_localizer(point_ids)
-    return ChunkHandler(point_ids, loc_points, halo_points, localizer)
+    return ChunkHandler(point_ids, loc_points, halo_points, halo_by_src, localizer)
 end
 
 function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})
@@ -22,6 +24,23 @@ function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})
         end
     end
     return halo_points
+end
+
+function sort_halo_by_src!(halo_points::Vector{Int}, point_src::Dict{Int,Int})
+    halo_sources = [point_src[i] for i in halo_points]
+    idx_sorted = sortperm(halo_sources)
+    halo_sources .= halo_sources[idx_sorted]
+    halo_points .= halo_points[idx_sorted]
+
+    halo_by_src = Dict{Int,UnitRange{Int}}()
+    unique_sources = unique(halo_sources)
+
+    for source in unique_sources
+        idxs = findall(x -> x == source, halo_sources)
+        halo_by_src[source] = first(idxs):last(idxs)
+    end
+
+    return halo_by_src
 end
 
 function find_localizer(point_ids::Vector{Int})
