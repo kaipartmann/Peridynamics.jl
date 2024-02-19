@@ -13,3 +13,11 @@ function ThreadsDataHandler(body::Body, time_solver::AbstractTimeSolver,
     end
     return ThreadsDataHandler(body_chunks, halo_exchanges)
 end
+
+function calc_stable_timestep(dh::ThreadsDataHandler, safety_factor::Float64)
+    Δt = zeros(length(dh.chunks))
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        Δt[chunk_id] = calc_timestep(dh.chunks[chunk_id])
+    end
+    return minimum(Δt) * safety_factor
+end

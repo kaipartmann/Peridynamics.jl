@@ -15,8 +15,8 @@ function init_body_chunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
     mat = body.mat
     discret, ch = init_discretization(body, pd, chunk_id)
     storage = init_storage(body, ts, discret, ch)
-    params_map = localize(body.params_map, ch)
-    point_params = body.point_params[sort(unique(params_map))]
+    params_map = body.params_map[ch.loc_points]
+    point_params = body.point_params
     point_sets = localized_point_sets(body.point_sets, ch)
     single_dim_bcs = body.single_dim_bcs
     return BodyChunk(mat, discret, storage, point_params, params_map, point_sets,
@@ -25,6 +25,10 @@ end
 
 @inline function get_point_param(b::BodyChunk, key::Symbol, i::Int)
     return getfield(b.point_params[b.params_map[i]], key)
+end
+
+@inline function get_point_param(b::BodyChunk, point_id::Int)
+    return b.point_params[b.params_map[point_id]]
 end
 
 function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition) where {M,P,T}
@@ -101,7 +105,7 @@ function _apply_precrack!(s::AbstractStorage, bd::BondDiscretization, ch::ChunkH
             if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
                 s.bond_active[bond_id] = false
             end
-            s.n_active_bonds[point_id] += s.bond_active
+            s.n_active_bonds[point_id] += s.bond_active[bond_id]
         end
     end
     return nothing

@@ -23,3 +23,47 @@ mutable struct VelocityVerlet <: AbstractTimeSolver
         new(time, steps, stepsize, safety_factor)
     end
 end
+
+function init_time_solver!(vv::VelocityVerlet, dh::D) where {D<:ThreadsDataHandler}
+    if vv.Δt < 0
+        vv.Δt = calc_stable_timestep(dh, vv.safety_factor)
+    end
+    if vv.end_time < 0
+        vv.end_time = vv.n_steps * vv.Δt
+    elseif vv.n_steps < 0
+        vv.n_steps = vv.end_time ÷ vv.Δt + 1
+    end
+    velocity_verlet_check(vv)
+    return nothing
+end
+
+function velocity_verlet_check(vv::VelocityVerlet)
+    if vv.end_time < 0
+        error("`end_time` of VelocityVerlet smaller than zero!\n")
+    end
+    if vv.n_steps < 0
+        error("`n_steps` of VelocityVerlet smaller than zero!\n")
+    end
+    if vv.Δt < 0
+        error("`Δt` of VelocityVerlet smaller than zero!\n")
+    end
+    return nothing
+end
+
+function calc_timestep(b::AbstractBodyChunk)
+    Δt = fill(Inf, length(each_point_idx(b.ch)))
+    for point_id in each_point_idx(b.ch)
+        pp = get_point_param(b, point_id)
+        Δt[point_id] = _calc_timestep(b.discret, pp, point_id)
+    end
+    return minimum(Δt)
+end
+
+function _calc_timestep(bd::BondDiscretization, pp::AbstractPointParameters, point_id::Int)
+    dtsum = 0.0
+    for bond_id in each_bond_idx(bd, point_id)
+        bond = bd.bonds[bond_id]
+        dtsum += bd.volume[bond.neighbor] * pp.bc / bond.length
+    end
+    return sqrt(2 * pp.rho / dtsum)
+end
