@@ -97,6 +97,7 @@ include("auxiliary/io.jl")
 
 include("core/job.jl")
 include("core/submit.jl")
+include("core/halo_exchange.jl")
 include("core/submit_threads.jl")
 include("core/submit_mpi.jl")
 
