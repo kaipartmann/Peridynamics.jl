@@ -94,3 +94,7 @@ function localized_point_sets(point_sets::Dict{Symbol,Vector{Int}}, ch::ChunkHan
     end
     return loc_point_sets
 end
+
+@inline function each_point_idx(ch::ChunkHandler)
+    return eachindex(ch.loc_points)
+end

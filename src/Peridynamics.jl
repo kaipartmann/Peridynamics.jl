@@ -61,6 +61,8 @@ abstract type AbstractDiscretization end
 
 abstract type AbstractPredefinedCrack end
 
+abstract type AbstractBodyChunk end
+
 abstract type AbstractDataHandler end
 
 abstract type AbstractStorage end
@@ -98,6 +100,7 @@ include("auxiliary/io.jl")
 include("core/job.jl")
 include("core/submit.jl")
 include("core/halo_exchange.jl")
+include("core/threads_data_handler.jl")
 include("core/submit_threads.jl")
 include("core/submit_mpi.jl")
 

@@ -8,39 +8,39 @@ struct HaloExchange
 end
 
 function find_halo_exchanges(body_chunks::Vector{B}) where {B<:BodyChunk}
-    halo_exchanges = Vector{HaloExchange}()
-    find_read_exchanges!(halo_exchanges, body_chunks)
-    find_write_exchanges!(halo_exchanges, body_chunks)
+    halo_exchanges_read = find_read_exchanges(body_chunks)
+    halo_exchanges_write = find_write_exchanges(body_chunks)
+    halo_exchanges = vcat(halo_exchanges_read, halo_exchanges_write)
     return halo_exchanges
 end
 
-function find_read_exchanges!(halo_exchanges, body_chunks)
-    halo_read_fields = reads_from_halo(first(body_chunks).mat)
-    for read_field in halo_read_fields
-        _find_read_exchanges!(halo_exchanges, body_chunks, read_field)
+function find_read_exchanges(body_chunks::Vector{B}) where {B<:BodyChunk}
+    read_fields = reads_from_halo(first(body_chunks).mat)
+    _halo_exchanges = Vector{Vector{HaloExchange}}(undef, length(body_chunks))
+    @threads :static for chunk_id in eachindex(body_chunks)
+        _halo_exchanges[chunk_id] = _find_read_exchanges(body_chunks, read_fields, chunk_id)
     end
-    return nothing
+    halo_exchanges = reduce(vcat, _halo_exchanges)
+    return halo_exchanges
 end
 
-function _find_read_exchanges!(halo_exchanges, body_chunks, read_field)
-    for to_chunk_id in eachindex(body_chunks)
-        to_chunk = body_chunks[to_chunk_id]
-        for (from_chunk_id, to_loc_idxs) in to_chunk.ch.halo_by_src
-            from_chunk = body_chunks[from_chunk_id]
-            from_loc_idxs = to_chunk.ch.point_ids[to_loc_idxs] # init with global idxs
-            localize!(from_loc_idxs, from_chunk.ch.localizer)
-            he = HaloExchange(read_field, from_chunk_id, to_chunk_id, from_loc_idxs,
-                              to_loc_idxs)
-            push!(halo_exchanges, he)
+function _find_read_exchanges(body_chunks, read_fields, chunk_id)
+    _halo_exchanges = Vector{HaloExchange}()
+    to_chunk = body_chunks[chunk_id]
+    for (from_chunk_id, to_loc_idxs) in to_chunk.ch.halo_by_src
+        from_chunk = body_chunks[from_chunk_id]
+        from_loc_idxs = to_chunk.ch.point_ids[to_loc_idxs] # init with global idxs
+        localize!(from_loc_idxs, from_chunk.ch.localizer)
+        for field in read_fields
+            he = HaloExchange(field, from_chunk_id, chunk_id, from_loc_idxs, to_loc_idxs)
+            push!(_halo_exchanges, he)
         end
     end
-    return nothing
+    return _halo_exchanges
 end
 
-function find_write_exchanges!(halo_exchanges, body_chunks)
+function find_write_exchanges(body_chunks::Vector{B}) where {B<:BodyChunk}
+    halo_exchanges = Vector{HaloExchange}()
     # TODO
-    # halo_write_fields = writes_to_halo(body_chunk.mat)
-    # for write_field in halo_write_fields
-    # end
-    return nothing
+    return halo_exchanges
 end

@@ -81,3 +81,5 @@ function get_pos_and_vol_chunk(body::Body, point_ids::AbstractVector{<:Integer})
     volume = @views body.volume[point_ids]
     return position, volume
 end
+
+@inline each_bond_idx(bd::BondDiscretization, point_id::Int) = bd.bond_ids[point_id]
