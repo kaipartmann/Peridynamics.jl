@@ -94,7 +94,7 @@ end
     @test ch.point_ids == [1, 2, 3, 4]
     @test ch.loc_points == 1:2
     @test ch.halo_points == [3, 4]
-    @test ch.halo_by_src[2] == 1:2
+    @test ch.halo_by_src[2] == 3:4
     @test ch.localizer[1] == 1
     @test ch.localizer[2] == 2
     @test ch.localizer[3] == 3
@@ -104,7 +104,7 @@ end
     @test ch.point_ids == [3, 4, 2, 1]
     @test ch.loc_points == 3:4
     @test ch.halo_points == [2, 1]
-    @test ch.halo_by_src[1] == 1:2
+    @test ch.halo_by_src[1] == 3:4
     @test ch.localizer[1] == 4
     @test ch.localizer[2] == 3
     @test ch.localizer[3] == 1
@@ -115,9 +115,9 @@ end
     @test ch.point_ids == [1, 2, 3, 4]
     @test ch.loc_points == 1:1
     @test ch.halo_points == [2, 3, 4]
-    @test ch.halo_by_src[2] == 1:1
-    @test ch.halo_by_src[3] == 2:2
-    @test ch.halo_by_src[4] == 3:3
+    @test ch.halo_by_src[2] == 2:2
+    @test ch.halo_by_src[3] == 3:3
+    @test ch.halo_by_src[4] == 4:4
     @test ch.localizer[1] == 1
     @test ch.localizer[2] == 2
     @test ch.localizer[3] == 3
@@ -127,9 +127,9 @@ end
     @test ch.point_ids == [2, 1, 3, 4]
     @test ch.loc_points == 2:2
     @test ch.halo_points == [1, 3, 4]
-    @test ch.halo_by_src[1] == 1:1
-    @test ch.halo_by_src[3] == 2:2
-    @test ch.halo_by_src[4] == 3:3
+    @test ch.halo_by_src[1] == 2:2
+    @test ch.halo_by_src[3] == 3:3
+    @test ch.halo_by_src[4] == 4:4
     @test ch.localizer[1] == 2
     @test ch.localizer[2] == 1
     @test ch.localizer[3] == 3
