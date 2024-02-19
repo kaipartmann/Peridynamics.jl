@@ -9,7 +9,7 @@ end
 function ChunkHandler(bonds::Vector{Bond}, pd::PointDecomposition, chunk_id::Int)
     loc_points = pd.decomp[chunk_id]
     halo_points = find_halo_points(bonds, loc_points)
-    halo_by_src = sort_halo_by_src!(halo_points, pd.point_src)
+    halo_by_src = sort_halo_by_src!(halo_points, pd.point_src, length(loc_points))
     point_ids = vcat(loc_points, halo_points)
     localizer = find_localizer(point_ids)
     return ChunkHandler(point_ids, loc_points, halo_points, halo_by_src, localizer)
@@ -26,7 +26,8 @@ function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})
     return halo_points
 end
 
-function sort_halo_by_src!(halo_points::Vector{Int}, point_src::Dict{Int,Int})
+function sort_halo_by_src!(halo_points::Vector{Int}, point_src::Dict{Int,Int},
+                           n_loc_points::Int)
     halo_sources = [point_src[i] for i in halo_points]
     idx_sorted = sortperm(halo_sources)
     halo_sources .= halo_sources[idx_sorted]
@@ -37,7 +38,9 @@ function sort_halo_by_src!(halo_points::Vector{Int}, point_src::Dict{Int,Int})
 
     for source in unique_sources
         idxs = findall(x -> x == source, halo_sources)
-        halo_by_src[source] = first(idxs):last(idxs)
+        idx_begin = first(idxs) + n_loc_points
+        idx_end = last(idxs) + n_loc_points
+        halo_by_src[source] = idx_begin:idx_end
     end
 
     return halo_by_src
