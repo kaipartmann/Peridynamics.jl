@@ -23,3 +23,16 @@ function get_submit_options(o::Dict{Symbol,Any})
     end
     return quiet
 end
+
+function submit_mpi(::Job)
+    error("functionality for MPI simulations not yet implemented!\n")
+    return nothing
+end
+
+function submit_threads(job::Job, n_chunks::Int)
+    point_decomp = PointDecomposition(job.spatial_setup, n_chunks)
+    tdh = ThreadsDataHandler(job.spatial_setup, job.time_solver, point_decomp)
+    init_time_solver!(job.time_solver, tdh)
+    solve!(tdh, job.time_solver, job.options)
+    return tdh
+end

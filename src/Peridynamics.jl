@@ -101,8 +101,6 @@ include("core/job.jl")
 include("core/submit.jl")
 include("core/halo_exchange.jl")
 include("core/threads_data_handler.jl")
-include("core/submit_threads.jl")
-include("core/submit_mpi.jl")
 
 include("VtkReader/VtkReader.jl")
 using .VtkReader

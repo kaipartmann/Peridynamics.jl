@@ -24,7 +24,7 @@ mutable struct VelocityVerlet <: AbstractTimeSolver
     end
 end
 
-function init_time_solver!(vv::VelocityVerlet, dh::D) where {D<:ThreadsDataHandler}
+function init_time_solver!(vv::VelocityVerlet, dh::AbstractDataHandler)
     if vv.Δt < 0
         vv.Δt = calc_stable_timestep(dh, vv.safety_factor)
     end
