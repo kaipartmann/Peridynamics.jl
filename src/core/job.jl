@@ -14,5 +14,5 @@ function Job(spatial_setup::S, time_solver::T; kwargs...) where {S,T}
     o = Dict{Symbol,Any}(kwargs)
     check_kwargs(o, JOB_KWARGS)
     options = get_export_options(material_type(spatial_setup), o)
-    Job(spatial_setup, time_solver, options)
+    return Job(spatial_setup, time_solver, options)
 end

@@ -23,7 +23,7 @@ end
 
 function ThreadsDataHandler(multibody::MultibodySetup, time_solver::AbstractTimeSolver,
                             point_decomp::PointDecomposition)
-    error("not yet implemented!\n")
+    error("MultibodySetup not yet implemented!\n")
 end
 
 function calc_stable_timestep(dh::ThreadsDataHandler, safety_factor::Float64)
