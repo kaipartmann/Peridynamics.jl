@@ -15,7 +15,7 @@
     ts = VelocityVerlet(steps=10)
 
     point_decomp = Peridynamics.PointDecomposition(body, 2)
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
 
     halo_exchanges = Peridynamics.find_halo_exchanges(body_chunks)
     @test halo_exchanges[1].field === :position
@@ -30,7 +30,7 @@
     @test halo_exchanges[2].to_loc_idxs == [3, 4]
 
     point_decomp = Peridynamics.PointDecomposition(body, 4)
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
 
     halo_exchanges = Peridynamics.find_halo_exchanges(body_chunks)
 

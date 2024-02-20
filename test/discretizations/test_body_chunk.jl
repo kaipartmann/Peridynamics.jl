@@ -1,4 +1,4 @@
-@testitem "init_body_chunk" begin
+@testitem "BodyChunk" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -14,13 +14,13 @@
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
     pd = Peridynamics.PointDecomposition(body, 2)
+    bc = Peridynamics.BodyChunk(body, ts, pd, 1)
 
-    bc = Peridynamics.init_body_chunk(body, ts, pd, 1)
     @test bc.mat == mat
-    @test bc.discret isa Peridynamics.BondDiscretization
-    @test bc.discret.position == position
-    @test bc.discret.volume == volume
-    @test bc.discret.bonds == [
+    @test bc.dscr isa Peridynamics.BondDiscretization
+    @test bc.dscr.position == position
+    @test bc.dscr.volume == volume
+    @test bc.dscr.bonds == [
         Peridynamics.Bond(2, 1.0, true),
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, 1.0, true),
@@ -28,8 +28,8 @@
         Peridynamics.Bond(3, √2, true),
         Peridynamics.Bond(4, √2, true),
     ]
-    @test bc.discret.n_neighbors == [3, 3]
-    @test bc.discret.bond_ids == [1:3, 4:6]
+    @test bc.dscr.n_neighbors == [3, 3]
+    @test bc.dscr.bond_ids == [1:3, 4:6]
 
     @test bc.ch.point_ids == [1, 2, 3, 4]
     @test bc.ch.loc_points == pd.decomp[1]
@@ -60,13 +60,13 @@ end
     ts = VelocityVerlet(steps=10)
     point_decomp = Peridynamics.PointDecomposition(body, 2)
 
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
 
     @test body_chunks[1].mat == BBMaterial()
-    @test body_chunks[1].discret isa Peridynamics.BondDiscretization
-    @test body_chunks[1].discret.position == position
-    @test body_chunks[1].discret.volume == volume
-    @test body_chunks[1].discret.bonds == [
+    @test body_chunks[1].dscr isa Peridynamics.BondDiscretization
+    @test body_chunks[1].dscr.position == position
+    @test body_chunks[1].dscr.volume == volume
+    @test body_chunks[1].dscr.bonds == [
         Peridynamics.Bond(2, 1.0, true),
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, 1.0, true),
@@ -74,8 +74,8 @@ end
         Peridynamics.Bond(3, √2, true),
         Peridynamics.Bond(4, √2, true),
     ]
-    @test body_chunks[1].discret.n_neighbors == [3, 3]
-    @test body_chunks[1].discret.bond_ids == [1:3, 4:6]
+    @test body_chunks[1].dscr.n_neighbors == [3, 3]
+    @test body_chunks[1].dscr.bond_ids == [1:3, 4:6]
 
     @test body_chunks[1].ch.point_ids == [1, 2, 3, 4]
     @test body_chunks[1].ch.loc_points == 1:2
@@ -86,10 +86,10 @@ end
     end
 
     @test body_chunks[2].mat == BBMaterial()
-    @test body_chunks[2].discret isa Peridynamics.BondDiscretization
-    @test body_chunks[2].discret.position == position[:, [3, 4, 1, 2]]
-    @test body_chunks[2].discret.volume == volume[[3, 4, 1, 2]]
-    @test body_chunks[2].discret.bonds == [
+    @test body_chunks[2].dscr isa Peridynamics.BondDiscretization
+    @test body_chunks[2].dscr.position == position[:, [3, 4, 1, 2]]
+    @test body_chunks[2].dscr.volume == volume[[3, 4, 1, 2]]
+    @test body_chunks[2].dscr.bonds == [
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, √2, true),
         Peridynamics.Bond(2, √2, true),
@@ -97,8 +97,8 @@ end
         Peridynamics.Bond(4, √2, true),
         Peridynamics.Bond(1, √2, true),
     ]
-    @test body_chunks[2].discret.n_neighbors == [3, 3]
-    @test body_chunks[2].discret.bond_ids == [1:3, 4:6]
+    @test body_chunks[2].dscr.n_neighbors == [3, 3]
+    @test body_chunks[2].dscr.bond_ids == [1:3, 4:6]
 
     @test body_chunks[2].ch.point_ids == [3, 4, 1, 2]
     @test body_chunks[2].ch.loc_points == [3, 4]

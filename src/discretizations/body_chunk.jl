@@ -1,43 +1,81 @@
-struct BodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,D<:AbstractDiscretization,
-                 S<:AbstractStorage} <: AbstractBodyChunk
+struct MultiParamBodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,
+                           D<:AbstractDiscretization,
+                           S<:AbstractStorage} <: AbstractBodyChunk
     mat::M
-    discret::D
-    storage::S
-    point_params::Vector{P}
-    params_map::Vector{Int} # TODO: BodyChunk type with only 1 point param for entire body
-    point_sets::Dict{Symbol,Vector{Int}}
-    single_dim_bcs::Vector{SingleDimBC}
+    dscr::D
+    store::S
+    param::Vector{P}
+    paramap::Vector{Int}
+    psets::Dict{Symbol,Vector{Int}}
+    sdbcs::Vector{SingleDimBC}
     ch::ChunkHandler
 end
 
-function init_body_chunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
-                         chunk_id::Int) where {M,P,T}
+function MultiParamBodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
+                             chunk_id::Int) where {M,P,T}
     mat = body.mat
-    discret, ch = init_discretization(body, pd, chunk_id)
-    storage = init_storage(body, ts, discret, ch)
-    params_map = body.params_map[ch.loc_points]
-    point_params = body.point_params
-    point_sets = localized_point_sets(body.point_sets, ch)
-    single_dim_bcs = body.single_dim_bcs
-    return BodyChunk(mat, discret, storage, point_params, params_map, point_sets,
-                     single_dim_bcs, ch)
+    dscr, ch = init_discretization(body, pd, chunk_id)
+    store = init_storage(body, ts, dscr, ch)
+    paramap = body.params_map[ch.loc_points]
+    param = body.point_params
+    psets = localized_point_sets(body.point_sets, ch)
+    sdbcs = body.single_dim_bcs
+    return MultiParamBodyChunk(mat, dscr, store, param, paramap, psets, sdbcs, ch)
 end
 
-@inline function get_point_param(b::BodyChunk, key::Symbol, i::Int)
-    return getfield(b.point_params[b.params_map[i]], key)
+struct BodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,D<:AbstractDiscretization,
+                 S<:AbstractStorage} <: AbstractBodyChunk
+    mat::M
+    dscr::D
+    store::S
+    param::P
+    psets::Dict{Symbol,Vector{Int}}
+    sdbcs::Vector{SingleDimBC}
+    ch::ChunkHandler
 end
 
-@inline function get_point_param(b::BodyChunk, point_id::Int)
-    return b.point_params[b.params_map[point_id]]
+function BodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
+                   chunk_id::Int) where {M,P,T}
+    mat = body.mat
+    dscr, ch = init_discretization(body, pd, chunk_id)
+    store = init_storage(body, ts, dscr, ch)
+    @assert length(body.point_params) == 1
+    param = first(body.point_params)
+    psets = localized_point_sets(body.point_sets, ch)
+    sdbcs = body.single_dim_bcs
+    return BodyChunk(mat, dscr, store, param, psets, sdbcs, ch)
 end
 
-function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition) where {M,P,T}
+@inline function get_point_param(b::MultiParamBodyChunk, point_id::Int)
+    return b.param[b.paramap[point_id]]
+end
+
+@inline function get_point_param(b::BodyChunk, ::Int)
+    return b.param
+end
+
+# function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition,
+#                            ::Val{1}) where {M,P,T}
+#     D = discretization_type(body.mat)
+#     S = storage_type(body.mat, ts)
+#     body_chunks = _get_body_chunks_threads(body, ts, pd, D, S)
+#     return body_chunks
+# end
+
+function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition,
+                           v::Val{N}) where {M,P,T,N}
     D = discretization_type(body.mat)
     S = storage_type(body.mat, ts)
+    body_chunks = _chop_body_threads(body, ts, pd, D, S, v)
+    return body_chunks
+end
+
+function _chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition, ::Type{D},
+                            ::Type{S}, ::Val{1}) where {M,P,D,S,T}
     body_chunks = Vector{BodyChunk{M,P,D,S}}(undef, pd.n_chunks)
 
     @threads :static for chunk_id in eachindex(pd.decomp)
-        body_chunk = init_body_chunk(body, ts, pd, chunk_id)
+        body_chunk = BodyChunk(body, ts, pd, chunk_id)
         apply_precracks!(body_chunk, body)
         apply_initial_conditions!(body_chunk, body)
         body_chunks[chunk_id] = body_chunk
@@ -46,20 +84,21 @@ function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition) where
     return body_chunks
 end
 
-function chop_body_threads(body::MultibodySetup{M,P}, ts::T,
-                           point_decomp::V) where {M,P,T,V}
-    #TODO
-    return nothing
-end
+function _chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition, ::Type{D},
+                            ::Type{S}, ::Val{N}) where {M,P,D,S,T,N}
+    body_chunks = Vector{MultiParamBodyChunk{M,P,D,S}}(undef, pd.n_chunks)
 
-@inline each_point_idx(b::BodyChunk) = each_point_idx(b.ch)
-
-function apply_precracks!(b::BodyChunk, body::Body)
-    for precrack in body.point_sets_precracks
-        apply_precrack!(b, precrack)
+    @threads :static for chunk_id in eachindex(pd.decomp)
+        body_chunk = MultiParamBodyChunk(body, ts, pd, chunk_id)
+        apply_precracks!(body_chunk, body)
+        apply_initial_conditions!(body_chunk, body)
+        body_chunks[chunk_id] = body_chunk
     end
-    return nothing
+
+    return body_chunks
 end
+
+@inline each_point_idx(b::AbstractBodyChunk) = each_point_idx(b.ch)
 
 @inline function calc_damage!(b::BodyChunk)
     for point_id in each_point_idx(b)
@@ -81,13 +120,20 @@ end
     return nothing
 end
 
+function apply_precracks!(b::AbstractBodyChunk, body::Body)
+    for precrack in body.point_sets_precracks
+        apply_precrack!(b, precrack)
+    end
+    return nothing
+end
+
 function apply_precrack!(b::AbstractBodyChunk, precrack::PointSetsPreCrack)
-    set_a = b.point_sets[precrack.set_a]
-    set_b = b.point_sets[precrack.set_b]
+    set_a = b.psets[precrack.set_a]
+    set_b = b.psets[precrack.set_b]
     if isempty(set_a) || isempty(set_b)
         return nothing
     end
-    _apply_precrack!(b.storage, b.discret, b.ch, set_a, set_b)
+    _apply_precrack!(b.store, b.dscr, b.ch, set_a, set_b)
     return nothing
 end
 
