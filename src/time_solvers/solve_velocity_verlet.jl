@@ -87,7 +87,10 @@ function solve!(dh::ThreadsDataHandler, vv::VelocityVerlet, options::ExportOptio
             update_vel_half!(body_chunk, Δt½)
             apply_bcs!(body_chunk, t)
             update_disp_and_pos!(body_chunk, Δt)
+        end
+        @threads :static for chunk_id in eachindex(dh.chunks)
             halo_exchange!(dh, chunk_id)
+            body_chunk = dh.chunks[chunk_id]
             calc_force_density!(body_chunk)
             calc_damage!(body_chunk)
             update_acc_and_vel!(body_chunk, Δt½)

@@ -124,6 +124,7 @@ function apply_precracks!(b::AbstractBodyChunk, body::Body)
     for precrack in body.point_sets_precracks
         apply_precrack!(b, precrack)
     end
+    calc_damage!(b)
     return nothing
 end
 
@@ -158,6 +159,8 @@ function _apply_precrack!(s::AbstractStorage, bd::BondDiscretization, ch::ChunkH
 end
 
 function calc_force_density!(b::AbstractBodyChunk)
+    b.store.b_int .= 0
+    b.store.n_active_bonds .= 0
     for point_id in each_point_idx(b)
         param = get_param(b, point_id)
         force_density!(b.store, b.dscr, param, point_id)
