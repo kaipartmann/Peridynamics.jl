@@ -100,20 +100,20 @@ end
 
 @inline each_point_idx(b::AbstractBodyChunk) = each_point_idx(b.ch)
 
-@inline function calc_damage!(b::BodyChunk)
+@inline function calc_damage!(b::AbstractBodyChunk)
     for point_id in each_point_idx(b)
-        dmg = 1 - b.n_active_bonds[point_id] / b.discret.n_neighbors[point_id]
-        b.damage[point_id] = dmg
+        dmg = 1 - b.store.n_active_bonds[point_id] / b.dscr.n_neighbors[point_id]
+        b.store.damage[point_id] = dmg
     end
     return nothing
 end
 
-function apply_initial_conditions!(b::BodyChunk, body::Body)
+function apply_initial_conditions!(b::AbstractBodyChunk, body::Body)
     apply_single_dim_ic!(b, body)
     return nothing
 end
 
-@inline function apply_single_dim_ic!(b::BodyChunk, body::Body)
+@inline function apply_single_dim_ic!(b::AbstractBodyChunk, body::Body)
     for ic in body.single_dim_ics
         apply_ic!(b, ic)
     end
@@ -153,6 +153,14 @@ function _apply_precrack!(s::AbstractStorage, bd::BondDiscretization, ch::ChunkH
             end
             s.n_active_bonds[point_id] += s.bond_active[bond_id]
         end
+    end
+    return nothing
+end
+
+function calc_force_density!(b::AbstractBodyChunk)
+    for point_id in each_point_idx(b)
+        param = get_param(b, point_id)
+        force_density!(b.store, b.dscr, param, point_id)
     end
     return nothing
 end

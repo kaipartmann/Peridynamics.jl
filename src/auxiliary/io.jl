@@ -46,6 +46,7 @@ end
 
 function export_results(dh::AbstractDataHandler, options::ExportOptions, timestep::Int,
                         time::Float64)
+    options.exportflag || return nothing
     if mod(timestep, options.freq) == 0
         _export_results(dh, options, timestep, time)
     end
