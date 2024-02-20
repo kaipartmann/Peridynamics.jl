@@ -85,6 +85,7 @@ include("discretizations/bond_discretization.jl")
 include("discretizations/chunk_handler.jl")
 include("discretizations/body_chunk.jl")
 
+include("time_solvers/time_solver_interface.jl")
 include("time_solvers/velocity_verlet.jl")
 
 include("physics/material_interface.jl")
@@ -101,6 +102,8 @@ include("core/job.jl")
 include("core/submit.jl")
 include("core/halo_exchange.jl")
 include("core/threads_data_handler.jl")
+
+include("time_solvers/solve_velocity_verlet.jl")
 
 include("VtkReader/VtkReader.jl")
 using .VtkReader
