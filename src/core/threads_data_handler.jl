@@ -33,3 +33,19 @@ function calc_stable_timestep(dh::ThreadsDataHandler, safety_factor::Float64)
     end
     return minimum(Δt) * safety_factor
 end
+
+function _export_results(dh::ThreadsDataHandler, options::ExportOptions, n::Int, t::Float64)
+    filename = joinpath(options.vtk, @sprintf("timestep_%05d", n))
+    n_chunks = length(dh.chunks)
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        position = @views chunk.dscr.position[:, chunk.ch.loc_points]
+        pvtk_grid(filename, position, sp.cells; part=chunk_id, nparts=n_chunks) do vtk
+            for fld in options.fields
+                vtk[string(fld)] = getfield(chunk.store, fld)
+            end
+            vtk["time", VTKFieldData()] = t
+        end
+    end
+    return nothing
+end

@@ -50,10 +50,14 @@ function velocity_verlet_check(vv::VelocityVerlet)
     return nothing
 end
 
+function calc_stable_timestep(dh::AbstractDataHandler, safety_factor::Float64)
+    throw(MethodError(calc_stable_timestep, dh, safety_factor))
+end
+
 function calc_timestep(b::AbstractBodyChunk)
     Δt = fill(Inf, length(each_point_idx(b.ch)))
     for point_id in each_point_idx(b.ch)
-        pp = get_point_param(b, point_id)
+        pp = get_param(b, point_id)
         Δt[point_id] = _calc_timestep(b.discret, pp, point_id)
     end
     return minimum(Δt)

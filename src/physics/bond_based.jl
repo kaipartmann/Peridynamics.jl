@@ -58,6 +58,8 @@ struct BBVerletStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
+const BBStorage = Union{BBVerletStorage}
+
 @inline storage_type(::BBMaterial, ::VelocityVerlet) = BBVerletStorage
 
 function init_storage(::Body{BBMaterial}, ::VelocityVerlet, bd::BondDiscretization,
@@ -80,32 +82,32 @@ end
 @inline reads_from_halo(::BBMaterial) = (:position,)
 @inline writes_to_halo(::BBMaterial) = ()
 
-# function force_density!(s::BBStorage, d::PointBondDiscretization, mat::BBMaterial,
-#                         i::Int)
-#     for bond_id in d.bond_range[i]
-#         bond = d.bonds[bond_id]
-#         j, L = bond.j, bond.L
+function force_density!(s::BBStorage, bd::BondDiscretization, param::BBPointParameters,
+                        i::Int)
+    for bond_id in each_bond_idx(bd, i)
+        bond = bd.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
 
-#         # current bond length
-#         Δxijx = s.position[1, j] - s.position[1, i]
-#         Δxijy = s.position[2, j] - s.position[2, i]
-#         Δxijz = s.position[3, j] - s.position[3, i]
-#         l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
+        # current bond length
+        Δxijx = s.position[1, j] - s.position[1, i]
+        Δxijy = s.position[2, j] - s.position[2, i]
+        Δxijz = s.position[3, j] - s.position[3, i]
+        l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
 
-#         # bond strain
-#         ε = (l - L) / L
+        # bond strain
+        ε = (l - L) / L
 
-#         # failure mechanism
-#         if ε > mat.εc && bond.fail_permit
-#             s.bond_active[bond_id] = false
-#         end
-#         s.n_active_bonds[i] += s.bond_failure[bond_id]
+        # failure mechanism
+        if ε > param.εc && bond.fail_permit
+            s.bond_active[bond_id] = false
+        end
+        s.n_active_bonds[i] += s.bond_active[bond_id]
 
-#         # update of force density
-#         temp = s.bond_active[bond_id] * mat.bc * ε / l * d.volume[j]
-#         s.b_int[1, i] += temp * Δxijx
-#         s.b_int[2, i] += temp * Δxijy
-#         s.b_int[3, i] += temp * Δxijz
-#     end
-#     return nothing
-# end
+        # update of force density
+        temp = s.bond_active[bond_id] * param.bc * ε / l * bd.volume[j]
+        s.b_int[1, i] += temp * Δxijx
+        s.b_int[2, i] += temp * Δxijy
+        s.b_int[3, i] += temp * Δxijz
+    end
+    return nothing
+end

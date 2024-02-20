@@ -43,3 +43,11 @@ function get_export_options(::Type{M}, o::Dict{Symbol,Any}) where {M<:AbstractMa
 
     return ExportOptions(root, freq, fields)
 end
+
+function export_results(dh::AbstractDataHandler, options::ExportOptions, timestep::Int,
+                        time::Float64)
+    if mod(timestep, options.freq) == 0
+        _export_results(dh, options, timestep, time)
+    end
+    return nothing
+end

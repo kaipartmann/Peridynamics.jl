@@ -46,11 +46,11 @@ function BodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
     return BodyChunk(mat, dscr, store, param, psets, sdbcs, ch)
 end
 
-@inline function get_point_param(b::MultiParamBodyChunk, point_id::Int)
+@inline function get_param(b::MultiParamBodyChunk, point_id::Int)
     return b.param[b.paramap[point_id]]
 end
 
-@inline function get_point_param(b::BodyChunk, ::Int)
+@inline function get_param(b::BodyChunk, ::Int)
     return b.param
 end
 
