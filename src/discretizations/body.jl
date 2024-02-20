@@ -81,6 +81,11 @@ function point_set!(f::F, b::Body, name::Symbol) where {F<:Function}
     return nothing
 end
 
+function failure_permit!(b::Body, fail_permit::Bool)
+    b.fail_permit .= fail_permit
+    return nothing
+end
+
 function failure_permit!(b::Body, name::Symbol, fail_permit::Bool)
     check_if_set_is_defined(b.point_sets, name)
     b.fail_permit[b.point_sets[name]] .= fail_permit
