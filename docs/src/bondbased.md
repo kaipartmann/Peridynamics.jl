@@ -21,11 +21,11 @@ with
 
 In this expression, bond failure $d^{ij}$ represents whether the bond between points $i$ and $j$ is intact ($d^{ij}=1$)
 or damaged ($d^{ij}=0$). The direction vector $\boldsymbol{n}$ is oriented in the direction of the bond. 
-Furthermore, the micro-modulus constant
+Furthermore, the micro-modulus constant [Silling2005](@cite)
 ```math
 c = \frac{18 \cdot \kappa}{\pi \cdot \delta^4} \;
 ```
-and the strain of the bond
+and the strain of the bond [Silling2005a](@cite)
 ```math
 \varepsilon^{ij} = \frac{l^{ij}-L^{ij}}{L^{ij}}
 ``` 
