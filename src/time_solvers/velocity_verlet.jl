@@ -47,6 +47,9 @@ function velocity_verlet_check(vv::VelocityVerlet)
     if vv.Δt < 0
         error("`Δt` of VelocityVerlet smaller than zero!\n")
     end
+    if !(0 < vv.safety_factor < 1)
+        error("`safety_factor` of VelocityVerlet has invalid value!\n")
+    end
     return nothing
 end
 
