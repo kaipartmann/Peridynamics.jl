@@ -1,10 +1,10 @@
 
 struct HaloExchange
     field::Symbol
-    from_chunk_id::Int
-    to_chunk_id::Int
-    from_loc_idxs::Vector{Int}
-    to_loc_idxs::Vector{Int}
+    src_chunk_id::Int
+    dest_chunk_id::Int
+    src_idxs::Vector{Int}
+    dest_idxs::Vector{Int}
 end
 
 function find_halo_exchanges(body_chunks::Vector{B}) where {B<:BodyChunk}
