@@ -122,15 +122,17 @@ end
 
 function apply_precracks!(b::AbstractBodyChunk, body::Body)
     for precrack in body.point_sets_precracks
-        apply_precrack!(b, precrack)
+        apply_precrack!(b, body, precrack)
     end
     calc_damage!(b)
     return nothing
 end
 
-function apply_precrack!(b::AbstractBodyChunk, precrack::PointSetsPreCrack)
-    set_a = b.psets[precrack.set_a]
-    set_b = b.psets[precrack.set_b]
+function apply_precrack!(b::AbstractBodyChunk, body::Body, precrack::PointSetsPreCrack)
+    set_a = filter(x -> in(x, b.ch.point_ids), body.point_sets[precrack.set_a])
+    set_b = filter(x -> in(x, b.ch.point_ids), body.point_sets[precrack.set_b])
+    localize!(set_a, b.ch.localizer)
+    localize!(set_b, b.ch.localizer)
     if isempty(set_a) || isempty(set_b)
         return nothing
     end

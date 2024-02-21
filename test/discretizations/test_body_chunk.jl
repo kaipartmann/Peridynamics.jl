@@ -85,6 +85,10 @@ end
         @test body_chunks[1].ch.localizer[i] == i
     end
 
+    @test body_chunks[1].store.bond_active == [1, 0, 0, 1, 0, 0]
+    @test body_chunks[1].store.n_active_bonds == [1, 1]
+    @test body_chunks[1].store.damage ≈ [2/3, 2/3]
+
     @test body_chunks[2].mat == BBMaterial()
     @test body_chunks[2].dscr isa Peridynamics.BondDiscretization
     @test body_chunks[2].dscr.position == position[:, [3, 4, 1, 2]]
@@ -108,6 +112,10 @@ end
     @test body_chunks[2].ch.localizer[4] == 2
     @test body_chunks[2].ch.localizer[1] == 3
     @test body_chunks[2].ch.localizer[2] == 4
+
+    @test body_chunks[2].store.bond_active == [0, 0, 1, 0, 0, 1]
+    @test body_chunks[2].store.n_active_bonds == [1, 1]
+    @test body_chunks[2].store.damage ≈ [2/3, 2/3]
 
     #TODO: test the other fields!
 end
