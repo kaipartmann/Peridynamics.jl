@@ -52,7 +52,7 @@ fig #src
 # - Griffith's parameter $G_c = 2.7 \, \mathrm{N} \, \mathrm{mm}^{-1}$
 #-
 δ = 3.015Δx
-mat = ContinuumBasedMaterial(horizon=δ, rho=8e-6, E=2.1e5, nu=0.25, Gc=2.7)
+mat = CPDMaterial(horizon=δ, rho=8e-6, E=2.1e5, nu=0.25, Gc=2.7)
 
 #-
 # To add a predefined crack with length $a$, we use two point sets.
