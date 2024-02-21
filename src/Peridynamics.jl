@@ -95,6 +95,7 @@ include("time_solvers/time_solver_interface.jl")
 include("time_solvers/velocity_verlet.jl")
 
 include("physics/material_interface.jl")
+include("physics/force_density.jl")
 include("physics/material_parameters.jl")
 include("physics/fracture.jl")
 include("physics/bond_based.jl")
