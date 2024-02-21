@@ -15,9 +15,25 @@ function override_eachother(a::SingleDimIC, b::SingleDimIC)
     return same_field && same_point_set && same_dim
 end
 
-function apply_ic!(b::AbstractBodyChunk, ic::SingleDimIC)
-    for point_id in b.psets[ic.point_set]
-        setindex!(getfield(b.store, ic.field), ic.value, ic.dim, point_id)
+function apply_initial_conditions!(b::AbstractBodyChunk, body::Body)
+    apply_single_dim_ic!(b, body)
+    return nothing
+end
+
+@inline function apply_single_dim_ic!(b::AbstractBodyChunk, body::Body)
+    for ic in body.single_dim_ics
+        apply_ic!(b, ic)
     end
     return nothing
+end
+
+function apply_ic!(b::AbstractBodyChunk, ic::SingleDimIC)
+    for point_id in b.psets[ic.point_set]
+        setindex!(get_ic_field(b.store, ic.field), ic.value, ic.dim, point_id)
+    end
+    return nothing
+end
+
+function get_ic_field(s::AbstractStorage, fieldname::Symbol)
+    return getfield(s, fieldname)::Matrix{Float64}
 end

@@ -23,12 +23,20 @@ function apply_bcs!(b::AbstractBodyChunk, time::Float64)
     return nothing
 end
 
-function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}}, bc::SingleDimBC,
-                   time::Float64)
-    value = bc.fun(time)
+function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}}, bc::SingleDimBC{F},
+                   time::Float64) where {F<:Function}
+    value = get_value(bc, time)
     isnan(value) && return nothing
     for point_id in psets[bc.point_set]
-        setindex!(getfield(s, bc.field), value, bc.dim, point_id)
+        setindex!(get_bc_field(s, bc.field), value, bc.dim, point_id)
     end
     return nothing
+end
+
+function get_value(bc::SingleDimBC{F}, t::Float64)::Float64 where {F<:Function}
+    return bc.fun(t)
+end
+
+function get_bc_field(s::AbstractStorage, fieldname::Symbol)
+    return getfield(s, fieldname)::Matrix{Float64}
 end
