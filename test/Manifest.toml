@@ -2,7 +2,13 @@
 
 julia_version = "1.10.1"
 manifest_format = "2.0"
-project_hash = "d40c28f5e146634587084a6bd4e62b349c5c95f1"
+project_hash = "db32d129e714ae709562961f691561563c76113e"
+
+[[deps.Aqua]]
+deps = ["Compat", "Pkg", "Test"]
+git-tree-sha1 = "497d933e5998358c2626f782c99a8d4b90af2dd0"
+uuid = "4c88cf16-eb10-579e-8560-4a9242c79595"
+version = "0.8.4"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -13,6 +19,19 @@ uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+
+[[deps.Compat]]
+deps = ["TOML", "UUIDs"]
+git-tree-sha1 = "d2c021fbdde94f6cdaa799639adfeeaa17fd67f5"
+uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
+version = "4.13.0"
+
+    [deps.Compat.extensions]
+    CompatLinearAlgebraExt = "LinearAlgebra"
+
+    [deps.Compat.weakdeps]
+    Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+    LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.Dates]]
 deps = ["Printf"]

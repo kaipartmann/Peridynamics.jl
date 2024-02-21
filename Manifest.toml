@@ -2,7 +2,7 @@
 
 julia_version = "1.10.1"
 manifest_format = "2.0"
-project_hash = "452656d61b6baa218ad6690935f2e39206d9e308"
+project_hash = "e7e8472636a710f2b04cfbbc6746950bf68a56c0"
 
 [[deps.AbaqusReader]]
 deps = ["Nullables"]
