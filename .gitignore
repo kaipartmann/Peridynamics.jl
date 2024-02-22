@@ -12,6 +12,7 @@
 /examples/results/
 *.log
 *.vtu
+*.pvtu
 
 # local debugging
 /scripts/
