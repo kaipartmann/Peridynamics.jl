@@ -54,14 +54,6 @@ end
     return b.param
 end
 
-# function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition,
-#                            ::Val{1}) where {M,P,T}
-#     D = discretization_type(body.mat)
-#     S = storage_type(body.mat, ts)
-#     body_chunks = _get_body_chunks_threads(body, ts, pd, D, S)
-#     return body_chunks
-# end
-
 function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition,
                            v::Val{N}) where {M,P,T,N}
     D = discretization_type(body.mat)
