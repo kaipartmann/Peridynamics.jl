@@ -9,6 +9,7 @@ struct MultiParamBodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,
     psets::Dict{Symbol,Vector{Int}}
     sdbcs::Vector{SingleDimBC}
     ch::ChunkHandler
+    cells::Vector{MeshCell{VTKCellType, Tuple{Int64}}}
 end
 
 function MultiParamBodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
@@ -20,7 +21,8 @@ function MultiParamBodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
     param = body.point_params
     psets = localized_point_sets(body.point_sets, ch)
     sdbcs = body.single_dim_bcs
-    return MultiParamBodyChunk(mat, dscr, store, param, paramap, psets, sdbcs, ch)
+    cells = get_cells(ch.n_loc_points)
+    return MultiParamBodyChunk(mat, dscr, store, param, paramap, psets, sdbcs, ch, cells)
 end
 
 struct BodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,D<:AbstractDiscretization,
@@ -32,6 +34,7 @@ struct BodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,D<:AbstractDiscr
     psets::Dict{Symbol,Vector{Int}}
     sdbcs::Vector{SingleDimBC}
     ch::ChunkHandler
+    cells::Vector{MeshCell{VTKCellType, Tuple{Int64}}}
 end
 
 function BodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
@@ -43,7 +46,8 @@ function BodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
     param = first(body.point_params)
     psets = localized_point_sets(body.point_sets, ch)
     sdbcs = body.single_dim_bcs
-    return BodyChunk(mat, dscr, store, param, psets, sdbcs, ch)
+    cells = get_cells(ch.n_loc_points)
+    return BodyChunk(mat, dscr, store, param, psets, sdbcs, ch, cells)
 end
 
 @inline function get_param(b::MultiParamBodyChunk, point_id::Int)

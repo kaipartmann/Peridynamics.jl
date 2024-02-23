@@ -34,11 +34,12 @@ end
 @testitem "localize" begin
     point_ids = collect(101:200)
     loc_points = 101:200
+    n_loc_points = length(loc_points)
     halo_points = Vector{Int}()
     halo_by_src = Dict{Int,UnitRange{Int}}()
     localizer = Peridynamics.find_localizer(point_ids)
-    ch = Peridynamics.ChunkHandler(point_ids, loc_points, halo_points, halo_by_src,
-                                   localizer)
+    ch = Peridynamics.ChunkHandler(n_loc_points, point_ids, loc_points, halo_points,
+                                   halo_by_src, localizer)
 
     point_set = [101, 110, 120, 210, 220]
     loc_point_set = Peridynamics.localize(point_set, ch)
@@ -48,11 +49,12 @@ end
 @testitem "localized_point_sets" begin
     point_ids = collect(101:200)
     loc_points = 101:200
+    n_loc_points = length(loc_points)
     halo_points = Vector{Int}()
     halo_by_src = Dict{Int,UnitRange{Int}}()
     localizer = Peridynamics.find_localizer(point_ids)
-    ch = Peridynamics.ChunkHandler(point_ids, loc_points, halo_points, halo_by_src,
-                                   localizer)
+    ch = Peridynamics.ChunkHandler(n_loc_points, point_ids, loc_points, halo_points,
+                                   halo_by_src, localizer)
 
     point_sets = Dict(:a => [101, 110, 120, 210, 220], :b => [1, 2, 3])
     loc_point_sets = Peridynamics.localized_point_sets(point_sets, ch)
@@ -81,14 +83,12 @@ end
 
 @testitem "ChunkHandler" begin
     pd = Peridynamics.PointDecomposition(Peridynamics.distribute_points(4, 2))
-    bonds = [
-        Peridynamics.Bond(2, 1.0, true),
-        Peridynamics.Bond(3, 1.0, true),
-        Peridynamics.Bond(4, 1.0, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(3, √2, true),
-        Peridynamics.Bond(4, √2, true),
-    ]
+    bonds = [Peridynamics.Bond(2, 1.0, true),
+             Peridynamics.Bond(3, 1.0, true),
+             Peridynamics.Bond(4, 1.0, true),
+             Peridynamics.Bond(1, 1.0, true),
+             Peridynamics.Bond(3, √2, true),
+             Peridynamics.Bond(4, √2, true)]
 
     ch = Peridynamics.ChunkHandler(bonds, pd, 1)
     @test ch.point_ids == [1, 2, 3, 4]

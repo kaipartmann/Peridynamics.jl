@@ -30,7 +30,3 @@ function writes_to_halo(mat::AbstractMaterial)
 end
 
 #---- optional interface functions ----#
-
-@inline function default_export_fields(::Type{M}) where {M<:AbstractMaterial}
-    return (:displacement, :damage)
-end

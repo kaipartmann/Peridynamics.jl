@@ -1,4 +1,5 @@
 struct ChunkHandler
+    n_loc_points::Int
     point_ids::Vector{Int}
     loc_points::UnitRange{Int}
     halo_points::Vector{Int}
@@ -8,11 +9,13 @@ end
 
 function ChunkHandler(bonds::Vector{Bond}, pd::PointDecomposition, chunk_id::Int)
     loc_points = pd.decomp[chunk_id]
+    n_loc_points = length(loc_points)
     halo_points = find_halo_points(bonds, loc_points)
     halo_by_src = sort_halo_by_src!(halo_points, pd.point_src, length(loc_points))
     point_ids = vcat(loc_points, halo_points)
     localizer = find_localizer(point_ids)
-    return ChunkHandler(point_ids, loc_points, halo_points, halo_by_src, localizer)
+    return ChunkHandler(n_loc_points, point_ids, loc_points, halo_points, halo_by_src,
+                        localizer)
 end
 
 function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})

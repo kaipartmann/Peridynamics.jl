@@ -34,6 +34,7 @@ const FRAC_KWARGS = (:Gc, :epsilon_c)
 const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
 const CONTACT_KWARGS = (:radius, :sc)
 const EXPORT_KWARGS = (:path, :freq, :write)
+const DEFAULT_EXPORT_FIELDS = (:displacement, :damage)
 const JOB_KWARGS = (EXPORT_KWARGS...,)
 const SUBMIT_KWARGS = (:quiet,)
 

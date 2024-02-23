@@ -82,8 +82,8 @@ end
 @inline reads_from_halo(::BBMaterial) = (:position,)
 @inline writes_to_halo(::BBMaterial) = ()
 
-function force_density!(s::BBStorage, bd::BondDiscretization, param::BBPointParameters,
-                        i::Int)
+function force_density_point!(s::BBStorage, bd::BondDiscretization,
+                              param::BBPointParameters, i::Int)
     for bond_id in each_bond_idx(bd, i)
         bond = bd.bonds[bond_id]
         j, L = bond.neighbor, bond.length

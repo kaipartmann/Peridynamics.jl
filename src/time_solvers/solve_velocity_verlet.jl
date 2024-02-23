@@ -74,7 +74,7 @@ function _update_vel!(velocity, velocity_half, acceleration, Δt½, i)
 end
 
 function solve!(dh::ThreadsDataHandler, vv::VelocityVerlet, options::ExportOptions)
-    _export_results(dh, options, 0, 0.0)
+    export_reference_results(dh, options)
 
     Δt = vv.Δt
     Δt½ = 0.5 * vv.Δt
@@ -83,19 +83,19 @@ function solve!(dh::ThreadsDataHandler, vv::VelocityVerlet, options::ExportOptio
     for n in 1:vv.n_steps
         t = n * Δt
         @threads :static for chunk_id in eachindex(dh.chunks)
-            body_chunk = dh.chunks[chunk_id]
-            update_vel_half!(body_chunk, Δt½)
-            apply_bcs!(body_chunk, t)
-            update_disp_and_pos!(body_chunk, Δt)
+            chunk = dh.chunks[chunk_id]
+            update_vel_half!(chunk, Δt½)
+            apply_bcs!(chunk, t)
+            update_disp_and_pos!(chunk, Δt)
         end
         @threads :static for chunk_id in eachindex(dh.chunks)
             halo_exchange!(dh, chunk_id)
-            body_chunk = dh.chunks[chunk_id]
-            calc_force_density!(body_chunk)
-            calc_damage!(body_chunk)
-            update_acc_and_vel!(body_chunk, Δt½)
+            chunk = dh.chunks[chunk_id]
+            calc_force_density!(chunk)
+            calc_damage!(chunk)
+            update_acc_and_vel!(chunk, Δt½)
+            export_results(dh, options, chunk_id, n, t)
         end
-        export_results(dh, options, n, t)
         next!(p)
     end
     finish!(p)
