@@ -13,7 +13,7 @@ The internal force density is calculated as the sum of three types of point inte
 <img src="/assets/PD_OneNI_1.png?raw=true" width="250"/>
 ```
 
-One-neighbor interactions in CPD correspond to the bonds in bond-based peridynamics, but there is a slightly different way to calculate the internal forces.
+One-neighbor interactions in CPD correspond to the bonds in [bond-based](@ref bondbased) peridynamics, but there is a slightly different way to calculate the internal forces.
 
 First, the neighborhood volume is determined:
 ```math

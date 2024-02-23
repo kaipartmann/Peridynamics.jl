@@ -25,4 +25,4 @@ The peridynamic equation of motion is established for each material point $i$ an
     \qquad \forall \; \boldsymbol{X} ^ {i} \in \mathcal{B}_0 \; , \; t \geq 0 \; .
 ```
 
-Assuming the external forces $\boldsymbol{b}^{\mathrm{ext}}$ are known, there are different peridynamic approaches to calculate the internal forces $\boldsymbol{b}^{\mathrm{int}}$, for example the [bond-based formulation](@ref bondbased) or the [continuum-kinematics-based formulation](@ref continuumbased).
+Assuming the external forces $\boldsymbol{b}^{\mathrm{ext}}$ are known, there are different peridynamic approaches to calculate the internal forces $\boldsymbol{b}^{\mathrm{int}}$, for example the [bond-based formulation](@ref bondbased) or the [continuum-kinematics-inspired formulation](@ref continuumbased).

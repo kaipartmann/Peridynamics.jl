@@ -1,6 +1,6 @@
 # Non-Ordinary State-based
 
-Non-ordinary state based formulations have been developed to extend state based peridynamics.
+Non-ordinary state based-formulations have been developed to extend [state-based peridynamics](@ref statebased).
 Hereafter, the correspondence formulation of non-ordinary state based peridynamics is considered, which uses an elastic model from the classical theory. [Silling2007](@cite)
 
 First, the symmetric shape tensor is calculated:
