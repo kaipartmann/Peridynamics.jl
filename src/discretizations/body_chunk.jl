@@ -94,6 +94,11 @@ function _chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition, ::Ty
     return body_chunks
 end
 
+@inline get_material_type(::MultiParamBodyChunk{M,P,D,S}) where {M,P,D,S} = M
+@inline get_material_type(::BodyChunk{M,P,D,S}) where {M,P,D,S} = M
+@inline get_material_type(::Vector{MultiParamBodyChunk{M,P,D,S}}) where {M,P,D,S} = M
+@inline get_material_type(::Vector{BodyChunk{M,P,D,S}}) where {M,P,D,S} = M
+
 @inline each_point_idx(b::AbstractBodyChunk) = each_point_idx(b.ch)
 
 @inline function calc_damage!(b::AbstractBodyChunk)

@@ -79,8 +79,8 @@ function init_storage(::Body{BBMaterial}, ::VelocityVerlet, bd::BondDiscretizati
                            b_int, b_ext, damage, bond_active, n_active_bonds)
 end
 
-@inline reads_from_halo(::BBMaterial) = (:position,)
-@inline writes_to_halo(::BBMaterial) = ()
+@inline reads_from_halo(::Type{BBMaterial}) = (:position,)
+@inline writes_to_halo(::Type{BBMaterial}) = ()
 
 function force_density_point!(s::BBStorage, bd::BondDiscretization,
                               param::BBPointParameters, i::Int)

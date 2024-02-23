@@ -1,7 +1,8 @@
 struct ThreadsDataHandler{C<:AbstractBodyChunk} <: AbstractDataHandler
     n_chunks::Int
     chunks::Vector{C}
-    halo_exchanges::Vector{Vector{HaloExchange}}
+    read_halo_exs::Vector{Vector{HaloExchange}}
+    write_halo_exs::Vector{Vector{HaloExchange}}
 end
 
 function ThreadsDataHandler(body::Body, time_solver::AbstractTimeSolver,
@@ -15,12 +16,8 @@ function ThreadsDataHandler(body::Body, time_solver::AbstractTimeSolver,
                             point_decomp::PointDecomposition, v::Val{N}) where {N}
     chunks = chop_body_threads(body, time_solver, point_decomp, v)
     n_chunks = length(chunks)
-    _halo_exchanges = find_halo_exchanges(chunks)
-    halo_exchanges = [Vector{HaloExchange}() for _ in eachindex(chunks)]
-    @threads :static for chunk_id in eachindex(chunks)
-        halo_exchanges[chunk_id] = filter(x -> x.dest_chunk_id == chunk_id, _halo_exchanges)
-    end
-    return ThreadsDataHandler(n_chunks, chunks, halo_exchanges)
+    read_halo_exs, write_halo_exs = find_halo_exchanges(chunks)
+    return ThreadsDataHandler(n_chunks, chunks, read_halo_exs, write_halo_exs)
 end
 
 function ThreadsDataHandler(multibody::MultibodySetup, time_solver::AbstractTimeSolver,
@@ -38,8 +35,18 @@ end
 
 get_cells(n::Int) = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in 1:n]
 
-function halo_exchange!(dh::ThreadsDataHandler, chunk_id::Int)
-    for he in dh.halo_exchanges[chunk_id]
+function exchange_read_fields!(dh::ThreadsDataHandler, chunk_id::Int)
+    halo_exchange!(dh, dh.read_halo_exs[chunk_id])
+    return nothing
+end
+
+function exchange_write_fields!(dh::ThreadsDataHandler, chunk_id::Int)
+    halo_exchange!(dh, dh.write_halo_exs[chunk_id])
+    return nothing
+end
+
+function halo_exchange!(dh::ThreadsDataHandler, halo_exs::Vector{HaloExchange})
+    for he in halo_exs
         src_field = get_exchange_field(dh.chunks[he.src_chunk_id], he.field)
         dest_field = get_exchange_field(dh.chunks[he.dest_chunk_id], he.field)
         exchange!(dest_field, src_field, he.dest_idxs, he.src_idxs)

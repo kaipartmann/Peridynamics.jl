@@ -75,30 +75,37 @@ end
 
 function solve!(dh::ThreadsDataHandler, vv::VelocityVerlet, options::ExportOptions)
     export_reference_results(dh, options)
-
     Δt = vv.Δt
     Δt½ = 0.5 * vv.Δt
     p = Progress(vv.n_steps; dt=1, desc="solve...", color=:normal, barlen=20,
                  enabled=progress_enabled())
     for n in 1:vv.n_steps
-        t = n * Δt
-        @threads :static for chunk_id in eachindex(dh.chunks)
-            chunk = dh.chunks[chunk_id]
-            update_vel_half!(chunk, Δt½)
-            apply_bcs!(chunk, t)
-            update_disp_and_pos!(chunk, Δt)
-        end
-        @threads :static for chunk_id in eachindex(dh.chunks)
-            halo_exchange!(dh, chunk_id)
-            chunk = dh.chunks[chunk_id]
-            calc_force_density!(chunk)
-            calc_damage!(chunk)
-            update_acc_and_vel!(chunk, Δt½)
-            export_results(dh, options, chunk_id, n, t)
-        end
+        solve_timestep!(dh, options, Δt, Δt½, n)
         next!(p)
     end
     finish!(p)
-
     return dh
+end
+
+function solve_timestep!(dh::ThreadsDataHandler, options::ExportOptions, Δt::Float64,
+                         Δt½::Float64, n::Int)
+    t = n * Δt
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        update_vel_half!(chunk, Δt½)
+        apply_bcs!(chunk, t)
+        update_disp_and_pos!(chunk, Δt)
+    end
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        exchange_read_fields!(dh, chunk_id)
+        calc_force_density!(dh.chunks[chunk_id])
+    end
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        exchange_write_fields!(dh, chunk_id)
+        chunk = dh.chunks[chunk_id]
+        calc_damage!(chunk)
+        update_acc_and_vel!(chunk, Δt½)
+        export_results(dh, options, chunk_id, n, t)
+    end
+    return nothing
 end

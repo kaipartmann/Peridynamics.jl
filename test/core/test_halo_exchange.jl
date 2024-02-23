@@ -1,4 +1,4 @@
-@testitem "find_read_exchanges!" begin
+@testitem "find_read_exchanges! BBMaterial" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -17,101 +17,87 @@
     point_decomp = Peridynamics.PointDecomposition(body, 2)
     body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
 
-    halo_exchanges = Peridynamics.find_halo_exchanges(body_chunks)
-    @test halo_exchanges[1].field === :position
-    @test halo_exchanges[1].src_chunk_id == 2
-    @test halo_exchanges[1].dest_chunk_id == 1
-    @test halo_exchanges[1].src_idxs == [1, 2]
-    @test halo_exchanges[1].dest_idxs == [3, 4]
-    @test halo_exchanges[2].field === :position
-    @test halo_exchanges[2].src_chunk_id == 1
-    @test halo_exchanges[2].dest_chunk_id == 2
-    @test halo_exchanges[2].src_idxs == [1, 2]
-    @test halo_exchanges[2].dest_idxs == [3, 4]
+    read_halo_exs, write_halo_exs = Peridynamics.find_halo_exchanges(body_chunks)
+    @test read_halo_exs[1][1].field === :position
+    @test read_halo_exs[1][1].src_chunk_id == 2
+    @test read_halo_exs[1][1].dest_chunk_id == 1
+    @test read_halo_exs[1][1].src_idxs == [1, 2]
+    @test read_halo_exs[1][1].dest_idxs == [3, 4]
+    @test read_halo_exs[2][1].field === :position
+    @test read_halo_exs[2][1].src_chunk_id == 1
+    @test read_halo_exs[2][1].dest_chunk_id == 2
+    @test read_halo_exs[2][1].src_idxs == [1, 2]
+    @test read_halo_exs[2][1].dest_idxs == [3, 4]
+    @test isempty(write_halo_exs[1])
+    @test isempty(write_halo_exs[2])
 
     point_decomp = Peridynamics.PointDecomposition(body, 4)
     body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
 
-    halo_exchanges = Peridynamics.find_halo_exchanges(body_chunks)
+    read_halo_exs, write_halo_exs = Peridynamics.find_halo_exchanges(body_chunks)
 
-    idx1 = findall(x -> x.dest_chunk_id == 1, halo_exchanges)
-    he1 = sort(halo_exchanges[idx1]; by=x -> x.src_chunk_id)
-
+    he1 = sort(read_halo_exs[1]; by=x -> x.src_chunk_id)
     @test he1[1].field === :position
     @test he1[1].src_chunk_id == 2
     @test he1[1].dest_chunk_id == 1
     @test he1[1].src_idxs == [1]
     @test he1[1].dest_idxs == [2]
-
     @test he1[2].field === :position
     @test he1[2].src_chunk_id == 3
     @test he1[2].dest_chunk_id == 1
     @test he1[2].src_idxs == [1]
     @test he1[2].dest_idxs == [3]
-
     @test he1[3].field === :position
     @test he1[3].src_chunk_id == 4
     @test he1[3].dest_chunk_id == 1
     @test he1[3].src_idxs == [1]
     @test he1[3].dest_idxs == [4]
 
-    idx2 = findall(x -> x.dest_chunk_id == 2, halo_exchanges)
-    he2 = sort(halo_exchanges[idx2]; by=x -> x.src_chunk_id)
-
+    he2 = sort(read_halo_exs[2]; by=x -> x.src_chunk_id)
     @test he2[1].field === :position
     @test he2[1].src_chunk_id == 1
     @test he2[1].dest_chunk_id == 2
     @test he2[1].src_idxs == [1]
     @test he2[1].dest_idxs == [2]
-
     @test he2[2].field === :position
     @test he2[2].src_chunk_id == 3
     @test he2[2].dest_chunk_id == 2
     @test he2[2].src_idxs == [1]
     @test he2[2].dest_idxs == [3]
-
     @test he2[3].field === :position
     @test he2[3].src_chunk_id == 4
     @test he2[3].dest_chunk_id == 2
     @test he2[3].src_idxs == [1]
     @test he2[3].dest_idxs == [4]
 
-    idx3 = findall(x -> x.dest_chunk_id == 3, halo_exchanges)
-    he3 = sort(halo_exchanges[idx3]; by=x -> x.src_chunk_id)
-
+    he3 = sort(read_halo_exs[3]; by=x -> x.src_chunk_id)
     @test he3[1].field === :position
     @test he3[1].src_chunk_id == 1
     @test he3[1].dest_chunk_id == 3
     @test he3[1].src_idxs == [1]
     @test he3[1].dest_idxs == [2]
-
     @test he3[2].field === :position
     @test he3[2].src_chunk_id == 2
     @test he3[2].dest_chunk_id == 3
     @test he3[2].src_idxs == [1]
     @test he3[2].dest_idxs == [3]
-
     @test he3[3].field === :position
     @test he3[3].src_chunk_id == 4
     @test he3[3].dest_chunk_id == 3
     @test he3[3].src_idxs == [1]
     @test he3[3].dest_idxs == [4]
 
-    idx4 = findall(x -> x.dest_chunk_id == 4, halo_exchanges)
-    he4 = sort(halo_exchanges[idx4]; by=x -> x.src_chunk_id)
-
+    he4 = sort(read_halo_exs[4]; by=x -> x.src_chunk_id)
     @test he4[1].field === :position
     @test he4[1].src_chunk_id == 1
     @test he4[1].dest_chunk_id == 4
     @test he4[1].src_idxs == [1]
     @test he4[1].dest_idxs == [2]
-
     @test he4[2].field === :position
     @test he4[2].src_chunk_id == 2
     @test he4[2].dest_chunk_id == 4
     @test he4[2].src_idxs == [1]
     @test he4[2].dest_idxs == [3]
-
     @test he4[3].field === :position
     @test he4[3].src_chunk_id == 3
     @test he4[3].dest_chunk_id == 4
@@ -119,7 +105,7 @@
     @test he4[3].dest_idxs == [4]
 end
 
-@testitem "halo_exchange!" begin
+@testitem "exchange_read_fields! BBMaterial" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -164,7 +150,7 @@ end
 
     randpos = rand(3, 4)
     tdh.chunks[2].store.position .= randpos
-    Peridynamics.halo_exchange!(tdh, 1)
+    Peridynamics.exchange_read_fields!(tdh, 1)
 
     @test b1 isa Peridynamics.BodyChunk
     @test b1.store.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
