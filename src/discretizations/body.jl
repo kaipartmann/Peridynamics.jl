@@ -1,4 +1,6 @@
-
+"""
+TODO
+"""
 struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
     mat::M
     n_points::Int
@@ -60,14 +62,10 @@ function check_if_set_is_defined(point_sets::Dict{Symbol,V}, name::Symbol) where
     return nothing
 end
 
-function _point_set!(point_sets::Dict{Symbol,Vector{Int}}, name::Symbol,
-                     points::V) where {V<:AbstractVector{<:Integer}}
-    if haskey(point_sets, name)
-        error("there is already a point set with name $(name)!")
-    end
-    point_sets[name] = points
-    return nothing
-end
+"""
+TODO
+"""
+function point_set! end
 
 function point_set!(b::Body, name::Symbol, points::V) where {V<:AbstractVector}
     checkbounds(b.volume, points)
@@ -80,6 +78,20 @@ function point_set!(f::F, b::Body, name::Symbol) where {F<:Function}
     point_set!(b, name, points)
     return nothing
 end
+
+function _point_set!(point_sets::Dict{Symbol,Vector{Int}}, name::Symbol,
+    points::V) where {V<:AbstractVector{<:Integer}}
+if haskey(point_sets, name)
+error("there is already a point set with name $(name)!")
+end
+point_sets[name] = points
+return nothing
+end
+
+"""
+TODO
+"""
+function failure_permit! end
 
 function failure_permit!(b::Body, fail_permit::Bool)
     b.fail_permit .= fail_permit
@@ -97,6 +109,11 @@ function check_material_kwargs(mat::M, p::Dict{Symbol,Any}) where {M<:AbstractMa
     check_kwargs(p, allowed_kwargs)
     return nothing
 end
+
+"""
+TODO
+"""
+function material! end
 
 function material!(b::Body{M,P}, name::Symbol; kwargs...) where {M,P}
     check_if_set_is_defined(b.point_sets, name)
@@ -154,6 +171,9 @@ function _condition!(conditions::Vector{B}, condition::B) where {B<:AbstractCond
     return nothing
 end
 
+"""
+TODO
+"""
 function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
     check_if_set_is_defined(b.point_sets, name)
     check_condition_function(f)
@@ -162,12 +182,18 @@ function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:F
     return nothing
 end
 
+"""
+TODO
+"""
 function velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
     check_if_set_is_defined(b.point_sets, name)
     dim = get_dim(d)
     _condition!(b.single_dim_ics, SingleDimIC(value, :velocity, name, dim))
 end
 
+"""
+TODO
+"""
 function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
     check_if_set_is_defined(b.point_sets, name)
     check_condition_function(f)
@@ -186,6 +212,9 @@ function check_if_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Sy
     return nothing
 end
 
+"""
+TODO
+"""
 function precrack!(b::Body, set_a::Symbol, set_b::Symbol)
     check_if_set_is_defined(b.point_sets, set_a)
     check_if_set_is_defined(b.point_sets, set_b)
