@@ -16,6 +16,8 @@ mutable struct MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
     end
 end
 
+const SpatialSetup = Union{Body,MultibodySetup}
+
 function MultibodySetup(::Dict{Symbol,Body})
     msg = "bodies have different material types!\n"
     msg *= "Only bodies with the same material types can be used for MultibodySetup!\n"

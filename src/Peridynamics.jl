@@ -86,7 +86,6 @@ include("discretizations/find_points.jl")
 include("discretizations/body.jl")
 include("discretizations/contact.jl")
 include("discretizations/multibody_setup.jl")
-const SpatialSetup = Union{Body,MultibodySetup}
 include("discretizations/decomposition.jl")
 include("discretizations/bond_discretization.jl")
 include("discretizations/chunk_handler.jl")
