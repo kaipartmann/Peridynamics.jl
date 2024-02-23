@@ -103,9 +103,6 @@ function _export_results(b::AbstractBodyChunk, chunk_id::Int, n_chunks::Int,
     position = get_loc_position(b)
     pvtk_grid(filename, position, b.cells; part=chunk_id, nparts=n_chunks) do vtk
         for (field, type) in options.fields
-            # TODO:
-            # - solve type instability of `getfield`
-            # - check if field is part of halo write or read access -> correct length!
             vtk[string(field), VTKPointData()] = get_export_field(b.store, field, type)
         end
         vtk["time", VTKFieldData()] = t
