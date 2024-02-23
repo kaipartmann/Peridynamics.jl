@@ -17,7 +17,7 @@ pore_radius_variation = 0.05lxy:0.0001lxy:0.1lxy
 
 n_pores = 200
 
-mats = Tuple(BondBasedMaterial(horizon=3dx, rho=rand(rho_variation), E=rand(E_variation), epsilon_c=rand(epsilon_c_variation)) for _ in 1:n_pores)
+mats = Tuple(BBMaterial(horizon=3dx, rho=rand(rho_variation), E=rand(E_variation), epsilon_c=rand(epsilon_c_variation)) for _ in 1:n_pores)
 
 matofpoint = ones(Int, pc.n_points)
 radius_of_pores = zeros(n_pores)

@@ -3,8 +3,8 @@ using Peridynamics #hide
 # # [Material formulations](@id howto_matformulations)
 # In peridynamics multiple material formulations exist. In this package, currently two
 # peridynamics formulations are implemented:
-#   - [`BondBasedMaterial`](@ref)
-#   - [`ContinuumBasedMaterial`](@ref)
+#   - [`BBMaterial`](@ref)
+#   - [`CPDMaterial`](@ref)
 # Please refer to
 #   - [Silling (2000)](https://doi.org/10.1016/S0022-5096(99)00029-0)
 #   - [Silling et al. (2007)](https://link.springer.com/article/10.1007/s10659-007-9125-1)
@@ -20,10 +20,10 @@ using Peridynamics #hide
 
 # ## Examples bond-based material
 #-
-mat = BondBasedMaterial(horizon=1, rho=8e-6, E=2.1e5, Gc=2)
+mat = BBMaterial(horizon=1, rho=8e-6, E=2.1e5, Gc=2)
 
 #-
-mat = BondBasedMaterial(horizon=1, rho=8e-6, E=2.1e5, epsilon_c=0.01)
+mat = BBMaterial(horizon=1, rho=8e-6, E=2.1e5, epsilon_c=0.01)
 
 
 # ## Continuum-kinematics-based peridynamics
@@ -44,14 +44,14 @@ mat = BondBasedMaterial(horizon=1, rho=8e-6, E=2.1e5, epsilon_c=0.01)
 #md #     Users can manually specify the interaction parameters $C_1$, $C_2$, and $C_3$.
 #md #     The values of the arguments `E` and `nu` are then ignored for the simulation!
 #md #     However, for the calculation of `Gc` or `epsilon_c`, they still have to be
-#md #     specified when creating a `ContinuumBasedMaterial` instance!
+#md #     specified when creating a `CPDMaterial` instance!
 #md #     Be careful if you use this!
 
 #-
-mat = ContinuumBasedMaterial(horizon=1, rho=8e-6, E=2.1e5, nu=0.25, Gc=2)
+mat = CPDMaterial(horizon=1, rho=8e-6, E=2.1e5, nu=0.25, Gc=2)
 
 #-
-mat = ContinuumBasedMaterial(horizon=1, rho=8e-6, E=2.1e5, nu=0.25, epsilon_c=0.02, C1=1e10)
+mat = CPDMaterial(horizon=1, rho=8e-6, E=2.1e5, nu=0.25, epsilon_c=0.02, C1=1e10)
 
 #src TODO: separate how-to guide!
 # ## Multiple material properties within one body

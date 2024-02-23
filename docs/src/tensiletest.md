@@ -6,7 +6,7 @@
 ```julia
 using Peridynamics
 pointcloud = read_inp("TensileTestMesh.inp")
-material = BondBasedMaterial(; horizon=0.008, rho=2700, E=70e9, Gc=100)
+material = BBMaterial(; horizon=0.008, rho=2700, E=70e9, Gc=100)
 boundary_conditions = [
     VelocityBC(t -> -0.8, pointcloud.point_sets["bottom"], 1),
     VelocityBC(t -> 0.8, pointcloud.point_sets["top"], 1),
@@ -50,7 +50,7 @@ Next, we need to specify material parameters. We define:
 - Youngs modulus $E = 70 \times 10^9 \, \mathrm{Pa}$
 - Griffith's parameter $G_c = 100 \, \mathrm{N} \, \mathrm{m}^{-1}$
 ```julia
-material = BondBasedMaterial(; horizon=0.008, rho=2700, E=70e9, Gc=100)
+material = BBMaterial(; horizon=0.008, rho=2700, E=70e9, Gc=100)
 ```
 As loading condition for the specimen, a constant velocity of $0.8 \, \mathrm{m}\,\mathrm{s}^{-1}$ in $x$-direction is set for the bottom and top.
 Note, that element sets defined in Abaqus are converted to `point_sets` of the `PointCloud`.
@@ -82,7 +82,7 @@ PERIDYNAMIC SIMULATION ON 8 THREADS
 Peridynamic single body analysis: TensileTest
 Material parameters:
   - Number of material points [-]:                               16900
-  - Material model:                                  BondBasedMaterial
+  - Material model:                                  BBMaterial
   - Horizon δ [m]:                                               0.008
   - Density ρ [kg/m³]:                                            2700
   - Young's modulus E [N/m²]:                                    7e+10
