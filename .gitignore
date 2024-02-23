@@ -1,3 +1,6 @@
+# Manifest.toml files
+Manifest.toml
+
 # Codecov files
 *.jl.*.cov
 *.jl.cov
