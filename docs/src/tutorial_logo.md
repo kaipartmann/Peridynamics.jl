@@ -1,4 +1,6 @@
-![](../assets/logo.gif)
+```@raw html
+<img src="/assets/logo.gif?raw=true" width="400"/>
+```
 
 (Visualization made with [ParaView](https://www.paraview.org))
 

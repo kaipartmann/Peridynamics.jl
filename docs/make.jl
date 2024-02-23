@@ -8,6 +8,9 @@ end
 using Peridynamics
 using Documenter
 using Literate
+using DocumenterCitations
+
+bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
 LIT_MD_OUT = joinpath(@__DIR__, "src", "generated")
 # LIT_NB_OUT = joinpath(@__DIR__, "..", "notebooks") #TODO
@@ -28,6 +31,7 @@ LIT_TUTORIALS_IN = [
     "tutorial_tension_static.jl",
     "tutorial_tension_dynfrac.jl",
     "tutorial_tension_precrack.jl",
+    "tutorial_wave_in_bar.jl",
 ]
 LIT_TUTORIALS_IN .= joinpath.(@__DIR__, "src", "literate", LIT_TUTORIALS_IN)
 Literate.markdown.(LIT_TUTORIALS_IN, LIT_MD_OUT; credit=false)
@@ -36,6 +40,7 @@ Literate.markdown.(LIT_TUTORIALS_IN, LIT_MD_OUT; credit=false)
 DocMeta.setdocmeta!(Peridynamics, :DocTestSetup, :(using Peridynamics); recursive=true)
 
 makedocs(;
+    plugins = [bib],
     modules = [Peridynamics],
     authors = "Kai Partmann",
     repo = "https://github.com/kaipartmann/Peridynamics.jl/blob/{commit}{path}#{line}",
@@ -50,6 +55,14 @@ makedocs(;
     draft = LIVE_MODE,
     pages = [
         "Home" => "index.md",
+        "Theory" => [
+            "general_pd.md",
+            "bondbased.md",
+            "osbased.md",
+            "nosbased.md",
+            "continuumbased.md",
+            "references.md"
+        ],
         "How-to guides" => [
             joinpath("generated", "howto_single_body_analysis.md"),
             joinpath("generated", "howto_contact_analysis.md"),
@@ -62,6 +75,7 @@ makedocs(;
             joinpath("generated", "tutorial_tension_static.md"),
             joinpath("generated", "tutorial_tension_dynfrac.md"),
             joinpath("generated", "tutorial_tension_precrack.md"),
+            joinpath("generated", "tutorial_wave_in_bar.md"),
             "tutorial_logo.md",
         ],
         "API" => [
