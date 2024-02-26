@@ -1,4 +1,4 @@
-@testitem "find_read_exchanges! BBMaterial" begin
+@testitem "find_halo_exchanges BBMaterial" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]

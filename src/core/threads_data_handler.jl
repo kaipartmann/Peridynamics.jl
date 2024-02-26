@@ -58,12 +58,12 @@ end
     return getfield(b.store, fieldname)::Matrix{Float64}
 end
 
-function exchange!(dest::Matrix{Float64}, src::Matrix{Float64}, dest_idxs::Vector{Int},
-                   src_idxs::Vector{Int})
-    for i in eachindex(dest_idxs, src_idxs)
-        dest[1, dest_idxs[i]] = src[1, src_idxs[i]]
-        dest[2, dest_idxs[i]] = src[2, src_idxs[i]]
-        dest[3, dest_idxs[i]] = src[3, src_idxs[i]]
+function exchange!(dest::Matrix{T}, src::Matrix{T}, dest_idxs::Vector{Int},
+                   src_idxs::Vector{Int}) where {T}
+    for i in eachindex(dest_idxs)
+        for d in axes(dest, 1)
+            @inbounds dest[d, dest_idxs[i]] = src[d, src_idxs[i]]
+        end
     end
     return nothing
 end
