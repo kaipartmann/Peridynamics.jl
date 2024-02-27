@@ -1,7 +1,8 @@
-
-@kwdef struct NOSBMaterial <: AbstractMaterial
+#TODO: remove @kwdef and do it manually with value warnings / errors.
+Base.@kwdef struct NOSBMaterial <: AbstractMaterial
     maxdmg::Float64 = 0.95
-    corr::Float64 = 10.0
+    maxjacobi::Float64 = 1.03
+    corr::Float64 = 100.0
 end
 
 struct NOSBPointParameters <: AbstractPointParameters
@@ -67,7 +68,7 @@ function init_storage(::Body{NOSBMaterial}, ::VelocityVerlet, bd::BondDiscretiza
     bond_active = ones(Bool, length(bd.bonds))
     n_active_bonds = copy(bd.n_neighbors)
     return NOSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                           b_int, b_ext, damage, bond_active, n_active_bonds)
+                             b_int, b_ext, damage, bond_active, n_active_bonds)
 end
 
 @inline reads_from_halo(::Type{NOSBMaterial}) = (:position,)
@@ -80,7 +81,7 @@ function force_density_point!(s::NOSBStorage, bd::BondDiscretization, mat::NOSBM
         kill_point!(s, bd, i)
         return nothing
     end
-    P = calc_first_piola_stress(F, param)
+    P = calc_first_piola_stress(F, mat, param)
     if iszero(P) || containsnan(P)
         kill_point!(s, bd, i)
         return nothing
@@ -179,12 +180,15 @@ function calc_deformation_gradient(s::NOSBStorage, bd::BondDiscretization,
     return F, Kinv, ω0
 end
 
-function calc_first_piola_stress(F::SMatrix{3,3}, param::NOSBPointParameters)
+function calc_first_piola_stress(F::SMatrix{3,3}, mat::NOSBMaterial,
+                                 param::NOSBPointParameters)
     J = det(F)
-    J ≤ 5 * eps() && return zero(SMatrix{3,3})
+    J < eps() && return zero(SMatrix{3,3})
+    J > mat.maxjacobi && return zero(SMatrix{3,3})
     C = F' * F
     Cinv = inv(C)
-    S = param.G .* (I-1/3 .* tr(C) .* Cinv) .* J^(-2/3) .+ param.K/4 .* (J^2-J^(-2)) .* Cinv
+    S = param.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
+        param.K / 4 .* (J^2 - J^(-2)) .* Cinv
     P = F * S
     return P
 end
