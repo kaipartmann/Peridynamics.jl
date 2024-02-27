@@ -41,7 +41,7 @@ function exchange_read_fields!(dh::ThreadsDataHandler, chunk_id::Int)
 end
 
 function exchange_write_fields!(dh::ThreadsDataHandler, chunk_id::Int)
-    halo_exchange!(dh, dh.write_halo_exs[chunk_id])
+    halo_exchange_add!(dh, dh.write_halo_exs[chunk_id])
     return nothing
 end
 
@@ -50,6 +50,15 @@ function halo_exchange!(dh::ThreadsDataHandler, halo_exs::Vector{HaloExchange})
         src_field = get_exchange_field(dh.chunks[he.src_chunk_id], he.field)
         dest_field = get_exchange_field(dh.chunks[he.dest_chunk_id], he.field)
         exchange!(dest_field, src_field, he.dest_idxs, he.src_idxs)
+    end
+    return nothing
+end
+
+function halo_exchange_add!(dh::ThreadsDataHandler, halo_exs::Vector{HaloExchange})
+    for he in halo_exs
+        src_field = get_exchange_field(dh.chunks[he.src_chunk_id], he.field)
+        dest_field = get_exchange_field(dh.chunks[he.dest_chunk_id], he.field)
+        exchange_add!(dest_field, src_field, he.dest_idxs, he.src_idxs)
     end
     return nothing
 end
@@ -63,6 +72,16 @@ function exchange!(dest::Matrix{T}, src::Matrix{T}, dest_idxs::Vector{Int},
     for i in eachindex(dest_idxs)
         for d in axes(dest, 1)
             @inbounds dest[d, dest_idxs[i]] = src[d, src_idxs[i]]
+        end
+    end
+    return nothing
+end
+
+function exchange_add!(dest::Matrix{T}, src::Matrix{T}, dest_idxs::Vector{Int},
+                   src_idxs::Vector{Int}) where {T<:Number}
+    for i in eachindex(dest_idxs)
+        for d in axes(dest, 1)
+            @inbounds dest[d, dest_idxs[i]] += src[d, src_idxs[i]]
         end
     end
     return nothing
