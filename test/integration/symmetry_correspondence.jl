@@ -1,4 +1,4 @@
-@testitem "symmetry BBMaterial" begin
+@testitem "symmetry NOSBMaterial" begin
     # simulation
     Δx = 0.2
     width = 1
@@ -8,9 +8,9 @@
     pos = hcat(([x;y;z] for x in grid for y in grid for z in grid)...)
     n_points = size(pos, 2)
     vol = fill(Δx^3, n_points)
-    body = Body(BBMaterial(), pos, vol)
+    body = Body(NOSBMaterial(), pos, vol)
     failure_permit!(body, false)
-    material!(body, horizon=3.015Δx, rho=7850, E=210e9, Gc=1)
+    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.25, Gc=1)
     point_set!(z -> z > width/2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width/2 + 0.6Δx, body, :set_b)
     velocity_bc!(t -> 100, body, :set_a, :z)

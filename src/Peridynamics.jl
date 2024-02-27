@@ -6,7 +6,7 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, NearestNeighbors, Progr
     using ThreadPinning
 end
 
-export BBMaterial, CKIMaterial, Body, point_set!, failure_permit!, material!, velocity_bc!,
+export BBMaterial, CKIMaterial, NOSBMaterial, Body, point_set!, failure_permit!, material!, velocity_bc!,
        velocity_ic!, forcedensity_bc!, precrack!, VelocityVerlet, MultibodySetup, contact!,
        Job, read_vtk, uniform_box, submit
 
@@ -100,6 +100,7 @@ include("physics/material_parameters.jl")
 include("physics/fracture.jl")
 include("physics/bond_based.jl")
 include("physics/continuum_kinematics_inspired.jl")
+include("physics/correspondence.jl")
 
 include("auxiliary/function_arguments.jl")
 include("auxiliary/logs.jl")

@@ -82,7 +82,7 @@ end
 @inline reads_from_halo(::Type{BBMaterial}) = (:position,)
 @inline writes_to_halo(::Type{BBMaterial}) = ()
 
-function force_density_point!(s::BBStorage, bd::BondDiscretization,
+function force_density_point!(s::BBStorage, bd::BondDiscretization, ::BBMaterial,
                               param::BBPointParameters, i::Int)
     for bond_id in each_bond_idx(bd, i)
         bond = bd.bonds[bond_id]
