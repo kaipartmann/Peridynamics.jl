@@ -12,17 +12,7 @@ function find_halo_exchanges(chunks::Vector{B}) where {B<:AbstractBodyChunk}
     read_halo_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
     write_halo_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
     @threads :static for chunk_id in eachindex(chunks)
-        read_exs = Vector{HaloExchange}()
-        write_exs = Vector{HaloExchange}()
-        chunk = chunks[chunk_id]
-        for (halo_chunk_id, idxs) in chunk.ch.halo_by_src
-            halo_chunk = chunks[halo_chunk_id]
-            halo_idxs = chunk.ch.point_ids[idxs]
-            localize!(halo_idxs, halo_chunk.ch.localizer)
-            find_read_exs!(read_exs, read_fields, chunk_id, idxs, halo_chunk_id, halo_idxs)
-            find_write_exs!(write_exs, write_fields, chunk_id, idxs, halo_chunk_id,
-                            halo_idxs)
-        end
+        read_exs, write_exs = find_exs(chunks, chunk_id, read_fields, write_fields)
         read_halo_exs[chunk_id] = read_exs
         write_halo_exs[chunk_id] = write_exs
     end
@@ -30,20 +20,20 @@ function find_halo_exchanges(chunks::Vector{B}) where {B<:AbstractBodyChunk}
     return read_halo_exs, write_halo_exs
 end
 
-# function find_read_exchanges(chunks, read_fields, dest_chunk_id)
-#     halo_exs = Vector{HaloExchange}()
-#     dest_chunk = chunks[dest_chunk_id]
-#     for (src_chunk_id, dest_idxs) in dest_chunk.ch.halo_by_src
-#         src_chunk = chunks[src_chunk_id]
-#         src_idxs = dest_chunk.ch.point_ids[dest_idxs] # init with global idxs
-#         localize!(src_idxs, src_chunk.ch.localizer)
-#         for field in read_fields
-#             he = HaloExchange(field, src_chunk_id, dest_chunk_id, src_idxs, dest_idxs)
-#             push!(halo_exs, he)
-#         end
-#     end
-#     return halo_exs
-# end
+function find_exs(chunks::Vector{B}, chunk_id::Int, read_fields::NTuple{N,Symbol},
+                  write_fields::NTuple{M,Symbol}) where {B<:AbstractBodyChunk,N,M}
+    read_exs = Vector{HaloExchange}()
+    write_exs = Vector{HaloExchange}()
+    chunk = chunks[chunk_id]
+    for (halo_chunk_id, idxs) in chunk.ch.halo_by_src
+        halo_chunk = chunks[halo_chunk_id]
+        halo_idxs = chunk.ch.point_ids[idxs]
+        localize!(halo_idxs, halo_chunk.ch.localizer)
+        find_read_exs!(read_exs, read_fields, chunk_id, idxs, halo_chunk_id, halo_idxs)
+        find_write_exs!(write_exs, write_fields, chunk_id, idxs, halo_chunk_id, halo_idxs)
+    end
+    return read_exs, write_exs
+end
 
 function find_read_exs!(exs::Vector{HaloExchange}, read_fields::NTuple{N,Symbol},
                         chunk_id::Int, idxs::AbstractVector{Int}, halo_chunk_id::Int,
@@ -63,17 +53,6 @@ function find_write_exs!(exs::Vector{HaloExchange}, write_fields::NTuple{N,Symbo
     return nothing
 end
 
-# function find_write_exchanges(chunks, write_fields, src_chunk_id)
-#     halo_exs = Vector{HaloExchange}()
-#     src_chunk = chunk[src_chunk_id]
-#     for (dest_chunk_id, src_idxs) in src_chunk.ch.halo_by_src
-#         dest_chunk = chunks[dest_chunk_id]
-#         dest_idxs = src_chunk.ch.point_ids[src_idxs]
-#         localize!(dest_idxs, dest_chunk.ch.localizer)
-#     end
-#     return halo_exs
-# end
-
 function get_halo_fields(chunks::Vector{B}) where {B<:AbstractBodyChunk}
     material_type = get_material_type(chunks)
     read_fields = reads_from_halo(material_type)
@@ -88,7 +67,3 @@ function reorder_write_exs!(write_halo_exs::Vector{Vector{HaloExchange}})
     end
     return nothing
 end
-
-# function filter_exchanges_by_dest(halo_exs::Vector{HaloExchange}, n_chunks::Int)
-#     return nothing
-# end
