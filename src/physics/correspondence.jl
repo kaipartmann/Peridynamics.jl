@@ -130,51 +130,25 @@ end
 
 function calc_deformation_gradient(s::NOSBStorage, bd::BondDiscretization,
                                    param::NOSBPointParameters, i::Int)
-    # calculate the deformation gradient F
-    # K and _F need to start from zero for every point
-    # Kxx = symmetric shape tensor
-    K11, K12, K13 = 0.0, 0.0, 0.0
-    K21, K22, K23 = 0.0, 0.0, 0.0
-    K31, K32, K33 = 0.0, 0.0, 0.0
-    # _Fxx = first term of deformation gradient
-    _F11, _F12, _F13 = 0.0, 0.0, 0.0
-    _F21, _F22, _F23 = 0.0, 0.0, 0.0
-    _F31, _F32, _F33 = 0.0, 0.0, 0.0
+    K = zeros(SMatrix{3,3})
+    _F = zeros(SMatrix{3,3})
     ω0 = 0.0
     for bond_id in each_bond_idx(bd, i)
         bond = bd.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        ΔXij1 = bd.position[1, j] - bd.position[1, i]
-        ΔXij2 = bd.position[2, j] - bd.position[2, i]
-        ΔXij3 = bd.position[3, j] - bd.position[3, i]
-        Δxij1 = s.position[1, j] - s.position[1, i]
-        Δxij2 = s.position[2, j] - s.position[2, i]
-        Δxij3 = s.position[3, j] - s.position[3, i]
+        ΔXij = SVector{3}(bd.position[1, j] - bd.position[1, i],
+                          bd.position[2, j] - bd.position[2, i],
+                          bd.position[3, j] - bd.position[3, i])
+        Δxij = SVector{3}(s.position[1, j] - s.position[1, i],
+                          s.position[2, j] - s.position[2, i],
+                          s.position[3, j] - s.position[3, i])
         Vj = bd.volume[j]
         ωij = (1 + param.δ / L) * s.bond_active[bond_id]
         ω0 += ωij
         temp = ωij * Vj
-        K11 += temp * ΔXij1 * ΔXij1
-        K12 += temp * ΔXij1 * ΔXij2
-        K13 += temp * ΔXij1 * ΔXij3
-        K21 += temp * ΔXij2 * ΔXij1
-        K22 += temp * ΔXij2 * ΔXij2
-        K23 += temp * ΔXij2 * ΔXij3
-        K31 += temp * ΔXij3 * ΔXij1
-        K32 += temp * ΔXij3 * ΔXij2
-        K33 += temp * ΔXij3 * ΔXij3
-        _F11 += temp * Δxij1 * ΔXij1
-        _F12 += temp * Δxij1 * ΔXij2
-        _F13 += temp * Δxij1 * ΔXij3
-        _F21 += temp * Δxij2 * ΔXij1
-        _F22 += temp * Δxij2 * ΔXij2
-        _F23 += temp * Δxij2 * ΔXij3
-        _F31 += temp * Δxij3 * ΔXij1
-        _F32 += temp * Δxij3 * ΔXij2
-        _F33 += temp * Δxij3 * ΔXij3
+        K += temp * ΔXij * ΔXij'
+        _F += temp * Δxij * ΔXij'
     end
-    K = SMatrix{3,3}(K11, K21, K31, K12, K22, K32, K13, K23, K33)
-    _F = SMatrix{3,3}(_F11, _F21, _F31, _F12, _F22, _F32, _F13, _F23, _F33)
     Kinv = inv(K)
     F = _F * Kinv
     return F, Kinv, ω0
