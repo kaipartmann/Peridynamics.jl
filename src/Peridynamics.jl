@@ -1,14 +1,14 @@
 module Peridynamics
 
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, NearestNeighbors, ProgressMeter,
-     WriteVTK, TimerOutputs, MPI
+      WriteVTK, TimerOutputs, MPI
 @static if Sys.islinux()
     using ThreadPinning
 end
 
-export BBMaterial, CKIMaterial, NOSBMaterial, Body, point_set!, failure_permit!, material!, velocity_bc!,
-       velocity_ic!, forcedensity_bc!, precrack!, VelocityVerlet, MultibodySetup, contact!,
-       Job, read_vtk, uniform_box, submit
+export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
+       failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
+       VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -100,6 +100,7 @@ include("physics/material_parameters.jl")
 include("physics/fracture.jl")
 include("physics/bond_based.jl")
 include("physics/continuum_kinematics_inspired.jl")
+include("physics/ordinary_state_based.jl")
 include("physics/correspondence.jl")
 
 include("auxiliary/function_arguments.jl")
