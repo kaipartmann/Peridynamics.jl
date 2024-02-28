@@ -91,15 +91,13 @@ function force_density_point!(s::NOSBStorage, bd::BondDiscretization, mat::NOSBM
         bond = bd.bonds[bond_id]
         j, L = bond.neighbor, bond.length
 
-        ΔXijx = bd.position[1, j] - bd.position[1, i]
-        ΔXijy = bd.position[2, j] - bd.position[2, i]
-        ΔXijz = bd.position[3, j] - bd.position[3, i]
-        ΔXij = SVector{3}(ΔXijx, ΔXijy, ΔXijz)
-        Δxijx = s.position[1, j] - s.position[1, i]
-        Δxijy = s.position[2, j] - s.position[2, i]
-        Δxijz = s.position[3, j] - s.position[3, i]
-        Δxij = SVector{3}(Δxijx, Δxijy, Δxijz)
-        l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
+        ΔXij = SVector{3}(bd.position[1, j] - bd.position[1, i],
+                          bd.position[2, j] - bd.position[2, i],
+                          bd.position[3, j] - bd.position[3, i])
+        Δxij = SVector{3}(s.position[1, j] - s.position[1, i],
+                          s.position[2, j] - s.position[2, i],
+                          s.position[3, j] - s.position[3, i])
+        l = sqrt(Δxij.x * Δxij.x + Δxij.y * Δxij.y + Δxij.z * Δxij.z)
         ε = (l - L) / L
 
         # failure mechanism
@@ -118,12 +116,12 @@ function force_density_point!(s::NOSBStorage, bd::BondDiscretization, mat::NOSBM
             s.bond_active[bond_id] = false
         end
         s.n_active_bonds[i] += s.bond_active[bond_id]
-        s.b_int[1, i] += tij[1] * bd.volume[j]
-        s.b_int[2, i] += tij[2] * bd.volume[j]
-        s.b_int[3, i] += tij[3] * bd.volume[j]
-        s.b_int[1, j] -= tij[1] * bd.volume[i]
-        s.b_int[2, j] -= tij[2] * bd.volume[i]
-        s.b_int[3, j] -= tij[3] * bd.volume[i]
+        s.b_int[1, i] += tij.x * bd.volume[j]
+        s.b_int[2, i] += tij.y * bd.volume[j]
+        s.b_int[3, i] += tij.z * bd.volume[j]
+        s.b_int[1, j] -= tij.x * bd.volume[i]
+        s.b_int[2, j] -= tij.y * bd.volume[i]
+        s.b_int[3, j] -= tij.z * bd.volume[i]
     end
     return nothing
 end
