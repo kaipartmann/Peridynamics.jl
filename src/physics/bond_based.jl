@@ -27,8 +27,8 @@ function get_point_params(::BBMaterial, p::Dict{Symbol,Any})
     rho = get_density(p)
     if haskey(p, :nu)
         msg = "keyword `nu` is not allowed for BBMaterial!\n"
-        msg *= "Material BBMaterial has a limitation on the possion ration!\n"
-        msg *= "When using a BBMaterial, `nu` is hardcoded as 1/4.\n"
+        msg *= "Bond-based peridynamics has a limitation on the possion ratio.\n"
+        msg *= "Therefore, when using BBMaterial, `nu` is hardcoded as 1/4.\n"
         throw(ArgumentError(msg))
     else
         p[:nu] = 0.25
