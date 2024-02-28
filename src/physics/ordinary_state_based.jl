@@ -73,6 +73,7 @@ function force_density_point!(s::OSBStorage, bd::BondDiscretization, mat::OSBMat
                               param::OSBPointParameters, i::Int)
     # weighted volume
     wvol = calc_weighted_volume(s, bd, param, i)
+    iszero(wvol) && return nothing
     # dilatation
     dil = calc_dilatation(s, bd, param, wvol, i)
     # force density
