@@ -1,4 +1,7 @@
 #TODO: remove @kwdef and do it manually with value warnings / errors.
+"""
+TODO
+"""
 Base.@kwdef struct NOSBMaterial <: AbstractMaterial
     maxdmg::Float64 = 0.95
     maxjacobi::Float64 = 1.03

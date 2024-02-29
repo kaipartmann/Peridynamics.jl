@@ -13,6 +13,8 @@ Pages = ["api_public.md"]
 ## Types
 ```@docs
 BBMaterial
+OSBMaterial
+NOSBMaterial
 CKIMaterial
 Body
 MultibodySetup
