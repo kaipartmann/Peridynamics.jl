@@ -180,6 +180,18 @@ function get_data(pda::PDataArray{T,1}, raw_data::Vector{Vector{UInt8}}) where {
     return reduce(vcat, vec_data)
 end
 
+function get_field_data(da::DataArray{T,N}, raw_data::Vector{UInt8}) where {T,N}
+    return get_data(da, raw_data)
+end
+
+function get_field_data(pda::PDataArray{T,N}, raw_data::Vector{Vector{UInt8}}) where {T,N}
+    return unique(get_data(pda, raw_data); dims=2)
+end
+
+function get_field_data(pda::PDataArray{T,1}, raw_data::Vector{Vector{UInt8}}) where {T}
+    return unique(get_data(pda, raw_data))
+end
+
 function get_decompressed_data(da::DataArray{T,N}, raw_data::Vector{UInt8}) where {T,N}
     # extract number of bytes from header
     start = da.offset + 1
@@ -217,7 +229,7 @@ function get_dict(pda, pdas, fdas, raw_data)
         d[da.name] = get_data(da, raw_data)
     end
     for da in fdas
-        d[da.name] = get_data(da, raw_data)
+        d[da.name] = get_field_data(da, raw_data)
     end
     return d
 end
