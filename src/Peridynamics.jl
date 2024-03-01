@@ -1,7 +1,7 @@
 module Peridynamics
 
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, NearestNeighbors, ProgressMeter,
-      WriteVTK, TimerOutputs, MPI
+      WriteVTK, TimerOutputs, MPI, PrecompileTools
 @static if Sys.islinux()
     using ThreadPinning
 end
@@ -119,5 +119,12 @@ using .VtkReader
 
 include("AbaqusMeshConverter/AbaqusMeshConverter.jl")
 using .AbaqusMeshConverter
+
+@compile_workload begin
+    try
+        @time include("auxiliary/precompile_workload.jl")
+    catch
+    end
+end
 
 end
