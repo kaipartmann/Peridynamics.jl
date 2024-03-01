@@ -13,7 +13,7 @@ export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
 const MPI_SIZE = Ref(-1)
-const MPI_SIM = Ref(true)
+const MPI_SIM = Ref(false)
 const QUIET = Ref(false)
 @inline mpi_comm() = MPI.COMM_WORLD
 @inline mpi_rank() = MPI_RANK[]
@@ -48,11 +48,11 @@ function __init__()
     MPI_RANK[] = MPI.Comm_rank(MPI.COMM_WORLD)
     MPI_SIZE[] = MPI.Comm_size(MPI.COMM_WORLD)
     MPI_INITIALIZED[] = true
-    if !haskey(ENV, "MPI_LOCALRANKID")
-        MPI_SIM[] = false
-        @static if Sys.islinux()
-            pinthreads(:cores; force=false)
-        end
+    if haskey(ENV, "MPI_LOCALRANKID")
+        MPI_SIM[] = true
+    end
+    @static if Sys.islinux() && !MPI_SIM[]
+        pinthreads(:cores; force=false)
     end
     return nothing
 end
@@ -120,11 +120,9 @@ using .VtkReader
 include("AbaqusMeshConverter/AbaqusMeshConverter.jl")
 using .AbaqusMeshConverter
 
-@compile_workload begin
-    try
-        @time include("auxiliary/precompile_workload.jl")
-    catch
-    end
+try
+    include("auxiliary/precompile_workload.jl")
+catch
 end
 
 end
