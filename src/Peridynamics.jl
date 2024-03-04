@@ -8,7 +8,8 @@ end
 
 export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
        failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
-       VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit
+       VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
+       process_each_export
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -37,6 +38,7 @@ const EXPORT_KWARGS = (:path, :freq, :write)
 const DEFAULT_EXPORT_FIELDS = (:displacement, :damage)
 const JOB_KWARGS = (EXPORT_KWARGS...,)
 const SUBMIT_KWARGS = (:quiet,)
+const PROCESS_EACH_EXPORT_KWARGS = (:serial,)
 
 const DimensionSpec = Union{Integer,Symbol}
 
@@ -119,6 +121,8 @@ using .VtkReader
 
 include("AbaqusMeshConverter/AbaqusMeshConverter.jl")
 using .AbaqusMeshConverter
+
+include("auxiliary/process_each_export.jl")
 
 try
     include("auxiliary/precompile_workload.jl")

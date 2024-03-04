@@ -82,7 +82,7 @@ end
 end
 
 @testitem "ChunkHandler" begin
-    pd = Peridynamics.PointDecomposition(Peridynamics.distribute_points(4, 2))
+    pd = Peridynamics.PointDecomposition(Peridynamics.distribute_equally(4, 2))
     bonds = [Peridynamics.Bond(2, 1.0, true),
              Peridynamics.Bond(3, 1.0, true),
              Peridynamics.Bond(4, 1.0, true),
@@ -110,7 +110,7 @@ end
     @test ch.localizer[3] == 1
     @test ch.localizer[4] == 2
 
-    pd = Peridynamics.PointDecomposition(Peridynamics.distribute_points(4, 4))
+    pd = Peridynamics.PointDecomposition(Peridynamics.distribute_equally(4, 4))
     ch = Peridynamics.ChunkHandler(bonds, pd, 1)
     @test ch.point_ids == [1, 2, 3, 4]
     @test ch.loc_points == 1:1
