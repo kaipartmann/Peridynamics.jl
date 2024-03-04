@@ -46,24 +46,38 @@ function process_step(f::F, file::AbstractString, file_id::Int) where {F<:Functi
 end
 
 function process_each_export_serial(f::F, vtk_files::Vector{String}) where {F<:Function}
+    p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
+                 enabled=progress_enabled())
     for (file_id, file) in enumerate(vtk_files)
         process_step(f, file, file_id)
+        next!(p)
     end
+    finish!(p)
     return nothing
 end
 
 function process_each_export_threads(f::F, vtk_files::Vector{String}) where {F<:Function}
+    p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
+                 enabled=progress_enabled())
     @threads for file_id in eachindex(vtk_files)
         process_step(f, vtk_files[file_id], file_id)
+        next!(p)
     end
+    finish!(p)
     return nothing
 end
 
 function process_each_export_mpi(f::F, vtk_files::Vector{String}) where {F<:Function}
     file_dist = distribute_equally(length(vtk_files), mpi_nranks())
-    loc_file_ids = file_dist[mpi_rank() + 1]
+    loc_file_ids = file_dist[mpi_rank()+1]
+    if mpi_rank() == 0
+        p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
+                     enabled=progress_enabled())
+    end
     for file_id in loc_file_ids
         process_step(f, vtk_files[file_id], file_id)
+        mpi_rank() == 0 && next!(p)
     end
+    mpi_rank() == 0 && finish!(p)
     return nothing
 end
