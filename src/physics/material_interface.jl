@@ -21,16 +21,12 @@ function storage_type(mat::AbstractMaterial, ts::AbstractTimeSolver)
     throw(MethodError(storage_type, mat, ts))
 end
 
-function reads_from_halo(mat::AbstractMaterial)
+function reads_from_halo(mat::Type{AbstractMaterial})
     throw(MethodError(reads_from_halo, mat))
 end
 
-function writes_to_halo(mat::AbstractMaterial)
+function writes_to_halo(::Type{AbstractMaterial})
     throw(MethodError(writes_to_halo, mat))
 end
 
 #---- optional interface functions ----#
-
-@inline function default_export_fields(::Type{M}) where {M<:AbstractMaterial}
-    return (:displacement, :damage)
-end

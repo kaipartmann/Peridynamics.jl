@@ -1,3 +1,6 @@
+"""
+TODO
+"""
 mutable struct MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
     bodies::Dict{Symbol,Body{M,P}}
     contacts::Vector{Contact}
@@ -12,6 +15,8 @@ mutable struct MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
         return new{M,P}(bodies, contacts)
     end
 end
+
+const SpatialSetup = Union{Body,MultibodySetup}
 
 function MultibodySetup(::Dict{Symbol,Body})
     msg = "bodies have different material types!\n"
@@ -31,6 +36,9 @@ function check_if_bodyname_is_defined(ms::MultibodySetup, name::Symbol)
     return nothing
 end
 
+"""
+TODO
+"""
 function contact!(ms::MultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
     check_if_bodyname_is_defined(ms, body_a)
     check_if_bodyname_is_defined(ms, body_b)

@@ -1,3 +1,6 @@
+"""
+TODO
+"""
 mutable struct VelocityVerlet <: AbstractTimeSolver
     end_time::Float64
     n_steps::Int
@@ -46,6 +49,9 @@ function velocity_verlet_check(vv::VelocityVerlet)
     end
     if vv.Δt < 0
         error("`Δt` of VelocityVerlet smaller than zero!\n")
+    end
+    if !(0 < vv.safety_factor < 1)
+        error("`safety_factor` of VelocityVerlet has invalid value!\n")
     end
     return nothing
 end

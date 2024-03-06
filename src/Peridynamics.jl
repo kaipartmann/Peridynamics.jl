@@ -1,19 +1,20 @@
 module Peridynamics
 
-using Base.Threads, Printf, LinearAlgebra, StaticArrays, ProgressMeter, WriteVTK,
-      TimerOutputs, MPI
+using Base.Threads, Printf, LinearAlgebra, StaticArrays, NearestNeighbors, ProgressMeter,
+      WriteVTK, TimerOutputs, MPI, PrecompileTools
 @static if Sys.islinux()
     using ThreadPinning
 end
 
-export BBMaterial, CKIMaterial, Body, point_set!, failure_permit!, material!, velocity_bc!,
-       velocity_ic!, forcedensity_bc!, precrack!, VelocityVerlet, MultibodySetup, contact!,
-       Job, read_vtk, uniform_box, submit
+export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
+       failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
+       VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
+       process_each_export
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
 const MPI_SIZE = Ref(-1)
-const MPI_SIM = Ref(true)
+const MPI_SIM = Ref(false)
 const QUIET = Ref(false)
 @inline mpi_comm() = MPI.COMM_WORLD
 @inline mpi_rank() = MPI_RANK[]
@@ -34,8 +35,10 @@ const FRAC_KWARGS = (:Gc, :epsilon_c)
 const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
 const CONTACT_KWARGS = (:radius, :sc)
 const EXPORT_KWARGS = (:path, :freq, :write)
+const DEFAULT_EXPORT_FIELDS = (:displacement, :damage)
 const JOB_KWARGS = (EXPORT_KWARGS...,)
 const SUBMIT_KWARGS = (:quiet,)
+const PROCESS_EACH_EXPORT_KWARGS = (:serial,)
 
 const DimensionSpec = Union{Integer,Symbol}
 
@@ -47,11 +50,11 @@ function __init__()
     MPI_RANK[] = MPI.Comm_rank(MPI.COMM_WORLD)
     MPI_SIZE[] = MPI.Comm_size(MPI.COMM_WORLD)
     MPI_INITIALIZED[] = true
-    if !haskey(ENV, "MPI_LOCALRANKID")
-        MPI_SIM[] = false
-        @static if Sys.islinux()
-            pinthreads(:cores; force=false)
-        end
+    if haskey(ENV, "MPI_LOCALRANKID")
+        MPI_SIM[] = true
+    end
+    @static if Sys.islinux() && !MPI_SIM[]
+        pinthreads(:cores; force=false)
     end
     return nothing
 end
@@ -85,7 +88,6 @@ include("discretizations/find_points.jl")
 include("discretizations/body.jl")
 include("discretizations/contact.jl")
 include("discretizations/multibody_setup.jl")
-const SpatialSetup = Union{Body,MultibodySetup}
 include("discretizations/decomposition.jl")
 include("discretizations/bond_discretization.jl")
 include("discretizations/chunk_handler.jl")
@@ -95,10 +97,13 @@ include("time_solvers/time_solver_interface.jl")
 include("time_solvers/velocity_verlet.jl")
 
 include("physics/material_interface.jl")
+include("physics/force_density.jl")
 include("physics/material_parameters.jl")
 include("physics/fracture.jl")
 include("physics/bond_based.jl")
 include("physics/continuum_kinematics_inspired.jl")
+include("physics/ordinary_state_based.jl")
+include("physics/correspondence.jl")
 
 include("auxiliary/function_arguments.jl")
 include("auxiliary/logs.jl")
@@ -116,5 +121,12 @@ using .VtkReader
 
 include("AbaqusMeshConverter/AbaqusMeshConverter.jl")
 using .AbaqusMeshConverter
+
+include("auxiliary/process_each_export.jl")
+
+try
+    include("auxiliary/precompile_workload.jl")
+catch
+end
 
 end

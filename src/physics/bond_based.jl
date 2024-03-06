@@ -1,6 +1,6 @@
 
 """
-
+TODO
 """
 struct BBMaterial <: AbstractMaterial end
 
@@ -27,8 +27,8 @@ function get_point_params(::BBMaterial, p::Dict{Symbol,Any})
     rho = get_density(p)
     if haskey(p, :nu)
         msg = "keyword `nu` is not allowed for BBMaterial!\n"
-        msg *= "Material BBMaterial has a limitation on the possion ration!\n"
-        msg *= "When using a BBMaterial, `nu` is hardcoded as 1/4.\n"
+        msg *= "Bond-based peridynamics has a limitation on the possion ratio.\n"
+        msg *= "Therefore, when using BBMaterial, `nu` is hardcoded as 1/4.\n"
         throw(ArgumentError(msg))
     else
         p[:nu] = 0.25
@@ -79,11 +79,11 @@ function init_storage(::Body{BBMaterial}, ::VelocityVerlet, bd::BondDiscretizati
                            b_int, b_ext, damage, bond_active, n_active_bonds)
 end
 
-@inline reads_from_halo(::BBMaterial) = (:position,)
-@inline writes_to_halo(::BBMaterial) = ()
+@inline reads_from_halo(::Type{BBMaterial}) = (:position,)
+@inline writes_to_halo(::Type{BBMaterial}) = ()
 
-function force_density!(s::BBStorage, bd::BondDiscretization, param::BBPointParameters,
-                        i::Int)
+function force_density_point!(s::BBStorage, bd::BondDiscretization, ::BBMaterial,
+                              param::BBPointParameters, i::Int)
     for bond_id in each_bond_idx(bd, i)
         bond = bd.bonds[bond_id]
         j, L = bond.neighbor, bond.length

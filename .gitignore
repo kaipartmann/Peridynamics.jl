@@ -1,3 +1,6 @@
+# Manifest.toml files
+Manifest.toml
+
 # Codecov files
 *.jl.*.cov
 *.jl.cov
@@ -12,6 +15,7 @@
 /examples/results/
 *.log
 *.vtu
+*.pvtu
 
 # local debugging
 /scripts/

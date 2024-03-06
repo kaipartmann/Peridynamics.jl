@@ -1,4 +1,6 @@
-
+"""
+TODO
+"""
 function uniform_box(lx::Real, ly::Real, lz::Real, Δx::Real;
                      center_x::Real=0, center_y::Real=0, center_z::Real=0)
     _gridx = range((-lx + Δx) / 2, (lx - Δx) / 2; step=Δx)

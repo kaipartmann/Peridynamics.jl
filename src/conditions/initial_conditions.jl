@@ -17,7 +17,11 @@ end
 
 function apply_ic!(b::AbstractBodyChunk, ic::SingleDimIC)
     for point_id in b.psets[ic.point_set]
-        setindex!(getfield(b.store, ic.field), ic.value, ic.dim, point_id)
+        setindex!(get_ic_field(b.store, ic.field), ic.value, ic.dim, point_id)
     end
     return nothing
+end
+
+function get_ic_field(s::AbstractStorage, fieldname::Symbol)
+    return getfield(s, fieldname)::Matrix{Float64}
 end

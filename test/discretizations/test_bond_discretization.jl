@@ -65,20 +65,20 @@ end
     position = [0.0 1.0
                 0.0 0.0
                 0.0 0.0]
-    neigh_points = 1:2
     fail_permit = [true, true]
+    balltree = Peridynamics.NearestNeighbors.BallTree(position)
 
     # find point 2
     δ = 1.5
     bonds = Vector{Peridynamics.Bond}()
-    n_neighbors = Peridynamics.find_bonds!(bonds, position, neigh_points, fail_permit, δ, 1)
+    n_neighbors = Peridynamics.find_bonds!(bonds, balltree, position, fail_permit, δ, 1)
     @test n_neighbors == 1
     @test bonds == [Peridynamics.Bond(2, 1.0, true)]
 
     # horizon too small - find nothing
     δ = 0.9
     bonds = Vector{Peridynamics.Bond}()
-    n_neighbors = Peridynamics.find_bonds!(bonds, position, neigh_points, fail_permit, δ, 1)
+    n_neighbors = Peridynamics.find_bonds!(bonds, balltree, position, fail_permit, δ, 1)
     @test n_neighbors == 0
     @test bonds == Vector{Peridynamics.Bond}()
 
@@ -86,7 +86,7 @@ end
     fail_permit[2] = false
     δ = 1.5
     bonds = Vector{Peridynamics.Bond}()
-    n_neighbors = Peridynamics.find_bonds!(bonds, position, neigh_points, fail_permit, δ, 1)
+    n_neighbors = Peridynamics.find_bonds!(bonds, balltree, position, fail_permit, δ, 1)
     @test n_neighbors == 1
     @test bonds == [Peridynamics.Bond(2, 1.0, false)]
 end
