@@ -126,7 +126,8 @@ include("auxiliary/process_each_export.jl")
 
 try
     include("auxiliary/precompile_workload.jl")
-catch
+catch err
+    @error "precompilation errored - can be safely ignored!\n" exception=err
 end
 
 end

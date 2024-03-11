@@ -2,17 +2,26 @@
 """
 
 """
-struct SingleDimBC{F<:Function} <: AbstractCondition
+struct SingleDimBC{F<:Function,G<:Function} <: AbstractCondition
     fun::F
+    cff::G
     field::Symbol
     point_set::Symbol
     dim::UInt8
 end
 
-function (b::SingleDimBC{F})(t::Float64) where {F<:Function}
+@inline function (b::SingleDimBC{F,G})(t::Float64) where {F<:Function,G<:Function}
     value::Float64 = b.fun(t)
     return value
 end
+
+@inline function (b::SingleDimBC{F,G})(s::AbstractStorage) where {F<:Function,G<:Function}
+    return b.cff(s)
+end
+
+@inline get_cff_velocity_half(s::AbstractStorage) = s.velocity_half
+@inline get_cff_velocity(s::AbstractStorage) = s.velocity
+@inline get_cff_b_ext(s::AbstractStorage) = s.b_ext
 
 function override_eachother(a::SingleDimBC, b::SingleDimBC)
     same_field = a.field === b.field
@@ -28,11 +37,11 @@ function apply_bcs!(b::AbstractBodyChunk, time::Float64)
     return nothing
 end
 
-function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}}, bc::SingleDimBC{F},
-                   time::Float64) where {F<:Function}
+function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}},
+                   bc::SingleDimBC{F,G}, time::Float64) where {F,G}
     value = bc(time)
     isnan(value) && return nothing
-    apply_sdbc!(get_bc_field(s, bc.field), value, bc.dim, psets[bc.point_set])
+    apply_sdbc!(bc(s), value, bc.dim, psets[bc.point_set])
     return nothing
 end
 
@@ -42,8 +51,4 @@ end
         @inbounds field[dim, i] = value
     end
     return nothing
-end
-
-@inline function get_bc_field(s::AbstractStorage, fieldname::Symbol)
-    return getfield(s, fieldname)::Matrix{Float64}
 end
