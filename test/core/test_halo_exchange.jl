@@ -18,12 +18,10 @@
     body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
 
     read_halo_exs, write_halo_exs = Peridynamics.find_halo_exchanges(body_chunks)
-    @test read_halo_exs[1][1].field === :position
     @test read_halo_exs[1][1].src_chunk_id == 2
     @test read_halo_exs[1][1].dest_chunk_id == 1
     @test read_halo_exs[1][1].src_idxs == [1, 2]
     @test read_halo_exs[1][1].dest_idxs == [3, 4]
-    @test read_halo_exs[2][1].field === :position
     @test read_halo_exs[2][1].src_chunk_id == 1
     @test read_halo_exs[2][1].dest_chunk_id == 2
     @test read_halo_exs[2][1].src_idxs == [1, 2]
@@ -37,68 +35,56 @@
     read_halo_exs, write_halo_exs = Peridynamics.find_halo_exchanges(body_chunks)
 
     he1 = sort(read_halo_exs[1]; by=x -> x.src_chunk_id)
-    @test he1[1].field === :position
     @test he1[1].src_chunk_id == 2
     @test he1[1].dest_chunk_id == 1
     @test he1[1].src_idxs == [1]
     @test he1[1].dest_idxs == [2]
-    @test he1[2].field === :position
     @test he1[2].src_chunk_id == 3
     @test he1[2].dest_chunk_id == 1
     @test he1[2].src_idxs == [1]
     @test he1[2].dest_idxs == [3]
-    @test he1[3].field === :position
     @test he1[3].src_chunk_id == 4
     @test he1[3].dest_chunk_id == 1
     @test he1[3].src_idxs == [1]
     @test he1[3].dest_idxs == [4]
 
     he2 = sort(read_halo_exs[2]; by=x -> x.src_chunk_id)
-    @test he2[1].field === :position
     @test he2[1].src_chunk_id == 1
     @test he2[1].dest_chunk_id == 2
     @test he2[1].src_idxs == [1]
     @test he2[1].dest_idxs == [2]
-    @test he2[2].field === :position
     @test he2[2].src_chunk_id == 3
     @test he2[2].dest_chunk_id == 2
     @test he2[2].src_idxs == [1]
     @test he2[2].dest_idxs == [3]
-    @test he2[3].field === :position
     @test he2[3].src_chunk_id == 4
     @test he2[3].dest_chunk_id == 2
     @test he2[3].src_idxs == [1]
     @test he2[3].dest_idxs == [4]
 
     he3 = sort(read_halo_exs[3]; by=x -> x.src_chunk_id)
-    @test he3[1].field === :position
     @test he3[1].src_chunk_id == 1
     @test he3[1].dest_chunk_id == 3
     @test he3[1].src_idxs == [1]
     @test he3[1].dest_idxs == [2]
-    @test he3[2].field === :position
     @test he3[2].src_chunk_id == 2
     @test he3[2].dest_chunk_id == 3
     @test he3[2].src_idxs == [1]
     @test he3[2].dest_idxs == [3]
-    @test he3[3].field === :position
     @test he3[3].src_chunk_id == 4
     @test he3[3].dest_chunk_id == 3
     @test he3[3].src_idxs == [1]
     @test he3[3].dest_idxs == [4]
 
     he4 = sort(read_halo_exs[4]; by=x -> x.src_chunk_id)
-    @test he4[1].field === :position
     @test he4[1].src_chunk_id == 1
     @test he4[1].dest_chunk_id == 4
     @test he4[1].src_idxs == [1]
     @test he4[1].dest_idxs == [2]
-    @test he4[2].field === :position
     @test he4[2].src_chunk_id == 2
     @test he4[2].dest_chunk_id == 4
     @test he4[2].src_idxs == [1]
     @test he4[2].dest_idxs == [3]
-    @test he4[3].field === :position
     @test he4[3].src_chunk_id == 3
     @test he4[3].dest_chunk_id == 4
     @test he4[3].src_idxs == [1]

@@ -1,21 +1,26 @@
 const ExportField = Tuple{Symbol,DataType}
 
-struct ExportOptions{N}
+struct ExportOptions{F<:Function}
     exportflag::Bool
     root::String
     vtk::String
     logfile::String
     freq::Int
-    fields::NTuple{N,ExportField}
+    eff::F
 
-    function ExportOptions(root::String, freq::Int, fields::NTuple{N,ExportField}) where {N}
+    function ExportOptions(root::String, freq::Int, eff::F) where {F<:Function}
         if isempty(root)
-            return new{0}(false, "", "", "", 0, NTuple{0,ExportField}())
+            _eff = ()->()
+            return new{typeof(_eff)}(false, "", "", "", 0, _eff)
         end
         vtk = joinpath(root, "vtk")
         logfile = joinpath(root, "logfile.log")
-        return new{N}(true, root, vtk, logfile, freq, fields)
+        return new{F}(true, root, vtk, logfile, freq, eff)
     end
+end
+
+function (eo::ExportOptions{F})(s::AbstractStorage) where {F<:Function}
+    return eo.eff(s)
 end
 
 function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractStorage}
@@ -37,48 +42,42 @@ function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractSt
     end
     freq < 0 && throw(ArgumentError("`freq` should be larger than zero!\n"))
 
-    fields = get_export_fields(S, o)
+    eff = get_exported_fields_function(S, o)
 
-    return ExportOptions(root, freq, fields)
+    return ExportOptions(root, freq, eff)
 end
 
-function get_export_fields(::Type{S}, o::Dict{Symbol,Any}) where {S}
-    export_fieldnames = get_export_fieldnames(o)
-    storage_fieldnames = fieldnames(S)
-    storage_fieldtypes = fieldtypes(S)
+function export_disp_and_dmg(s::AbstractStorage)
+    return (("displacement", s.displacement), ("damage", s.damage))
+end
 
-    _export_fields = Vector{ExportField}()
-
-    for name in export_fieldnames
-        idx = findfirst(x -> x === name, storage_fieldnames)
-        isnothing(idx) && unknown_fieldname_error(S, name)
-        type = storage_fieldtypes[idx]
-        push!(_export_fields, (name, type))
+macro eff(vars...)
+    local args = Expr[]
+    for var in vars
+        var isa QuoteNode || error("only symbols are allowed args!\n")
+        local name = string(var)[begin+1:end]
+        push!(args, :($(name), Core.getfield(x, $(esc(var)))))
     end
-
-    export_fields = Tuple(_export_fields)
-
-    return export_fields
+    return Expr(:->, :x, Expr(:tuple, args...))
 end
 
-function unknown_fieldname_error(::Type{S}, name::Symbol) where {S<:AbstractStorage}
-    msg = "unknown field $(name) specified for export!\n"
-    msg *= "Allowed fields for $S:\n"
-    for allowed_name in fieldnames(S)
-        msg *= "  - $allowed_name\n"
-    end
-    throw(ArgumentError(msg))
-end
-
-function get_export_fieldnames(o::Dict{Symbol,Any})
-    local export_fieldnames::NTuple{N,Symbol} where {N}
-    if haskey(o, :write)
-        export_fieldnames = o[:write]
+function get_exported_fields_function(::Type{S}, o::Dict{Symbol,Any}) where {S}
+    if haskey(o, :eff)
+        eff = o[:eff]
     else
-        export_fieldnames = DEFAULT_EXPORT_FIELDS
+        eff = export_disp_and_dmg
     end
-    return export_fieldnames
+    return eff
 end
+
+# function unknown_fieldname_error(::Type{S}, name::Symbol) where {S<:AbstractStorage}
+#     msg = "unknown field $(name) specified for export!\n"
+#     msg *= "Allowed fields for $S:\n"
+#     for allowed_name in fieldnames(S)
+#         msg *= "  - $allowed_name\n"
+#     end
+#     throw(ArgumentError(msg))
+# end
 
 function export_results(dh::AbstractDataHandler, options::ExportOptions, chunk_id::Int,
                         timestep::Int, time::Float64)
@@ -102,18 +101,18 @@ function _export_results(b::AbstractBodyChunk, chunk_id::Int, n_chunks::Int,
     filename = joinpath(options.vtk, @sprintf("timestep_%05d", n))
     position = get_loc_position(b)
     pvtk_grid(filename, position, b.cells; part=chunk_id, nparts=n_chunks) do vtk
-        for (field, type) in options.fields
-            vtk[string(field), VTKPointData()] = get_export_field(b.store, field, type)
+        for (name, field) in options(b.store)
+            vtk[name] = field
         end
         vtk["time", VTKFieldData()] = t
     end
     return nothing
 end
 
-@inline function get_export_field(s::AbstractStorage, name::Symbol, ::Type{V}) where {V}
-    export_field::V = getfield(s, name)
-    return export_field
-end
+# @inline function get_export_field(s::AbstractStorage, name::Symbol, ::Type{V}) where {V}
+#     export_field::V = getfield(s, name)
+#     return export_field
+# end
 
 @inline function get_loc_position(b::AbstractBodyChunk)
     return @views b.store.position[:, 1:b.ch.n_loc_points]

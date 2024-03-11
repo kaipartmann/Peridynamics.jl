@@ -57,5 +57,5 @@ function Peridynamics.init_storage(::Body{TestMaterial}, ::Peridynamics.Velocity
                                 acceleration, b_int, b_ext, damage, bond_active,
                                 n_active_bonds)
 end
-Peridynamics.reads_from_halo(::Type{TestMaterial}) = (:position,)
-Peridynamics.writes_to_halo(::Type{TestMaterial}) = (:b_int,)
+Peridynamics.get_halo_read_fields(s::TestVerletStorage) = (s.position,)
+Peridynamics.get_halo_write_fields(s::TestVerletStorage)  = (s.b_int,)

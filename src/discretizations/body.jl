@@ -178,7 +178,8 @@ function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:F
     check_if_set_is_defined(b.point_sets, name)
     check_condition_function(f)
     dim = get_dim(d)
-    _condition!(b.single_dim_bcs, SingleDimBC(f, :velocity_half, name, dim))
+    sdbc = SingleDimBC(f, get_cff_velocity_half, :velocity_half, name, dim)
+    _condition!(b.single_dim_bcs, sdbc)
     return nothing
 end
 
@@ -188,7 +189,8 @@ TODO
 function velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
     check_if_set_is_defined(b.point_sets, name)
     dim = get_dim(d)
-    _condition!(b.single_dim_ics, SingleDimIC(value, :velocity, name, dim))
+    sdic = SingleDimIC(convert(Float64, value), get_cff_velocity, :velocity, name, dim)
+    _condition!(b.single_dim_ics, sdic)
 end
 
 """
@@ -198,7 +200,8 @@ function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {
     check_if_set_is_defined(b.point_sets, name)
     check_condition_function(f)
     dim = get_dim(d)
-    _condition!(b.single_dim_bcs, SingleDimBC(f, :b_ext, name, dim))
+    sdbc = SingleDimBC(f, get_cff_b_ext, :b_ext, name, dim)
+    _condition!(b.single_dim_bcs, sdbc)
 end
 
 function check_if_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Symbol,

@@ -1,11 +1,16 @@
 """
 
 """
-struct SingleDimIC <: AbstractCondition
+struct SingleDimIC{G<:Function} <: AbstractCondition
     value::Float64
+    cff::G
     field::Symbol
     point_set::Symbol
     dim::UInt8
+end
+
+@inline function (sdic::SingleDimIC{G})(s::AbstractStorage) where {G<:Function}
+    return sdic.cff(s)
 end
 
 function override_eachother(a::SingleDimIC, b::SingleDimIC)
@@ -17,11 +22,7 @@ end
 
 function apply_ic!(b::AbstractBodyChunk, ic::SingleDimIC)
     for point_id in b.psets[ic.point_set]
-        setindex!(get_ic_field(b.store, ic.field), ic.value, ic.dim, point_id)
+        setindex!(ic(b.store), ic.value, ic.dim, point_id)
     end
     return nothing
-end
-
-function get_ic_field(s::AbstractStorage, fieldname::Symbol)
-    return getfield(s, fieldname)::Matrix{Float64}
 end
