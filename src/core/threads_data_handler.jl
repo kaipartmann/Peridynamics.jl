@@ -36,36 +36,48 @@ end
 get_cells(n::Int) = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in 1:n]
 
 function exchange_read_fields!(dh::ThreadsDataHandler, chunk_id::Int)
-    halo_exchange!(dh, dh.read_halo_exs[chunk_id])
+    for he in dh.read_halo_exs[chunk_id]
+        src_fields = get_halo_read_fields(dh.chunks[he.src_chunk_id].store)
+        dest_fields = get_halo_read_fields(dh.chunks[he.dest_chunk_id].store)
+        for i in eachindex(src_fields, dest_fields)
+            exchange!(dest_fields[i], src_fields[i], he.dest_idxs, he.src_idxs)
+        end
+    end
     return nothing
 end
 
 function exchange_write_fields!(dh::ThreadsDataHandler, chunk_id::Int)
-    halo_exchange_add!(dh, dh.write_halo_exs[chunk_id])
-    return nothing
-end
-
-function halo_exchange!(dh::ThreadsDataHandler, halo_exs::Vector{HaloExchange})
-    for he in halo_exs
-        src_field = get_exchange_field(dh.chunks[he.src_chunk_id], he.field)
-        dest_field = get_exchange_field(dh.chunks[he.dest_chunk_id], he.field)
-        exchange!(dest_field, src_field, he.dest_idxs, he.src_idxs)
+    for he in dh.write_halo_exs[chunk_id]
+        src_fields = get_halo_write_fields(dh.chunks[he.src_chunk_id].store)
+        dest_fields = get_halo_write_fields(dh.chunks[he.dest_chunk_id].store)
+        for i in eachindex(src_fields, dest_fields)
+            exchange_add!(dest_fields[i], src_fields[i], he.dest_idxs, he.src_idxs)
+        end
     end
     return nothing
 end
 
-function halo_exchange_add!(dh::ThreadsDataHandler, halo_exs::Vector{HaloExchange})
-    for he in halo_exs
-        src_field = get_exchange_field(dh.chunks[he.src_chunk_id], he.field)
-        dest_field = get_exchange_field(dh.chunks[he.dest_chunk_id], he.field)
-        exchange_add!(dest_field, src_field, he.dest_idxs, he.src_idxs)
-    end
-    return nothing
-end
+# function halo_exchange!(dh::ThreadsDataHandler, halo_exs::Vector{HaloExchange})
+#     for he in halo_exs
+#         src_field = get_exchange_field(dh.chunks[he.src_chunk_id], he.field)
+#         dest_field = get_exchange_field(dh.chunks[he.dest_chunk_id], he.field)
+#         exchange!(dest_field, src_field, he.dest_idxs, he.src_idxs)
+#     end
+#     return nothing
+# end
 
-@inline function get_exchange_field(b::AbstractBodyChunk, fieldname::Symbol)
-    return getfield(b.store, fieldname)::Matrix{Float64}
-end
+# function halo_exchange_add!(dh::ThreadsDataHandler, halo_exs::Vector{HaloExchange})
+#     for he in halo_exs
+#         src_field = get_exchange_field(dh.chunks[he.src_chunk_id], he.field)
+#         dest_field = get_exchange_field(dh.chunks[he.dest_chunk_id], he.field)
+#         exchange_add!(dest_field, src_field, he.dest_idxs, he.src_idxs)
+#     end
+#     return nothing
+# end
+
+# @inline function get_exchange_field(b::AbstractBodyChunk, fieldname::Symbol)
+#     return getfield(b.store, fieldname)::Matrix{Float64}
+# end
 
 function exchange!(dest::Matrix{T}, src::Matrix{T}, dest_idxs::Vector{Int},
                    src_idxs::Vector{Int}) where {T}
@@ -77,12 +89,28 @@ function exchange!(dest::Matrix{T}, src::Matrix{T}, dest_idxs::Vector{Int},
     return nothing
 end
 
+function exchange!(dest::Vector{T}, src::Vector{T}, dest_idxs::Vector{Int},
+                   src_idxs::Vector{Int}) where {T}
+    for i in eachindex(dest_idxs)
+        @inbounds dest[dest_idxs[i]] = src[src_idxs[i]]
+    end
+    return nothing
+end
+
 function exchange_add!(dest::Matrix{T}, src::Matrix{T}, dest_idxs::Vector{Int},
-                   src_idxs::Vector{Int}) where {T<:Number}
+                       src_idxs::Vector{Int}) where {T<:Number}
     for i in eachindex(dest_idxs)
         for d in axes(dest, 1)
             @inbounds dest[d, dest_idxs[i]] += src[d, src_idxs[i]]
         end
+    end
+    return nothing
+end
+
+function exchange_add!(dest::Vector{T}, src::Vector{T}, dest_idxs::Vector{Int},
+                       src_idxs::Vector{Int}) where {T<:Number}
+    for i in eachindex(dest_idxs)
+        @inbounds dest[dest_idxs[i]] += src[src_idxs[i]]
     end
     return nothing
 end

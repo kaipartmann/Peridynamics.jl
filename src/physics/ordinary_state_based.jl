@@ -69,8 +69,8 @@ function init_storage(::Body{OSBMaterial}, ::VelocityVerlet, bd::BondDiscretizat
                             b_int, b_ext, damage, bond_active, n_active_bonds)
 end
 
-@inline reads_from_halo(::Type{OSBMaterial}) = (:position,)
-@inline writes_to_halo(::Type{OSBMaterial}) = (:b_int,)
+@inline get_halo_read_fields(s::OSBStorage) = (s.position,)
+@inline get_halo_write_fields(s::OSBStorage)  = (s.b_int,)
 
 function force_density_point!(s::OSBStorage, bd::BondDiscretization, mat::OSBMaterial,
                               param::OSBPointParameters, i::Int)

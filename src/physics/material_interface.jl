@@ -21,12 +21,12 @@ function storage_type(mat::AbstractMaterial, ts::AbstractTimeSolver)
     throw(MethodError(storage_type, mat, ts))
 end
 
-function reads_from_halo(mat::Type{AbstractMaterial})
-    throw(MethodError(reads_from_halo, mat))
+function get_halo_read_fields(s::AbstractStorage)
+    throw(MethodError(get_halo_read_fields, s))
 end
 
-function writes_to_halo(::Type{AbstractMaterial})
-    throw(MethodError(writes_to_halo, mat))
+function get_halo_write_fields(s::AbstractStorage)
+    throw(MethodError(get_halo_write_fields, s))
 end
 
 #---- optional interface functions ----#
