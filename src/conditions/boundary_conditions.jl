@@ -34,6 +34,9 @@ function apply_bcs!(b::AbstractBodyChunk, time::Float64)
     for bc in b.sdbcs
         apply_bc!(b.store, b.psets, bc, time)
     end
+    for bc in b.pdsdbcs
+        apply_bc!(b.store, b.psets, bc, time)
+    end
     return nothing
 end
 
