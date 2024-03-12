@@ -8,8 +8,13 @@ end
 function check_condition_function(f::F) where {F<:Function}
     func_method = get_method_of_function(f)
     args = get_argument_names_of_function(func_method)
-    if length(args) != 1
-        error("too many arguments for condition! Only one (time) is allowed!\n")
+    if length(args) == 1
+        return :sdbc
+    elseif length(args) == 2 && args[1] === :p && args[2] === :t
+        return :pdsdbc
+    else
+        msg = "wrong arguments for position dependent condition function!\n"
+        throw(ArgumentError(msg))
     end
     return nothing
 end

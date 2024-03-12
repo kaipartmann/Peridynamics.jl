@@ -11,6 +11,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
     point_params::Vector{P}
     params_map::Vector{Int}
     single_dim_bcs::Vector{SingleDimBC}
+    posdep_single_dim_bcs::Vector{PosDepSingleDimBC}
     single_dim_ics::Vector{SingleDimIC}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
@@ -25,11 +26,13 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
         params_map = zeros(Int, n_points)
 
         single_dim_bcs = Vector{SingleDimBC}()
+        posdep_single_dim_bcs = Vector{PosDepSingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
         new{M,P}(mat, n_points, position, volume, fail_permit, point_sets, point_params,
-                 params_map, single_dim_bcs, single_dim_ics, point_sets_precracks)
+                 params_map, single_dim_bcs, posdep_single_dim_bcs, single_dim_ics,
+                 point_sets_precracks)
     end
 end
 
@@ -80,12 +83,12 @@ function point_set!(f::F, b::Body, name::Symbol) where {F<:Function}
 end
 
 function _point_set!(point_sets::Dict{Symbol,Vector{Int}}, name::Symbol,
-    points::V) where {V<:AbstractVector{<:Integer}}
-if haskey(point_sets, name)
-error("there is already a point set with name $(name)!")
-end
-point_sets[name] = points
-return nothing
+                     points::V) where {V<:AbstractVector{<:Integer}}
+    if haskey(point_sets, name)
+        error("there is already a point set with name $(name)!")
+    end
+    point_sets[name] = points
+    return nothing
 end
 
 """
@@ -176,10 +179,15 @@ TODO
 """
 function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
     check_if_set_is_defined(b.point_sets, name)
-    check_condition_function(f)
+    type = check_condition_function(f)
     dim = get_dim(d)
-    sdbc = SingleDimBC(f, get_cff_velocity_half, :velocity_half, name, dim)
-    _condition!(b.single_dim_bcs, sdbc)
+    if type === :sdbc
+        sdbc = SingleDimBC(f, get_cff_velocity_half, :velocity_half, name, dim)
+        _condition!(b.single_dim_bcs, sdbc)
+    elseif type === :pdsdbc
+        pdsdbc = PosDepSingleDimBC(f, get_cff_velocity_half, :velocity_half, name, dim)
+        _condition!(b.posdep_single_dim_bcs, pdsdbc)
+    end
     return nothing
 end
 
@@ -191,6 +199,7 @@ function velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
     dim = get_dim(d)
     sdic = SingleDimIC(convert(Float64, value), get_cff_velocity, :velocity, name, dim)
     _condition!(b.single_dim_ics, sdic)
+    return nothing
 end
 
 """
@@ -198,10 +207,16 @@ TODO
 """
 function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
     check_if_set_is_defined(b.point_sets, name)
-    check_condition_function(f)
+    type = check_condition_function(f)
     dim = get_dim(d)
-    sdbc = SingleDimBC(f, get_cff_b_ext, :b_ext, name, dim)
-    _condition!(b.single_dim_bcs, sdbc)
+    if type === :sdbc
+        sdbc = SingleDimBC(f, get_cff_b_ext, :b_ext, name, dim)
+        _condition!(b.single_dim_bcs, sdbc)
+    elseif type === :pdsdbc
+        pdsdbc = PosDepSingleDimBC(f, get_cff_b_ext, :b_ext, name, dim)
+        _condition!(b.posdep_single_dim_bcs, pdsdbc)
+    end
+    return nothing
 end
 
 function check_if_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Symbol,

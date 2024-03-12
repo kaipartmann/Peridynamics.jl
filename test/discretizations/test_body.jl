@@ -206,6 +206,58 @@ end
     @test bc6.dim == 0x03
 end
 
+@testitem "velocity_bc! position dependend" begin
+    # setup
+    n_points = 4
+    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
+    body = Body(mat, position, volume)
+
+    # test body creation
+    @test body.n_points == n_points
+    @test body.position == position
+    @test body.volume == volume
+    @test isempty(body.point_sets)
+
+    # add point set
+    point_set!(body, :a, 1:2)
+    point_set!(body, :b, 3:4)
+    @test body.point_sets == Dict(:a => 1:2, :b => 3:4)
+
+    # add material
+    material!(body; horizon=1, E=1, rho=1, Gc=1)
+    @test body.point_params == [
+        Peridynamics.BBPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666, 0.4,
+                                       0.4, 1.0, 0.9128709291752769, 3.819718634205488),
+    ]
+    @test body.params_map == [1, 1, 1, 1]
+
+    # velocity bc 1
+    velocity_bc!((p, t) -> 1, body, :a, 1)
+    @test length(body.posdep_single_dim_bcs) == 1
+    bc1 = body.posdep_single_dim_bcs[1]
+    _p = [0, 0, 0]
+    for t in [-1, 0, 1, Inf, NaN]
+        @test bc1(_p, t) == 1
+    end
+    @test bc1.field === :velocity_half
+    @test bc1.point_set === :a
+    @test bc1.dim == 0x01
+
+
+    # velocity bc 2
+    velocity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
+    @test length(body.posdep_single_dim_bcs) == 2
+    bc2 = body.posdep_single_dim_bcs[2]
+    _p = [0, 0, 0]
+    for t in [-1, 0, 1, Inf, NaN]
+        @test bc1(_p, t) == 1
+    end
+    @test bc2.field === :velocity_half
+    @test bc2.point_set === :a
+    @test bc2.dim == 0x02
+    @test bc2([1,2,3], 1.0) == 7.0
+end
+
 @testitem "forcedensity_bc!" begin
     # setup
     n_points = 4
@@ -288,6 +340,49 @@ end
     @test bc6.field === :b_ext
     @test bc6.point_set === :b
     @test bc6.dim == 0x03
+end
+
+@testitem "forcedensity_bc! position dependend" begin
+    # setup
+    n_points = 4
+    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
+    body = Body(mat, position, volume)
+
+    # test body creation
+    @test body.n_points == n_points
+    @test body.position == position
+    @test body.volume == volume
+    @test isempty(body.point_sets)
+
+    # add point set
+    point_set!(body, :a, 1:2)
+    point_set!(body, :b, 3:4)
+    @test body.point_sets == Dict(:a => 1:2, :b => 3:4)
+
+    # velocity bc 1
+    forcedensity_bc!((p,t) -> 1, body, :a, 1)
+    @test length(body.posdep_single_dim_bcs) == 1
+    bc1 = body.posdep_single_dim_bcs[1]
+    _p = [0, 0, 0]
+    for t in [-1, 0, 1, Inf, NaN]
+        @test bc1(_p, t) == 1
+    end
+    @test bc1.field === :b_ext
+    @test bc1.point_set === :a
+    @test bc1.dim == 0x01
+
+    # velocity bc 2
+    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
+    @test length(body.posdep_single_dim_bcs) == 2
+    bc2 = body.posdep_single_dim_bcs[2]
+    _p = [0, 0, 0]
+    for t in [-1, 0, 1, Inf, NaN]
+        @test bc1(_p, t) == 1
+    end
+    @test bc2.field === :b_ext
+    @test bc2.point_set === :a
+    @test bc2.dim == 0x02
+    @test bc2([1,2,3], 1.0) == 7.0
 end
 
 @testitem "precrack!" begin
