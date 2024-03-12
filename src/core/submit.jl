@@ -37,19 +37,20 @@ function submit_threads(job::Job, n_chunks::Int)
     init_time_solver!(job.time_solver, tdh)
     _pwd = init_export(job.options)
     solve!(tdh, job.time_solver, job.options)
-    finish_export(_pwd)
+    finish_export(job.options, _pwd)
     return tdh
 end
 
 function init_export(options)
-    current_pwd = pwd()
+    options.exportflag || return ""
+    _pwd = pwd()
     isdir(options.vtk) && rm(options.vtk; recursive=true, force=true)
     mkpath(options.vtk)
     cd(options.vtk)
-    return current_pwd
+    return _pwd
 end
 
-function finish_export(_pwd)
-    cd(_pwd)
+function finish_export(options, _pwd)
+    options.exportflag && cd(_pwd)
     return nothing
 end
