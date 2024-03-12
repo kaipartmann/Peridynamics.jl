@@ -244,7 +244,15 @@ function get_vtu_files(file::AbstractString)
     pieces = get_elements_by_tagname(unstruct_grid, "Piece")
     isnothing(pieces) && error("UnstructuredGrid does not contain `Piece`!\n")
     vtu_files::Vector{String} = attribute.(pieces, "Source"; required=true)
+    add_pwd!(vtu_files, dirname(file))
     return vtu_files
+end
+
+function add_pwd!(vtu_files::Vector{String}, dirname_file::String)
+    for i in eachindex(vtu_files)
+        vtu_files[i] = joinpath(dirname_file, vtu_files[i])
+    end
+    return nothing
 end
 
 function _read_vtu(vtu_file::AbstractString)
