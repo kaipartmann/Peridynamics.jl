@@ -3,6 +3,8 @@ function process_each_export(f::F, vtk_path::AbstractString; kwargs...) where {F
     check_kwargs(o, PROCESS_EACH_EXPORT_KWARGS)
     serial = get_process_each_export_options(o)
     vtk_files = find_vtk_files(vtk_path)
+    cpwd = pwd()
+    cd(vtk_path)
     if serial
         process_each_export_serial(f, vtk_files)
     elseif mpi_sim()
@@ -10,6 +12,7 @@ function process_each_export(f::F, vtk_path::AbstractString; kwargs...) where {F
     else
         process_each_export_threads(f, vtk_files)
     end
+    cd(cpwd)
     return nothing
 end
 

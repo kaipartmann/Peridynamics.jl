@@ -70,15 +70,6 @@ function get_exported_fields_function(::Type{S}, o::Dict{Symbol,Any}) where {S}
     return eff
 end
 
-# function unknown_fieldname_error(::Type{S}, name::Symbol) where {S<:AbstractStorage}
-#     msg = "unknown field $(name) specified for export!\n"
-#     msg *= "Allowed fields for $S:\n"
-#     for allowed_name in fieldnames(S)
-#         msg *= "  - $allowed_name\n"
-#     end
-#     throw(ArgumentError(msg))
-# end
-
 function export_results(dh::AbstractDataHandler, options::ExportOptions, chunk_id::Int,
                         timestep::Int, time::Float64)
     options.exportflag || return nothing
@@ -98,7 +89,7 @@ end
 
 function _export_results(b::AbstractBodyChunk, chunk_id::Int, n_chunks::Int,
                          options::ExportOptions, n::Int, t::Float64)
-    filename = joinpath(options.vtk, @sprintf("timestep_%05d", n))
+    filename = @sprintf("timestep_%05d", n)
     position = get_loc_position(b)
     pvtk_grid(filename, position, b.cells; part=chunk_id, nparts=n_chunks) do vtk
         for (name, field) in options(b.store)
@@ -108,11 +99,6 @@ function _export_results(b::AbstractBodyChunk, chunk_id::Int, n_chunks::Int,
     end
     return nothing
 end
-
-# @inline function get_export_field(s::AbstractStorage, name::Symbol, ::Type{V}) where {V}
-#     export_field::V = getfield(s, name)
-#     return export_field
-# end
 
 @inline function get_loc_position(b::AbstractBodyChunk)
     return @views b.store.position[:, 1:b.ch.n_loc_points]

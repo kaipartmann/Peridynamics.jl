@@ -35,6 +35,21 @@ function submit_threads(job::Job, n_chunks::Int)
     point_decomp = PointDecomposition(job.spatial_setup, n_chunks)
     tdh = ThreadsDataHandler(job.spatial_setup, job.time_solver, point_decomp)
     init_time_solver!(job.time_solver, tdh)
+    cpwd = init_export(job.options)
     solve!(tdh, job.time_solver, job.options)
+    post_export(cpwd)
     return tdh
+end
+
+function init_export(options)
+    current_pwd = pwd()
+    isdir(options.vtk) && rm(options.vtk; recursive=true, force=true)
+    mkpath(options.vtk)
+    cd(options.vtk)
+    return current_pwd
+end
+
+function post_export(old_pwd)
+    cd(old_pwd)
+    return nothing
 end
