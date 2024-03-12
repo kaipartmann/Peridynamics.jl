@@ -182,10 +182,10 @@ function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:F
     type = check_condition_function(f)
     dim = get_dim(d)
     if type === :sdbc
-        sdbc = SingleDimBC(f, get_cff_velocity_half, :velocity_half, name, dim)
+        sdbc = SingleDimBC(f, :velocity_half, name, dim)
         _condition!(b.single_dim_bcs, sdbc)
     elseif type === :pdsdbc
-        pdsdbc = PosDepSingleDimBC(f, get_cff_velocity_half, :velocity_half, name, dim)
+        pdsdbc = PosDepSingleDimBC(f, :velocity_half, name, dim)
         _condition!(b.posdep_single_dim_bcs, pdsdbc)
     end
     return nothing
@@ -197,7 +197,7 @@ TODO
 function velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
     check_if_set_is_defined(b.point_sets, name)
     dim = get_dim(d)
-    sdic = SingleDimIC(convert(Float64, value), get_cff_velocity, :velocity, name, dim)
+    sdic = SingleDimIC(convert(Float64, value), :velocity, name, dim)
     _condition!(b.single_dim_ics, sdic)
     return nothing
 end
@@ -210,10 +210,10 @@ function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {
     type = check_condition_function(f)
     dim = get_dim(d)
     if type === :sdbc
-        sdbc = SingleDimBC(f, get_cff_b_ext, :b_ext, name, dim)
+        sdbc = SingleDimBC(f, :b_ext, name, dim)
         _condition!(b.single_dim_bcs, sdbc)
     elseif type === :pdsdbc
-        pdsdbc = PosDepSingleDimBC(f, get_cff_b_ext, :b_ext, name, dim)
+        pdsdbc = PosDepSingleDimBC(f, :b_ext, name, dim)
         _condition!(b.posdep_single_dim_bcs, pdsdbc)
     end
     return nothing

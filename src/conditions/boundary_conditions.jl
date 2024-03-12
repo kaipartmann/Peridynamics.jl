@@ -2,26 +2,17 @@
 """
 
 """
-struct SingleDimBC{F<:Function,G<:Function} <: AbstractCondition
+struct SingleDimBC{F<:Function} <: AbstractCondition
     fun::F
-    cff::G
     field::Symbol
     point_set::Symbol
     dim::UInt8
 end
 
-@inline function (b::SingleDimBC{F,G})(t::Float64) where {F,G}
+@inline function (b::SingleDimBC{F})(t::Float64) where {F}
     value::Float64 = b.fun(t)
     return value
 end
-
-@inline function (b::SingleDimBC{F,G})(s::AbstractStorage) where {F,G}
-    return b.cff(s)
-end
-
-@inline get_cff_velocity_half(s::AbstractStorage) = s.velocity_half
-@inline get_cff_velocity(s::AbstractStorage) = s.velocity
-@inline get_cff_b_ext(s::AbstractStorage) = s.b_ext
 
 function override_eachother(a::SingleDimBC, b::SingleDimBC)
     same_field = a.field === b.field
@@ -41,10 +32,10 @@ function apply_bcs!(b::AbstractBodyChunk, time::Float64)
 end
 
 function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}},
-                   bc::SingleDimBC{F,G}, time::Float64) where {F,G}
+                   bc::SingleDimBC{F}, time::Float64) where {F}
     value = bc(time)
     isnan(value) && return nothing
-    apply_sdbc!(bc(s), value, bc.dim, psets[bc.point_set])
+    apply_sdbc!(get_storage_field(s, bc.field), value, bc.dim, psets[bc.point_set])
     return nothing
 end
 
@@ -56,21 +47,16 @@ end
     return nothing
 end
 
-struct PosDepSingleDimBC{F<:Function,G<:Function} <: AbstractCondition
+struct PosDepSingleDimBC{F<:Function} <: AbstractCondition
     fun::F
-    cff::G
     field::Symbol
     point_set::Symbol
     dim::UInt8
 end
 
-@inline function (b::PosDepSingleDimBC{F,G})(p::AbstractVector, t::Float64) where {F,G}
+@inline function (b::PosDepSingleDimBC{F})(p::AbstractVector, t::Float64) where {F}
     value::Float64 = b.fun(p, t)
     return value
-end
-
-@inline function (b::PosDepSingleDimBC{F,G})(s::AbstractStorage) where {F,G}
-    return b.cff(s)
 end
 
 function override_eachother(a::PosDepSingleDimBC, b::PosDepSingleDimBC)
@@ -81,15 +67,15 @@ function override_eachother(a::PosDepSingleDimBC, b::PosDepSingleDimBC)
 end
 
 function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}},
-                   bc::PosDepSingleDimBC{F,G}, position::Matrix{Float64},
-                   time::Float64) where {F,G}
-    apply_pdsdbc!(bc(s), position, bc, psets[bc.point_set], time)
+                   bc::PosDepSingleDimBC{F}, position::Matrix{Float64},
+                   time::Float64) where {F}
+    apply_pdsdbc!(get_storage_field(s, bc.field), position, bc, psets[bc.point_set], time)
     return nothing
 end
 
 @inline function apply_pdsdbc!(field::Matrix{Float64}, pos::Matrix{Float64},
-                               bc::PosDepSingleDimBC{F,G}, point_ids::Vector{Int},
-                               t::Float64) where {F,G}
+                               bc::PosDepSingleDimBC{F}, point_ids::Vector{Int},
+                               t::Float64) where {F}
     @simd for i in point_ids
         @inbounds field[bc.dim, i] = bc(SVector{3}(pos[1,i], pos[2,i], pos[3,i]), t)
     end

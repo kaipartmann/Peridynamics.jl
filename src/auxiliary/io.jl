@@ -1,26 +1,19 @@
-const ExportField = Tuple{Symbol,DataType}
-
-struct ExportOptions{F<:Function}
+struct ExportOptions{N}
     exportflag::Bool
     root::String
     vtk::String
     logfile::String
     freq::Int
-    eff::F
+    fields::NTuple{N,Symbol}
 
-    function ExportOptions(root::String, freq::Int, eff::F) where {F<:Function}
+    function ExportOptions(root::String, freq::Int, fields::NTuple{N,Symbol}) where {N}
         if isempty(root)
-            _eff = ()->()
-            return new{typeof(_eff)}(false, "", "", "", 0, _eff)
+            return new{0}(false, "", "", "", 0, NTuple{0,Symbol}())
         end
         vtk = joinpath(root, "vtk")
         logfile = joinpath(root, "logfile.log")
-        return new{F}(true, root, vtk, logfile, freq, eff)
+        return new{N}(true, root, vtk, logfile, freq, fields)
     end
-end
-
-function (eo::ExportOptions{F})(s::AbstractStorage) where {F<:Function}
-    return eo.eff(s)
 end
 
 function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractStorage}
@@ -42,32 +35,18 @@ function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractSt
     end
     freq < 0 && throw(ArgumentError("`freq` should be larger than zero!\n"))
 
-    eff = get_exported_fields_function(S, o)
+    exfields = get_exported_fields(S, o)
 
-    return ExportOptions(root, freq, eff)
+    return ExportOptions(root, freq, exfields)
 end
 
-function export_disp_and_dmg(s::AbstractStorage)
-    return (("displacement", s.displacement), ("damage", s.damage))
-end
-
-macro eff(vars...)
-    local args = Expr[]
-    for var in vars
-        var isa QuoteNode || error("only symbols are allowed args!\n")
-        local name = string(var)[begin+1:end]
-        push!(args, :($(name), Core.getfield(x, $(esc(var)))))
-    end
-    return Expr(:->, :x, Expr(:tuple, args...))
-end
-
-function get_exported_fields_function(::Type{S}, o::Dict{Symbol,Any}) where {S}
-    if haskey(o, :eff)
-        eff = o[:eff]
+function get_exported_fields(::Type{S}, o::Dict{Symbol,Any}) where {S}
+    if haskey(o, :fields)
+        fields = o[:fields]
     else
-        eff = export_disp_and_dmg
+        fields = DEFAULT_EXPORT_FIELDS
     end
-    return eff
+    return fields
 end
 
 function export_results(dh::AbstractDataHandler, options::ExportOptions, chunk_id::Int,
@@ -92,8 +71,8 @@ function _export_results(b::AbstractBodyChunk, chunk_id::Int, n_chunks::Int,
     filename = @sprintf("timestep_%05d", n)
     position = get_loc_position(b)
     pvtk_grid(filename, position, b.cells; part=chunk_id, nparts=n_chunks) do vtk
-        for (name, field) in options(b.store)
-            vtk[name] = field
+        for field in options.fields
+            vtk[string(field)] = get_storage_field(b.store, field)
         end
         vtk["time", VTKFieldData()] = t
     end
