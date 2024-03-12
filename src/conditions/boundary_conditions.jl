@@ -35,7 +35,7 @@ function apply_bcs!(b::AbstractBodyChunk, time::Float64)
         apply_bc!(b.store, b.psets, bc, time)
     end
     for bc in b.pdsdbcs
-        apply_bc!(b.store, b.psets, bc, time)
+        apply_bc!(b.store, b.psets, bc, b.dscr.position, time)
     end
     return nothing
 end
@@ -81,8 +81,9 @@ function override_eachother(a::PosDepSingleDimBC, b::PosDepSingleDimBC)
 end
 
 function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}},
-                   bc::PosDepSingleDimBC{F,G}, time::Float64) where {F,G}
-    apply_pdsdbc!(bc(s), s.position, bc, psets[bc.point_set], time)
+                   bc::PosDepSingleDimBC{F,G}, position::Matrix{Float64},
+                   time::Float64) where {F,G}
+    apply_pdsdbc!(bc(s), position, bc, psets[bc.point_set], time)
     return nothing
 end
 
