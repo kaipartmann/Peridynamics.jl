@@ -57,28 +57,6 @@ function exchange_write_fields!(dh::ThreadsDataHandler, chunk_id::Int)
     return nothing
 end
 
-# function halo_exchange!(dh::ThreadsDataHandler, halo_exs::Vector{HaloExchange})
-#     for he in halo_exs
-#         src_field = get_exchange_field(dh.chunks[he.src_chunk_id], he.field)
-#         dest_field = get_exchange_field(dh.chunks[he.dest_chunk_id], he.field)
-#         exchange!(dest_field, src_field, he.dest_idxs, he.src_idxs)
-#     end
-#     return nothing
-# end
-
-# function halo_exchange_add!(dh::ThreadsDataHandler, halo_exs::Vector{HaloExchange})
-#     for he in halo_exs
-#         src_field = get_exchange_field(dh.chunks[he.src_chunk_id], he.field)
-#         dest_field = get_exchange_field(dh.chunks[he.dest_chunk_id], he.field)
-#         exchange_add!(dest_field, src_field, he.dest_idxs, he.src_idxs)
-#     end
-#     return nothing
-# end
-
-# @inline function get_exchange_field(b::AbstractBodyChunk, fieldname::Symbol)
-#     return getfield(b.store, fieldname)::Matrix{Float64}
-# end
-
 function exchange!(dest::Matrix{T}, src::Matrix{T}, dest_idxs::Vector{Int},
                    src_idxs::Vector{Int}) where {T}
     for i in eachindex(dest_idxs)
