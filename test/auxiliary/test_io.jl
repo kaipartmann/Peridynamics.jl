@@ -6,7 +6,7 @@
     @test eo.vtk == abspath(joinpath("rootpath", "vtk"))
     @test eo.logfile == abspath(joinpath("rootpath", "logfile.log"))
     @test eo.freq == 10
-    @test eo.fields == Peridynamics.DEFAULT_EXPORT_FIELDS
+    @test eo.fields == [field for field in Peridynamics.DEFAULT_EXPORT_FIELDS]
 
     o = Dict{Symbol,Any}(:path => "rootpath")
     eo = Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
@@ -15,7 +15,7 @@
     @test eo.vtk == abspath(joinpath("rootpath", "vtk"))
     @test eo.logfile == abspath(joinpath("rootpath", "logfile.log"))
     @test eo.freq == 10
-    @test eo.fields == Peridynamics.DEFAULT_EXPORT_FIELDS
+    @test eo.fields == [field for field in Peridynamics.DEFAULT_EXPORT_FIELDS]
 
     o = Dict{Symbol,Any}(:freq => 10)
     msg = "if `freq` is spedified, the keyword `path` is also needed!\n"
@@ -38,7 +38,7 @@
         Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
     end
 
-    o = Dict{Symbol,Any}(:path => "rootpath", :fields => [:displacement, :b_ext])
+    o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext))
     eo = Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
     @test eo.exportflag == true
     @test eo.root == abspath("rootpath")

@@ -27,28 +27,18 @@ function get_halo_write_fields(s::AbstractStorage)
     throw(MethodError(get_halo_write_fields, s))
 end
 
-function get_storage_field(s::S, field::Symbol) where {S<:AbstractStorage}
-    if field === :position
-        return getfield(s, :position)
-    elseif field === :displacement
-        return getfield(s, :displacement)
-    elseif field === :velocity
-        return getfield(s, :velocity)
-    elseif field === :velocity_half
-        return getfield(s, :velocity_half)
-    elseif field === :acceleration
-        return getfield(s, :acceleration)
-    elseif field === :b_int
-        return getfield(s, :b_int)
-    elseif field === :b_ext
-        return getfield(s, :b_ext)
-    elseif field === :damage
-        return getfield(s, :damage)
-    else
-        return get_custom_field(s, field)
-    end
+@inline function get_storage_field(s::AbstractStorage, field::Symbol)
+    return storage_field(s, Val{field}())
 end
 
-function get_custom_field(::S, field::Symbol) where {S<:AbstractStorage}
-    return throw(ArgumentError("field $field no known in $(S)\n"))
+storage_field(s::AbstractStorage, ::Val{:position}) = getfield(s, :position)
+storage_field(s::AbstractStorage, ::Val{:displacement}) = getfield(s, :displacement)
+storage_field(s::AbstractStorage, ::Val{:velocity}) = getfield(s, :velocity)
+storage_field(s::AbstractStorage, ::Val{:velocity_half}) = getfield(s, :velocity_half)
+storage_field(s::AbstractStorage, ::Val{:acceleration}) = getfield(s, :acceleration)
+storage_field(s::AbstractStorage, ::Val{:b_int}) = getfield(s, :b_int)
+storage_field(s::AbstractStorage, ::Val{:b_ext}) = getfield(s, :b_ext)
+storage_field(s::AbstractStorage, ::Val{:damage}) = getfield(s, :damage)
+function storage_field(::S, ::Val{F}) where {S,F}
+    throw(ArgumentError("field $F no known in $(S)\n"))
 end

@@ -48,14 +48,17 @@ function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractSt
 end
 
 function get_export_fields(::Type{S}, o::Dict{Symbol,Any}) where {S}
-    local export_fieldnames::Vector{Symbol}
+    local _fields::NTuple{N,Symbol} where {N}
     if haskey(o, :fields)
-        export_fieldnames = o[:fields]
-        check_storage_fields(S, export_fieldnames)
+        _fields = o[:fields]
     else
-        export_fieldnames = DEFAULT_EXPORT_FIELDS
+        _fields = DEFAULT_EXPORT_FIELDS
     end
-    return export_fieldnames
+
+    fields = [field for field in _fields]
+    check_storage_fields(S, fields)
+
+    return fields
 end
 
 function check_storage_fields(::Type{S}, fields::Vector{Symbol}) where {S}
@@ -72,6 +75,7 @@ function check_storage_fields(::Type{S}, fields::Vector{Symbol}) where {S}
     end
     return nothing
 end
+
 
 function export_results(dh::AbstractDataHandler, options::ExportOptions, chunk_id::Int,
                         timestep::Int, time::Float64)
