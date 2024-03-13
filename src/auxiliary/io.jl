@@ -100,7 +100,7 @@ function _export_results(b::AbstractBodyChunk, chunk_id::Int, n_chunks::Int,
     position = get_loc_position(b)
     pvtk_grid(filename, position, b.cells; part=chunk_id, nparts=n_chunks) do vtk
         for field in options.fields
-            vtk[string(field)] = get_storage_field(b.store, field)
+            vtk[string(field), VTKPointData()] = get_storage_field(b.store, field)
         end
         vtk["time", VTKFieldData()] = t
     end
