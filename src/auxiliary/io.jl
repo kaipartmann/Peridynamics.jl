@@ -1,19 +1,20 @@
-struct ExportOptions{N}
+struct ExportOptions
     exportflag::Bool
     root::String
     vtk::String
     logfile::String
     freq::Int
-    fields::NTuple{N,Symbol}
+    fields::Vector{Symbol}
+end
 
-    function ExportOptions(root::String, freq::Int, fields::NTuple{N,Symbol}) where {N}
-        if isempty(root)
-            return new{0}(false, "", "", "", 0, NTuple{0,Symbol}())
-        end
-        vtk = joinpath(root, "vtk")
-        logfile = joinpath(root, "logfile.log")
-        return new{N}(true, root, vtk, logfile, freq, fields)
-    end
+function ExportOptions(root::String, freq::Int, fields::Vector{Symbol})
+    vtk = joinpath(root, "vtk")
+    logfile = joinpath(root, "logfile.log")
+    return ExportOptions(true, root, vtk, logfile, freq, fields)
+end
+
+function ExportOptions()
+    return ExportOptions(false, "", "", "", 0, Vector{Symbol}())
 end
 
 function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractStorage}
@@ -35,18 +36,41 @@ function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractSt
     end
     freq < 0 && throw(ArgumentError("`freq` should be larger than zero!\n"))
 
-    exfields = get_exported_fields(S, o)
+    fields = get_export_fields(S, o)
 
-    return ExportOptions(root, freq, exfields)
+    if isempty(root)
+        eo = ExportOptions()
+    else
+        eo = ExportOptions(root, freq, fields)
+    end
+
+    return eo
 end
 
-function get_exported_fields(::Type{S}, o::Dict{Symbol,Any}) where {S}
+function get_export_fields(::Type{S}, o::Dict{Symbol,Any}) where {S}
+    local export_fieldnames::Vector{Symbol}
     if haskey(o, :fields)
-        fields = o[:fields]
+        export_fieldnames = o[:fields]
+        check_storage_fields(S, export_fieldnames)
     else
-        fields = DEFAULT_EXPORT_FIELDS
+        export_fieldnames = DEFAULT_EXPORT_FIELDS
     end
-    return fields
+    return export_fieldnames
+end
+
+function check_storage_fields(::Type{S}, fields::Vector{Symbol}) where {S}
+    allowed_fields = fieldnames(S)
+    for f in fields
+        if !in(f, allowed_fields)
+            msg = "unknown field $(name) specified for export!\n"
+            msg *= "Allowed fields for $S:\n"
+            for allowed_name in fieldnames(S)
+                msg *= "  - $allowed_name\n"
+            end
+            throw(ArgumentError(msg))
+        end
+    end
+    return nothing
 end
 
 function export_results(dh::AbstractDataHandler, options::ExportOptions, chunk_id::Int,

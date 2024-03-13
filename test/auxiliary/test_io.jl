@@ -30,7 +30,7 @@
     @test eo.vtk == ""
     @test eo.logfile == ""
     @test eo.freq == 0
-    @test eo.fields == ()
+    @test eo.fields == Symbol[]
 
     o = Dict{Symbol,Any}(:path => "rootpath", :freq => -10)
     msg = "`freq` should be larger than zero!\n"
@@ -38,12 +38,12 @@
         Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
     end
 
-    o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext))
+    o = Dict{Symbol,Any}(:path => "rootpath", :fields => [:displacement, :b_ext])
     eo = Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
     @test eo.exportflag == true
     @test eo.root == abspath("rootpath")
     @test eo.vtk == abspath(joinpath("rootpath", "vtk"))
     @test eo.logfile == abspath(joinpath("rootpath", "logfile.log"))
     @test eo.freq == 10
-    @test eo.fields == (:displacement, :b_ext)
+    @test eo.fields == [:displacement, :b_ext]
 end
