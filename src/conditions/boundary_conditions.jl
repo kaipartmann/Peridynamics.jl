@@ -77,7 +77,10 @@ end
                                bc::PosDepSingleDimBC{F}, point_ids::Vector{Int},
                                t::Float64) where {F}
     @simd for i in point_ids
-        @inbounds field[bc.dim, i] = bc(SVector{3}(pos[1,i], pos[2,i], pos[3,i]), t)
+        value = bc(SVector{3}(pos[1,i], pos[2,i], pos[3,i]), t)
+        if !isnan(value)
+            field[bc.dim, i] = value
+        end
     end
     return nothing
 end
