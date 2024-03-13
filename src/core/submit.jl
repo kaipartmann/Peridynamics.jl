@@ -44,7 +44,6 @@ end
 function init_export(options)
     options.exportflag || return ""
     _pwd = pwd()
-    isdir(options.vtk) && rm(options.vtk; recursive=true, force=true)
     mkpath(options.vtk)
     cd(options.vtk)
     return _pwd
