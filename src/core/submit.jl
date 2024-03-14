@@ -26,9 +26,14 @@ function get_submit_options(o::Dict{Symbol,Any})
     return quiet
 end
 
-function submit_mpi(::Job)
-    error("functionality for MPI simulations not yet implemented!\n")
-    return nothing
+function submit_mpi(job::Job)
+    point_decomp = PointDecomposition(job.spatial_setup, mpi_nranks())
+    mdh = MPIDataHandler(job.spatial_setup, job.time_solver, point_decomp)
+    init_time_solver!(job.time_solver, mdh)
+    _pwd = init_export(job.options)
+    solve!(mdh, job.time_solver, job.options)
+    finish_export(job.options, _pwd)
+    return mdh
 end
 
 function submit_threads(job::Job, n_chunks::Int)
@@ -45,11 +50,11 @@ function init_export(options)
     options.exportflag || return ""
     _pwd = pwd()
     mkpath(options.vtk)
-    cd(options.vtk)
+    # cd(options.vtk)
     return _pwd
 end
 
 function finish_export(options, _pwd)
-    options.exportflag && cd(_pwd)
+    # options.exportflag && cd(_pwd)
     return nothing
 end

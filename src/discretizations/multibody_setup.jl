@@ -55,3 +55,7 @@ function pre_submission_check(ms::MultibodySetup)
     #TODO: check if everything is defined for job submission!
     return nothing
 end
+
+@inline function storage_type(ms::MultibodySetup, ts::AbstractTimeSolver)
+    return storage_type(first(ms.bodies).mat, ts)
+end

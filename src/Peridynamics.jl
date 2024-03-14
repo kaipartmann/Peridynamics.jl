@@ -9,7 +9,7 @@ end
 export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
        failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
        VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
-       process_each_export
+       process_each_export, mpi_isroot
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -25,6 +25,8 @@ const QUIET = Ref(false)
     QUIET[] = b
     return nothing
 end
+@inline mpi_chunk_id() = mpi_rank() + 1
+@inline mpi_isroot() = mpi_rank() == 0
 
 const TO = TimerOutput()
 
@@ -113,6 +115,7 @@ include("core/job.jl")
 include("core/submit.jl")
 include("core/halo_exchange.jl")
 include("core/threads_data_handler.jl")
+include("core/mpi_data_handler.jl")
 
 include("time_solvers/solve_velocity_verlet.jl")
 

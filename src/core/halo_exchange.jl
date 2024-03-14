@@ -1,64 +1,83 @@
-
-struct HaloExchange
-    src_chunk_id::Int
-    dest_chunk_id::Int
-    src_idxs::Vector{Int}
-    dest_idxs::Vector{Int}
-end
-
-function find_halo_exchanges(chunks::Vector{B}) where {B<:AbstractBodyChunk}
-    has_read = has_read_halos(chunks)
-    has_write = has_write_halos(chunks)
-    read_halo_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
-    write_halo_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
-    @threads :static for chunk_id in eachindex(chunks)
-        read_exs, write_exs = find_exs(chunks, chunk_id, has_read, has_write)
-        read_halo_exs[chunk_id] = read_exs
-        write_halo_exs[chunk_id] = write_exs
+function exchange!(dest::Matrix{T}, src::Matrix{T}, dest_idxs::Vector{Int},
+                   src_idxs::Vector{Int}) where {T}
+    for i in eachindex(dest_idxs)
+        for d in axes(dest, 1)
+            @inbounds dest[d, dest_idxs[i]] = src[d, src_idxs[i]]
+        end
     end
-    reorder_write_exs!(write_halo_exs)
-    return read_halo_exs, write_halo_exs
+    return nothing
 end
 
-function has_read_halos(chunk::AbstractBodyChunk)
-    hrfs = get_halo_read_fields(chunk.store)
-    isempty(hrfs) && return false
-    return true
-end
-
-function has_read_halos(chunks::Vector{B}) where {B<:AbstractBodyChunk}
-    return has_read_halos(first(chunks))
-end
-
-function has_write_halos(chunk::AbstractBodyChunk)
-    hwfs = get_halo_write_fields(chunk.store)
-    isempty(hwfs) && return false
-    return true
-end
-
-function has_write_halos(chunks::Vector{B}) where {B<:AbstractBodyChunk}
-    return has_write_halos(first(chunks))
-end
-
-function find_exs(chunks::Vector{B}, chunk_id::Int, hasread::Bool,
-                  haswrite::Bool) where {B<:AbstractBodyChunk}
-    readexs = Vector{HaloExchange}()
-    writeexs = Vector{HaloExchange}()
-    chunk = chunks[chunk_id]
-    for (halo_chunk_id, idxs) in chunk.ch.halo_by_src
-        halo_chunk = chunks[halo_chunk_id]
-        halo_idxs = chunk.ch.point_ids[idxs]
-        localize!(halo_idxs, halo_chunk.ch.localizer)
-        hasread && push!(readexs, HaloExchange(halo_chunk_id, chunk_id, halo_idxs, idxs))
-        haswrite && push!(writeexs, HaloExchange(chunk_id, halo_chunk_id, idxs, halo_idxs))
+function exchange_from_buf!(dest::T, buf::T, dest_idxs::Vector{Int}) where {T<:Matrix}
+    for i in eachindex(dest_idxs)
+        for d in axes(dest, 1)
+            dest[d, dest_idxs[i]] = buf[d, i]
+        end
     end
-    return readexs, writeexs
+    return nothing
 end
 
-function reorder_write_exs!(write_halo_exs::Vector{Vector{HaloExchange}})
-    all_write_exs = reduce(vcat, write_halo_exs)
-    @threads :static for chunk_id in eachindex(write_halo_exs)
-        write_halo_exs[chunk_id] = filter(x -> x.dest_chunk_id == chunk_id, all_write_exs)
+function exchange_to_buf!(buf::T, src::T, src_idxs::Vector{Int}) where {T<:Matrix}
+    for i in eachindex(src_idxs)
+        for d in axes(buf, 1)
+            buf[d, i] = src[d, src_idxs[i]]
+        end
+    end
+    return nothing
+end
+
+function exchange!(dest::Vector{T}, src::Vector{T}, dest_idxs::Vector{Int},
+                   src_idxs::Vector{Int}) where {T}
+    for i in eachindex(dest_idxs)
+        @inbounds dest[dest_idxs[i]] = src[src_idxs[i]]
+    end
+    return nothing
+end
+
+function exchange_from_buf!(dest::T, buf::T, dest_idxs::Vector{Int}) where {T<:Vector}
+    for i in eachindex(dest_idxs)
+        dest[dest_idxs[i]] = buf[i]
+    end
+    return nothing
+end
+
+function exchange_to_buf!(buf::T, src::T, src_idxs::Vector{Int}) where {T<:Vector}
+    for i in eachindex(src_idxs)
+        buf[i] = src[src_idxs[i]]
+    end
+    return nothing
+end
+
+function exchange_add!(dest::Matrix{T}, src::Matrix{T}, dest_idxs::Vector{Int},
+                       src_idxs::Vector{Int}) where {T<:Number}
+    for i in eachindex(dest_idxs)
+        for d in axes(dest, 1)
+            @inbounds dest[d, dest_idxs[i]] += src[d, src_idxs[i]]
+        end
+    end
+    return nothing
+end
+
+function exchange_from_buf_add!(dest::T, buf::T, dest_idxs::Vector{Int}) where {T<:Matrix}
+    for i in eachindex(dest_idxs)
+        for d in axes(dest, 1)
+            dest[d, dest_idxs[i]] += buf[d, i]
+        end
+    end
+    return nothing
+end
+
+function exchange_add!(dest::Vector{T}, src::Vector{T}, dest_idxs::Vector{Int},
+                       src_idxs::Vector{Int}) where {T<:Number}
+    for i in eachindex(dest_idxs)
+        @inbounds dest[dest_idxs[i]] += src[src_idxs[i]]
+    end
+    return nothing
+end
+
+function exchange_from_buf_add!(dest::T, buf::T, dest_idxs::Vector{Int}) where {T<:Vector}
+    for i in eachindex(dest_idxs)
+        dest[dest_idxs[i]] += buf[i]
     end
     return nothing
 end
