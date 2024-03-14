@@ -108,8 +108,8 @@ include("physics/ordinary_state_based.jl")
 include("physics/correspondence.jl")
 
 include("auxiliary/function_arguments.jl")
-include("auxiliary/logs.jl")
 include("auxiliary/io.jl")
+include("auxiliary/logs.jl")
 
 include("core/job.jl")
 include("core/submit.jl")
