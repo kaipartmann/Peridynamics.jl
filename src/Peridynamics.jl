@@ -43,19 +43,19 @@ const PROCESS_EACH_EXPORT_KWARGS = (:serial,)
 const DimensionSpec = Union{Integer,Symbol}
 
 function __init__()
-    if MPI_INITIALIZED[]
-        return nothing
+    if !MPI_INITIALIZED[]
+        MPI.Init(finalize_atexit=true)
+        MPI_RANK[] = MPI.Comm_rank(MPI.COMM_WORLD)
+        MPI_SIZE[] = MPI.Comm_size(MPI.COMM_WORLD)
+        MPI_INITIALIZED[] = true
     end
-    MPI.Init(finalize_atexit=true)
-    MPI_RANK[] = MPI.Comm_rank(MPI.COMM_WORLD)
-    MPI_SIZE[] = MPI.Comm_size(MPI.COMM_WORLD)
-    MPI_INITIALIZED[] = true
     if haskey(ENV, "MPI_LOCALRANKID")
         MPI_SIM[] = true
     end
     @static if Sys.islinux() && !MPI_SIM[]
         pinthreads(:cores; force=false)
     end
+    BLAS.set_num_threads(1)
     return nothing
 end
 
