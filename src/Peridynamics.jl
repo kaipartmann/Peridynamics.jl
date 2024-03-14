@@ -9,7 +9,7 @@ end
 export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
        failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
        VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
-       process_each_export, @eff
+       process_each_export
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -34,7 +34,7 @@ const ELASTIC_KWARGS = (:E, :nu)
 const FRAC_KWARGS = (:Gc, :epsilon_c)
 const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
 const CONTACT_KWARGS = (:radius, :sc)
-const EXPORT_KWARGS = (:path, :freq, :eff)
+const EXPORT_KWARGS = (:path, :freq, :fields)
 const DEFAULT_EXPORT_FIELDS = (:displacement, :damage)
 const JOB_KWARGS = (EXPORT_KWARGS...,)
 const SUBMIT_KWARGS = (:quiet,)
@@ -43,19 +43,19 @@ const PROCESS_EACH_EXPORT_KWARGS = (:serial,)
 const DimensionSpec = Union{Integer,Symbol}
 
 function __init__()
-    if MPI_INITIALIZED[]
-        return nothing
+    if !MPI_INITIALIZED[]
+        MPI.Init(finalize_atexit=true)
+        MPI_RANK[] = MPI.Comm_rank(MPI.COMM_WORLD)
+        MPI_SIZE[] = MPI.Comm_size(MPI.COMM_WORLD)
+        MPI_INITIALIZED[] = true
     end
-    MPI.Init(finalize_atexit=true)
-    MPI_RANK[] = MPI.Comm_rank(MPI.COMM_WORLD)
-    MPI_SIZE[] = MPI.Comm_size(MPI.COMM_WORLD)
-    MPI_INITIALIZED[] = true
     if haskey(ENV, "MPI_LOCALRANKID")
         MPI_SIM[] = true
     end
     @static if Sys.islinux() && !MPI_SIM[]
         pinthreads(:cores; force=false)
     end
+    BLAS.set_num_threads(1)
     return nothing
 end
 
@@ -127,7 +127,7 @@ include("auxiliary/process_each_export.jl")
 try
     include("auxiliary/precompile_workload.jl")
 catch err
-    @error "precompilation errored - can be safely ignored!\n" exception=err
+    @error "precompilation errored\n" exception=err
 end
 
 end
