@@ -51,8 +51,8 @@ function __init__()
     if haskey(ENV, "MPI_LOCALRANKID")
         MPI_SIM[] = true
     end
-    @static if Sys.islinux() && !MPI_SIM[]
-        pinthreads(:cores; force=false)
+    @static if Sys.islinux()
+        MPI_SIM[] || pinthreads(:cores; force=false)
     end
     BLAS.set_num_threads(1)
     return nothing
