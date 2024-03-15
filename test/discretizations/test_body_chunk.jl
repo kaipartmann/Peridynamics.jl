@@ -34,7 +34,7 @@
     @test bc.ch.point_ids == [1, 2, 3, 4]
     @test bc.ch.loc_points == pd.decomp[1]
     @test bc.ch.halo_points == [3, 4]
-    @test bc.ch.halo_by_src[2] == 3:4
+    @test bc.ch.hidxs_by_src[2] == 3:4
     for i in 1:4
         @test bc.ch.localizer[i] == i
     end
@@ -119,7 +119,7 @@ end
     @test b1.ch.point_ids == [1, 2, 3, 4]
     @test b1.ch.loc_points == 1:2
     @test b1.ch.halo_points == [3, 4]
-    @test b1.ch.halo_by_src[2] == 3:4
+    @test b1.ch.hidxs_by_src[2] == 3:4
     for i in 1:4
         @test b1.ch.localizer[i] == i
     end
@@ -181,7 +181,7 @@ end
     @test b2.ch.point_ids == [3, 4, 1, 2]
     @test b2.ch.loc_points == [3, 4]
     @test b2.ch.halo_points == [1, 2]
-    @test b2.ch.halo_by_src[1] == 3:4
+    @test b2.ch.hidxs_by_src[1] == 3:4
     @test b2.ch.localizer[3] == 1
     @test b2.ch.localizer[4] == 2
     @test b2.ch.localizer[1] == 3
@@ -282,7 +282,7 @@ end
     @test b1.ch.point_ids == [1, 2, 3, 4]
     @test b1.ch.loc_points == 1:2
     @test b1.ch.halo_points == [3, 4]
-    @test b1.ch.halo_by_src[2] == 3:4
+    @test b1.ch.hidxs_by_src[2] == 3:4
     for i in 1:4
         @test b1.ch.localizer[i] == i
     end
@@ -361,7 +361,7 @@ end
     @test b2.ch.point_ids == [3, 4, 1, 2]
     @test b2.ch.loc_points == [3, 4]
     @test b2.ch.halo_points == [1, 2]
-    @test b2.ch.halo_by_src[1] == 3:4
+    @test b2.ch.hidxs_by_src[1] == 3:4
     @test b2.ch.localizer[3] == 1
     @test b2.ch.localizer[4] == 2
     @test b2.ch.localizer[1] == 3

@@ -109,3 +109,34 @@ function solve_timestep!(dh::ThreadsDataHandler, options::ExportOptions, Δt::Fl
     end
     return nothing
 end
+
+function solve!(dh::MPIDataHandler, vv::VelocityVerlet, options::ExportOptions)
+    export_reference_results(dh, options)
+    Δt = vv.Δt
+    Δt½ = 0.5 * vv.Δt
+    if mpi_isroot()
+        p = Progress(vv.n_steps; dt=1, desc="solve...", color=:normal, barlen=20)
+    end
+    for n in 1:vv.n_steps
+        solve_timestep!(dh, options, Δt, Δt½, n)
+        mpi_isroot() && next!(p)
+    end
+    mpi_isroot() && finish!(p)
+    return dh
+end
+
+function solve_timestep!(dh::MPIDataHandler, options::ExportOptions, Δt::Float64,
+                         Δt½::Float64, n::Int)
+    t = n * Δt
+    chunk = dh.chunk
+    @timeit_debug TO "update_vel_half!" update_vel_half!(chunk, Δt½)
+    @timeit_debug TO "apply_bcs!" apply_bcs!(chunk, t)
+    @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
+    @timeit_debug TO "exchange_read_fields!" exchange_read_fields!(dh)
+    @timeit_debug TO "calc_force_density!" calc_force_density!(chunk)
+    @timeit_debug TO "exchange_write_fields!" exchange_write_fields!(dh)
+    @timeit_debug TO "calc_damage!" calc_damage!(chunk)
+    @timeit_debug TO "update_acc_and_vel!" update_acc_and_vel!(chunk, Δt½)
+    @timeit_debug TO "export_results" export_results(dh, options, n, t)
+    return nothing
+end

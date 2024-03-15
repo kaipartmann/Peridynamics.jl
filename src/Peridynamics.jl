@@ -9,7 +9,7 @@ end
 export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
        failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
        VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
-       process_each_export
+       process_each_export, mpi_isroot
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RANK = Ref(-1)
@@ -21,10 +21,9 @@ const QUIET = Ref(false)
 @inline mpi_nranks() = MPI_SIZE[]
 @inline mpi_sim() = MPI_SIM[]
 @inline quiet() = QUIET[]
-@inline function set_quiet(b::Bool)
-    QUIET[] = b
-    return nothing
-end
+@inline set_quiet!(b::Bool) = (QUIET[] = b; return nothing)
+@inline mpi_chunk_id() = mpi_rank() + 1
+@inline mpi_isroot() = mpi_rank() == 0
 
 const TO = TimerOutput()
 
@@ -52,8 +51,8 @@ function __init__()
     if haskey(ENV, "MPI_LOCALRANKID")
         MPI_SIM[] = true
     end
-    @static if Sys.islinux() && !MPI_SIM[]
-        pinthreads(:cores; force=false)
+    @static if Sys.islinux()
+        MPI_SIM[] || pinthreads(:cores; force=false)
     end
     BLAS.set_num_threads(1)
     return nothing
@@ -106,13 +105,15 @@ include("physics/ordinary_state_based.jl")
 include("physics/correspondence.jl")
 
 include("auxiliary/function_arguments.jl")
-include("auxiliary/logs.jl")
 include("auxiliary/io.jl")
+include("auxiliary/logs.jl")
+include("auxiliary/mpi_timers.jl")
 
 include("core/job.jl")
 include("core/submit.jl")
 include("core/halo_exchange.jl")
 include("core/threads_data_handler.jl")
+include("core/mpi_data_handler.jl")
 
 include("time_solvers/solve_velocity_verlet.jl")
 

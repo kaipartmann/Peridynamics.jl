@@ -249,3 +249,5 @@ end
 @inline function get_point_param(b::Body, key::Symbol, i::Int)
     return getfield(b.point_params[b.params_map[i]], key)
 end
+
+@inline storage_type(b::Body, ts::AbstractTimeSolver) = storage_type(b.mat, ts)

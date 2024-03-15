@@ -63,42 +63,6 @@ end
     return b.param
 end
 
-function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition,
-                           v::Val{N}) where {M,P,T,N}
-    D = discretization_type(body.mat)
-    S = storage_type(body.mat, ts)
-    body_chunks = _chop_body_threads(body, ts, pd, D, S, v)
-    return body_chunks
-end
-
-function _chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition, ::Type{D},
-                            ::Type{S}, ::Val{1}) where {M,P,D,S,T}
-    body_chunks = Vector{BodyChunk{M,P,D,S}}(undef, pd.n_chunks)
-
-    @threads :static for chunk_id in eachindex(pd.decomp)
-        body_chunk = BodyChunk(body, ts, pd, chunk_id)
-        apply_precracks!(body_chunk, body)
-        apply_initial_conditions!(body_chunk, body)
-        body_chunks[chunk_id] = body_chunk
-    end
-
-    return body_chunks
-end
-
-function _chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition, ::Type{D},
-                            ::Type{S}, ::Val{N}) where {M,P,D,S,T,N}
-    body_chunks = Vector{MultiParamBodyChunk{M,P,D,S}}(undef, pd.n_chunks)
-
-    @threads :static for chunk_id in eachindex(pd.decomp)
-        body_chunk = MultiParamBodyChunk(body, ts, pd, chunk_id)
-        apply_precracks!(body_chunk, body)
-        apply_initial_conditions!(body_chunk, body)
-        body_chunks[chunk_id] = body_chunk
-    end
-
-    return body_chunks
-end
-
 @inline get_material_type(::MultiParamBodyChunk{M,P,D,S}) where {M,P,D,S} = M
 @inline get_material_type(::BodyChunk{M,P,D,S}) where {M,P,D,S} = M
 @inline get_material_type(::Vector{MultiParamBodyChunk{M,P,D,S}}) where {M,P,D,S} = M

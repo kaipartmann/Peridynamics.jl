@@ -28,7 +28,7 @@
     @test ch.point_ids == [1, 2, 3, 4]
     @test ch.loc_points == [1, 2]
     @test ch.halo_points == [3, 4]
-    @test ch.halo_by_src[2] == 3:4
+    @test ch.hidxs_by_src[2] == 3:4
 
     for i in 1:4
         @test ch.localizer[i] == i
@@ -53,7 +53,7 @@
     @test ch.point_ids == [3, 4, 1, 2]
     @test ch.loc_points == [3, 4]
     @test ch.halo_points == [1, 2]
-    @test ch.halo_by_src[1] == 3:4
+    @test ch.hidxs_by_src[1] == 3:4
     @test ch.localizer[3] == 1
     @test ch.localizer[4] == 2
     @test ch.localizer[1] == 3
