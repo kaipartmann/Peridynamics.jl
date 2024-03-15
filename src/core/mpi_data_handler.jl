@@ -40,11 +40,13 @@ end
 function MPIDataHandler(body::Body, time_solver::AbstractTimeSolver,
                         point_decomp::PointDecomposition, v::Val{N}) where {N}
     chunk = chop_body_mpi(body, time_solver, point_decomp, v)
-    halo_infos = get_halo_infos(chunk, point_decomp, body.n_points)
-    read_hexs, write_hexs = find_halo_exchange_bufs(chunk, halo_infos)
-    read_hexs_send, read_hexs_recv = filter_send_recv(read_hexs)
-    write_hexs_send, write_hexs_recv = filter_send_recv(write_hexs)
-    read_reqs, write_reqs = init_reqs(read_hexs_send), init_reqs(write_hexs_send)
+    @timeit_debug TO "find halo exchanges" begin
+        halo_infos = get_halo_infos(chunk, point_decomp, body.n_points)
+        read_hexs, write_hexs = find_halo_exchange_bufs(chunk, halo_infos)
+        read_hexs_send, read_hexs_recv = filter_send_recv(read_hexs)
+        write_hexs_send, write_hexs_recv = filter_send_recv(write_hexs)
+        read_reqs, write_reqs = init_reqs(read_hexs_send), init_reqs(write_hexs_send)
+    end
     return MPIDataHandler(chunk, read_hexs_send, read_hexs_recv, write_hexs_send,
                           write_hexs_recv, read_reqs, write_reqs)
 end
@@ -62,7 +64,7 @@ end
 
 function _chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
                         ::Val{1}) where {M,P,T}
-    chunk = BodyChunk(body, ts, pd, mpi_chunk_id())
+    @timeit_debug TO "chop chunk" chunk = BodyChunk(body, ts, pd, mpi_chunk_id())
     apply_precracks!(chunk, body)
     apply_initial_conditions!(chunk, body)
     return chunk
@@ -70,7 +72,7 @@ end
 
 function _chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
                         ::Val{N}) where {M,P,T,N}
-    chunk = MultiParamBodyChunk(body, ts, pd, mpi_chunk_id())
+    @timeit_debug TO "chop chunk" chunk = MultiParamBodyChunk(body, ts, pd, mpi_chunk_id())
     apply_precracks!(chunk, body)
     apply_initial_conditions!(chunk, body)
     return chunk

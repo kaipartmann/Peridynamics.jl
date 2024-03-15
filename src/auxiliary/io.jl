@@ -76,27 +76,9 @@ function check_storage_fields(::Type{S}, fields::Vector{Symbol}) where {S}
     return nothing
 end
 
-function export_results(dh::AbstractDataHandler, options::ExportOptions, chunk_id::Int,
-                        timestep::Int, time::Float64)
-    options.exportflag || return nothing
-    if mod(timestep, options.freq) == 0
-        _export_results(dh.chunks[chunk_id], chunk_id, dh.n_chunks, options, timestep, time)
-    end
-    return nothing
-end
-
-function export_reference_results(dh::AbstractDataHandler, options::ExportOptions)
-    options.exportflag || return nothing
-    @threads :static for chunk_id in eachindex(dh.chunks)
-        _export_results(dh.chunks[chunk_id], chunk_id, dh.n_chunks, options, 0, 0.0)
-    end
-    return nothing
-end
-
 function _export_results(b::AbstractBodyChunk, chunk_id::Int, n_chunks::Int,
                          options::ExportOptions, n::Int, t::Float64)
-    # filename = @sprintf("timestep_%05d", n)
-    filename = joinpath(options.vtk, @sprintf("timestep_%05d", n))
+    filename = @sprintf("timestep_%05d", n)
     position = get_loc_position(b)
     pvtk_grid(filename, position, b.cells; part=chunk_id, nparts=n_chunks) do vtk
         for field in options.fields

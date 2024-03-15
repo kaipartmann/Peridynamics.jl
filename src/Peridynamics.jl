@@ -21,10 +21,7 @@ const QUIET = Ref(false)
 @inline mpi_nranks() = MPI_SIZE[]
 @inline mpi_sim() = MPI_SIM[]
 @inline quiet() = QUIET[]
-@inline function set_quiet(b::Bool)
-    QUIET[] = b
-    return nothing
-end
+@inline set_quiet!(b::Bool) = (QUIET[] = b; return nothing)
 @inline mpi_chunk_id() = mpi_rank() + 1
 @inline mpi_isroot() = mpi_rank() == 0
 
@@ -110,6 +107,7 @@ include("physics/correspondence.jl")
 include("auxiliary/function_arguments.jl")
 include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
+include("auxiliary/mpi_timers.jl")
 
 include("core/job.jl")
 include("core/submit.jl")
