@@ -19,11 +19,11 @@
     vv = VelocityVerlet(steps=2)
     job = Job(b1, vv; path=root, freq=1)
 
-    @test_throws ArgumentError process_each_export((r, id) -> nothing, job)
+    @test_throws ArgumentError process_each_export((r0, r, id) -> nothing, job)
 
     submit(job)
 
-    process_each_export(job) do result, file_id
+    process_each_export(job) do result0, result, file_id
         filename = string("max_displacement_", file_id, ".txt")
         open(joinpath(root_post_threads, filename), "w+") do io
             maxdisp = maximum(result[:displacement][1,:])
@@ -42,7 +42,7 @@
     @test isfile(file_3_threads)
     @test contains(read(file_3_threads, String), "maximum displacement x: 2.4")
 
-    process_each_export(job; serial=true) do result, file_id
+    process_each_export(job; serial=true) do result0, result, file_id
         filename = string("max_displacement_", file_id, ".txt")
         open(joinpath(root_post_serial, filename), "w+") do io
             msg = string("maximum displacement x: ", maximum(result[:displacement][1,:]))
@@ -63,7 +63,7 @@
     mpi_cmd = """
     using Peridynamics
     files = "$(joinpath(root, "vtk"))"
-    process_each_export(files) do result, file_id
+    process_each_export(files) do result0, result, file_id
         filename = string("max_displacement_", file_id, ".txt")
         open(joinpath("$(root_post_mpi)", filename), "w+") do io
             maxdisp = maximum(result[:displacement][1,:])
