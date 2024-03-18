@@ -1,4 +1,10 @@
 @setup_workload begin
+    if haskey(ENV, "MPI_LOCALRANKID")
+        msg = "precompilation triggered during mpirun!\n"
+        msg *= "The precompilation is not safe to use with MPI!\n"
+        msg *= "Trigger package precompilation manually and then restart the mpirun!\n"
+        error(msg)
+    end
     l, Δx, δ, a = 1.0, 1 / 4, 3.015 / 4, 0.5
     root = joinpath(@__DIR__, "temp_precompilation")
     pos, vol = uniform_box(l, l, l, Δx)

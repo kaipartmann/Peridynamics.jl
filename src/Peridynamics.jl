@@ -11,15 +11,13 @@ export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
        VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
        process_each_export, mpi_isroot
 
-const MPI_INITIALIZED = Ref(false)
-const MPI_RANK = Ref(-1)
-const MPI_SIZE = Ref(-1)
-const MPI_SIM = Ref(false)
+const MPI_RUN = Ref(false)
 const QUIET = Ref(false)
 @inline mpi_comm() = MPI.COMM_WORLD
-@inline mpi_rank() = MPI_RANK[]
-@inline mpi_nranks() = MPI_SIZE[]
-@inline mpi_sim() = MPI_SIM[]
+@inline mpi_rank() = MPI.Comm_rank(MPI.COMM_WORLD)
+@inline mpi_nranks() = MPI.Comm_size(MPI.COMM_WORLD)
+@inline mpi_run() = MPI_RUN[]
+@inline set_mpi_run!(b::Bool) = (MPI_RUN[] = b; return nothing)
 @inline quiet() = QUIET[]
 @inline set_quiet!(b::Bool) = (QUIET[] = b; return nothing)
 @inline mpi_chunk_id() = mpi_rank() + 1
@@ -42,17 +40,10 @@ const PROCESS_EACH_EXPORT_KWARGS = (:serial,)
 const DimensionSpec = Union{Integer,Symbol}
 
 function __init__()
-    if !MPI_INITIALIZED[]
-        MPI.Init(finalize_atexit=true)
-        MPI_RANK[] = MPI.Comm_rank(MPI.COMM_WORLD)
-        MPI_SIZE[] = MPI.Comm_size(MPI.COMM_WORLD)
-        MPI_INITIALIZED[] = true
-    end
-    if haskey(ENV, "MPI_LOCALRANKID")
-        MPI_SIM[] = true
-    end
+    MPI.Initialized() || MPI.Init(finalize_atexit=true)
+    set_mpi_run!(haskey(ENV, "MPI_LOCALRANKID"))
     @static if Sys.islinux()
-        MPI_SIM[] || pinthreads(:cores; force=false)
+        mpi_run() || pinthreads(:cores; force=false)
     end
     BLAS.set_num_threads(1)
     return nothing

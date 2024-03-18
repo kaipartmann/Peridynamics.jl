@@ -7,7 +7,7 @@ function submit(job::Job; kwargs...)
     quiet = get_submit_options(o)
     set_quiet!(quiet)
 
-    if mpi_sim()
+    if mpi_run()
         ret = submit_mpi(job)
     else
         ret = submit_threads(job, nthreads())

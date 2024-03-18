@@ -6,7 +6,7 @@ function process_each_export(f::F, vtk_path::AbstractString; kwargs...) where {F
     vtk_files = find_vtk_files(vtk_path)
     if serial
         process_each_export_serial(f, vtk_files)
-    elseif mpi_sim()
+    elseif mpi_run()
         process_each_export_mpi(f, vtk_files)
     else
         process_each_export_threads(f, vtk_files)
