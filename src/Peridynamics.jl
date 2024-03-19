@@ -42,7 +42,7 @@ const DimensionSpec = Union{Integer,Symbol}
 function __init__()
     MPI.Initialized() || MPI.Init(finalize_atexit=true)
     set_mpi_run!(haskey(ENV, "MPI_LOCALRANKID"))
-    if Sys.islinux()
+    @static if Sys.islinux()
         mpi_run() || pinthreads(:cores; force=false)
     end
     BLAS.set_num_threads(1)
