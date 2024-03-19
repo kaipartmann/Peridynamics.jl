@@ -41,7 +41,7 @@ const DimensionSpec = Union{Integer,Symbol}
 
 function __init__()
     MPI.Initialized() || MPI.Init(finalize_atexit=true)
-    set_mpi_run!(haskey(ENV, "MPI_LOCALRANKID"))
+    set_mpi_run!(mpi_run_check())
     @static if Sys.islinux()
         mpi_run() || pinthreads(:cores; force=false)
     end
@@ -99,6 +99,7 @@ include("auxiliary/function_arguments.jl")
 include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
 include("auxiliary/mpi_timers.jl")
+include("auxiliary/mpi_run_check.jl")
 
 include("core/job.jl")
 include("core/submit.jl")
