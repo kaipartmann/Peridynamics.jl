@@ -4,7 +4,28 @@
 @inline mpi_run() = MPI_RUN[]
 @inline mpi_chunk_id() = mpi_rank() + 1
 @inline mpi_isroot() = MPI_ISROOT[]
-@inline force_mpi_run!() = (MPI_RUN[] = true; MPI_RUN_FORCED[] = true; return nothing)
+
+"""
+    force_mpi_run!()
+
+After this function is called, all following simulations will use MPI.
+"""
+@inline function force_mpi_run!()
+    MPI_RUN[] = true
+    MPI_RUN_FORCED[] = true
+    return nothing
+end
+
+"""
+    force_threads_run!()
+
+After this function is called, all following simulations will use multithreading.
+"""
+@inline function force_threads_run!()
+    MPI_RUN[] = false
+    MPI_RUN_FORCED[] = true
+    return nothing
+end
 
 @inline function set_mpi_run!(b::Bool)
     MPI_RUN_FORCED[] && return nothing
@@ -23,7 +44,7 @@ function init_mpi()
 end
 
 function mpi_run_initial_check()
-    MPI_RUN_FORCED[] && return true
+    MPI_RUN_FORCED[] && return MPI_RUN[]
     haskey(ENV, "MPI_LOCALRANKID") && return true
     mpi_nranks() > 1 && return true
     nthreads() > 1 && return false

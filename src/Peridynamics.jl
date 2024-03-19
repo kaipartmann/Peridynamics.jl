@@ -9,8 +9,8 @@ end
 export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
        failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
        VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
-       process_each_export, mpi_isroot, force_mpi_run!, enable_mpi_timers!,
-       disable_mpi_timers!
+       process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
+       enable_mpi_timers!, disable_mpi_timers!
 
 const MPI_INITIALIZED = Ref(false)
 const MPI_RUN = Ref(false)
