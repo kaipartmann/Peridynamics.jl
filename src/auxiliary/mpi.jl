@@ -49,12 +49,12 @@ function log_mpi_timers(options::ExportOptions)
     return nothing
 end
 
-function enable_mpi_timers()
+function enable_mpi_timers!()
     Core.eval(Peridynamics, :(TimerOutputs.enable_debug_timings(Peridynamics)))
     return nothing
 end
 
-function disable_mpi_timers()
+function disable_mpi_timers!()
     Core.eval(Peridynamics, :(TimerOutputs.disable_debug_timings(Peridynamics)))
     return nothing
 end
