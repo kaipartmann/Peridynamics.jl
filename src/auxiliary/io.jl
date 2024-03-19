@@ -92,3 +92,16 @@ end
 @inline function get_loc_position(b::AbstractBodyChunk)
     return @views b.store.position[:, 1:b.ch.n_loc_points]
 end
+
+function init_export(options::ExportOptions)
+    options.exportflag || return ""
+    run_pwd = pwd()
+    mkpath(options.vtk)
+    cd(options.vtk)
+    return run_pwd
+end
+
+function finish_export(options::ExportOptions, run_pwd::AbstractString)
+    options.exportflag && cd(run_pwd)
+    return nothing
+end

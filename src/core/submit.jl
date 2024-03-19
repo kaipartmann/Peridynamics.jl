@@ -56,15 +56,3 @@ function submit_threads(job::Job, n_chunks::Int)
     finish_export(job.options, run_pwd)
     return tdh
 end
-
-function init_export(options::ExportOptions)
-    options.exportflag || return ""
-    run_pwd = pwd()
-    cd(options.vtk)
-    return run_pwd
-end
-
-function finish_export(options::ExportOptions, run_pwd::AbstractString)
-    options.exportflag && cd(run_pwd)
-    return nothing
-end
