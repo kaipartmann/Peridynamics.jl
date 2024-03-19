@@ -9,19 +9,14 @@ end
 export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
        failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
        VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
-       process_each_export, mpi_isroot
+       process_each_export, mpi_isroot, force_mpi_run!, enable_mpi_timers,
+       disable_mpi_timers
 
+const MPI_INITIALIZED = Ref(false)
 const MPI_RUN = Ref(false)
+const MPI_RUN_FORCED = Ref(false)
+const MPI_ISROOT = Ref(false)
 const QUIET = Ref(false)
-@inline mpi_comm() = MPI.COMM_WORLD
-@inline mpi_rank() = MPI.Comm_rank(MPI.COMM_WORLD)
-@inline mpi_nranks() = MPI.Comm_size(MPI.COMM_WORLD)
-@inline mpi_run() = MPI_RUN[]
-@inline set_mpi_run!(b::Bool) = (MPI_RUN[] = b; return nothing)
-@inline quiet() = QUIET[]
-@inline set_quiet!(b::Bool) = (QUIET[] = b; return nothing)
-@inline mpi_chunk_id() = mpi_rank() + 1
-@inline mpi_isroot() = mpi_rank() == 0
 
 const TO = TimerOutput()
 
@@ -40,8 +35,7 @@ const PROCESS_EACH_EXPORT_KWARGS = (:serial,)
 const DimensionSpec = Union{Integer,Symbol}
 
 function __init__()
-    MPI.Initialized() || MPI.Init(finalize_atexit=true)
-    set_mpi_run!(mpi_run_check())
+    init_mpi()
     @static if Sys.islinux()
         mpi_run() || pinthreads(:cores; force=false)
     end
@@ -98,8 +92,7 @@ include("physics/correspondence.jl")
 include("auxiliary/function_arguments.jl")
 include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
-include("auxiliary/mpi_timers.jl")
-include("auxiliary/mpi_run_check.jl")
+include("auxiliary/mpi.jl")
 
 include("core/job.jl")
 include("core/submit.jl")
