@@ -2,6 +2,8 @@ module Peridynamics
 
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, NearestNeighbors, ProgressMeter,
       WriteVTK, TimerOutputs, MPI, PrecompileTools
+import TrixiParticles
+import TrixiParticles: GridNeighborhoodSearch, for_particle_neighbor
 @static if Sys.islinux()
     using ThreadPinning
 end

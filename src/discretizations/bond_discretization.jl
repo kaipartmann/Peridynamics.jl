@@ -37,28 +37,19 @@ function check_bond_discretization_compat(mat::M) where {M<:AbstractMaterial}
 end
 
 function find_bonds(body::Body, loc_points::UnitRange{Int})
-    balltree = BallTree(body.position)
+    gnhs = GridNeighborhoodSearch{3}(get_point_param(body, :δ, 1), body.n_points)
+    TrixiParticles.initialize!(gnhs, body.position)
     bonds = Vector{Bond}()
     sizehint!(bonds, body.n_points * 300)
-    n_neighbors = zeros(Int, length(loc_points))
-    for (li, i) in enumerate(loc_points)
-        n_neighbors[li] = find_bonds!(bonds, balltree, body.position, body.fail_permit,
-                                      get_point_param(body, :δ, i), i)
+
+    n_neighbors = zeros(Int, body.n_points)
+    for_particle_neighbor(@views(body.position[:,loc_points]), body.position, gnhs, parallel=false) do i, j, _, L
+        i == j && return nothing
+        push!(bonds, Bond(j, L, body.fail_permit[i] & body.fail_permit[j]))
+        n_neighbors[i] += 1
+        return nothing
     end
     return bonds, n_neighbors
-end
-
-function find_bonds!(bonds::Vector{Bond}, balltree::BallTree, position::Matrix{Float64},
-                     fail_permit::Vector{Bool}, δ::Float64, i::Int)
-    neigh_idxs_with_i = inrange(balltree, view(position, :, i), δ)
-    neigh_idxs = filter(x -> x != i, neigh_idxs_with_i)
-    for j in neigh_idxs
-        L = sqrt((position[1, j] - position[1, i])^2 +
-                 (position[2, j] - position[2, i])^2 +
-                 (position[3, j] - position[3, i])^2)
-        push!(bonds, Bond(j, L, fail_permit[i] & fail_permit[j]))
-    end
-    return length(neigh_idxs)
 end
 
 function find_bond_ids(n_neighbors::Vector{Int})
