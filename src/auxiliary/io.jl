@@ -78,7 +78,7 @@ end
 
 function _export_results(b::AbstractBodyChunk, chunk_id::Int, n_chunks::Int,
                          options::ExportOptions, n::Int, t::Float64)
-    filename = @sprintf("timestep_%05d", n)
+    filename = @sprintf("timestep_%06d", n)
     position = get_loc_position(b)
     pvtk_grid(filename, position, b.cells; part=chunk_id, nparts=n_chunks) do vtk
         for field in options.fields
