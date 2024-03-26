@@ -161,6 +161,7 @@ end
     using Peridynamics.WriteVTK
 
     root = joinpath(@__DIR__, "tempdir")
+    isdir(root) && rm(root; recursive=true, force=true)
     bname = joinpath(root, "vtk_test")
     name = bname * ".pvtu"
     isfile(name) && rm(name)
@@ -181,13 +182,13 @@ end
         end
     end
 
-    @time result = read_vtk(name)
+    result = read_vtk(name)
 
     @test result[:position] ≈ reduce(hcat, position)
     @test result[:damage] ≈ reduce(vcat, damage)
     @test result[:displacement] ≈ reduce(hcat, displacement)
     @test result[:integer_test] ≈ reduce(vcat, integer_test)
-    @test result[:time] ≈ [time for _ in 1:n_parts]
+    @test result[:time] ≈ [time]
 
     rm(root; recursive=true, force=true)
 end

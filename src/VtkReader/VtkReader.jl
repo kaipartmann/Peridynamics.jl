@@ -180,6 +180,18 @@ function get_data(pda::PDataArray{T,1}, raw_data::Vector{Vector{UInt8}}) where {
     return reduce(vcat, vec_data)
 end
 
+function get_field_data(da::DataArray{T,N}, raw_data::Vector{UInt8}) where {T,N}
+    return get_data(da, raw_data)
+end
+
+function get_field_data(pda::PDataArray{T,N}, raw_data::Vector{Vector{UInt8}}) where {T,N}
+    return unique(get_data(pda, raw_data); dims=2)
+end
+
+function get_field_data(pda::PDataArray{T,1}, raw_data::Vector{Vector{UInt8}}) where {T}
+    return unique(get_data(pda, raw_data))
+end
+
 function get_decompressed_data(da::DataArray{T,N}, raw_data::Vector{UInt8}) where {T,N}
     # extract number of bytes from header
     start = da.offset + 1
@@ -217,7 +229,7 @@ function get_dict(pda, pdas, fdas, raw_data)
         d[da.name] = get_data(da, raw_data)
     end
     for da in fdas
-        d[da.name] = get_data(da, raw_data)
+        d[da.name] = get_field_data(da, raw_data)
     end
     return d
 end
@@ -232,7 +244,15 @@ function get_vtu_files(file::AbstractString)
     pieces = get_elements_by_tagname(unstruct_grid, "Piece")
     isnothing(pieces) && error("UnstructuredGrid does not contain `Piece`!\n")
     vtu_files::Vector{String} = attribute.(pieces, "Source"; required=true)
+    add_pwd!(vtu_files, dirname(file))
     return vtu_files
+end
+
+function add_pwd!(vtu_files::Vector{String}, dirname_file::String)
+    for i in eachindex(vtu_files)
+        vtu_files[i] = joinpath(dirname_file, vtu_files[i])
+    end
+    return nothing
 end
 
 function _read_vtu(vtu_file::AbstractString)

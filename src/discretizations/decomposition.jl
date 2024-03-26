@@ -15,10 +15,10 @@ struct PointDecomposition
     end
 end
 
-function distribute_points(n_points::Int, n_chunks::Int)
-    if n_points >= n_chunks
-        chunk_size = div(n_points, n_chunks)
-        remainder = rem(n_points, n_chunks)
+function distribute_equally(n_elems::Int, n_chunks::Int)
+    if n_elems >= n_chunks
+        chunk_size = div(n_elems, n_chunks)
+        remainder = rem(n_elems, n_chunks)
         sidx = zeros(Int64, n_chunks + 1)
         for i in 1:(n_chunks + 1)
             sidx[i] += (i - 1) * chunk_size + 1
@@ -34,9 +34,9 @@ function distribute_points(n_points::Int, n_chunks::Int)
         end
         return decomp
     else
-        sidx = [1:(n_points + 1);]
+        sidx = [1:(n_elems + 1);]
         decomp = fill(0:-1, n_chunks)
-        for i in 1:n_points
+        for i in 1:n_elems
             decomp[i] = sidx[i]:(sidx[i + 1] - 1)
         end
         return decomp
@@ -44,7 +44,7 @@ function distribute_points(n_points::Int, n_chunks::Int)
 end
 
 function PointDecomposition(b::Body, n_chunks::Int)
-    decomp = distribute_points(b.n_points, n_chunks)
+    decomp = distribute_equally(b.n_points, n_chunks)
     return PointDecomposition(decomp)
 end
 

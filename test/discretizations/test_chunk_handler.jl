@@ -36,10 +36,10 @@ end
     loc_points = 101:200
     n_loc_points = length(loc_points)
     halo_points = Vector{Int}()
-    halo_by_src = Dict{Int,UnitRange{Int}}()
+    hidxs_by_src = Dict{Int,UnitRange{Int}}()
     localizer = Peridynamics.find_localizer(point_ids)
     ch = Peridynamics.ChunkHandler(n_loc_points, point_ids, loc_points, halo_points,
-                                   halo_by_src, localizer)
+                                   hidxs_by_src, localizer)
 
     point_set = [101, 110, 120, 210, 220]
     loc_point_set = Peridynamics.localize(point_set, ch)
@@ -51,10 +51,10 @@ end
     loc_points = 101:200
     n_loc_points = length(loc_points)
     halo_points = Vector{Int}()
-    halo_by_src = Dict{Int,UnitRange{Int}}()
+    hidxs_by_src = Dict{Int,UnitRange{Int}}()
     localizer = Peridynamics.find_localizer(point_ids)
     ch = Peridynamics.ChunkHandler(n_loc_points, point_ids, loc_points, halo_points,
-                                   halo_by_src, localizer)
+                                   hidxs_by_src, localizer)
 
     point_sets = Dict(:a => [101, 110, 120, 210, 220], :b => [1, 2, 3])
     loc_point_sets = Peridynamics.localized_point_sets(point_sets, ch)
@@ -82,7 +82,7 @@ end
 end
 
 @testitem "ChunkHandler" begin
-    pd = Peridynamics.PointDecomposition(Peridynamics.distribute_points(4, 2))
+    pd = Peridynamics.PointDecomposition(Peridynamics.distribute_equally(4, 2))
     bonds = [Peridynamics.Bond(2, 1.0, true),
              Peridynamics.Bond(3, 1.0, true),
              Peridynamics.Bond(4, 1.0, true),
@@ -94,7 +94,7 @@ end
     @test ch.point_ids == [1, 2, 3, 4]
     @test ch.loc_points == 1:2
     @test ch.halo_points == [3, 4]
-    @test ch.halo_by_src[2] == 3:4
+    @test ch.hidxs_by_src[2] == 3:4
     @test ch.localizer[1] == 1
     @test ch.localizer[2] == 2
     @test ch.localizer[3] == 3
@@ -104,20 +104,20 @@ end
     @test ch.point_ids == [3, 4, 2, 1]
     @test ch.loc_points == 3:4
     @test ch.halo_points == [2, 1]
-    @test ch.halo_by_src[1] == 3:4
+    @test ch.hidxs_by_src[1] == 3:4
     @test ch.localizer[1] == 4
     @test ch.localizer[2] == 3
     @test ch.localizer[3] == 1
     @test ch.localizer[4] == 2
 
-    pd = Peridynamics.PointDecomposition(Peridynamics.distribute_points(4, 4))
+    pd = Peridynamics.PointDecomposition(Peridynamics.distribute_equally(4, 4))
     ch = Peridynamics.ChunkHandler(bonds, pd, 1)
     @test ch.point_ids == [1, 2, 3, 4]
     @test ch.loc_points == 1:1
     @test ch.halo_points == [2, 3, 4]
-    @test ch.halo_by_src[2] == 2:2
-    @test ch.halo_by_src[3] == 3:3
-    @test ch.halo_by_src[4] == 4:4
+    @test ch.hidxs_by_src[2] == 2:2
+    @test ch.hidxs_by_src[3] == 3:3
+    @test ch.hidxs_by_src[4] == 4:4
     @test ch.localizer[1] == 1
     @test ch.localizer[2] == 2
     @test ch.localizer[3] == 3
@@ -127,9 +127,9 @@ end
     @test ch.point_ids == [2, 1, 3, 4]
     @test ch.loc_points == 2:2
     @test ch.halo_points == [1, 3, 4]
-    @test ch.halo_by_src[1] == 2:2
-    @test ch.halo_by_src[3] == 3:3
-    @test ch.halo_by_src[4] == 4:4
+    @test ch.hidxs_by_src[1] == 2:2
+    @test ch.hidxs_by_src[3] == 3:3
+    @test ch.hidxs_by_src[4] == 4:4
     @test ch.localizer[1] == 2
     @test ch.localizer[2] == 1
     @test ch.localizer[3] == 3
