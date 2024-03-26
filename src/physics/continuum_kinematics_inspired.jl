@@ -1,5 +1,9 @@
 """
-TODO
+    CKIMaterial <: AbstractMaterial
+
+material for continuum-kinematics-inspired peridynamic simulations
+
+TODO struct
 """
 struct CKIMaterial <: AbstractMaterial end
 

@@ -1,6 +1,11 @@
 
 """
-TODO
+    BBMaterial <: AbstractMaterial
+
+material type for bond-based peridynamic simulations
+
+Point parameters
+TODO struct
 """
 struct BBMaterial <: AbstractMaterial end
 

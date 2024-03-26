@@ -1,5 +1,47 @@
 """
-TODO
+    Job{S<:SpatialSetup,T<:AbstractTimeSolver}
+
+Job that contains all the information required for a peridynamic simulation
+
+# Fields
+
+- `spatial_setup<:SpatialSetup`:
+- `time_solver<:AbstractTimeSolver`:
+- `options::ExportOptions`:
+
+
+TODO @kaipartmann + kwargs
+
+---
+
+Constructors:
+
+    Job(spatial_setup<:SpatialSetup, time_solver<:AbstractTimeSolver; kwargs...)
+
+# Arguments
+
+- `spatial_setup<:SpatialSetup`:
+- `time_solver<:AbstractTimeSolver`:
+
+# Keywords
+
+-
+
+# Throws
+
+- error if keyword is not allowed
+
+# Example
+
+```julia-repl
+julia> b = Body(BBMaterial(), pos, vol)
+julia> vv = VelocityVerlet(steps=2000)
+julia> job = Job(b, vv;
+           path=joinpath(@__DIR__, "results", "mode_I_2"),
+           write=(:displacement, :damage))
+Job{Body{BBMaterial, Peridynamics.BBPointParameters}, VelocityVerlet}(Body{BBMaterial,
+Peridynamics.BBPointParameters}(BBMaterial(), 12500, [-0.49 -0.47 …
+```
 """
 struct Job{S<:SpatialSetup,T<:AbstractTimeSolver}
     spatial_setup::S

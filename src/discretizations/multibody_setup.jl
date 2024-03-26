@@ -1,4 +1,30 @@
 """
+    MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
+
+setup for a peridynamic simulation with multiple bodies
+
+# Fields
+
+- `bodies::Dict{Symbol,Body{M,P}}`:
+- `contacts::Vector{Contact}`:
+
+---
+
+Constructors:
+
+    MultibodySetup(bodies::Dict{Symbol,Body{M,P}}) where {M,P}
+
+# Arguments
+
+- `bodies::Dict{Symbol,Body{M,P}}`:
+
+# Throws
+
+- error if less than 2 bodies are defined
+- error if defined bodies have different material types
+
+# Example
+
 TODO
 """
 mutable struct MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
@@ -37,7 +63,24 @@ function check_if_bodyname_is_defined(ms::MultibodySetup, name::Symbol)
 end
 
 """
-TODO
+    contact!(ms::MultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
+
+defines contact between multiple bodies
+
+# Arguments
+
+- `ms::MultibodySetup`: the multibody setup defined to simulate the contact
+- `body_a::Symbol`: first body in contact
+- `body_b::Symbol`: second body in contact
+
+# Keywords
+
+# Throws
+
+- error if a called body is not defined in the multibody setup
+- error if keyword is not allowed
+
+TODO kwargs
 """
 function contact!(ms::MultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
     check_if_bodyname_is_defined(ms, body_a)

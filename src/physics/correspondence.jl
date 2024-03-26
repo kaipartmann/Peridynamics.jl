@@ -1,6 +1,10 @@
 #TODO: remove @kwdef and do it manually with value warnings / errors.
 """
-TODO
+    NOSBMaterial <: AbstractMaterial
+
+material for non-ordinary state-based peridynamic simulations
+
+TODO struct
 """
 Base.@kwdef struct NOSBMaterial <: AbstractMaterial
     maxdmg::Float64 = 0.95

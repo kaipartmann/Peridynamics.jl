@@ -1,5 +1,9 @@
 """
-TODO
+    OSBMaterial <: AbstractMaterial
+
+material for ordinary state-based peridynamic simulations
+
+TODO struct
 """
 struct OSBMaterial <: AbstractMaterial end
 

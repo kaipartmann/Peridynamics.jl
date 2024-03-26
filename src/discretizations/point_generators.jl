@@ -10,9 +10,7 @@ Creates a grid of points in a cuboid form with lengths `lx`, `ly` and `lz` and t
 - `lx::Real`: length in x-dimension
 - `ly::Real`: length in y-dimension
 - `lz::Real`: length in z-dimension
-- `Δx::Real`: distance of points in x-dimension
-- `Δy::Real`: distance of points in y-dimension
-- `Δz::Real`: distance of points in z-dimension
+- `Δx::Real`: distance between neighboring points
 
 # Keywords
 
@@ -22,8 +20,8 @@ Creates a grid of points in a cuboid form with lengths `lx`, `ly` and `lz` and t
 
 # Returns
 
-- `position::Matrix{<:Real}`: 3×n matrix with position for every point
-- `volume::Vector{<:Real}`: vector with volume for every point
+- `position::Matrix{<:Real}`: 3×n matrix with position of each point
+- `volume::Vector{<:Real}`: vector with volume of each point
 
 # Example
 

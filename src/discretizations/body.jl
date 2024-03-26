@@ -1,5 +1,57 @@
 """
-TODO
+    Body{M<:AbstractMaterial,P<:AbstractPointParameters}
+
+Body for use in peridynamic calculation
+
+# Fields
+
+- `mat::M`: specifies the material model
+- `n_points::Int`: number of material points that represent the body
+- `position::Matrix{Float64}`: 3×n_points matrix with position for each point
+- `volume::Vector{Float64}`: vector with volume for each point
+- `fail_permit::Vector{Bool}`: vector that determines if failure is allowed for each point
+- `point_sets::Dict{Symbol,Vector{Int}}`: dictionary containing the defined point sets
+- `point_params::Vector{P}`:
+- `params_map::Vector{Int}`:
+- `single_dim_bcs::Vector{SingleDimBC}`:
+- `single_dim_ics::Vector{SingleDimIC}`:
+- `point_sets_precracks::Vector{PointSetsPreCrack}`:
+
+TODO @kaipartmann
+---
+
+Constructors:
+
+    Body(mat<:AbstractMaterial, position::AbstractMatrix, volume::AbstractVector)
+
+Creates a body for use in peridynamic calculation
+
+# Arguments
+
+- `mat<:AbstractMaterial`: specifies which material model is used
+- `position::AbstractMatrix`: 3×n matrix with position of each point
+- `volume::AbstractVector`: vector with volume of each point
+
+# Throws
+
+- error if n_points = 0
+- `DimensionMismatch`: error if dimension of position != 3
+
+# Example
+
+```julia-repl
+julia> l, Δx, δ, a = 1.0, 1/50, 3.015/50, 0.5;
+julia> pos, vol = uniform_box(l, l, 0.1l, Δx);
+julia> b = Body(BBMaterial(), pos, vol);
+julia> b
+Body{BBMaterial, Peridynamics.BBPointParameters}(BBMaterial(), 12500,
+[-0.49 -0.47 … 0.47 0.49; -0.49 -0.49 … 0.49 0.49; -0.04 -0.04 … 0.04 0.04],
+[8.000000000000001e-6, 8.000000000000001e-6,  …  8.000000000000001e-6],
+Bool[1, 1, 1, 1, 1, 1, 1, 1, 1, 1  …  1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+Dict{Symbol, Vector{Int64}}(), Peridynamics.BBPointParameters[],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0  …  0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+Peridynamics.SingleDimBC[], Peridynamics.SingleDimIC[], Peridynamics.PointSetsPreCrack[])
+```
 """
 struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
     mat::M
@@ -66,7 +118,34 @@ function check_if_set_is_defined(point_sets::Dict{Symbol,V}, name::Symbol) where
 end
 
 """
-TODO
+    point_set!(b::Body, name::Symbol, points::V) where {V<:AbstractVector}
+    point_set!(f::F, b::Body, name::Symbol) where {F<:Function}
+
+Creates the point set `name` in Body `b` containing all points either defined in `V` or
+described by `F`
+
+# Arguments
+
+- `b::Body`: peridynamic body
+- `name::Symbol`: name of the point set
+- `points<:AbstractVector`: vector of point indices
+- `f<:Function`: function that describes points contained in point set
+
+# Throws
+
+- error if a point set called `name` is already defined
+- `BoundsError`: if points in `V` do not exist
+
+# Example
+
+```julia-repl
+julia> point_set!(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, b, :set_a)
+julia> point_set!(p -> p[1] ≤ -l/2+a && -2δ ≤ p[2] < 0, b, :set_b)
+julia> b.point_sets
+Dict{Symbol, Vector{Int64}} with 4 entries:
+  :set_a      => [1251, 1252, 1253, 1254, 1255, 1256, 1257, 1258, 1259, …
+  :set_b      => [951, 952, 953, 954, 955, 956, 957, 958, 959, 960  …  1…
+```
 """
 function point_set! end
 
@@ -92,7 +171,35 @@ function _point_set!(point_sets::Dict{Symbol,Vector{Int}}, name::Symbol,
 end
 
 """
-TODO
+    failure_permit!(b::Body, fail_permit::Bool)
+    failure_permit!(b::Body, name::Symbol, fail_permit::Bool)
+
+determines whether failure is permitted `fail_permit = true` or prohibited
+`fail_permit = false` in the body `b` or the point set `name` of body `b`
+
+# Arguments
+
+- `b::Body`: peridynamic body
+- `name::Symbol`: name of the point set on body `b`
+- `fail_permit::Bool`: decides if failure is allowed on considered body or point set
+
+# Throws
+
+- error if no point set called `name` exists
+
+# Example
+
+```julia-repl
+julia> failure_permit!(b, :set_bottom, false)
+julia> b.fail_permit
+12500-element Vector{Bool}:
+ 0
+ 0
+ 0
+ ⋮
+ 1
+ 1
+```
 """
 function failure_permit! end
 
@@ -114,7 +221,30 @@ function check_material_kwargs(mat::M, p::Dict{Symbol,Any}) where {M<:AbstractMa
 end
 
 """
-TODO
+    material!(b::Body{M,P}, name::Symbol; kwargs...) where {M,P}
+    material!(b::Body{M,P}; kwargs...) where {M,P}
+
+specifies material parameters used for body `b` or point set `name`
+
+# Arguments
+
+- `b::Body{M,P}`: peridynamic body
+- `name::Symbol`: point set on body `b`
+
+{M,P}?
+kwargs? auf standardwerte verweisen
+auf material verweisen
+
+# Example
+
+```julia-repl
+julia> b = Body(BBMaterial(), pos, vol);
+
+julia> material!(b; horizon=δ, E=2.1e5, rho=8e-6, Gc=2.7)
+
+```
+
+TODO kwargs
 """
 function material! end
 
@@ -175,7 +305,36 @@ function _condition!(conditions::Vector{B}, condition::B) where {B<:AbstractCond
 end
 
 """
-TODO
+    velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
+
+specifies velocity boundary conditions for point set `name` on body `b`
+
+# Arguments
+
+- `f<:Function`: velocity condition function
+- `b::Body`: peridynamic body
+- `name::Symbol`: point set on body `b`
+- `d::DimensionSpec`: direction of velocity
+
+# Throws
+
+- error if no point set called `name` exists
+- error if dimension is not correctly specified
+- error if function is not suitable as condition function
+
+# Example
+
+```julia-repl
+julia> velocity_bc!(t -> -9.81 * t, b, :set_bottom, :y)
+julia> b.single_dim_bcs
+1-element Vector{Peridynamics.SingleDimBC}:
+ Peridynamics.SingleDimBC{var"#15#16"}(var"#15#16"(), :velocity_half, :set_bottom, 0x02)
+julia> velocity_bc!(t -> 40, b, :set_a, 1)
+julia> b.single_dim_bcs
+2-element Vector{Peridynamics.SingleDimBC}:
+ Peridynamics.SingleDimBC{var"#15#16"}(var"#15#16"(), :velocity_half, :set_bottom, 0x02)
+ Peridynamics.SingleDimBC{var"#17#18"}(var"#17#18"(), :velocity_half, :set_a, 0x01)
+```
 """
 function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
     check_if_set_is_defined(b.point_sets, name)
@@ -192,7 +351,30 @@ function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:F
 end
 
 """
-TODO
+    velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
+
+specifies initital conditions for the velocity of points in point set `name` on body `b`
+
+# Arguments
+
+- `b::Body`: peridynamic body
+- `name::Symbol`: point set on body `b`
+- `d::DimensionSpec`: direction of velocity
+- `value::Real`: initial velocity value
+
+# Throws
+
+- error if no point set called `name` exists
+- error if dimension is not correctly specified
+
+# Example
+
+```julia-repl
+julia> velocity_ic!(b, :set_b, :y, 20)
+julia> b.single_dim_ics
+1-element Vector{Peridynamics.SingleDimIC}:
+ Peridynamics.SingleDimIC(20.0, :velocity, :set_b, 0x02)
+```
 """
 function velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
     check_if_set_is_defined(b.point_sets, name)
@@ -203,7 +385,31 @@ function velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
 end
 
 """
-TODO
+    forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
+
+specifies boundary conditions for force density on points of point set `name` on body `b`
+
+# Arguments
+
+- `f<:Function`: condition function
+- `b::Body`: peridynamic body
+- `name::Symbol`: point set on body `b`
+- `d::DimensionSpec`: direction of force density
+
+# Throws
+
+- error if no point set called `name` exists
+- error if dimension is not correctly specified
+- error if function is not suitable as condition function
+
+# Example
+
+```julia-repl
+julia> forcedensity_bc!(t -> 40, b, :set_a, 1)
+julia> b.single_dim_bcs
+1-element Vector{Peridynamics.SingleDimBC}:
+ Peridynamics.SingleDimBC{var"#25#26"}(var"#25#26"(), :b_ext, :set_a, 0x01)
+```
 """
 function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
     check_if_set_is_defined(b.point_sets, name)
@@ -231,7 +437,30 @@ function check_if_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Sy
 end
 
 """
-TODO
+    precrack!(b::Body, set_a::Symbol, set_b::Symbol)
+
+creates a crack between two point sets by prohibiting interaction between points of
+different point sets
+
+# Arguments
+
+- `b::Body`: peridynamic body
+- `set_a::Symbol`: first point set
+- `set_b::Symbol`: second point set
+
+# Throws
+
+- error if point set `set_a` or `set_b` does not exist
+- error if point sets contain common points
+
+# Example
+
+```julia-repl
+julia> precrack!(b, :set_a, :set_b)
+julia> b.point_sets_precracks
+1-element Vector{Peridynamics.PointSetsPreCrack}:
+ Peridynamics.PointSetsPreCrack(:set_a, :set_b)
+```
 """
 function precrack!(b::Body, set_a::Symbol, set_b::Symbol)
     check_if_set_is_defined(b.point_sets, set_a)
