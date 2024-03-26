@@ -1,5 +1,5 @@
 @setup_workload begin
-    if haskey(ENV, "MPI_LOCALRANKID")
+    if mpi_run()
         msg = "precompilation triggered during mpirun!\n"
         msg *= "The precompilation is not safe to use with MPI!\n"
         msg *= "Trigger package precompilation manually and then restart the mpirun!\n"
