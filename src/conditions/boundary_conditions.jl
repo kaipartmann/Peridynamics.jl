@@ -23,10 +23,10 @@ end
 
 function apply_bcs!(b::AbstractBodyChunk, time::Float64)
     for bc in b.sdbcs
-        apply_bc!(b.store, b.psets, bc, time)
+        apply_bc!(b.storage, b.psets, bc, time)
     end
     for bc in b.pdsdbcs
-        apply_bc!(b.store, b.psets, bc, b.system.position, time)
+        apply_bc!(b.storage, b.psets, bc, b.system.position, time)
     end
     return nothing
 end

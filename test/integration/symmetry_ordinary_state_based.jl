@@ -33,7 +33,7 @@
     zm = findall(pos[3,:] .< 0)
 
     # check the symmetry
-    end_position = first(dh.chunks).store.position
+    end_position = first(dh.chunks).storage.position
     @test !(end_position ≈ pos)
     @test sort(end_position[1,xp]) ≈ sort(-end_position[1,xm])
     @test sort(end_position[2,xp]) ≈ sort(end_position[2,xm])
@@ -46,7 +46,7 @@
     @test sort(end_position[3,zp]) ≈ sort(-end_position[3,zm])
 
     # check if points have moved and are not zero
-    end_displacement = first(dh.chunks).store.displacement
+    end_displacement = first(dh.chunks).storage.displacement
     for i in axes(end_displacement, 2)
         for d in axes(end_displacement, 1)
             @test abs(end_displacement[d, i]) > 0
