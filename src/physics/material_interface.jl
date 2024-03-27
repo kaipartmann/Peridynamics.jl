@@ -40,5 +40,5 @@ storage_field(s::AbstractStorage, ::Val{:b_int}) = getfield(s, :b_int)
 storage_field(s::AbstractStorage, ::Val{:b_ext}) = getfield(s, :b_ext)
 storage_field(s::AbstractStorage, ::Val{:damage}) = getfield(s, :damage)
 function storage_field(::S, ::Val{F}) where {S,F}
-    throw(ArgumentError("field $F no known in $(S)\n"))
+    throw(ArgumentError("field $F not known in $(S)\n"))
 end
