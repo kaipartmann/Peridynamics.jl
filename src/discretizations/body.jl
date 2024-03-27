@@ -5,19 +5,18 @@ Body for use in peridynamic calculation
 
 # Fields
 
-- `mat::M`: specifies the material model
+- `mat<:AbstractMaterial`: specified material model
 - `n_points::Int`: number of material points that represent the body
 - `position::Matrix{Float64}`: 3×n_points matrix with position for each point
 - `volume::Vector{Float64}`: vector with volume for each point
-- `fail_permit::Vector{Bool}`: vector that determines if failure is allowed for each point
+- `fail_permit::Vector{Bool}`: vector that describes if failure is allowed for each point
 - `point_sets::Dict{Symbol,Vector{Int}}`: dictionary containing the defined point sets
-- `point_params::Vector{P}`:
-- `params_map::Vector{Int}`:
-- `single_dim_bcs::Vector{SingleDimBC}`:
-- `single_dim_ics::Vector{SingleDimIC}`:
-- `point_sets_precracks::Vector{PointSetsPreCrack}`:
+- `point_params::Vector{P}`: vector with material parameter sets
+- `params_map::Vector{Int}`: vector that assigns a material parameter set to each point
+- `single_dim_bcs::Vector{SingleDimBC}`: vector with defined boundary conditions
+- `single_dim_ics::Vector{SingleDimIC}`: vector with defined initial conditions
+- `point_sets_precracks::Vector{PointSetsPreCrack}`: vector with defined cracks
 
-TODO @kaipartmann
 ---
 
 Constructors:
@@ -40,7 +39,7 @@ Creates a body for use in peridynamic calculation
 # Example
 
 ```julia-repl
-julia> l, Δx, δ, a = 1.0, 1/50, 3.015/50, 0.5;
+julia> l, Δx, = 1.0, 1/50;
 julia> pos, vol = uniform_box(l, l, 0.1l, Δx);
 julia> b = Body(BBMaterial(), pos, vol);
 julia> b
@@ -221,30 +220,42 @@ function check_material_kwargs(mat::M, p::Dict{Symbol,Any}) where {M<:AbstractMa
 end
 
 """
-    material!(b::Body{M,P}, name::Symbol; kwargs...) where {M,P}
-    material!(b::Body{M,P}; kwargs...) where {M,P}
+    material!(b::Body{M,P}, name::Symbol; kwargs...)
+    material!(b::Body{M,P}; kwargs...)
+        where {M<:AbstractMaterial,P<:AbstractPointParameters}
 
 specifies material parameters used for body `b` or point set `name`
 
 # Arguments
 
-- `b::Body{M,P}`: peridynamic body
+- `b::Body{M<:AbstractMaterial,P<:AbstractPointParameters}`: peridynamic body
 - `name::Symbol`: point set on body `b`
 
-{M,P}?
-kwargs? auf standardwerte verweisen
-auf material verweisen
+# Keywords
+
+Allowed keywords depend on selected material model. See material type documentation.
+Default material parameter keywords:
+
+- `:horizon::Float64`: radius of point interactions
+- `:rho::Float64`: density
+- `:E::Float64`: Young's modulus
+- `:nu::Float64`: Poisson's ratio
+- `:Gc::Float64`: critical energy release rate
+- `:epsilon_c::Float64`: critical strain
+
+# Throws
+
+- error if parameter is not eligible for specification in selected material model
 
 # Example
 
 ```julia-repl
-julia> b = Body(BBMaterial(), pos, vol);
-
 julia> material!(b; horizon=δ, E=2.1e5, rho=8e-6, Gc=2.7)
-
+julia> b.point_params
+1-element Vector{Peridynamics.BBPointParameters}:
+ Peridynamics.BBPointParameters(0.0603, 8.0e-6, 210000.0, 0.25, 84000.0, 140000.0, 84000.0,
+84000.0, 2.7, 0.013329779199368195, 6.0671037207022026e10)
 ```
-
-TODO kwargs
 """
 function material! end
 

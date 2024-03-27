@@ -75,6 +75,9 @@ defines contact between multiple bodies
 
 # Keywords
 
+- `:radius::Float64`:
+- `:sc::Float64`:
+
 # Throws
 
 - error if a called body is not defined in the multibody setup
