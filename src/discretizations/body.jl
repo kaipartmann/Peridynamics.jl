@@ -177,7 +177,7 @@ end
 """
 TODO
 """
-function velocity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
+function velocity_bc!(f::F, b::Body, name::Symbol, d::Union{Integer,Symbol}) where {F<:Function}
     check_if_set_is_defined(b.point_sets, name)
     type = check_condition_function(f)
     dim = get_dim(d)
@@ -194,7 +194,7 @@ end
 """
 TODO
 """
-function velocity_ic!(b::Body, name::Symbol, d::DimensionSpec, value::Real)
+function velocity_ic!(b::Body, name::Symbol, d::Union{Integer,Symbol}, value::Real)
     check_if_set_is_defined(b.point_sets, name)
     dim = get_dim(d)
     sdic = SingleDimIC(convert(Float64, value), :velocity, name, dim)
@@ -205,7 +205,7 @@ end
 """
 TODO
 """
-function forcedensity_bc!(f::F, b::Body, name::Symbol, d::DimensionSpec) where {F<:Function}
+function forcedensity_bc!(f::F, b::Body, name::Symbol, d::Union{Integer,Symbol}) where {F<:Function}
     check_if_set_is_defined(b.point_sets, name)
     type = check_condition_function(f)
     dim = get_dim(d)

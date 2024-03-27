@@ -1,3 +1,9 @@
+const MPI_INITIALIZED = Ref(false)
+const MPI_RUN = Ref(false)
+const MPI_RUN_FORCED = Ref(false)
+const MPI_ISROOT = Ref(false)
+const TO = TimerOutput()
+
 @inline mpi_comm() = MPI.COMM_WORLD
 @inline mpi_rank() = MPI.Comm_rank(MPI.COMM_WORLD)
 @inline mpi_nranks() = MPI.Comm_size(MPI.COMM_WORLD)
@@ -80,12 +86,12 @@ function disable_mpi_timers!()
     return nothing
 end
 
-# @inline function mpi_println(args...)
-#     mpi_isroot() && println(args...)
-#     return nothing
-# end
+@inline function mpi_println(args...)
+    mpi_isroot() && println(args...)
+    return nothing
+end
 
-# @inline function mpi_print(args...)
-#     mpi_isroot() && print(args...)
-#     return nothing
-# end
+@inline function mpi_print(args...)
+    mpi_isroot() && print(args...)
+    return nothing
+end

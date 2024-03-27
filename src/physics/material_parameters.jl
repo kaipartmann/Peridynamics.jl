@@ -1,3 +1,7 @@
+const ELASTIC_KWARGS = (:E, :nu)
+const FRAC_KWARGS = (:Gc, :epsilon_c)
+const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
+
 function get_horizon(p::Dict{Symbol,Any})
     if !haskey(p, :horizon)
         throw(UndefKeywordError(:horizon))

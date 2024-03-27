@@ -10,29 +10,7 @@ export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
        failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
        VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
        process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
-       enable_mpi_timers!, disable_mpi_timers!
-
-const MPI_INITIALIZED = Ref(false)
-const MPI_RUN = Ref(false)
-const MPI_RUN_FORCED = Ref(false)
-const MPI_ISROOT = Ref(false)
-const QUIET = Ref(false)
-
-const TO = TimerOutput()
-
-const FIND_POINTS_ALLOWED_SYMBOLS = (:x, :y, :z, :p)
-const SYMBOL_TO_DIM = Dict(:x => 0x1, :y => 0x2, :z => 0x3)
-const ELASTIC_KWARGS = (:E, :nu)
-const FRAC_KWARGS = (:Gc, :epsilon_c)
-const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
-const CONTACT_KWARGS = (:radius, :sc)
-const EXPORT_KWARGS = (:path, :freq, :fields)
-const DEFAULT_EXPORT_FIELDS = (:displacement, :damage)
-const JOB_KWARGS = (EXPORT_KWARGS...,)
-const SUBMIT_KWARGS = (:quiet,)
-const PROCESS_EACH_EXPORT_KWARGS = (:serial,)
-
-const DimensionSpec = Union{Integer,Symbol}
+       enable_mpi_timers!, disable_mpi_timers!, mpi_println, mpi_print
 
 function __init__()
     init_mpi()

@@ -1,3 +1,5 @@
+const PROCESS_EACH_EXPORT_KWARGS = (:serial,)
+
 function process_each_export(f::F, vtk_path::AbstractString; kwargs...) where {F<:Function}
     o = Dict{Symbol,Any}(kwargs)
     check_kwargs(o, PROCESS_EACH_EXPORT_KWARGS)

@@ -1,3 +1,5 @@
+const SUBMIT_KWARGS = (:quiet,)
+
 """
 TODO
 """

@@ -1,3 +1,7 @@
+const FIND_POINTS_ALLOWED_SYMBOLS = (:x, :y, :z, :p)
+const SYMBOL_TO_DIM = Dict(:x => 0x1, :y => 0x2, :z => 0x3)
+
+
 function find_points(f::F, position::Matrix{Float64}) where {F<:Function}
     func_method = get_method_of_function(f)
     argnames = get_argument_names_of_function(func_method)

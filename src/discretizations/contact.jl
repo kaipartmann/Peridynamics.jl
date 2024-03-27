@@ -1,3 +1,5 @@
+const CONTACT_KWARGS = (:radius, :sc)
+
 struct Contact
     body_id_a::Symbol
     body_id_b::Symbol

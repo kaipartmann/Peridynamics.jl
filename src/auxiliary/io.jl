@@ -1,3 +1,6 @@
+const EXPORT_KWARGS = (:path, :freq, :fields)
+const DEFAULT_EXPORT_FIELDS = (:displacement, :damage)
+
 struct ExportOptions
     exportflag::Bool
     root::String

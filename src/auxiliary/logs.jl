@@ -1,3 +1,5 @@
+const QUIET = Ref(false)
+
 @inline quiet() = QUIET[]
 @inline set_quiet!(b::Bool) = (QUIET[] = b; return nothing)
 
