@@ -64,7 +64,7 @@ function calc_timestep(b::AbstractBodyChunk)
     Δt = fill(Inf, length(each_point_idx(b.ch)))
     for point_id in each_point_idx(b.ch)
         pp = get_param(b, point_id)
-        Δt[point_id] = _calc_timestep(b.dscr, pp, point_id)
+        Δt[point_id] = _calc_timestep(b.system, pp, point_id)
     end
     return minimum(Δt)
 end
