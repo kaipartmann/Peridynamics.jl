@@ -6,6 +6,8 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, NearestNeighbors, Progr
     using ThreadPinning
 end
 
+import LibGit2, Dates
+
 export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
        failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
        VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
