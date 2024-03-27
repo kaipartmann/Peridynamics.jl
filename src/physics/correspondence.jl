@@ -34,7 +34,7 @@ function get_point_params(::NOSBMaterial, p::Dict{Symbol,Any})
     return NOSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@inline discretization_type(::NOSBMaterial) = BondDiscretization
+@inline discretization_type(::NOSBMaterial) = BondSystem
 
 @inline function init_discretization(body::Body{NOSBMaterial}, args...)
     return init_bond_discretization(body, args...)
@@ -57,7 +57,7 @@ const NOSBStorage = Union{NOSBVerletStorage}
 
 @inline storage_type(::NOSBMaterial, ::VelocityVerlet) = NOSBVerletStorage
 
-function init_storage(::Body{NOSBMaterial}, ::VelocityVerlet, bd::BondDiscretization,
+function init_storage(::Body{NOSBMaterial}, ::VelocityVerlet, bd::BondSystem,
                       ch::ChunkHandler)
     n_loc_points = length(ch.loc_points)
     position = copy(bd.position)
@@ -77,7 +77,7 @@ end
 @inline get_halo_read_fields(s::NOSBStorage) = (s.position,)
 @inline get_halo_write_fields(s::NOSBStorage)  = (s.b_int,)
 
-function force_density_point!(s::NOSBStorage, bd::BondDiscretization, mat::NOSBMaterial,
+function force_density_point!(s::NOSBStorage, bd::BondSystem, mat::NOSBMaterial,
                               param::NOSBPointParameters, i::Int)
     F, Kinv, ω0 = calc_deformation_gradient(s, bd, param, i)
     if s.damage[i] > mat.maxdmg || containsnan(F)
@@ -129,7 +129,7 @@ function force_density_point!(s::NOSBStorage, bd::BondDiscretization, mat::NOSBM
     return nothing
 end
 
-function calc_deformation_gradient(s::NOSBStorage, bd::BondDiscretization,
+function calc_deformation_gradient(s::NOSBStorage, bd::BondSystem,
                                    param::NOSBPointParameters, i::Int)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
@@ -175,7 +175,7 @@ function containsnan(K::T) where {T<:AbstractArray}
     return false
 end
 
-function kill_point!(s::AbstractStorage, bd::BondDiscretization, i::Int)
+function kill_point!(s::AbstractStorage, bd::BondSystem, i::Int)
     s.bond_active[each_bond_idx(bd, i)] .= false
     s.n_active_bonds[i] = 0
     return nothing

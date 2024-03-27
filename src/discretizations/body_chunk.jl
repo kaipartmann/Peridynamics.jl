@@ -1,5 +1,5 @@
 struct MultiParamBodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,
-                           D<:AbstractDiscretization,
+                           D<:AbstractSystem,
                            S<:AbstractStorage} <: AbstractBodyChunk
     mat::M
     dscr::D
@@ -28,7 +28,7 @@ function MultiParamBodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
                                cells)
 end
 
-struct BodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,D<:AbstractDiscretization,
+struct BodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,D<:AbstractSystem,
                  S<:AbstractStorage} <: AbstractBodyChunk
     mat::M
     dscr::D
@@ -110,7 +110,7 @@ function apply_precrack!(b::AbstractBodyChunk, body::Body, precrack::PointSetsPr
     return nothing
 end
 
-function _apply_precrack!(s::AbstractStorage, bd::BondDiscretization, ch::ChunkHandler,
+function _apply_precrack!(s::AbstractStorage, bd::BondSystem, ch::ChunkHandler,
                           set_a::Vector{Int}, set_b::Vector{Int})
     s.n_active_bonds .= 0
     for point_id in each_point_idx(ch)

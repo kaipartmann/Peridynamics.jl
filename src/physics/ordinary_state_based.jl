@@ -29,7 +29,7 @@ function get_point_params(::OSBMaterial, p::Dict{Symbol,Any})
     return OSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@inline discretization_type(::OSBMaterial) = BondDiscretization
+@inline discretization_type(::OSBMaterial) = BondSystem
 
 @inline function init_discretization(body::Body{OSBMaterial}, args...)
     return init_bond_discretization(body, args...)
@@ -52,7 +52,7 @@ const OSBStorage = Union{OSBVerletStorage}
 
 @inline storage_type(::OSBMaterial, ::VelocityVerlet) = OSBVerletStorage
 
-function init_storage(::Body{OSBMaterial}, ::VelocityVerlet, bd::BondDiscretization,
+function init_storage(::Body{OSBMaterial}, ::VelocityVerlet, bd::BondSystem,
                       ch::ChunkHandler)
     n_loc_points = length(ch.loc_points)
     position = copy(bd.position)
@@ -72,7 +72,7 @@ end
 @inline get_halo_read_fields(s::OSBStorage) = (s.position,)
 @inline get_halo_write_fields(s::OSBStorage)  = (s.b_int,)
 
-function force_density_point!(s::OSBStorage, bd::BondDiscretization, mat::OSBMaterial,
+function force_density_point!(s::OSBStorage, bd::BondSystem, mat::OSBMaterial,
                               param::OSBPointParameters, i::Int)
     # weighted volume
     wvol = calc_weighted_volume(s, bd, param, i)
@@ -110,7 +110,7 @@ function force_density_point!(s::OSBStorage, bd::BondDiscretization, mat::OSBMat
     return nothing
 end
 
-function calc_weighted_volume(s::OSBStorage, bd::BondDiscretization,
+function calc_weighted_volume(s::OSBStorage, bd::BondSystem,
                               param::OSBPointParameters, i::Int)
     wvol = 0.0
     for bond_id in each_bond_idx(bd, i)
@@ -126,7 +126,7 @@ function calc_weighted_volume(s::OSBStorage, bd::BondDiscretization,
     return wvol
 end
 
-function calc_dilatation(s::OSBStorage, bd::BondDiscretization, param::OSBPointParameters,
+function calc_dilatation(s::OSBStorage, bd::BondSystem, param::OSBPointParameters,
                          wvol::Float64, i::Int)
     dil = 0.0
     c1 = 3.0 / wvol

@@ -4,7 +4,7 @@ struct Bond
     fail_permit::Bool
 end
 
-struct BondDiscretization <: AbstractDiscretization
+struct BondSystem <: AbstractSystem
     position::Matrix{Float64}
     volume::Vector{Float64}
     bonds::Vector{Bond}
@@ -22,14 +22,14 @@ function init_bond_discretization(body::Body, pd::PointDecomposition, chunk_id::
 
     bond_ids = find_bond_ids(n_neighbors)
     position, volume = get_pos_and_vol_chunk(body, ch.point_ids)
-    bd = BondDiscretization(position, volume, bonds, n_neighbors, bond_ids)
+    bd = BondSystem(position, volume, bonds, n_neighbors, bond_ids)
 
     return bd, ch
 end
 
 function check_bond_discretization_compat(mat::M) where {M<:AbstractMaterial}
-    if discretization_type(mat) !== BondDiscretization
-        msg = "body with $(M) incompatible to BondDiscretization!\n"
+    if discretization_type(mat) !== BondSystem
+        msg = "body with $(M) incompatible to BondSystem!\n"
         msg *= "Check the method `discretization_type` for $(M)!\n"
         throw(ArgumentError(msg))
     end
@@ -78,4 +78,4 @@ function get_pos_and_vol_chunk(body::Body, point_ids::AbstractVector{<:Integer})
     return position, volume
 end
 
-@inline each_bond_idx(bd::BondDiscretization, point_id::Int) = bd.bond_ids[point_id]
+@inline each_bond_idx(bd::BondSystem, point_id::Int) = bd.bond_ids[point_id]

@@ -17,7 +17,7 @@
     bc = Peridynamics.BodyChunk(body, ts, pd, 1)
 
     @test bc.mat == mat
-    @test bc.dscr isa Peridynamics.BondDiscretization
+    @test bc.dscr isa Peridynamics.BondSystem
     @test bc.dscr.position == position
     @test bc.dscr.volume == volume
     @test bc.dscr.bonds == [
@@ -65,7 +65,7 @@ end
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.BodyChunk
     @test b1.mat == BBMaterial()
-    @test b1.dscr isa Peridynamics.BondDiscretization
+    @test b1.dscr isa Peridynamics.BondSystem
     @test b1.dscr.position == position
     @test b1.dscr.volume == volume
     @test b1.dscr.bonds == [
@@ -127,7 +127,7 @@ end
     b2 = body_chunks[2]
     @test b2 isa Peridynamics.BodyChunk
     @test b2.mat == BBMaterial()
-    @test b2.dscr isa Peridynamics.BondDiscretization
+    @test b2.dscr isa Peridynamics.BondSystem
     @test b2.dscr.position == position[:, [3, 4, 1, 2]]
     @test b2.dscr.volume == volume[[3, 4, 1, 2]]
     @test b2.dscr.bonds == [
@@ -211,7 +211,7 @@ end
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.MultiParamBodyChunk
     @test b1.mat == BBMaterial()
-    @test b1.dscr isa Peridynamics.BondDiscretization
+    @test b1.dscr isa Peridynamics.BondSystem
     @test b1.dscr.position == position
     @test b1.dscr.volume == volume
     @test b1.dscr.bonds == [
@@ -290,7 +290,7 @@ end
     b2 = body_chunks[2]
     @test b2 isa Peridynamics.MultiParamBodyChunk
     @test b2.mat == BBMaterial()
-    @test b2.dscr isa Peridynamics.BondDiscretization
+    @test b2.dscr isa Peridynamics.BondSystem
     @test b2.dscr.position == position[:, [3, 4, 1, 2]]
     @test b2.dscr.volume == volume[[3, 4, 1, 2]]
     @test b2.dscr.bonds == [

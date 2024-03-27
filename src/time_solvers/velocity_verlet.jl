@@ -69,7 +69,7 @@ function calc_timestep(b::AbstractBodyChunk)
     return minimum(Δt)
 end
 
-function _calc_timestep(bd::BondDiscretization, pp::AbstractPointParameters, point_id::Int)
+function _calc_timestep(bd::BondSystem, pp::AbstractPointParameters, point_id::Int)
     dtsum = 0.0
     for bond_id in each_bond_idx(bd, point_id)
         bond = bd.bonds[bond_id]

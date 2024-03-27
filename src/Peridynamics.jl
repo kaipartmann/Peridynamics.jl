@@ -28,7 +28,7 @@ abstract type AbstractPointParameters end
 
 abstract type AbstractTimeSolver end
 
-abstract type AbstractDiscretization end
+abstract type AbstractSystem end
 
 abstract type AbstractPredefinedCrack end
 
