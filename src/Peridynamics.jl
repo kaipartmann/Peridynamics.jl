@@ -6,7 +6,9 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, NearestNeighbors, Progr
     using ThreadPinning
 end
 
-export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
+import LibGit2
+
+export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, SpatialConfig, Body, point_set!,
        failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
        VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
        process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
