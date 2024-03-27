@@ -31,7 +31,7 @@ function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractSt
         root = abspath(string(o[:path]))
         freq = 10
     elseif !haskey(o, :path) && haskey(o, :freq)
-        msg = "if `freq` is spedified, the keyword `path` is also needed!\n"
+        msg = "if `freq` is specified, the keyword `path` is also needed!\n"
         throw(ArgumentError(msg))
     else
         root = ""

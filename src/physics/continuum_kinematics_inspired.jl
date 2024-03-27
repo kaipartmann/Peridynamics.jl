@@ -1,5 +1,20 @@
 """
-TODO
+    CKIMaterial <: AbstractMaterial
+
+material type for continuum-kinematics-inspired peridynamic simulations
+
+# Allowed material parameters
+
+- `:horizon::Float64`: radius of point interactions
+- `:rho::Float64`: density
+- `:E::Float64`: Young's modulus
+- `:nu::Float64`: Poisson's ratio
+- `:Gc::Float64`: critical energy release rate
+- `:epsilon_c::Float64`: critical strain
+
+# Allowed export fields
+
+TODO struct
 """
 struct CKIMaterial <: AbstractMaterial end
 

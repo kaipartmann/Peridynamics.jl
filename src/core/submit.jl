@@ -1,7 +1,31 @@
 const SUBMIT_KWARGS = (:quiet,)
 
 """
-TODO
+    submit(job::Job; kwargs...)
+
+submits the job to start calculations
+
+# Arguments
+
+- `job::Job`: job that contains all defined parameters and conditions
+
+# Keywords
+
+- `:quiet::Bool`: if `:quiet=true`, no outputs are printed in the terminal
+
+# Throws
+
+- error if keyword is not allowed
+
+# Example
+
+```julia-repl
+julia> job = Job(b, vv;
+           path=joinpath(@__DIR__, "results", "mode_I"),
+           fields=(:displacement, :damage))
+julia> submit(job)
+solve... 100%|████████████████████| Time: 0:00:11
+```
 """
 function submit(job::Job; kwargs...)
     o = Dict{Symbol,Any}(kwargs)

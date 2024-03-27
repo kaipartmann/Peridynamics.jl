@@ -1,5 +1,28 @@
 """
-TODO
+    OSBMaterial <: AbstractMaterial
+
+material type for ordinary state-based peridynamic simulations
+
+# Allowed material parameters
+
+- `:horizon::Float64`: radius of point interactions
+- `:rho::Float64`: density
+- `:E::Float64`: Young's modulus
+- `:nu::Float64`: Poisson's ratio
+- `:Gc::Float64`: critical energy release rate
+- `:epsilon_c::Float64`: critical strain
+
+# Allowed export fields
+
+- `position::Matrix{Float64}`: position of each point
+- `displacement::Matrix{Float64}`: displacement of each point
+- `velocity::Matrix{Float64}`: velocity of each point
+- `velocity_half::Matrix{Float64}`: velocity parameter for Verlet time solver
+- `acceleration::Matrix{Float64}`: acceleration of each point
+- `b_int::Matrix{Float64}`: internal force density of each point
+- `b_ext::Matrix{Float64}`: external force density of each point
+- `damage::Vector{Float64}`: damage of each point
+- `n_active_bonds::Vector{Int}`: number of intact bonds for each point
 """
 struct OSBMaterial <: AbstractMaterial end
 

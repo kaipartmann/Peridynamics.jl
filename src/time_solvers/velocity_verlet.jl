@@ -1,5 +1,39 @@
 """
-TODO
+    VelocityVerlet <: AbstractTimeSolver
+
+Procedure for calculating discrete time steps
+
+# Fields
+
+- `end_time::Float64`: time covered by the simulation
+- `n_steps::Int`: number of time steps calculated
+- `Δt::Float64`: size of discrete time steps
+- `safety_factor::Float64`: safety factor for step size to ensure stability
+
+---
+
+Constructors:
+
+    VelocityVerlet <: AbstractTimeSolver
+
+# Keywords
+
+- `time::Real=-1`: time covered by the simulation
+- `steps::Int=-1`: number of time steps calculated
+- `stepsize::Real=-1`: size of discrete time steps
+- `safety_factor::Real=0.7`: safety factor for step size to ensure stability
+
+# Throws
+
+- error if time and number of steps are specified
+- error if no time or number of steps are specified
+- error if safety factor is not between 0 and 1
+
+# Example
+
+```julia-repl
+julia> vv = VelocityVerlet(steps=2000)
+```
 """
 mutable struct VelocityVerlet <: AbstractTimeSolver
     end_time::Float64

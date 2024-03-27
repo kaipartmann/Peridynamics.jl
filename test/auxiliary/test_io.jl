@@ -18,7 +18,7 @@
     @test eo.fields == [field for field in Peridynamics.DEFAULT_EXPORT_FIELDS]
 
     o = Dict{Symbol,Any}(:freq => 10)
-    msg = "if `freq` is spedified, the keyword `path` is also needed!\n"
+    msg = "if `freq` is specified, the keyword `path` is also needed!\n"
     @test_throws ArgumentError(msg) begin
         Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
     end
