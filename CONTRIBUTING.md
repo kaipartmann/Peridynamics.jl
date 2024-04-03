@@ -6,8 +6,8 @@ as pull requests) any time. For planned larger contributions, it is often
 beneficial to get in contact with one of the principal developers first
 (e.g. [Kai Partmann](kai.partmann@uni-siegen.de)).
 
-TrixiParticles.jl and its contributions are licensed under the MIT license (see
-[LICENSE.md](LICENSE.md)). As a contributor, you certify that all your
+Peridynamics.jl and its contributions are licensed under the MIT license (see
+[LICENSE](LICENSE)). As a contributor, you certify that all your
 contributions are in conformance with the *Developer Certificate of Origin
 (Version 1.1)*, which is reproduced below.
 
