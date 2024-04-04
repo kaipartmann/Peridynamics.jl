@@ -2,18 +2,18 @@
     o = Dict{Symbol,Any}(:path => "rootpath", :freq => 10)
     eo = Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
     @test eo.exportflag == true
-    @test eo.root == abspath("rootpath")
-    @test eo.vtk == abspath(joinpath("rootpath", "vtk"))
-    @test eo.logfile == abspath(joinpath("rootpath", "logfile.log"))
+    @test eo.root == "rootpath"
+    @test eo.vtk == joinpath("rootpath", "vtk")
+    @test eo.logfile == joinpath("rootpath", "logfile.log")
     @test eo.freq == 10
     @test eo.fields == [field for field in Peridynamics.DEFAULT_EXPORT_FIELDS]
 
     o = Dict{Symbol,Any}(:path => "rootpath")
     eo = Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
     @test eo.exportflag == true
-    @test eo.root == abspath("rootpath")
-    @test eo.vtk == abspath(joinpath("rootpath", "vtk"))
-    @test eo.logfile == abspath(joinpath("rootpath", "logfile.log"))
+    @test eo.root == "rootpath"
+    @test eo.vtk == joinpath("rootpath", "vtk")
+    @test eo.logfile == joinpath("rootpath", "logfile.log")
     @test eo.freq == 10
     @test eo.fields == [field for field in Peridynamics.DEFAULT_EXPORT_FIELDS]
 
@@ -41,9 +41,9 @@
     o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext))
     eo = Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
     @test eo.exportflag == true
-    @test eo.root == abspath("rootpath")
-    @test eo.vtk == abspath(joinpath("rootpath", "vtk"))
-    @test eo.logfile == abspath(joinpath("rootpath", "logfile.log"))
+    @test eo.root == "rootpath"
+    @test eo.vtk == joinpath("rootpath", "vtk")
+    @test eo.logfile == joinpath("rootpath", "logfile.log")
     @test eo.freq == 10
     @test eo.fields == [:displacement, :b_ext]
 end
