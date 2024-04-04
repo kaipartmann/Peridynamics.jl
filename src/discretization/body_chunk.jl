@@ -1,6 +1,6 @@
 struct MultiParamBodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,
                            D<:AbstractDiscretization,
-                           S<:AbstractStorage} <: AbstractBodyChunk
+                           S<:AbstractStorage} <: AbstractBodyChunk{M}
     mat::M
     dscr::D
     store::S
@@ -29,7 +29,7 @@ function MultiParamBodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
 end
 
 struct BodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,D<:AbstractDiscretization,
-                 S<:AbstractStorage} <: AbstractBodyChunk
+                 S<:AbstractStorage} <: AbstractBodyChunk{M}
     mat::M
     dscr::D
     store::S

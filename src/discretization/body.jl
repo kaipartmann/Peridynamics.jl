@@ -52,7 +52,7 @@ Dict{Symbol, Vector{Int64}}(), Peridynamics.BBPointParameters[],
 Peridynamics.SingleDimBC[], Peridynamics.SingleDimIC[], Peridynamics.PointSetsPreCrack[])
 ```
 """
-struct Body{M<:AbstractMaterial,P<:AbstractPointParameters}
+struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody
     mat::M
     n_points::Int
     position::Matrix{Float64}

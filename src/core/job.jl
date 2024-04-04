@@ -1,13 +1,13 @@
 const JOB_KWARGS = (EXPORT_KWARGS...,)
 
 """
-    Job{S<:SpatialSetup,T<:AbstractTimeSolver}
+    Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver}
 
 Job that contains all the information required for a peridynamic simulation
 
 # Fields
 
-- `spatial_setup<:SpatialSetup`: Body or Multibody setup for the simulation
+- `spatial_setup<:AbstractSpatialSetup`: Body or Multibody setup for the simulation
 - `time_solver<:AbstractTimeSolver`: method for calculating discrete time steps
 - `options::ExportOptions`: settings for simulation data export
 
@@ -15,13 +15,13 @@ Job that contains all the information required for a peridynamic simulation
 
 Constructors:
 
-    Job(spatial_setup<:SpatialSetup, time_solver<:AbstractTimeSolver,
+    Job(spatial_setup<:AbstractSpatialSetup, time_solver<:AbstractTimeSolver,
         options::ExportOptions)
-    Job(spatial_setup<:SpatialSetup, time_solver<:AbstractTimeSolver; kwargs...)
+    Job(spatial_setup<:AbstractSpatialSetup, time_solver<:AbstractTimeSolver; kwargs...)
 
 # Arguments
 
-- `spatial_setup<:SpatialSetup`: Body or Multibody setup for the simulation
+- `spatial_setup<:AbstractSpatialSetup`: Body or Multibody setup for the simulation
 - `time_solver<:AbstractTimeSolver`: method for calculating discrete time steps
 - `options::ExportOptions`: settings for simulation data export
 
@@ -50,7 +50,7 @@ Job{Body{BBMaterial, Peridynamics.BBPointParameters}, VelocityVerlet}(Body{BBMat
 Peridynamics.BBPointParameters}(BBMaterial(), 12500, [-0.49 -0.47 …
 ```
 """
-struct Job{S<:SpatialSetup,T<:AbstractTimeSolver}
+struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver}
     spatial_setup::S
     time_solver::T
     options::ExportOptions

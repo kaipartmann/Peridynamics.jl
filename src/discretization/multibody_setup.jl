@@ -27,7 +27,8 @@ Constructors:
 
 TODO
 """
-mutable struct MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
+mutable struct MultibodySetup{M<:AbstractMaterial,
+                              P<:AbstractPointParameters} <: AbstractMultibodySetup
     bodies::Dict{Symbol,Body{M,P}}
     contacts::Vector{Contact}
 
@@ -41,8 +42,6 @@ mutable struct MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
         return new{M,P}(bodies, contacts)
     end
 end
-
-const SpatialSetup = Union{Body,MultibodySetup}
 
 function MultibodySetup(::Dict{Symbol,Body})
     msg = "bodies have different material types!\n"

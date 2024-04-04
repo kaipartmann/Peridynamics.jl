@@ -23,23 +23,18 @@ function __init__()
     return nothing
 end
 
-abstract type AbstractJob end
-
+abstract type AbstractSpatialSetup end
+abstract type AbstractBody <: AbstractSpatialSetup end
+abstract type AbstractMultibodySetup <: AbstractSpatialSetup end
 abstract type AbstractMaterial end
 abstract type AbstractPointParameters end
-
 abstract type AbstractTimeSolver end
-
+abstract type AbstractJob end
 abstract type AbstractDiscretization end
-
 abstract type AbstractPredefinedCrack end
-
-abstract type AbstractBodyChunk end
-
+abstract type AbstractBodyChunk{T<:AbstractMaterial} end
 abstract type AbstractDataHandler end
-
 abstract type AbstractStorage end
-
 abstract type AbstractCondition end
 
 include("conditions/boundary_conditions.jl")
