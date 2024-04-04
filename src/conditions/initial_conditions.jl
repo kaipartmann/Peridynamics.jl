@@ -15,6 +15,18 @@ function override_eachother(a::SingleDimIC, b::SingleDimIC)
     return same_field && same_point_set && same_dim
 end
 
+function apply_initial_conditions!(b::AbstractBodyChunk, body::Body)
+    apply_single_dim_ic!(b, body)
+    return nothing
+end
+
+@inline function apply_single_dim_ic!(b::AbstractBodyChunk, body::Body)
+    for ic in body.single_dim_ics
+        apply_ic!(b, ic)
+    end
+    return nothing
+end
+
 function apply_ic!(b::AbstractBodyChunk, ic::SingleDimIC)
     for point_id in b.psets[ic.point_set]
         setindex!(get_storage_field(b.storage, ic.field), ic.value, ic.dim, point_id)

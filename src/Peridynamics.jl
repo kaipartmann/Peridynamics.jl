@@ -54,6 +54,7 @@ include("discretization/decomposition.jl")
 include("discretization/bond_system.jl")
 include("discretization/chunk_handler.jl")
 include("discretization/body_chunk.jl")
+include("discretization/multi_param_body_chunk.jl")
 
 include("time_solvers/time_solver_interface.jl")
 include("time_solvers/velocity_verlet.jl")
