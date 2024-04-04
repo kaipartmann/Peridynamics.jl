@@ -5,7 +5,7 @@ The basic idea is that each point interacts with any other point within the dist
 These interactions called *bonds* provoke forces between points which can be calculated and result in internal forces.
 
 ```@raw html
-<img src="/assets/PDBody.png?raw=true" width="400"/>
+<img src="../assets/PDBody.png" width="400"/>
 ```
 
 Each point $i$ of the body $\mathcal{B}_0$ in initial configuration is characterized by the vector $\boldsymbol{X}^{i}$. The neighborhood $\mathcal{H}^i$ of $i$ contains all points $j$ that are within the distance of horizon $\delta$ to $i$:
