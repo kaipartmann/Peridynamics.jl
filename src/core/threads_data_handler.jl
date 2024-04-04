@@ -5,7 +5,7 @@ struct HaloExchange
     dest_idxs::Vector{Int}
 end
 
-struct ThreadsDataHandler{C<:AbstractBodyChunk} <: AbstractDataHandler
+struct ThreadsDataHandler{C<:AbstractBodyChunk} <: AbstractThreadsDataHandler
     n_chunks::Int
     chunks::Vector{C}
     read_halo_exs::Vector{Vector{HaloExchange}}
@@ -145,7 +145,7 @@ function exchange_write_fields!(dh::ThreadsDataHandler, chunk_id::Int)
     return nothing
 end
 
-function export_results(dh::ThreadsDataHandler, options::ExportOptions, chunk_id::Int,
+function export_results(dh::ThreadsDataHandler, options::AbstractOptions, chunk_id::Int,
                         timestep::Int, time::Float64)
     options.exportflag || return nothing
     if mod(timestep, options.freq) == 0
@@ -154,7 +154,7 @@ function export_results(dh::ThreadsDataHandler, options::ExportOptions, chunk_id
     return nothing
 end
 
-function export_reference_results(dh::ThreadsDataHandler, options::ExportOptions)
+function export_reference_results(dh::ThreadsDataHandler, options::AbstractOptions)
     options.exportflag || return nothing
     @threads :static for chunk_id in eachindex(dh.chunks)
         _export_results(dh.chunks[chunk_id], chunk_id, dh.n_chunks, options, 0, 0.0)

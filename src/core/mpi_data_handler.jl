@@ -20,7 +20,7 @@ struct MPIHaloInfo
     hidxs_by_src::Dict{Int,Dict{Int,Vector{Int}}}
 end
 
-struct MPIDataHandler{C<:AbstractBodyChunk,RB,WB} <: AbstractDataHandler
+struct MPIDataHandler{C<:AbstractBodyChunk,RB,WB} <: AbstractMPIDataHandler
     chunk::C
     read_hexs_send::Vector{HaloExchangeBuf{RB}}
     read_hexs_recv::Vector{HaloExchangeBuf{RB}}
@@ -281,7 +281,7 @@ function recv_write_he!(dh::MPIDataHandler, he::HaloExchangeBuf)
     return nothing
 end
 
-function export_results(dh::MPIDataHandler, options::ExportOptions, n::Int, t::Float64)
+function export_results(dh::MPIDataHandler, options::AbstractOptions, n::Int, t::Float64)
     options.exportflag || return nothing
     if mod(n, options.freq) == 0
         _export_results(dh.chunk, mpi_chunk_id(), mpi_nranks(), options, n, t)
@@ -289,7 +289,7 @@ function export_results(dh::MPIDataHandler, options::ExportOptions, n::Int, t::F
     return nothing
 end
 
-function export_reference_results(dh::MPIDataHandler, options::ExportOptions)
+function export_reference_results(dh::MPIDataHandler, options::AbstractOptions)
     options.exportflag || return nothing
     _export_results(dh.chunk, mpi_chunk_id(), mpi_nranks(), options, 0, 0.0)
     return nothing

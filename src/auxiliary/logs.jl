@@ -7,7 +7,7 @@ is_logging(io) = isa(io, Base.TTY) == false || (get(ENV, "CI", nothing) == "true
 
 @inline progress_enabled() = !is_logging(stderr) && !quiet()
 
-function init_logs(options::ExportOptions)
+function init_logs(options::AbstractOptions)
     options.exportflag || return nothing
     mpi_isroot() || return nothing
     mkpath(options.vtk)
@@ -15,7 +15,7 @@ function init_logs(options::ExportOptions)
     return nothing
 end
 
-function init_logfile(options::ExportOptions)
+function init_logfile(options::AbstractOptions)
     open(options.logfile, "w+") do io
         write(io, get_logfile_head())
         write(io, peridynamics_banner())

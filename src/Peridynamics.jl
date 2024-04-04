@@ -30,10 +30,13 @@ abstract type AbstractMaterial end
 abstract type AbstractPointParameters end
 abstract type AbstractTimeSolver end
 abstract type AbstractJob end
+abstract type AbstractOptions end
 abstract type AbstractDiscretization end
 abstract type AbstractPredefinedCrack end
 abstract type AbstractBodyChunk{T<:AbstractMaterial} end
 abstract type AbstractDataHandler end
+abstract type AbstractThreadsDataHandler <: AbstractDataHandler end
+abstract type AbstractMPIDataHandler <: AbstractDataHandler end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
 
@@ -74,8 +77,6 @@ include("core/submit.jl")
 include("core/halo_exchange.jl")
 include("core/threads_data_handler.jl")
 include("core/mpi_data_handler.jl")
-
-include("time_solvers/solve_velocity_verlet.jl")
 
 include("VtkReader/VtkReader.jl")
 using .VtkReader

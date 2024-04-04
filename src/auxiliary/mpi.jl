@@ -66,7 +66,7 @@ function mpi_run_initial_check()
     return false
 end
 
-function log_mpi_timers(options::ExportOptions)
+function log_mpi_timers(options::AbstractOptions)
     options.exportflag || return nothing
     file = joinpath(options.root, @sprintf("timers_rank_%d.log", mpi_rank()))
     open(file, "w+") do io
