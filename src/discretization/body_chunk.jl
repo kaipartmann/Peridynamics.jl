@@ -3,7 +3,7 @@ struct MultiParamBodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,
                            S<:AbstractStorage} <: AbstractBodyChunk{M}
     mat::M
     system::D
-    store::S
+    storage::S
     param::Vector{P}
     paramap::Vector{Int}
     psets::Dict{Symbol,Vector{Int}}
@@ -17,14 +17,14 @@ function MultiParamBodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
                              chunk_id::Int) where {M,P,T}
     mat = body.mat
     system, ch = init_system(body, pd, chunk_id)
-    store = init_storage(body, ts, system, ch)
+    storage = init_storage(body, ts, system, ch)
     paramap = body.params_map[ch.loc_points]
     param = body.point_params
     psets = localized_point_sets(body.point_sets, ch)
     sdbcs = body.single_dim_bcs
     pdsdbcs = body.posdep_single_dim_bcs
     cells = get_cells(ch.n_loc_points)
-    return MultiParamBodyChunk(mat, system, store, param, paramap, psets, sdbcs, pdsdbcs, ch,
+    return MultiParamBodyChunk(mat, system, storage, param, paramap, psets, sdbcs, pdsdbcs, ch,
                                cells)
 end
 
@@ -32,7 +32,7 @@ struct BodyChunk{M<:AbstractMaterial,P<:AbstractPointParameters,D<:AbstractSyste
                  S<:AbstractStorage} <: AbstractBodyChunk{M}
     mat::M
     system::D
-    store::S
+    storage::S
     param::P
     psets::Dict{Symbol,Vector{Int}}
     sdbcs::Vector{SingleDimBC}
@@ -45,14 +45,14 @@ function BodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
                    chunk_id::Int) where {M,P,T}
     mat = body.mat
     system, ch = init_system(body, pd, chunk_id)
-    store = init_storage(body, ts, system, ch)
+    storage = init_storage(body, ts, system, ch)
     @assert length(body.point_params) == 1
     param = first(body.point_params)
     psets = localized_point_sets(body.point_sets, ch)
     sdbcs = body.single_dim_bcs
     pdsdbcs = body.posdep_single_dim_bcs
     cells = get_cells(ch.n_loc_points)
-    return BodyChunk(mat, system, store, param, psets, sdbcs, pdsdbcs, ch, cells)
+    return BodyChunk(mat, system, storage, param, psets, sdbcs, pdsdbcs, ch, cells)
 end
 
 @inline function get_param(b::MultiParamBodyChunk, point_id::Int)
@@ -72,8 +72,8 @@ end
 
 @inline function calc_damage!(b::AbstractBodyChunk)
     for point_id in each_point_idx(b)
-        dmg = 1 - b.store.n_active_bonds[point_id] / b.system.n_neighbors[point_id]
-        b.store.damage[point_id] = dmg
+        dmg = 1 - b.storage.n_active_bonds[point_id] / b.system.n_neighbors[point_id]
+        b.storage.damage[point_id] = dmg
     end
     return nothing
 end
@@ -106,7 +106,7 @@ function apply_precrack!(b::AbstractBodyChunk, body::Body, precrack::PointSetsPr
     if isempty(set_a) || isempty(set_b)
         return nothing
     end
-    _apply_precrack!(b.store, b.system, b.ch, set_a, set_b)
+    _apply_precrack!(b.storage, b.system, b.ch, set_a, set_b)
     return nothing
 end
 

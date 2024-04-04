@@ -17,7 +17,7 @@ end
 
 function apply_ic!(b::AbstractBodyChunk, ic::SingleDimIC)
     for point_id in b.psets[ic.point_set]
-        setindex!(get_storage_field(b.store, ic.field), ic.value, ic.dim, point_id)
+        setindex!(get_storage_field(b.storage, ic.field), ic.value, ic.dim, point_id)
     end
     return nothing
 end

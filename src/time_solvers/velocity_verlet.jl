@@ -113,7 +113,7 @@ function _calc_timestep(bd::BondSystem, pp::AbstractPointParameters, point_id::I
 end
 
 function update_vel_half!(b::AbstractBodyChunk, Δt½::Float64)
-    _update_vel_half!(b.store.velocity_half, b.store.velocity, b.store.acceleration, Δt½,
+    _update_vel_half!(b.storage.velocity_half, b.storage.velocity, b.storage.acceleration, Δt½,
                       each_point_idx(b))
     return nothing
 end
@@ -128,7 +128,7 @@ function _update_vel_half!(velocity_half, velocity, acceleration, Δt½, each_po
 end
 
 function update_disp_and_pos!(b::AbstractBodyChunk, Δt::Float64)
-    _update_disp_and_pos!(b.store.displacement, b.store.position, b.store.velocity_half, Δt,
+    _update_disp_and_pos!(b.storage.displacement, b.storage.position, b.storage.velocity_half, Δt,
                           each_point_idx(b))
     return nothing
 end
@@ -149,14 +149,14 @@ function _update_disp_and_pos!(displacement, position, velocity_half, Δt, each_
 end
 
 function update_acc_and_vel!(b::BodyChunk, Δt½::Float64)
-    _update_acc_and_vel!(b.store.acceleration, b.store.b_int, b.store.b_ext,
-                         b.store.velocity_half, b.store.velocity, b.param.rho, Δt½,
+    _update_acc_and_vel!(b.storage.acceleration, b.storage.b_int, b.storage.b_ext,
+                         b.storage.velocity_half, b.storage.velocity, b.param.rho, Δt½,
                          each_point_idx(b))
     return nothing
 end
 
 function update_acc_and_vel!(b::MultiParamBodyChunk, Δt½::Float64)
-    s = b.store
+    s = b.storage
     for i in each_point
         param = get_param(b, i)
         _update_acc!(s.acceleration, s.b_int, s.b_ext, param.rho, i)

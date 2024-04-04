@@ -14,7 +14,7 @@
     b = Peridynamics.BodyChunk(body, ts, pd, 1)
     Peridynamics.apply_bcs!(b, 1.0)
 
-    @test b.store.velocity_half ≈ [1.0 1.0; 0.0 0.0; 0.0 0.0]
-    @test b.store.b_ext ≈ [1.0 1.0; 0.0 0.0; 0.0 0.0]
+    @test b.storage.velocity_half ≈ [1.0 1.0; 0.0 0.0; 0.0 0.0]
+    @test b.storage.b_ext ≈ [1.0 1.0; 0.0 0.0; 0.0 0.0]
 
 end
