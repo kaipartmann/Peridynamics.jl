@@ -23,10 +23,10 @@ function __init__()
     return nothing
 end
 
-abstract type AbstractSpatialSetup end
-abstract type AbstractBody <: AbstractSpatialSetup end
-abstract type AbstractMultibodySetup <: AbstractSpatialSetup end
 abstract type AbstractMaterial end
+abstract type AbstractSpatialSetup end
+abstract type AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup end
+abstract type AbstractMultibodySetup{T<:AbstractMaterial} <: AbstractSpatialSetup end
 abstract type AbstractPointParameters end
 abstract type AbstractTimeSolver end
 abstract type AbstractJob end
@@ -34,6 +34,7 @@ abstract type AbstractOptions end
 abstract type AbstractSystem end
 abstract type AbstractPredefinedCrack end
 abstract type AbstractBodyChunk{T<:AbstractMaterial} end
+abstract type AbstractChunkHandler end
 abstract type AbstractDataHandler end
 abstract type AbstractThreadsDataHandler <: AbstractDataHandler end
 abstract type AbstractMPIDataHandler <: AbstractDataHandler end
@@ -46,13 +47,13 @@ include("conditions/condition_checks.jl")
 
 include("discretization/point_generators.jl")
 include("discretization/predefined_cracks.jl")
-include("discretization/find_points.jl")
+include("discretization/point_sets.jl")
 include("discretization/body.jl")
 include("discretization/contact.jl")
 include("discretization/multibody_setup.jl")
 include("discretization/decomposition.jl")
-include("discretization/bond_system.jl")
 include("discretization/chunk_handler.jl")
+include("discretization/bond_system.jl")
 include("discretization/body_chunk.jl")
 include("discretization/multi_param_body_chunk.jl")
 

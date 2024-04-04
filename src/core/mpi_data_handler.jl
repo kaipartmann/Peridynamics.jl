@@ -30,14 +30,14 @@ struct MPIDataHandler{C<:AbstractBodyChunk,RB,WB} <: AbstractMPIDataHandler
     write_reqs::Vector{MPI.Request}
 end
 
-function MPIDataHandler(body::Body, time_solver::AbstractTimeSolver,
+function MPIDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
                         point_decomp::PointDecomposition)
     n_param = length(body.point_params)
     v = n_param == 1 ? Val{1}() : Val{2}()
     return MPIDataHandler(body, time_solver, point_decomp, v)
 end
 
-function MPIDataHandler(body::Body, time_solver::AbstractTimeSolver,
+function MPIDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
                         point_decomp::PointDecomposition, v::Val{N}) where {N}
     chunk = chop_body_mpi(body, time_solver, point_decomp, v)
     @timeit_debug TO "find halo exchanges" begin
@@ -51,7 +51,8 @@ function MPIDataHandler(body::Body, time_solver::AbstractTimeSolver,
                           write_hexs_recv, read_reqs, write_reqs)
 end
 
-function MPIDataHandler(multibody::MultibodySetup, time_solver::AbstractTimeSolver,
+function MPIDataHandler(multibody::AbstractMultibodySetup,
+                        time_solver::AbstractTimeSolver,
                         point_decomp::PointDecomposition)
     error("MultibodySetup not yet implemented!\n")
 end

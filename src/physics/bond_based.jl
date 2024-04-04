@@ -61,10 +61,10 @@ function get_point_params(::BBMaterial, p::Dict{Symbol,Any})
     return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@inline discretization_type(::BBMaterial) = BondSystem
+@inline system_type(::BBMaterial) = BondSystem
 
-@inline function init_system(body::Body{BBMaterial}, args...)
-    return init_bond_system(body, args...)
+@inline function get_system(body::AbstractBody{BBMaterial}, args...)
+    return get_bond_system(body, args...)
 end
 
 struct BBVerletStorage <: AbstractStorage
@@ -84,7 +84,7 @@ const BBStorage = Union{BBVerletStorage}
 
 @inline storage_type(::BBMaterial, ::VelocityVerlet) = BBVerletStorage
 
-function init_storage(::Body{BBMaterial}, ::VelocityVerlet, bd::BondSystem,
+function init_storage(::AbstractBody{BBMaterial}, ::VelocityVerlet, bd::BondSystem,
                       ch::ChunkHandler)
     n_loc_points = length(ch.loc_points)
     position = copy(bd.position)

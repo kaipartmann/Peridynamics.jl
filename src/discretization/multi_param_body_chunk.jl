@@ -16,7 +16,7 @@ end
 function MultiParamBodyChunk(body::Body{M,P}, ts::T, pd::PointDecomposition,
                              chunk_id::Int) where {M,P,T}
     mat = body.mat
-    system, ch = init_system(body, pd, chunk_id)
+    system, ch = get_system(body, pd, chunk_id)
     storage = init_storage(body, ts, system, ch)
     paramap = body.params_map[ch.loc_points]
     param = body.point_params

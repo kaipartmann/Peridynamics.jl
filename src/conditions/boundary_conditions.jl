@@ -1,7 +1,3 @@
-
-"""
-
-"""
 struct SingleDimBC{F<:Function} <: AbstractCondition
     fun::F
     field::Symbol
@@ -81,6 +77,115 @@ end
         if !isnan(value)
             field[bc.dim, i] = value
         end
+    end
+    return nothing
+end
+
+function get_dim(dim::I) where {I<:Integer}
+    in(dim, 1:3) || error("specified dimension should be 1=x, 2=y, or 3=z!\n")
+    isa(UInt8, I) && return dim
+    return convert(UInt8, dim)
+end
+
+function get_dim(dim::Symbol)
+    if !haskey(SYMBOL_TO_DIM, dim)
+        error("unknown dimension symbol $(dim)! Should be :x, :y, or :z!\n")
+    end
+    return SYMBOL_TO_DIM[dim]
+end
+
+function _condition!(conditions::Vector{B}, condition::B) where {B<:AbstractCondition}
+    # check if conditions override each other!
+    if is_duplicate(condition, conditions)
+        error("duplicate conditions for point set $(condition.point_set)!\n")
+    end
+    push!(conditions, condition)
+    return nothing
+end
+
+"""
+    velocity_bc!(f::F, b::AbstractBody, name::Symbol, d::DimensionSpec) where {F<:Function}
+
+specifies velocity boundary conditions for point set `name` on body `b`
+
+# Arguments
+
+- `f<:Function`: velocity condition function
+- `b::AbstractBody`: peridynamic body
+- `name::Symbol`: point set on body `b`
+- `d::DimensionSpec`: direction of velocity
+
+# Throws
+
+- error if no point set called `name` exists
+- error if dimension is not correctly specified
+- error if function is not suitable as condition function
+
+# Example
+
+```julia-repl
+julia> velocity_bc!(t -> -9.81 * t, b, :set_bottom, :y)
+julia> b.single_dim_bcs
+1-element Vector{Peridynamics.SingleDimBC}:
+ Peridynamics.SingleDimBC{var"#15#16"}(var"#15#16"(), :velocity_half, :set_bottom, 0x02)
+julia> velocity_bc!(t -> 40, b, :set_a, 1)
+julia> b.single_dim_bcs
+2-element Vector{Peridynamics.SingleDimBC}:
+ Peridynamics.SingleDimBC{var"#15#16"}(var"#15#16"(), :velocity_half, :set_bottom, 0x02)
+ Peridynamics.SingleDimBC{var"#17#18"}(var"#17#18"(), :velocity_half, :set_a, 0x01)
+```
+"""
+function velocity_bc!(f::F, b::AbstractBody, name::Symbol, d::Union{Integer,Symbol}) where {F<:Function}
+    check_if_set_is_defined(b.point_sets, name)
+    type = check_condition_function(f)
+    dim = get_dim(d)
+    if type === :sdbc
+        sdbc = SingleDimBC(f, :velocity_half, name, dim)
+        _condition!(b.single_dim_bcs, sdbc)
+    elseif type === :pdsdbc
+        pdsdbc = PosDepSingleDimBC(f, :velocity_half, name, dim)
+        _condition!(b.posdep_single_dim_bcs, pdsdbc)
+    end
+    return nothing
+end
+
+"""
+    forcedensity_bc!(f::F, b::AbstractBody, name::Symbol, d::DimensionSpec) where {F<:Function}
+
+specifies boundary conditions for force density on points of point set `name` on body `b`
+
+# Arguments
+
+- `f<:Function`: condition function
+- `b::AbstractBody`: peridynamic body
+- `name::Symbol`: point set on body `b`
+- `d::DimensionSpec`: direction of force density
+
+# Throws
+
+- error if no point set called `name` exists
+- error if dimension is not correctly specified
+- error if function is not suitable as condition function
+
+# Example
+
+```julia-repl
+julia> forcedensity_bc!(t -> 40, b, :set_a, 1)
+julia> b.single_dim_bcs
+1-element Vector{Peridynamics.SingleDimBC}:
+ Peridynamics.SingleDimBC{var"#25#26"}(var"#25#26"(), :b_ext, :set_a, 0x01)
+```
+"""
+function forcedensity_bc!(f::F, b::AbstractBody, name::Symbol, d::Union{Integer,Symbol}) where {F<:Function}
+    check_if_set_is_defined(b.point_sets, name)
+    type = check_condition_function(f)
+    dim = get_dim(d)
+    if type === :sdbc
+        sdbc = SingleDimBC(f, :b_ext, name, dim)
+        _condition!(b.single_dim_bcs, sdbc)
+    elseif type === :pdsdbc
+        pdsdbc = PosDepSingleDimBC(f, :b_ext, name, dim)
+        _condition!(b.posdep_single_dim_bcs, pdsdbc)
     end
     return nothing
 end

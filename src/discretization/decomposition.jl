@@ -43,12 +43,12 @@ function distribute_equally(n_elems::Int, n_chunks::Int)
     end
 end
 
-function PointDecomposition(b::Body, n_chunks::Int)
+function PointDecomposition(b::AbstractBody, n_chunks::Int)
     decomp = distribute_equally(b.n_points, n_chunks)
     return PointDecomposition(decomp)
 end
 
-function PointDecomposition(::MultibodySetup, ::Int)
+function PointDecomposition(::AbstractMultibodySetup, ::Int)
     error("spatial decomposition for MultibodySetup not yet implemented!\n")
     return nothing
 end

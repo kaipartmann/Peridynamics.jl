@@ -11,8 +11,8 @@ function get_point_params(mat::AbstractMaterial, ::Dict{Symbol,Any})
     throw(MethodError(get_point_params, mat))
 end
 
-function discretization_type(mat::AbstractMaterial)
-    throw(MethodError(discretization_type, mat))
+function system_type(mat::AbstractMaterial)
+    throw(MethodError(system_type, mat))
 end
 
 function storage_type(mat::AbstractMaterial, ts::AbstractTimeSolver)
@@ -25,6 +25,10 @@ end
 
 function get_halo_write_fields(s::AbstractStorage)
     throw(MethodError(get_halo_write_fields, s))
+end
+
+function get_system(b::AbstractBody, args...)
+    throw(MethodError(get_system, b))
 end
 
 @inline function get_storage_field(s::AbstractStorage, field::Symbol)

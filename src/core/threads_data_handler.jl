@@ -12,14 +12,14 @@ struct ThreadsDataHandler{C<:AbstractBodyChunk} <: AbstractThreadsDataHandler
     write_halo_exs::Vector{Vector{HaloExchange}}
 end
 
-function ThreadsDataHandler(body::Body, time_solver::AbstractTimeSolver,
+function ThreadsDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
                             point_decomp::PointDecomposition)
     n_param = length(body.point_params)
     v = n_param == 1 ? Val{1}() : Val{2}()
     return ThreadsDataHandler(body, time_solver, point_decomp, v)
 end
 
-function ThreadsDataHandler(body::Body, time_solver::AbstractTimeSolver,
+function ThreadsDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
                             point_decomp::PointDecomposition, v::Val{N}) where {N}
     chunks = chop_body_threads(body, time_solver, point_decomp, v)
     n_chunks = length(chunks)
@@ -27,14 +27,15 @@ function ThreadsDataHandler(body::Body, time_solver::AbstractTimeSolver,
     return ThreadsDataHandler(n_chunks, chunks, read_halo_exs, write_halo_exs)
 end
 
-function ThreadsDataHandler(multibody::MultibodySetup, time_solver::AbstractTimeSolver,
+function ThreadsDataHandler(multibody::AbstractMultibodySetup,
+                            time_solver::AbstractTimeSolver,
                             point_decomp::PointDecomposition)
     error("MultibodySetup not yet implemented!\n")
 end
 
 function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition,
                            v::Val{N}) where {M,P,T,N}
-    D = discretization_type(body.mat)
+    D = system_type(body.mat)
     S = storage_type(body.mat, ts)
     body_chunks = _chop_body_threads(body, ts, pd, D, S, v)
     return body_chunks

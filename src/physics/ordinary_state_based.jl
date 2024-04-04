@@ -52,10 +52,10 @@ function get_point_params(::OSBMaterial, p::Dict{Symbol,Any})
     return OSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@inline discretization_type(::OSBMaterial) = BondSystem
+@inline system_type(::OSBMaterial) = BondSystem
 
-@inline function init_system(body::Body{OSBMaterial}, args...)
-    return init_bond_system(body, args...)
+@inline function get_system(body::AbstractBody{OSBMaterial}, args...)
+    return get_bond_system(body, args...)
 end
 
 struct OSBVerletStorage <: AbstractStorage
@@ -75,7 +75,7 @@ const OSBStorage = Union{OSBVerletStorage}
 
 @inline storage_type(::OSBMaterial, ::VelocityVerlet) = OSBVerletStorage
 
-function init_storage(::Body{OSBMaterial}, ::VelocityVerlet, bd::BondSystem,
+function init_storage(::AbstractBody{OSBMaterial}, ::VelocityVerlet, bd::BondSystem,
                       ch::ChunkHandler)
     n_loc_points = length(ch.loc_points)
     position = copy(bd.position)

@@ -1,32 +1,10 @@
-struct ChunkHandler
+struct ChunkHandler <: AbstractChunkHandler
     n_loc_points::Int
     point_ids::Vector{Int}
     loc_points::UnitRange{Int}
     halo_points::Vector{Int}
     hidxs_by_src::Dict{Int,UnitRange{Int}}
     localizer::Dict{Int,Int}
-end
-
-function ChunkHandler(bonds::Vector{Bond}, pd::PointDecomposition, chunk_id::Int)
-    loc_points = pd.decomp[chunk_id]
-    n_loc_points = length(loc_points)
-    halo_points = find_halo_points(bonds, loc_points)
-    hidxs_by_src = sort_halo_by_src!(halo_points, pd.point_src, length(loc_points))
-    point_ids = vcat(loc_points, halo_points)
-    localizer = find_localizer(point_ids)
-    return ChunkHandler(n_loc_points, point_ids, loc_points, halo_points, hidxs_by_src,
-                        localizer)
-end
-
-function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})
-    halo_points = Vector{Int}()
-    for bond in bonds
-        j = bond.neighbor
-        if !in(j, loc_points) && !in(j, halo_points)
-            push!(halo_points, j)
-        end
-    end
-    return halo_points
 end
 
 function sort_halo_by_src!(halo_points::Vector{Int}, point_src::Dict{Int,Int},
@@ -80,14 +58,6 @@ function localize(point_ids::Vector{Int}, ch::ChunkHandler)
     loc_point_ids = point_ids[is_loc_point]
     localize!(loc_point_ids, ch.localizer)
     return loc_point_ids
-end
-
-function localize!(bonds::Vector{Bond}, localizer::Dict{Int,Int})
-    for i in eachindex(bonds)
-        bond = bonds[i]
-        bonds[i] = Bond(localizer[bond.neighbor], bond.length, bond.fail_permit)
-    end
-    return nothing
 end
 
 function localized_point_sets(point_sets::Dict{Symbol,Vector{Int}}, ch::ChunkHandler)

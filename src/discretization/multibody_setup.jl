@@ -28,7 +28,7 @@ Constructors:
 TODO
 """
 mutable struct MultibodySetup{M<:AbstractMaterial,
-                              P<:AbstractPointParameters} <: AbstractMultibodySetup
+                              P<:AbstractPointParameters} <: AbstractMultibodySetup{M}
     bodies::Dict{Symbol,Body{M,P}}
     contacts::Vector{Contact}
 
@@ -54,7 +54,7 @@ MultibodySetup(body_pairs...) = MultibodySetup(Dict(body_pairs...))
 
 @inline material_type(::MultibodySetup{M}) where {M} = M
 
-function check_if_bodyname_is_defined(ms::MultibodySetup, name::Symbol)
+function check_if_bodyname_is_defined(ms::AbstractMultibodySetup, name::Symbol)
     if !haskey(ms.bodies, name)
         throw(ArgumentError("there is no body with name $(name)!"))
     end
@@ -62,13 +62,13 @@ function check_if_bodyname_is_defined(ms::MultibodySetup, name::Symbol)
 end
 
 """
-    contact!(ms::MultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
+    contact!(ms::AbstractMultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
 
 defines contact between multiple bodies
 
 # Arguments
 
-- `ms::MultibodySetup`: the multibody setup defined to simulate the contact
+- `ms::AbstractMultibodySetup`: the multibody setup defined to simulate the contact
 - `body_a::Symbol`: first body in contact
 - `body_b::Symbol`: second body in contact
 
@@ -84,7 +84,7 @@ defines contact between multiple bodies
 
 TODO kwargs
 """
-function contact!(ms::MultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
+function contact!(ms::AbstractMultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
     check_if_bodyname_is_defined(ms, body_a)
     check_if_bodyname_is_defined(ms, body_b)
 
@@ -96,11 +96,11 @@ function contact!(ms::MultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
     return nothing
 end
 
-function pre_submission_check(ms::MultibodySetup)
+function pre_submission_check(ms::AbstractMultibodySetup)
     #TODO: check if everything is defined for job submission!
     return nothing
 end
 
-@inline function storage_type(ms::MultibodySetup, ts::AbstractTimeSolver)
+@inline function storage_type(ms::AbstractMultibodySetup, ts::AbstractTimeSolver)
     return storage_type(first(ms.bodies).mat, ts)
 end

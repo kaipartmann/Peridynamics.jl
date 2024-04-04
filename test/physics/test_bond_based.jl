@@ -4,7 +4,7 @@
     material!(body, horizon=2, rho=1, E=1, Gc=1)
     ts = VelocityVerlet(steps=10)
     pd = Peridynamics.PointDecomposition(body, 1)
-    db, ch = Peridynamics.init_system(body, pd, 1)
+    db, ch = Peridynamics.get_system(body, pd, 1)
     s = Peridynamics.init_storage(body, ts, db, ch)
 
     @test s isa Peridynamics.BBVerletStorage

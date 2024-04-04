@@ -148,7 +148,7 @@ function _update_disp_and_pos!(displacement, position, velocity_half, Δt, each_
     return nothing
 end
 
-function update_acc_and_vel!(b::BodyChunk, Δt½::Float64)
+function update_acc_and_vel!(b::AbstractBodyChunk, Δt½::Float64)
     _update_acc_and_vel!(b.storage.acceleration, b.storage.b_int, b.storage.b_ext,
                          b.storage.velocity_half, b.storage.velocity, b.param.rho, Δt½,
                          each_point_idx(b))

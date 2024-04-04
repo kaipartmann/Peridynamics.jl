@@ -57,10 +57,10 @@ function get_point_params(::NOSBMaterial, p::Dict{Symbol,Any})
     return NOSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@inline discretization_type(::NOSBMaterial) = BondSystem
+@inline system_type(::NOSBMaterial) = BondSystem
 
-@inline function init_system(body::Body{NOSBMaterial}, args...)
-    return init_bond_system(body, args...)
+@inline function get_system(body::AbstractBody{NOSBMaterial}, args...)
+    return get_bond_system(body, args...)
 end
 
 struct NOSBVerletStorage <: AbstractStorage
@@ -80,7 +80,7 @@ const NOSBStorage = Union{NOSBVerletStorage}
 
 @inline storage_type(::NOSBMaterial, ::VelocityVerlet) = NOSBVerletStorage
 
-function init_storage(::Body{NOSBMaterial}, ::VelocityVerlet, bd::BondSystem,
+function init_storage(::AbstractBody{NOSBMaterial}, ::VelocityVerlet, bd::BondSystem,
                       ch::ChunkHandler)
     n_loc_points = length(ch.loc_points)
     position = copy(bd.position)

@@ -1,3 +1,50 @@
+
+
+"""
+    failure_permit!(b::AbstractBody, fail_permit::Bool)
+    failure_permit!(b::AbstractBody, name::Symbol, fail_permit::Bool)
+
+determines whether failure is permitted `fail_permit = true` or prohibited
+`fail_permit = false` in the body `b` or the point set `name` of body `b`
+
+# Arguments
+
+- `b::AbstractBody`: peridynamic body
+- `name::Symbol`: name of the point set on body `b`
+- `fail_permit::Bool`: decides if failure is allowed on considered body or point set
+
+# Throws
+
+- error if no point set called `name` exists
+
+# Example
+
+```julia-repl
+julia> failure_permit!(b, :set_bottom, false)
+julia> b.fail_permit
+12500-element Vector{Bool}:
+ 0
+ 0
+ 0
+ ⋮
+ 1
+ 1
+```
+"""
+function failure_permit! end
+
+function failure_permit!(b::AbstractBody, fail_permit::Bool)
+    b.fail_permit .= fail_permit
+    return nothing
+end
+
+function failure_permit!(b::AbstractBody, name::Symbol, fail_permit::Bool)
+    check_if_set_is_defined(b.point_sets, name)
+    b.fail_permit[b.point_sets[name]] .= fail_permit
+    return nothing
+end
+
+
 function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     local Gc::Float64
     local εc::Float64
