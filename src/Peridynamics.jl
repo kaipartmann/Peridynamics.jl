@@ -31,7 +31,7 @@ abstract type AbstractPointParameters end
 abstract type AbstractTimeSolver end
 abstract type AbstractJob end
 abstract type AbstractOptions end
-abstract type AbstractDiscretization end
+abstract type AbstractSystem end
 abstract type AbstractPredefinedCrack end
 abstract type AbstractBodyChunk{T<:AbstractMaterial} end
 abstract type AbstractDataHandler end
@@ -51,7 +51,7 @@ include("discretization/body.jl")
 include("discretization/contact.jl")
 include("discretization/multibody_setup.jl")
 include("discretization/decomposition.jl")
-include("discretization/bond_discretization.jl")
+include("discretization/bond_system.jl")
 include("discretization/chunk_handler.jl")
 include("discretization/body_chunk.jl")
 

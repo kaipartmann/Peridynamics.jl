@@ -17,10 +17,10 @@
     bc = Peridynamics.BodyChunk(body, ts, pd, 1)
 
     @test bc.mat == mat
-    @test bc.dscr isa Peridynamics.BondDiscretization
-    @test bc.dscr.position == position
-    @test bc.dscr.volume == volume
-    @test bc.dscr.bonds == [
+    @test bc.system isa Peridynamics.BondSystem
+    @test bc.system.position == position
+    @test bc.system.volume == volume
+    @test bc.system.bonds == [
         Peridynamics.Bond(2, 1.0, true),
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, 1.0, true),
@@ -28,8 +28,8 @@
         Peridynamics.Bond(3, √2, true),
         Peridynamics.Bond(4, √2, true),
     ]
-    @test bc.dscr.n_neighbors == [3, 3]
-    @test bc.dscr.bond_ids == [1:3, 4:6]
+    @test bc.system.n_neighbors == [3, 3]
+    @test bc.system.bond_ids == [1:3, 4:6]
 
     @test bc.ch.point_ids == [1, 2, 3, 4]
     @test bc.ch.loc_points == pd.decomp[1]
@@ -65,10 +65,10 @@ end
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.BodyChunk
     @test b1.mat == BBMaterial()
-    @test b1.dscr isa Peridynamics.BondDiscretization
-    @test b1.dscr.position == position
-    @test b1.dscr.volume == volume
-    @test b1.dscr.bonds == [
+    @test b1.system isa Peridynamics.BondSystem
+    @test b1.system.position == position
+    @test b1.system.volume == volume
+    @test b1.system.bonds == [
         Peridynamics.Bond(2, 1.0, true),
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, 1.0, true),
@@ -76,8 +76,8 @@ end
         Peridynamics.Bond(3, √2, true),
         Peridynamics.Bond(4, √2, true),
     ]
-    @test b1.dscr.n_neighbors == [3, 3]
-    @test b1.dscr.bond_ids == [1:3, 4:6]
+    @test b1.system.n_neighbors == [3, 3]
+    @test b1.system.bond_ids == [1:3, 4:6]
 
     @test b1.store.position == position
     @test b1.store.displacement == zeros(3, 2)
@@ -127,10 +127,10 @@ end
     b2 = body_chunks[2]
     @test b2 isa Peridynamics.BodyChunk
     @test b2.mat == BBMaterial()
-    @test b2.dscr isa Peridynamics.BondDiscretization
-    @test b2.dscr.position == position[:, [3, 4, 1, 2]]
-    @test b2.dscr.volume == volume[[3, 4, 1, 2]]
-    @test b2.dscr.bonds == [
+    @test b2.system isa Peridynamics.BondSystem
+    @test b2.system.position == position[:, [3, 4, 1, 2]]
+    @test b2.system.volume == volume[[3, 4, 1, 2]]
+    @test b2.system.bonds == [
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, √2, true),
         Peridynamics.Bond(2, √2, true),
@@ -138,8 +138,8 @@ end
         Peridynamics.Bond(4, √2, true),
         Peridynamics.Bond(1, √2, true),
     ]
-    @test b2.dscr.n_neighbors == [3, 3]
-    @test b2.dscr.bond_ids == [1:3, 4:6]
+    @test b2.system.n_neighbors == [3, 3]
+    @test b2.system.bond_ids == [1:3, 4:6]
 
     @test b2.store.position == position[:, [3, 4, 1, 2]]
     @test b2.store.displacement == zeros(3, 2)
@@ -211,10 +211,10 @@ end
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.MultiParamBodyChunk
     @test b1.mat == BBMaterial()
-    @test b1.dscr isa Peridynamics.BondDiscretization
-    @test b1.dscr.position == position
-    @test b1.dscr.volume == volume
-    @test b1.dscr.bonds == [
+    @test b1.system isa Peridynamics.BondSystem
+    @test b1.system.position == position
+    @test b1.system.volume == volume
+    @test b1.system.bonds == [
         Peridynamics.Bond(2, 1.0, true),
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, 1.0, true),
@@ -222,8 +222,8 @@ end
         Peridynamics.Bond(3, √2, true),
         Peridynamics.Bond(4, √2, true),
     ]
-    @test b1.dscr.n_neighbors == [3, 3]
-    @test b1.dscr.bond_ids == [1:3, 4:6]
+    @test b1.system.n_neighbors == [3, 3]
+    @test b1.system.bond_ids == [1:3, 4:6]
 
     @test b1.store.position == position
     @test b1.store.displacement == zeros(3, 2)
@@ -290,10 +290,10 @@ end
     b2 = body_chunks[2]
     @test b2 isa Peridynamics.MultiParamBodyChunk
     @test b2.mat == BBMaterial()
-    @test b2.dscr isa Peridynamics.BondDiscretization
-    @test b2.dscr.position == position[:, [3, 4, 1, 2]]
-    @test b2.dscr.volume == volume[[3, 4, 1, 2]]
-    @test b2.dscr.bonds == [
+    @test b2.system isa Peridynamics.BondSystem
+    @test b2.system.position == position[:, [3, 4, 1, 2]]
+    @test b2.system.volume == volume[[3, 4, 1, 2]]
+    @test b2.system.bonds == [
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, √2, true),
         Peridynamics.Bond(2, √2, true),
@@ -301,8 +301,8 @@ end
         Peridynamics.Bond(4, √2, true),
         Peridynamics.Bond(1, √2, true),
     ]
-    @test b2.dscr.n_neighbors == [3, 3]
-    @test b2.dscr.bond_ids == [1:3, 4:6]
+    @test b2.system.n_neighbors == [3, 3]
+    @test b2.system.bond_ids == [1:3, 4:6]
 
     @test b2.store.position == position[:, [3, 4, 1, 2]]
     @test b2.store.displacement == zeros(3, 2)

@@ -20,9 +20,9 @@ function Peridynamics.get_point_params(::TestMaterial, p::Dict{Symbol,Any})
     Gc, εc = Peridynamics.get_frac_params(p, δ, K)
     return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc)
 end
-Peridynamics.discretization_type(::TestMaterial) = Peridynamics.BondDiscretization
-function Peridynamics.init_discretization(body::Body{TestMaterial}, args...)
-    return Peridynamics.init_bond_discretization(body, args...)
+Peridynamics.discretization_type(::TestMaterial) = Peridynamics.BondSystem
+function Peridynamics.init_system(body::Body{TestMaterial}, args...)
+    return Peridynamics.init_bond_system(body, args...)
 end
 struct TestVerletStorage <: Peridynamics.AbstractStorage
     position::Matrix{Float64}
@@ -40,7 +40,7 @@ function Peridynamics.storage_type(::TestMaterial, ::Peridynamics.VelocityVerlet
     return TestVerletStorage
 end
 function Peridynamics.init_storage(::Body{TestMaterial}, ::Peridynamics.VelocityVerlet,
-                                    bd::Peridynamics.BondDiscretization,
+                                    bd::Peridynamics.BondSystem,
                                     ch::Peridynamics.ChunkHandler)
     n_loc_points = length(ch.loc_points)
     position = copy(bd.position)
