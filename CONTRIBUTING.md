@@ -3,8 +3,8 @@
 Peridynamics.jl is an open-source project and we are very happy to accept contributions
 from the community. Please feel free to open issues or submit patches (preferably
 as pull requests) any time. For planned larger contributions, it is often
-beneficial to get in contact with one of the principal developers first
-(e.g. [Kai Partmann](kai.partmann@uni-siegen.de)).
+beneficial to get in contact with us first
+(e.g. [by opening an issue](https://github.com/kaipartmann/Peridynamics.jl/issues/new) or [a new discussion](https://github.com/kaipartmann/Peridynamics.jl/discussions/new)).
 
 Peridynamics.jl and its contributions are licensed under the MIT license (see
 [LICENSE](LICENSE)). As a contributor, you certify that all your
