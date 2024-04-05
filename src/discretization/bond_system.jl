@@ -41,6 +41,7 @@ function find_bonds(body::AbstractBody, loc_points::UnitRange{Int})
         n_neighbors[li] = find_bonds!(bonds, balltree, body.position, body.fail_permit,
                                       get_point_param(body, :δ, i), i)
     end
+    filter_bonds!(bonds, n_neighbors, loc_points, body)
     return bonds, n_neighbors
 end
 
@@ -55,6 +56,39 @@ function find_bonds!(bonds::Vector{Bond}, balltree::BallTree, position::Matrix{F
         push!(bonds, Bond(j, L, fail_permit[i] & fail_permit[j]))
     end
     return length(neigh_idxs)
+end
+
+function filter_bonds!(bonds::Vector{Bond}, n_neighbors::Vector{Int},
+                       loc_points::UnitRange{Int}, body::AbstractBody)
+    for crack in body.point_sets_precracks
+        filter_bonds_by_crack!(bonds, n_neighbors, loc_points, crack, body)
+    end
+    return nothing
+end
+
+function filter_bonds_by_crack!(bonds::Vector{Bond}, n_neighbors::Vector{Int},
+                                loc_points::UnitRange{Int}, crack::PointSetsPreCrack,
+                                body::AbstractBody)
+    filter_bonds(crack) || return nothing
+    set_a, set_b = body.point_sets[crack.set_a], body.point_sets[crack.set_b]
+    bond_ids = find_bond_ids(n_neighbors)
+    bonds_to_delete = fill(false, length(bonds))
+    for (loc_point_id, point_id) in enumerate(loc_points)
+        for bond_id in bond_ids[loc_point_id]
+            bond = bonds[bond_id]
+            neighbor_id = bond.neighbor
+            point_in_a = in(point_id, set_a)
+            point_in_b = in(point_id, set_b)
+            neigh_in_a = in(neighbor_id, set_a)
+            neigh_in_b = in(neighbor_id, set_b)
+            if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
+                bonds_to_delete[bond_id] = true
+                n_neighbors[loc_point_id] -= 1
+            end
+        end
+    end
+    deleteat!(bonds, bonds_to_delete)
+    return nothing
 end
 
 function find_bond_ids(n_neighbors::Vector{Int})
@@ -102,6 +136,26 @@ function localize!(bonds::Vector{Bond}, localizer::Dict{Int,Int})
     for i in eachindex(bonds)
         bond = bonds[i]
         bonds[i] = Bond(localizer[bond.neighbor], bond.length, bond.fail_permit)
+    end
+    return nothing
+end
+
+function break_bonds!(s::AbstractStorage, system::BondSystem, ch::ChunkHandler,
+                      set_a::Vector{Int}, set_b::Vector{Int})
+    s.n_active_bonds .= 0
+    for point_id in each_point_idx(ch)
+        for bond_id in each_bond_idx(system, point_id)
+            bond = system.bonds[bond_id]
+            neighbor_id = bond.neighbor
+            point_in_a = in(point_id, set_a)
+            point_in_b = in(point_id, set_b)
+            neigh_in_a = in(neighbor_id, set_a)
+            neigh_in_b = in(neighbor_id, set_b)
+            if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
+                s.bond_active[bond_id] = false
+            end
+            s.n_active_bonds[point_id] += s.bond_active[bond_id]
+        end
     end
     return nothing
 end
