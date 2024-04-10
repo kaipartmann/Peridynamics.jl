@@ -31,7 +31,7 @@ function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}},
                    bc::SingleDimBC{F}, time::Float64) where {F}
     value = bc(time)
     isnan(value) && return nothing
-    apply_sdbc!(get_storage_field(s, bc.field), value, bc.dim, psets[bc.point_set])
+    apply_sdbc!(get_point_data(s, bc.field), value, bc.dim, psets[bc.point_set])
     return nothing
 end
 
@@ -65,7 +65,7 @@ end
 function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}},
                    bc::PosDepSingleDimBC{F}, position::Matrix{Float64},
                    time::Float64) where {F}
-    apply_pdsdbc!(get_storage_field(s, bc.field), position, bc, psets[bc.point_set], time)
+    apply_pdsdbc!(get_point_data(s, bc.field), position, bc, psets[bc.point_set], time)
     return nothing
 end
 

@@ -80,6 +80,11 @@ const NOSBStorage = Union{NOSBVerletStorage}
 
 @inline storage_type(::NOSBMaterial, ::VelocityVerlet) = NOSBVerletStorage
 
+@inline point_data_fields(::Type{NOSBVerletStorage}) = (:position, :displacement, :velocity,
+                                                        :velocity_half, :acceleration,
+                                                        :b_int, :b_ext, :damage,
+                                                        :n_active_bonds)
+
 function init_storage(::AbstractBody{NOSBMaterial}, ::VelocityVerlet, bd::BondSystem,
                       ch::ChunkHandler)
     n_loc_points = length(ch.loc_points)
@@ -97,8 +102,11 @@ function init_storage(::AbstractBody{NOSBMaterial}, ::VelocityVerlet, bd::BondSy
                              b_int, b_ext, damage, bond_active, n_active_bonds)
 end
 
-@inline get_halo_read_fields(s::NOSBStorage) = (s.position,)
-@inline get_halo_write_fields(s::NOSBStorage)  = (s.b_int,)
+@inline halo_read_fields(::NOSBStorage) = (:position,)
+@inline halo_write_fields(::NOSBStorage)  = (:b_int,)
+@inline is_halo_field(::NOSBStorage, ::Val{:position}) = true
+@inline is_halo_field(::NOSBStorage, ::Val{:b_int}) = true
+@inline is_halo_field(::NOSBStorage, ::Val{F}) where {F} = false
 
 function force_density_point!(s::NOSBStorage, bd::BondSystem, mat::NOSBMaterial,
                               param::NOSBPointParameters, i::Int)
