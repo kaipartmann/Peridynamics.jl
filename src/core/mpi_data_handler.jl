@@ -117,13 +117,13 @@ function find_halo_exchange_bufs(chunk::AbstractBodyChunk, halo_infos::MPIHaloIn
 end
 
 function has_read_halos(chunk::AbstractBodyChunk)
-    hrfs = get_halo_read_fields(chunk.storage)
+    hrfs = halo_read_fields(chunk.storage)
     isempty(hrfs) && return false
     return true
 end
 
 function has_write_halos(chunk::AbstractBodyChunk)
-    hwfs = get_halo_write_fields(chunk.storage)
+    hwfs = halo_write_fields(chunk.storage)
     isempty(hwfs) && return false
     return true
 end
@@ -232,9 +232,10 @@ function exchange_read_fields!(dh::MPIDataHandler)
 end
 
 function send_read_he!(dh::MPIDataHandler, he::HaloExchangeBuf, hex_id::Int)
-    src_fields = get_halo_read_fields(dh.chunk.storage)
-    for i in eachindex(src_fields, he.bufs)
-        exchange_to_buf!(he.bufs[i], src_fields[i], he.src_idxs)
+    fields = halo_read_fields(dh.chunk.storage)
+    for i in eachindex(fields, he.bufs)
+        src_field = get_storage_field(dh.chunk.storage, fields[i])
+        exchange_to_buf!(he.bufs[i], src_field, he.src_idxs)
         req = MPI.Isend(he.bufs[i], mpi_comm(); dest=he.dest_chunk_id - 1, tag=he.tags[i])
         req_id = hex_id * he.n_fields + i - he.n_fields
         dh.read_reqs[req_id] = req
@@ -243,10 +244,11 @@ function send_read_he!(dh::MPIDataHandler, he::HaloExchangeBuf, hex_id::Int)
 end
 
 function recv_read_he!(dh::MPIDataHandler, he::HaloExchangeBuf)
-    dest_fields = get_halo_read_fields(dh.chunk.storage)
-    for i in eachindex(dest_fields, he.bufs)
+    fields = halo_read_fields(dh.chunk.storage)
+    for i in eachindex(fields, he.bufs)
         MPI.Recv!(he.bufs[i], mpi_comm(); source=he.src_chunk_id - 1, tag=he.tags[i])
-        exchange_from_buf!(dest_fields[i], he.bufs[i], he.dest_idxs)
+        dest_field = get_storage_field(dh.chunk.storage, fields[i])
+        exchange_from_buf!(dest_field, he.bufs[i], he.dest_idxs)
     end
     return nothing
 end
@@ -263,9 +265,10 @@ function exchange_write_fields!(dh::MPIDataHandler)
 end
 
 function send_write_he!(dh::MPIDataHandler, he::HaloExchangeBuf, hex_id::Int)
-    src_fields = get_halo_write_fields(dh.chunk.storage)
-    for i in eachindex(src_fields, he.bufs)
-        exchange_to_buf!(he.bufs[i], src_fields[i], he.src_idxs)
+    fields = halo_write_fields(dh.chunk.storage)
+    for i in eachindex(fields, he.bufs)
+        src_field = get_storage_field(dh.chunk.storage, fields[i])
+        exchange_to_buf!(he.bufs[i], src_field, he.src_idxs)
         req = MPI.Isend(he.bufs[i], mpi_comm(); dest=he.dest_chunk_id - 1, tag=he.tags[i])
         req_id = hex_id * he.n_fields + i - he.n_fields
         dh.write_reqs[req_id] = req
@@ -274,10 +277,11 @@ function send_write_he!(dh::MPIDataHandler, he::HaloExchangeBuf, hex_id::Int)
 end
 
 function recv_write_he!(dh::MPIDataHandler, he::HaloExchangeBuf)
-    dest_fields = get_halo_write_fields(dh.chunk.storage)
-    for i in eachindex(dest_fields, he.bufs)
+    fields = halo_write_fields(dh.chunk.storage)
+    for i in eachindex(fields, he.bufs)
         MPI.Recv!(he.bufs[i], mpi_comm(); source=he.src_chunk_id - 1, tag=he.tags[i])
-        exchange_from_buf_add!(dest_fields[i], he.bufs[i], he.dest_idxs)
+        dest_field = get_storage_field(dh.chunk.storage, fields[i])
+        exchange_from_buf_add!(dest_field, he.bufs[i], he.dest_idxs)
     end
     return nothing
 end

@@ -126,22 +126,37 @@ get_cells(n::Int) = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in 1:n]
 
 function exchange_read_fields!(dh::ThreadsDataHandler, chunk_id::Int)
     for he in dh.read_halo_exs[chunk_id]
-        src_fields = get_halo_read_fields(dh.chunks[he.src_chunk_id].storage)
-        dest_fields = get_halo_read_fields(dh.chunks[he.dest_chunk_id].storage)
-        for i in eachindex(src_fields, dest_fields)
-            exchange!(dest_fields[i], src_fields[i], he.dest_idxs, he.src_idxs)
-        end
+        dest_storage = dh.chunks[he.dest_chunk_id].storage
+        src_storage = dh.chunks[he.src_chunk_id].storage
+        _exchange_read_fields!(dest_storage, src_storage, he)
+    end
+    return nothing
+end
+
+function _exchange_read_fields!(dest_storage::S, src_storage::S, he::HaloExchange) where {S}
+    for field in halo_read_fields(dest_storage)
+        dest_field = get_storage_field(dest_storage, field)
+        src_field = get_storage_field(src_storage, field)
+        exchange!(dest_field, src_field, he.dest_idxs, he.src_idxs)
     end
     return nothing
 end
 
 function exchange_write_fields!(dh::ThreadsDataHandler, chunk_id::Int)
     for he in dh.write_halo_exs[chunk_id]
-        src_fields = get_halo_write_fields(dh.chunks[he.src_chunk_id].storage)
-        dest_fields = get_halo_write_fields(dh.chunks[he.dest_chunk_id].storage)
-        for i in eachindex(src_fields, dest_fields)
-            exchange_add!(dest_fields[i], src_fields[i], he.dest_idxs, he.src_idxs)
-        end
+        dest_storage = dh.chunks[he.dest_chunk_id].storage
+        src_storage = dh.chunks[he.src_chunk_id].storage
+        _exchange_write_fields!(dest_storage, src_storage, he)
+    end
+    return nothing
+end
+
+function _exchange_write_fields!(dest_storage::S, src_storage::S,
+                                 he::HaloExchange) where {S}
+    for field in halo_write_fields(dest_storage)
+        dest_field = get_storage_field(dest_storage, field)
+        src_field = get_storage_field(src_storage, field)
+        exchange_add!(dest_field, src_field, he.dest_idxs, he.src_idxs)
     end
     return nothing
 end
