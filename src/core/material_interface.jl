@@ -30,3 +30,7 @@ end
 function get_system(b::AbstractBody, args...)
     throw(MethodError(get_system, b))
 end
+
+function is_halo_field(s::AbstractStorage, v::Val{F}) where {F}
+    throw(MethodError(is_halo_field, s, v))
+end

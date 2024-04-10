@@ -14,12 +14,12 @@ function get_export_fields(::Type{S}, o::Dict{Symbol,Any}) where {S}
 end
 
 function check_export_fields(::Type{S}, fields::Vector{Symbol}) where {S}
-    allowed_fields = fieldnames(S)
+    allowed_fields = point_data_fields(S)
     for f in fields
         if !in(f, allowed_fields)
-            msg = "unknown field $(name) specified for export!\n"
-            msg *= "Allowed fields for $S:\n"
-            for allowed_name in fieldnames(S)
+            msg = "unknown point data field `:$(f)` specified for export!\n"
+            msg *= "All point data fields of $S:\n"
+            for allowed_name in allowed_fields
                 msg *= "  - $allowed_name\n"
             end
             throw(ArgumentError(msg))
@@ -35,7 +35,7 @@ function _export_results(b::AbstractBodyChunk, chunk_id::Int, n_chunks::Int,
     position = get_loc_position(b)
     pvtk_grid(filename, position, b.cells; part=chunk_id, nparts=n_chunks) do vtk
         for field in options.fields
-            vtk[string(field), VTKPointData()] = get_storage_field(b.storage, field)
+            vtk[string(field), VTKPointData()] = get_loc_point_data(b.storage, b.ch, field)
         end
         vtk["time", VTKFieldData()] = t
     end

@@ -75,6 +75,11 @@ const OSBStorage = Union{OSBVerletStorage}
 
 @inline storage_type(::OSBMaterial, ::VelocityVerlet) = OSBVerletStorage
 
+@inline point_data_fields(::Type{OSBVerletStorage}) = (:position, :displacement, :velocity,
+                                                       :velocity_half, :acceleration,
+                                                       :b_int, :b_ext, :damage,
+                                                       :n_active_bonds)
+
 function init_storage(::AbstractBody{OSBMaterial}, ::VelocityVerlet, bd::BondSystem,
                       ch::ChunkHandler)
     n_loc_points = length(ch.loc_points)
@@ -94,6 +99,9 @@ end
 
 @inline halo_read_fields(::OSBStorage) = (:position,)
 @inline halo_write_fields(::OSBStorage)  = (:b_int,)
+@inline is_halo_field(::OSBStorage, ::Val{:position}) = true
+@inline is_halo_field(::OSBStorage, ::Val{:b_int}) = true
+@inline is_halo_field(::OSBStorage, ::Val{F}) where {F} = false
 
 function force_density_point!(s::OSBStorage, bd::BondSystem, mat::OSBMaterial,
                               param::OSBPointParameters, i::Int)

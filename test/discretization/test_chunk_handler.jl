@@ -135,3 +135,29 @@ end
     @test ch.localizer[3] == 3
     @test ch.localizer[4] == 4
 end
+
+@testitem "get_loc_view" begin
+    N = 4
+    pd = Peridynamics.PointDecomposition(Peridynamics.distribute_equally(N, 2))
+    bonds = [Peridynamics.Bond(2, 1.0, true),
+             Peridynamics.Bond(3, 1.0, true),
+             Peridynamics.Bond(4, 1.0, true),
+             Peridynamics.Bond(1, 1.0, true),
+             Peridynamics.Bond(3, √2, true),
+             Peridynamics.Bond(4, √2, true)]
+    ch1 = Peridynamics.get_chunk_handler(bonds, pd, 1)
+    ch2 = Peridynamics.get_chunk_handler(bonds, pd, 2)
+    v_float = rand(N)
+    m_float = rand(3, N)
+    v_int = rand(Int, N)
+    m_int = rand(Int, 3, N)
+
+    @test Peridynamics.get_loc_view(v_int, ch1) == @view v_int[1:2]
+    @test Peridynamics.get_loc_view(m_int, ch1) == @view m_int[:, 1:2]
+    @test Peridynamics.get_loc_view(v_float, ch1) == @view v_float[1:2]
+    @test Peridynamics.get_loc_view(m_float, ch1) == @view m_float[:, 1:2]
+    @test Peridynamics.get_loc_view(v_int, ch2) == @view v_int[1:2]
+    @test Peridynamics.get_loc_view(m_int, ch2) == @view m_int[:, 1:2]
+    @test Peridynamics.get_loc_view(v_float, ch2) == @view v_float[1:2]
+    @test Peridynamics.get_loc_view(m_float, ch2) == @view m_float[:, 1:2]
+end

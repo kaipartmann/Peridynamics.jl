@@ -234,7 +234,7 @@ end
 function send_read_he!(dh::MPIDataHandler, he::HaloExchangeBuf, hex_id::Int)
     fields = halo_read_fields(dh.chunk.storage)
     for i in eachindex(fields, he.bufs)
-        src_field = get_storage_field(dh.chunk.storage, fields[i])
+        src_field = get_point_data(dh.chunk.storage, fields[i])
         exchange_to_buf!(he.bufs[i], src_field, he.src_idxs)
         req = MPI.Isend(he.bufs[i], mpi_comm(); dest=he.dest_chunk_id - 1, tag=he.tags[i])
         req_id = hex_id * he.n_fields + i - he.n_fields
@@ -247,7 +247,7 @@ function recv_read_he!(dh::MPIDataHandler, he::HaloExchangeBuf)
     fields = halo_read_fields(dh.chunk.storage)
     for i in eachindex(fields, he.bufs)
         MPI.Recv!(he.bufs[i], mpi_comm(); source=he.src_chunk_id - 1, tag=he.tags[i])
-        dest_field = get_storage_field(dh.chunk.storage, fields[i])
+        dest_field = get_point_data(dh.chunk.storage, fields[i])
         exchange_from_buf!(dest_field, he.bufs[i], he.dest_idxs)
     end
     return nothing
@@ -267,7 +267,7 @@ end
 function send_write_he!(dh::MPIDataHandler, he::HaloExchangeBuf, hex_id::Int)
     fields = halo_write_fields(dh.chunk.storage)
     for i in eachindex(fields, he.bufs)
-        src_field = get_storage_field(dh.chunk.storage, fields[i])
+        src_field = get_point_data(dh.chunk.storage, fields[i])
         exchange_to_buf!(he.bufs[i], src_field, he.src_idxs)
         req = MPI.Isend(he.bufs[i], mpi_comm(); dest=he.dest_chunk_id - 1, tag=he.tags[i])
         req_id = hex_id * he.n_fields + i - he.n_fields
@@ -280,7 +280,7 @@ function recv_write_he!(dh::MPIDataHandler, he::HaloExchangeBuf)
     fields = halo_write_fields(dh.chunk.storage)
     for i in eachindex(fields, he.bufs)
         MPI.Recv!(he.bufs[i], mpi_comm(); source=he.src_chunk_id - 1, tag=he.tags[i])
-        dest_field = get_storage_field(dh.chunk.storage, fields[i])
+        dest_field = get_point_data(dh.chunk.storage, fields[i])
         exchange_from_buf_add!(dest_field, he.bufs[i], he.dest_idxs)
     end
     return nothing

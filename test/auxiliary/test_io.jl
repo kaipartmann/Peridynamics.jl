@@ -46,4 +46,9 @@
     @test eo.logfile == joinpath("rootpath", "logfile.log")
     @test eo.freq == 10
     @test eo.fields == [:displacement, :b_ext]
+
+    o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext, :abcd))
+    @test_throws ArgumentError begin
+        Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
+    end
 end

@@ -135,8 +135,8 @@ end
 
 function _exchange_read_fields!(dest_storage::S, src_storage::S, he::HaloExchange) where {S}
     for field in halo_read_fields(dest_storage)
-        dest_field = get_storage_field(dest_storage, field)
-        src_field = get_storage_field(src_storage, field)
+        dest_field = get_point_data(dest_storage, field)
+        src_field = get_point_data(src_storage, field)
         exchange!(dest_field, src_field, he.dest_idxs, he.src_idxs)
     end
     return nothing
@@ -154,8 +154,8 @@ end
 function _exchange_write_fields!(dest_storage::S, src_storage::S,
                                  he::HaloExchange) where {S}
     for field in halo_write_fields(dest_storage)
-        dest_field = get_storage_field(dest_storage, field)
-        src_field = get_storage_field(src_storage, field)
+        dest_field = get_point_data(dest_storage, field)
+        src_field = get_point_data(src_storage, field)
         exchange_add!(dest_field, src_field, he.dest_idxs, he.src_idxs)
     end
     return nothing
