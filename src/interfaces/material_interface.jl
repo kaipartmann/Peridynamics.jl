@@ -15,28 +15,11 @@ function storage_type(mat::AbstractMaterial, ts::AbstractTimeSolver)
     throw(MethodError(storage_type, mat, ts))
 end
 
-function halo_read_fields(s::AbstractStorage)
-    throw(MethodError(halo_read_fields, s))
-end
 
-function halo_write_fields(s::AbstractStorage)
-    throw(MethodError(halo_write_fields, s))
-end
-
-function get_system(b::AbstractBody, args...)
-    throw(MethodError(get_system, b))
-end
-
-function is_halo_field(s::AbstractStorage, v::Val{F}) where {F}
-    throw(MethodError(is_halo_field, s, v))
-end
-
-##----
 function allowed_material_kwargs(mat::AbstractMaterial)
     return DEFAULT_POINT_KWARGS
 end
 
-##----
 function get_system(::AbstractBody{M}, args...) where {M}
     msg = "system for material $M not specified!\n"
     return error(msg)
@@ -55,12 +38,6 @@ macro system(material, system)
     return Expr(:block, _system_type, _get_system)
 end
 
-
-##----
-# function get_point_params(::M, args...) where {M}
-#     msg = "point parameters for material $M not specified!\n"
-#     return error(msg)
-# end
 
 macro pointparams(material, pointparams)
     local _pointparam_type = quote

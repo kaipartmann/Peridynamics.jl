@@ -96,11 +96,8 @@ end
                                                         :b_int, :b_ext, :damage,
                                                         :n_active_bonds)
 
-@inline halo_read_fields(::NOSBVerletStorage) = (:position,)
-@inline halo_write_fields(::NOSBVerletStorage)  = (:b_int,)
-@inline is_halo_field(::NOSBVerletStorage, ::Val{:position}) = true
-@inline is_halo_field(::NOSBVerletStorage, ::Val{:b_int}) = true
-@inline is_halo_field(::NOSBVerletStorage, ::Val{F}) where {F} = false
+@halo_read_fields NOSBVerletStorage :position
+@halo_write_fields NOSBVerletStorage :b_int
 
 function force_density_point!(s::NOSBVerletStorage, bd::BondSystem, mat::NOSBMaterial,
                               param::NOSBPointParameters, i::Int)

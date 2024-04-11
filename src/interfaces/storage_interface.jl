@@ -3,10 +3,6 @@
     return point_data_field(s, Val(field))
 end
 
-# const DEFAULT_POINT_DATA_FIELDS = (:position, :displacement, :velocity, :velocity_half,
-#                                    :acceleration, :b_int, :b_ext, :damage, :n_active_bonds)
-
-# TODO: create these functions with a macro
 point_data_field(s::AbstractStorage, ::Val{:position}) = getfield(s, :position)
 point_data_field(s::AbstractStorage, ::Val{:displacement}) = getfield(s, :displacement)
 point_data_field(s::AbstractStorage, ::Val{:velocity}) = getfield(s, :velocity)
@@ -58,4 +54,42 @@ macro storage(material, timesolver, storage)
         end
     end
     return Expr(:block, _storage_type, _init_storage)
+end
+
+halo_read_fields(::AbstractStorage) = ()
+halo_write_fields(::AbstractStorage) = ()
+is_halo_field(::AbstractStorage, ::Val{F}) where {F} = false
+
+macro halo_read_fields(storage, fields...)
+    local _halo_read_fields = quote
+        function Peridynamics.halo_read_fields(::$(esc(storage)))
+            return $(Expr(:tuple, fields...))
+        end
+    end
+    local _is_halo_fields = [
+        quote
+            function Peridynamics.is_halo_field(::$(esc(storage)), ::Val{$(esc(_field))})
+                return true
+            end
+        end
+        for _field in fields
+    ]
+    return Expr(:block, _halo_read_fields, _is_halo_fields...)
+end
+
+macro halo_write_fields(storage, fields...)
+    local _halo_read_fields = quote
+        function Peridynamics.halo_write_fields(::$(esc(storage)))
+            return $(Expr(:tuple, fields...))
+        end
+    end
+    local _is_halo_fields = [
+        quote
+            function Peridynamics.is_halo_field(::$(esc(storage)), ::Val{$(esc(_field))})
+                return true
+            end
+        end
+        for _field in fields
+    ]
+    return Expr(:block, _halo_read_fields, _is_halo_fields...)
 end

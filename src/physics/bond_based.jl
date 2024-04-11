@@ -98,10 +98,7 @@ end
                                                       :velocity_half, :acceleration, :b_int,
                                                       :b_ext, :damage, :n_active_bonds)
 
-@inline halo_read_fields(::BBVerletStorage) = (:position,)
-@inline halo_write_fields(::BBVerletStorage) = ()
-@inline is_halo_field(::BBVerletStorage, ::Val{:position}) = true
-@inline is_halo_field(::BBVerletStorage, ::Val{F}) where {F} = false
+@halo_read_fields BBVerletStorage :position
 
 function force_density_point!(s::BBVerletStorage, bd::BondSystem, ::BBMaterial,
                               param::BBPointParameters, i::Int)
