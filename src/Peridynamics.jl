@@ -41,6 +41,14 @@ abstract type AbstractMPIDataHandler <: AbstractDataHandler end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
 
+include("auxiliary/function_arguments.jl")
+include("auxiliary/io.jl")
+include("auxiliary/logs.jl")
+include("auxiliary/mpi.jl")
+
+include("interfaces/material_interface.jl")
+include("interfaces/storage_interface.jl")
+
 include("conditions/boundary_conditions.jl")
 include("conditions/initial_conditions.jl")
 include("conditions/condition_checks.jl")
@@ -68,15 +76,8 @@ include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
 include("physics/correspondence.jl")
 
-include("auxiliary/function_arguments.jl")
-include("auxiliary/io.jl")
-include("auxiliary/logs.jl")
-include("auxiliary/mpi.jl")
-
 include("core/job.jl")
 include("core/submit.jl")
-include("core/material_interface.jl")
-include("core/storage_interface.jl")
 include("core/halo_exchange.jl")
 include("core/threads_data_handler.jl")
 include("core/mpi_data_handler.jl")

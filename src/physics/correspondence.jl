@@ -57,11 +57,7 @@ function get_point_params(::NOSBMaterial, p::Dict{Symbol,Any})
     return NOSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@inline system_type(::NOSBMaterial) = BondSystem
-
-@inline function get_system(body::AbstractBody{NOSBMaterial}, args...)
-    return get_bond_system(body, args...)
-end
+@system NOSBMaterial BondSystem
 
 struct NOSBVerletStorage <: AbstractStorage
     position::Matrix{Float64}

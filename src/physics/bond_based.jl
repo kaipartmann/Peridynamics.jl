@@ -61,11 +61,7 @@ function get_point_params(::BBMaterial, p::Dict{Symbol,Any})
     return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@inline system_type(::BBMaterial) = BondSystem
-
-@inline function get_system(body::AbstractBody{BBMaterial}, args...)
-    return get_bond_system(body, args...)
-end
+@system BBMaterial BondSystem
 
 struct BBVerletStorage <: AbstractStorage
     position::Matrix{Float64}

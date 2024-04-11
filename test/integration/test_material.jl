@@ -20,10 +20,7 @@ function Peridynamics.get_point_params(::TestMaterial, p::Dict{Symbol,Any})
     Gc, εc = Peridynamics.get_frac_params(p, δ, K)
     return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc)
 end
-Peridynamics.system_type(::TestMaterial) = Peridynamics.BondSystem
-function Peridynamics.get_system(body::Body{TestMaterial}, args...)
-    return Peridynamics.get_bond_system(body, args...)
-end
+Peridynamics.@system TestMaterial Peridynamics.BondSystem
 struct TestVerletStorage <: Peridynamics.AbstractStorage
     position::Matrix{Float64}
     displacement::Matrix{Float64}

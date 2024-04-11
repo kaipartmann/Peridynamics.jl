@@ -183,7 +183,7 @@ end
     pd = Peridynamics.PointDecomposition(body, 2)
 
     # 1
-    bs, ch = Peridynamics.get_bond_system(body, pd, 1)
+    bs, ch = Peridynamics.BondSystem(body, pd, 1)
 
     @test bs.position == position[:, 1:2]
     @test bs.volume == volume[1:2]
@@ -204,7 +204,7 @@ end
     end
 
     # 2
-    bs, ch = Peridynamics.get_bond_system(body, pd, 2)
+    bs, ch = Peridynamics.BondSystem(body, pd, 2)
 
     @test bs.position == position[:, 3:4]
     @test bs.volume == volume[3:4]

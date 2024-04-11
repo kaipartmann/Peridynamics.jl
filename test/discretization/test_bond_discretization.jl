@@ -1,4 +1,4 @@
-@testitem "get_bond_system" begin
+@testitem "BondSystem" begin
     # setup
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
@@ -10,7 +10,7 @@
     pd = Peridynamics.PointDecomposition(body, 2)
 
     # 1
-    bd, ch = Peridynamics.get_bond_system(body, pd, 1)
+    bd, ch = Peridynamics.BondSystem(body, pd, 1)
 
     @test bd.position == position
     @test bd.volume == volume
@@ -35,7 +35,7 @@
     end
 
     # 2
-    bd, ch = Peridynamics.get_bond_system(body, pd, 2)
+    bd, ch = Peridynamics.BondSystem(body, pd, 2)
 
     @test bd.position == position[:, [3, 4, 1, 2]]
     @test bd.volume == volume[[3, 4, 1, 2]]

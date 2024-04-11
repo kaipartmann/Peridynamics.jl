@@ -12,7 +12,7 @@ struct BondSystem <: AbstractSystem
     bond_ids::Vector{UnitRange{Int}}
 end
 
-function get_bond_system(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
+function BondSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     check_bond_system_compat(body.mat)
     bonds, n_neighbors = find_bonds(body, pd.decomp[chunk_id])
     bond_ids = find_bond_ids(n_neighbors)

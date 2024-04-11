@@ -52,11 +52,7 @@ function get_point_params(::OSBMaterial, p::Dict{Symbol,Any})
     return OSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@inline system_type(::OSBMaterial) = BondSystem
-
-@inline function get_system(body::AbstractBody{OSBMaterial}, args...)
-    return get_bond_system(body, args...)
-end
+@system OSBMaterial BondSystem
 
 struct OSBVerletStorage <: AbstractStorage
     position::Matrix{Float64}

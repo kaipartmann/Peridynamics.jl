@@ -34,3 +34,22 @@ end
 function is_halo_field(s::AbstractStorage, v::Val{F}) where {F}
     throw(MethodError(is_halo_field, s, v))
 end
+
+##----
+function get_system(::AbstractBody{M}, args...) where {M}
+    msg = "system for material $M not specified!\n"
+    return error(msg)
+end
+
+macro system(material, system)
+    local _system_type = quote
+        Peridynamics.system_type(::$(esc(material))) = $(esc(system))
+    end
+    local _get_system = quote
+        function Peridynamics.get_system(body::Peridynamics.AbstractBody{$(esc(material))},
+                                         args...)
+            return $(esc(system))(body, args...)
+        end
+    end
+    return Expr(:block, _system_type, _get_system)
+end
