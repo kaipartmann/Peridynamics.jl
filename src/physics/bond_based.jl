@@ -94,10 +94,6 @@ end
 
 @storage BBMaterial VelocityVerlet BBVerletStorage
 
-@inline point_data_fields(::Type{BBVerletStorage}) = (:position, :displacement, :velocity,
-                                                      :velocity_half, :acceleration, :b_int,
-                                                      :b_ext, :damage, :n_active_bonds)
-
 @halo_read_fields BBVerletStorage :position
 
 function force_density_point!(s::BBVerletStorage, bd::BondSystem, ::BBMaterial,

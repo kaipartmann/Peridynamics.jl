@@ -17,16 +17,18 @@ function point_data_field(::AbstractStorage, ::Val{field}) where {field}
     return throw(ArgumentError("field $field is not a valid point data field!\n"))
 end
 
+function point_data_fields(::Type{S}) where {S<:AbstractStorage}
+    fields = (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
+              :b_ext, :damage, :n_active_bonds)
+    return fields
+end
+
 function get_halo_read_fields(s::AbstractStorage)
     return Tuple(get_point_data(s, field) for field in halo_read_fields(s))
 end
 
 function get_halo_write_fields(s::AbstractStorage)
     return Tuple(get_point_data(s, field) for field in halo_write_fields(s))
-end
-
-function point_data_fields(s::Type{S}) where {S<:AbstractStorage}
-    return throw(MethodError(point_data_fields, s))
 end
 
 function get_loc_point_data(s::AbstractStorage, ch::AbstractChunkHandler, field::Symbol)

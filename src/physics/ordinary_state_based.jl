@@ -86,11 +86,6 @@ end
 
 @storage OSBMaterial VelocityVerlet OSBVerletStorage
 
-@inline point_data_fields(::Type{OSBVerletStorage}) = (:position, :displacement, :velocity,
-                                                       :velocity_half, :acceleration,
-                                                       :b_int, :b_ext, :damage,
-                                                       :n_active_bonds)
-
 @halo_read_fields OSBVerletStorage :position
 @halo_write_fields OSBVerletStorage :b_int
 
