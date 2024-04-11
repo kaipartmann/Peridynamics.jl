@@ -38,3 +38,24 @@ function get_loc_point_data(s::AbstractStorage, ch::AbstractChunkHandler, field:
     is_halo_field(s, val_field) || return point_data_field(s, val_field)
     return get_loc_view(point_data_field(s, val_field), ch)
 end
+
+##----
+function init_storage(::AbstractBody{M}, ts::T, args...) where {M,T}
+    msg = "storage for material $M and time solver $T not specified!\n"
+    return error(msg)
+end
+
+macro storage(material, timesolver, storage)
+    local _storage_type = quote
+        function Peridynamics.storage_type(::$(esc(material)), ::$(esc(timesolver)))
+            return $(esc(storage))
+        end
+    end
+    local _init_storage = quote
+        function Peridynamics.init_storage(body::Peridynamics.AbstractBody{$(esc(material))},
+                                           ts::$(esc(timesolver)), args...)
+            return $(esc(storage))(body, ts, args...)
+        end
+    end
+    return Expr(:block, _storage_type, _init_storage)
+end

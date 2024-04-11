@@ -3,10 +3,6 @@ function point_param_type(mat::AbstractMaterial)
     throw(MethodError(point_param_type, mat))
 end
 
-function allowed_material_kwargs(mat::AbstractMaterial)
-    throw(MethodError(allowed_material_kwargs, mat))
-end
-
 function get_point_params(mat::AbstractMaterial, ::Dict{Symbol,Any})
     throw(MethodError(get_point_params, mat))
 end
@@ -36,6 +32,11 @@ function is_halo_field(s::AbstractStorage, v::Val{F}) where {F}
 end
 
 ##----
+function allowed_material_kwargs(mat::AbstractMaterial)
+    return DEFAULT_POINT_KWARGS
+end
+
+##----
 function get_system(::AbstractBody{M}, args...) where {M}
     msg = "system for material $M not specified!\n"
     return error(msg)
@@ -52,4 +53,23 @@ macro system(material, system)
         end
     end
     return Expr(:block, _system_type, _get_system)
+end
+
+
+##----
+# function get_point_params(::M, args...) where {M}
+#     msg = "point parameters for material $M not specified!\n"
+#     return error(msg)
+# end
+
+macro pointparams(material, pointparams)
+    local _pointparam_type = quote
+        Peridynamics.point_param_type(::$(esc(material))) = $(esc(pointparams))
+    end
+    local _get_pointparams = quote
+        function Peridynamics.get_point_params(m::$(esc(material)), p::Dict{Symbol,Any})
+            return $(esc(pointparams))(m, p)
+        end
+    end
+    return Expr(:block, _pointparam_type, _get_pointparams)
 end

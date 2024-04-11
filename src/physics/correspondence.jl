@@ -45,10 +45,7 @@ struct NOSBPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-@inline point_param_type(::NOSBMaterial) = NOSBPointParameters
-@inline allowed_material_kwargs(::NOSBMaterial) = DEFAULT_POINT_KWARGS
-
-function get_point_params(::NOSBMaterial, p::Dict{Symbol,Any})
+function NOSBPointParameters(::NOSBMaterial, p::Dict{Symbol,Any})
     δ = get_horizon(p)
     rho = get_density(p)
     E, nu, G, K, λ, μ = get_elastic_params(p)
@@ -56,6 +53,8 @@ function get_point_params(::NOSBMaterial, p::Dict{Symbol,Any})
     bc = 18 * K / (π * δ^4) # bond constant
     return NOSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
+
+@pointparams NOSBMaterial NOSBPointParameters
 
 @system NOSBMaterial BondSystem
 
@@ -72,17 +71,8 @@ struct NOSBVerletStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-const NOSBStorage = Union{NOSBVerletStorage}
-
-@inline storage_type(::NOSBMaterial, ::VelocityVerlet) = NOSBVerletStorage
-
-@inline point_data_fields(::Type{NOSBVerletStorage}) = (:position, :displacement, :velocity,
-                                                        :velocity_half, :acceleration,
-                                                        :b_int, :b_ext, :damage,
-                                                        :n_active_bonds)
-
-function init_storage(::AbstractBody{NOSBMaterial}, ::VelocityVerlet, bd::BondSystem,
-                      ch::ChunkHandler)
+function NOSBVerletStorage(::AbstractBody{NOSBMaterial}, ::VelocityVerlet, bd::BondSystem,
+                           ch::ChunkHandler)
     n_loc_points = length(ch.loc_points)
     position = copy(bd.position)
     displacement = zeros(3, n_loc_points)
@@ -94,17 +84,25 @@ function init_storage(::AbstractBody{NOSBMaterial}, ::VelocityVerlet, bd::BondSy
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, length(bd.bonds))
     n_active_bonds = copy(bd.n_neighbors)
-    return NOSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                             b_int, b_ext, damage, bond_active, n_active_bonds)
+    s = NOSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
+                          b_int, b_ext, damage, bond_active, n_active_bonds)
+    return s
 end
 
-@inline halo_read_fields(::NOSBStorage) = (:position,)
-@inline halo_write_fields(::NOSBStorage)  = (:b_int,)
-@inline is_halo_field(::NOSBStorage, ::Val{:position}) = true
-@inline is_halo_field(::NOSBStorage, ::Val{:b_int}) = true
-@inline is_halo_field(::NOSBStorage, ::Val{F}) where {F} = false
+@storage NOSBMaterial VelocityVerlet NOSBVerletStorage
 
-function force_density_point!(s::NOSBStorage, bd::BondSystem, mat::NOSBMaterial,
+@inline point_data_fields(::Type{NOSBVerletStorage}) = (:position, :displacement, :velocity,
+                                                        :velocity_half, :acceleration,
+                                                        :b_int, :b_ext, :damage,
+                                                        :n_active_bonds)
+
+@inline halo_read_fields(::NOSBVerletStorage) = (:position,)
+@inline halo_write_fields(::NOSBVerletStorage)  = (:b_int,)
+@inline is_halo_field(::NOSBVerletStorage, ::Val{:position}) = true
+@inline is_halo_field(::NOSBVerletStorage, ::Val{:b_int}) = true
+@inline is_halo_field(::NOSBVerletStorage, ::Val{F}) where {F} = false
+
+function force_density_point!(s::NOSBVerletStorage, bd::BondSystem, mat::NOSBMaterial,
                               param::NOSBPointParameters, i::Int)
     F, Kinv, ω0 = calc_deformation_gradient(s, bd, param, i)
     if s.damage[i] > mat.maxdmg || containsnan(F)
@@ -156,7 +154,7 @@ function force_density_point!(s::NOSBStorage, bd::BondSystem, mat::NOSBMaterial,
     return nothing
 end
 
-function calc_deformation_gradient(s::NOSBStorage, bd::BondSystem,
+function calc_deformation_gradient(s::NOSBVerletStorage, bd::BondSystem,
                                    param::NOSBPointParameters, i::Int)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})

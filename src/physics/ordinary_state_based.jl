@@ -40,10 +40,7 @@ struct OSBPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-@inline point_param_type(::OSBMaterial) = OSBPointParameters
-@inline allowed_material_kwargs(::OSBMaterial) = DEFAULT_POINT_KWARGS
-
-function get_point_params(::OSBMaterial, p::Dict{Symbol,Any})
+function OSBPointParameters(::OSBMaterial, p::Dict{Symbol,Any})
     δ = get_horizon(p)
     rho = get_density(p)
     E, nu, G, K, λ, μ = get_elastic_params(p)
@@ -51,6 +48,8 @@ function get_point_params(::OSBMaterial, p::Dict{Symbol,Any})
     bc = 18 * K / (π * δ^4)
     return OSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
+
+@pointparams OSBMaterial OSBPointParameters
 
 @system OSBMaterial BondSystem
 
@@ -67,17 +66,8 @@ struct OSBVerletStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-const OSBStorage = Union{OSBVerletStorage}
-
-@inline storage_type(::OSBMaterial, ::VelocityVerlet) = OSBVerletStorage
-
-@inline point_data_fields(::Type{OSBVerletStorage}) = (:position, :displacement, :velocity,
-                                                       :velocity_half, :acceleration,
-                                                       :b_int, :b_ext, :damage,
-                                                       :n_active_bonds)
-
-function init_storage(::AbstractBody{OSBMaterial}, ::VelocityVerlet, bd::BondSystem,
-                      ch::ChunkHandler)
+function OSBVerletStorage(::AbstractBody{OSBMaterial}, ::VelocityVerlet, bd::BondSystem,
+                          ch::ChunkHandler)
     n_loc_points = length(ch.loc_points)
     position = copy(bd.position)
     displacement = zeros(3, n_loc_points)
@@ -89,17 +79,25 @@ function init_storage(::AbstractBody{OSBMaterial}, ::VelocityVerlet, bd::BondSys
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, length(bd.bonds))
     n_active_bonds = copy(bd.n_neighbors)
-    return OSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                            b_int, b_ext, damage, bond_active, n_active_bonds)
+    s = OSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
+                         b_int, b_ext, damage, bond_active, n_active_bonds)
+    return s
 end
 
-@inline halo_read_fields(::OSBStorage) = (:position,)
-@inline halo_write_fields(::OSBStorage)  = (:b_int,)
-@inline is_halo_field(::OSBStorage, ::Val{:position}) = true
-@inline is_halo_field(::OSBStorage, ::Val{:b_int}) = true
-@inline is_halo_field(::OSBStorage, ::Val{F}) where {F} = false
+@storage OSBMaterial VelocityVerlet OSBVerletStorage
 
-function force_density_point!(s::OSBStorage, bd::BondSystem, mat::OSBMaterial,
+@inline point_data_fields(::Type{OSBVerletStorage}) = (:position, :displacement, :velocity,
+                                                       :velocity_half, :acceleration,
+                                                       :b_int, :b_ext, :damage,
+                                                       :n_active_bonds)
+
+@inline halo_read_fields(::OSBVerletStorage) = (:position,)
+@inline halo_write_fields(::OSBVerletStorage)  = (:b_int,)
+@inline is_halo_field(::OSBVerletStorage, ::Val{:position}) = true
+@inline is_halo_field(::OSBVerletStorage, ::Val{:b_int}) = true
+@inline is_halo_field(::OSBVerletStorage, ::Val{F}) where {F} = false
+
+function force_density_point!(s::OSBVerletStorage, bd::BondSystem, ::OSBMaterial,
                               param::OSBPointParameters, i::Int)
     # weighted volume
     wvol = calc_weighted_volume(s, bd, param, i)
@@ -137,7 +135,7 @@ function force_density_point!(s::OSBStorage, bd::BondSystem, mat::OSBMaterial,
     return nothing
 end
 
-function calc_weighted_volume(s::OSBStorage, bd::BondSystem,
+function calc_weighted_volume(s::OSBVerletStorage, bd::BondSystem,
                               param::OSBPointParameters, i::Int)
     wvol = 0.0
     for bond_id in each_bond_idx(bd, i)
@@ -153,7 +151,7 @@ function calc_weighted_volume(s::OSBStorage, bd::BondSystem,
     return wvol
 end
 
-function calc_dilatation(s::OSBStorage, bd::BondSystem, param::OSBPointParameters,
+function calc_dilatation(s::OSBVerletStorage, bd::BondSystem, param::OSBPointParameters,
                          wvol::Float64, i::Int)
     dil = 0.0
     c1 = 3.0 / wvol

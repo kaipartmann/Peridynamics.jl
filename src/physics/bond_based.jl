@@ -40,11 +40,7 @@ struct BBPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-@inline point_param_type(::BBMaterial) = BBPointParameters
-
-@inline allowed_material_kwargs(::BBMaterial) = DEFAULT_POINT_KWARGS
-
-function get_point_params(::BBMaterial, p::Dict{Symbol,Any})
+function BBPointParameters(::BBMaterial, p::Dict{Symbol,Any})
     δ = get_horizon(p)
     rho = get_density(p)
     if haskey(p, :nu)
@@ -61,6 +57,8 @@ function get_point_params(::BBMaterial, p::Dict{Symbol,Any})
     return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
+@pointparams BBMaterial BBPointParameters
+
 @system BBMaterial BondSystem
 
 struct BBVerletStorage <: AbstractStorage
@@ -76,18 +74,10 @@ struct BBVerletStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-const BBStorage = Union{BBVerletStorage}
-
-@inline storage_type(::BBMaterial, ::VelocityVerlet) = BBVerletStorage
-
-@inline point_data_fields(::Type{BBVerletStorage}) = (:position, :displacement, :velocity,
-                                                      :velocity_half, :acceleration, :b_int,
-                                                      :b_ext, :damage, :n_active_bonds)
-
-function init_storage(::AbstractBody{BBMaterial}, ::VelocityVerlet, bd::BondSystem,
-                      ch::ChunkHandler)
+function BBVerletStorage(::AbstractBody{BBMaterial}, ::VelocityVerlet, system::BondSystem,
+                         ch::ChunkHandler)
     n_loc_points = length(ch.loc_points)
-    position = copy(bd.position)
+    position = copy(system.position)
     displacement = zeros(3, n_loc_points)
     velocity = zeros(3, n_loc_points)
     velocity_half = zeros(3, n_loc_points)
@@ -95,18 +85,25 @@ function init_storage(::AbstractBody{BBMaterial}, ::VelocityVerlet, bd::BondSyst
     b_int = zeros(3, n_loc_points)
     b_ext = zeros(3, n_loc_points)
     damage = zeros(n_loc_points)
-    bond_active = ones(Bool, length(bd.bonds))
-    n_active_bonds = copy(bd.n_neighbors)
-    return BBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                           b_int, b_ext, damage, bond_active, n_active_bonds)
+    bond_active = ones(Bool, length(system.bonds))
+    n_active_bonds = copy(system.n_neighbors)
+    s = BBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
+                        b_int, b_ext, damage, bond_active, n_active_bonds)
+    return s
 end
 
-@inline halo_read_fields(::BBStorage) = (:position,)
-@inline halo_write_fields(::BBStorage) = ()
-@inline is_halo_field(::BBStorage, ::Val{:position}) = true
-@inline is_halo_field(::BBStorage, ::Val{F}) where {F} = false
+@storage BBMaterial VelocityVerlet BBVerletStorage
 
-function force_density_point!(s::BBStorage, bd::BondSystem, ::BBMaterial,
+@inline point_data_fields(::Type{BBVerletStorage}) = (:position, :displacement, :velocity,
+                                                      :velocity_half, :acceleration, :b_int,
+                                                      :b_ext, :damage, :n_active_bonds)
+
+@inline halo_read_fields(::BBVerletStorage) = (:position,)
+@inline halo_write_fields(::BBVerletStorage) = ()
+@inline is_halo_field(::BBVerletStorage, ::Val{:position}) = true
+@inline is_halo_field(::BBVerletStorage, ::Val{F}) where {F} = false
+
+function force_density_point!(s::BBVerletStorage, bd::BondSystem, ::BBMaterial,
                               param::BBPointParameters, i::Int)
     for bond_id in each_bond_idx(bd, i)
         bond = bd.bonds[bond_id]
