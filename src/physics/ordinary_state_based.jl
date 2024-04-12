@@ -49,7 +49,7 @@ function OSBPointParameters(::OSBMaterial, p::Dict{Symbol,Any})
     return OSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@pointparams OSBMaterial OSBPointParameters
+@params OSBMaterial OSBPointParameters
 
 @system OSBMaterial BondSystem
 

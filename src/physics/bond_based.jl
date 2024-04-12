@@ -57,7 +57,7 @@ function BBPointParameters(::BBMaterial, p::Dict{Symbol,Any})
     return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@pointparams BBMaterial BBPointParameters
+@params BBMaterial BBPointParameters
 
 @system BBMaterial BondSystem
 

@@ -54,7 +54,7 @@ function NOSBPointParameters(::NOSBMaterial, p::Dict{Symbol,Any})
     return NOSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@pointparams NOSBMaterial NOSBPointParameters
+@params NOSBMaterial NOSBPointParameters
 
 @system NOSBMaterial BondSystem
 

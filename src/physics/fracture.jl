@@ -75,3 +75,17 @@ end
     end
     return nothing
 end
+
+required_fields_fracture() = (:damage, :bond_active, :n_active_bonds)
+
+function req_storage_fields_fracture(::Type{Storage}) where {Storage}
+    parameters = fieldnames(Storage)
+    for req_field in required_fields_fracture()
+        if !in(req_field, parameters)
+            msg = "required field $req_field not found in $(Storage)!\n"
+            msg *= "The field is required for the fracture calculation!\n"
+            error(msg)
+        end
+    end
+    return nothing
+end

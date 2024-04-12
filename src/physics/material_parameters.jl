@@ -117,3 +117,28 @@ function get_elastic_params(p::Dict{Symbol,Any})
     μ = G
     return E, nu, G, K, λ, μ
 end
+
+function typecheck_material(::Type{Material}) where {Material}
+    if !(Material <: AbstractMaterial)
+        msg = "$Material is not a valid material type!\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
+end
+
+required_point_parameters() = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :Gc, :εc)
+
+function typecheck_params(::Type{Param}) where {Param}
+    if !(Param <: AbstractPointParameters)
+        msg = "$Param is not a valid point parameter type!\n"
+        throw(ArgumentError(msg))
+    end
+    parameters = fieldnames(Param)
+    for req_param in required_point_parameters()
+        if !in(req_param, parameters)
+            msg = "required parameter $req_param not found in $(Param)!\n"
+            error(msg)
+        end
+    end
+    return nothing
+end
