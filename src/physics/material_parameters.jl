@@ -2,6 +2,10 @@ const ELASTIC_KWARGS = (:E, :nu)
 const FRAC_KWARGS = (:Gc, :epsilon_c)
 const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
 
+function allowed_material_kwargs(::AbstractMaterial)
+    return DEFAULT_POINT_KWARGS
+end
+
 """
     material!(b::Body{M,P}, name::Symbol; kwargs...)
     material!(b::Body{M,P}; kwargs...)
@@ -118,27 +122,4 @@ function get_elastic_params(p::Dict{Symbol,Any})
     return E, nu, G, K, λ, μ
 end
 
-function typecheck_material(::Type{Material}) where {Material}
-    if !(Material <: AbstractMaterial)
-        msg = "$Material is not a valid material type!\n"
-        throw(ArgumentError(msg))
-    end
-    return nothing
-end
-
 required_point_parameters() = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :Gc, :εc)
-
-function typecheck_params(::Type{Param}) where {Param}
-    if !(Param <: AbstractPointParameters)
-        msg = "$Param is not a valid point parameter type!\n"
-        throw(ArgumentError(msg))
-    end
-    parameters = fieldnames(Param)
-    for req_param in required_point_parameters()
-        if !in(req_param, parameters)
-            msg = "required parameter $req_param not found in $(Param)!\n"
-            error(msg)
-        end
-    end
-    return nothing
-end

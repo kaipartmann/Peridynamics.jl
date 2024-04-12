@@ -46,9 +46,6 @@ include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
 include("auxiliary/mpi.jl")
 
-include("interfaces/material_interface.jl")
-include("interfaces/storage_interface.jl")
-
 include("conditions/boundary_conditions.jl")
 include("conditions/initial_conditions.jl")
 include("conditions/condition_checks.jl")
@@ -65,6 +62,15 @@ include("discretization/bond_system.jl")
 include("discretization/body_chunk.jl")
 include("discretization/multi_param_body_chunk.jl")
 
+include("core/job.jl")
+include("core/submit.jl")
+include("core/halo_exchange.jl")
+include("core/threads_data_handler.jl")
+include("core/mpi_data_handler.jl")
+include("core/systems.jl")
+include("core/materials.jl")
+include("core/storages.jl")
+
 include("time_solvers/time_solver_interface.jl")
 include("time_solvers/velocity_verlet.jl")
 
@@ -75,12 +81,6 @@ include("physics/bond_based.jl")
 include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
 include("physics/correspondence.jl")
-
-include("core/job.jl")
-include("core/submit.jl")
-include("core/halo_exchange.jl")
-include("core/threads_data_handler.jl")
-include("core/mpi_data_handler.jl")
 
 include("VtkReader/VtkReader.jl")
 using .VtkReader
