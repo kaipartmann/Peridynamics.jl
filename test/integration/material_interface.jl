@@ -1,3 +1,163 @@
+@testitem "Material declaration" begin
+    struct TestMaterial1 <: Peridynamics.AbstractMaterial end
+    struct WrongTestMaterial end
+
+    @test isnothing(Peridynamics.typecheck_material(TestMaterial1))
+    @test_throws ArgumentError Peridynamics.typecheck_material(WrongTestMaterial)
+end
+
+@testitem "Point parameters declaration" begin
+    struct TestMaterial2 <: Peridynamics.AbstractMaterial end
+    struct TestPointParameters <: Peridynamics.AbstractPointParameters
+        δ::Float64
+        rho::Float64
+        E::Float64
+        nu::Float64
+        G::Float64
+        K::Float64
+        λ::Float64
+        μ::Float64
+        Gc::Float64
+        εc::Float64
+    end
+    @test isnothing(Peridynamics.typecheck_params(TestPointParameters))
+
+    struct PointParametersNoSubtype
+        δ::Float64
+        rho::Float64
+        E::Float64
+        nu::Float64
+        G::Float64
+        K::Float64
+        λ::Float64
+        μ::Float64
+        Gc::Float64
+        εc::Float64
+    end
+    @test_throws ArgumentError Peridynamics.typecheck_params(PointParametersNoSubtype)
+
+    struct PointParametersMissingHorizon <: Peridynamics.AbstractPointParameters
+        rho::Float64
+        E::Float64
+        nu::Float64
+        G::Float64
+        K::Float64
+        λ::Float64
+        μ::Float64
+        Gc::Float64
+        εc::Float64
+    end
+    @test_throws ErrorException Peridynamics.typecheck_params(PointParametersMissingHorizon)
+
+    Peridynamics.@params TestMaterial2 TestPointParameters
+    @test hasmethod(Peridynamics.point_param_type, Tuple{TestMaterial2})
+    @test Peridynamics.point_param_type(TestMaterial2()) == TestPointParameters
+    @test hasmethod(Peridynamics.get_point_params, Tuple{TestMaterial2,Dict{Symbol,Any}})
+end
+
+@testitem "System declaration" begin
+    struct TestMaterial3 <: Peridynamics.AbstractMaterial end
+    struct WrongMaterial2 end
+
+    @test_throws ArgumentError Peridynamics.@system WrongMaterial2 Peridynamics.BondSystem
+    @test_throws ArgumentError Peridynamics.@system TestMaterial3 Peridynamics.BBMaterial
+
+    Peridynamics.@system TestMaterial3 Peridynamics.BondSystem
+    @test hasmethod(Peridynamics.system_type, Tuple{TestMaterial3})
+    @test Peridynamics.system_type(TestMaterial3()) == Peridynamics.BondSystem
+    @test hasmethod(Peridynamics.get_system,
+                    Tuple{Peridynamics.AbstractBody{TestMaterial3}})
+end
+
+@testitem "Storage declaration" begin
+    struct TestMaterial4 <: Peridynamics.AbstractMaterial end
+
+    struct TestVerletStorageNoSubtype
+        position::Matrix{Float64}
+        displacement::Matrix{Float64}
+        velocity::Matrix{Float64}
+        velocity_half::Matrix{Float64}
+        acceleration::Matrix{Float64}
+        b_int::Matrix{Float64}
+        b_ext::Matrix{Float64}
+        damage::Vector{Float64}
+        bond_active::Vector{Bool}
+        n_active_bonds::Vector{Int}
+    end
+    @test_throws ArgumentError Peridynamics.@storage(TestMaterial4, VelocityVerlet,
+                                                     TestVerletStorageNoSubtype)
+
+    struct TestVerletStorageMissingField1 <: Peridynamics.AbstractStorage
+        position::Matrix{Float64}
+        # displacement::Matrix{Float64}
+        velocity::Matrix{Float64}
+        velocity_half::Matrix{Float64}
+        acceleration::Matrix{Float64}
+        b_int::Matrix{Float64}
+        b_ext::Matrix{Float64}
+        damage::Vector{Float64}
+        bond_active::Vector{Bool}
+        n_active_bonds::Vector{Int}
+    end
+    @test_throws ErrorException Peridynamics.@storage(TestMaterial4, VelocityVerlet,
+                                                      TestVerletStorageMissingField1)
+
+    struct TestVerletStorageMissingField2 <: Peridynamics.AbstractStorage
+        position::Matrix{Float64}
+        displacement::Matrix{Float64}
+        velocity::Matrix{Float64}
+        velocity_half::Matrix{Float64}
+        acceleration::Matrix{Float64}
+        b_int::Matrix{Float64}
+        b_ext::Matrix{Float64}
+        # damage::Vector{Float64}
+        bond_active::Vector{Bool}
+        n_active_bonds::Vector{Int}
+    end
+    @test_throws ErrorException Peridynamics.@storage(TestMaterial4, VelocityVerlet,
+                                                     TestVerletStorageMissingField2)
+
+    struct TestVerletStorage1 <: Peridynamics.AbstractStorage
+        position::Matrix{Float64}
+        displacement::Matrix{Float64}
+        velocity::Matrix{Float64}
+        velocity_half::Matrix{Float64}
+        acceleration::Matrix{Float64}
+        b_int::Matrix{Float64}
+        b_ext::Matrix{Float64}
+        damage::Vector{Float64}
+        bond_active::Vector{Bool}
+        n_active_bonds::Vector{Int}
+    end
+
+    Peridynamics.@storage TestMaterial4 VelocityVerlet TestVerletStorage1
+    @test hasmethod(Peridynamics.storage_type, Tuple{TestMaterial4,VelocityVerlet})
+    mat, vv = TestMaterial4(), VelocityVerlet(steps=1)
+    @test Peridynamics.storage_type(mat, vv) == TestVerletStorage1
+
+    @test_throws ArgumentError Peridynamics.@halo_read_fields(TestVerletStorageNoSubtype,
+                                                              :position)
+
+    @test_throws ArgumentError Peridynamics.@halo_read_fields(TestVerletStorage1,
+                                                              :randomfield)
+
+    Peridynamics.@halo_read_fields TestVerletStorage1 :position :displacement
+    @test hasmethod(Peridynamics.halo_read_fields, Tuple{TestVerletStorage1})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{TestVerletStorage1,Val{:position}})
+    @test hasmethod(Peridynamics.is_halo_field,
+                    Tuple{TestVerletStorage1,Val{:displacement}})
+
+    @test_throws ArgumentError Peridynamics.@halo_write_fields(TestVerletStorageNoSubtype,
+                                                               :b_int)
+
+    @test_throws ArgumentError Peridynamics.@halo_write_fields(TestVerletStorage1,
+                                                               :randomfield)
+
+    Peridynamics.@halo_write_fields TestVerletStorage1 :b_int :b_ext
+    @test hasmethod(Peridynamics.halo_write_fields, Tuple{TestVerletStorage1})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{TestVerletStorage1,Val{:b_int}})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{TestVerletStorage1,Val{:b_ext}})
+end
 
 @testitem "TestMaterial halo exchange" begin
     include("test_material.jl")

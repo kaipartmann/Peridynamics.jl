@@ -28,8 +28,8 @@ macro system(material, system)
     macrocheck_input_material(material)
     macrocheck_input_system(system)
     local _checks = quote
-        typecheck_material($(esc(material)))
-        typecheck_system($(esc(system)))
+        Peridynamics.typecheck_material($(esc(material)))
+        Peridynamics.typecheck_system($(esc(system)))
     end
     local _system_type = quote
         Peridynamics.system_type(::$(esc(material))) = $(esc(system))
@@ -47,8 +47,8 @@ macro params(material, params)
     macrocheck_input_material(material)
     macrocheck_input_params(params)
     local _checks = quote
-        typecheck_material($(esc(material)))
-        typecheck_params($(esc(params)))
+        Peridynamics.typecheck_material($(esc(material)))
+        Peridynamics.typecheck_params($(esc(params)))
     end
     local _pointparam_type = quote
         Peridynamics.point_param_type(::$(esc(material))) = $(esc(params))

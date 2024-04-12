@@ -49,8 +49,8 @@ macro storage(material, timesolver, storage)
     macrocheck_input_timesolver(timesolver)
     macrocheck_input_storage(storage)
     local _checks = quote
-        typecheck_material($(esc(material)))
-        typecheck_storage($(esc(storage)), $(esc(timesolver)))
+        Peridynamics.typecheck_material($(esc(material)))
+        Peridynamics.typecheck_storage($(esc(storage)), $(esc(timesolver)))
     end
     local _storage_type = quote
         function Peridynamics.storage_type(::$(esc(material)), ::$(esc(timesolver)))
@@ -75,10 +75,10 @@ macro halo_read_fields(storage, fields...)
     macrocheck_input_fields(fields...)
     local _checks = quote
         if !($(esc(storage)) <: Peridynamics.AbstractStorage)
-            msg = "$(esc(storage)) is not a valid storage type!\n"
+            msg = Base.string($(esc(storage)), " is not a valid storage type!\n")
             throw(ArgumentError(msg))
         end
-        typecheck_storage_has_fields($(esc(storage)), $(Expr(:tuple, fields...)))
+        Peridynamics.typecheck_storage_has_fields($(esc(storage)), $(Expr(:tuple, fields...)))
     end
     local _halo_read_fields = quote
         function Peridynamics.halo_read_fields(::$(esc(storage)))
@@ -101,10 +101,10 @@ macro halo_write_fields(storage, fields...)
     macrocheck_input_fields(fields...)
     local _checks = quote
         if !($(esc(storage)) <: Peridynamics.AbstractStorage)
-            msg = "$(esc(storage)) is not a valid storage type!\n"
+            msg = Base.string($(esc(storage)), " is not a valid storage type!\n")
             throw(ArgumentError(msg))
         end
-        typecheck_storage_has_fields($(esc(storage)), $(Expr(:tuple, fields...)))
+        Peridynamics.typecheck_storage_has_fields($(esc(storage)), $(Expr(:tuple, fields...)))
     end
     local _halo_read_fields = quote
         function Peridynamics.halo_write_fields(::$(esc(storage)))
@@ -161,7 +161,7 @@ function typecheck_storage_has_fields(::Type{S}, fields::NTuple{N,Symbol}) where
     storage_fields = fieldnames(S)
     for field in fields
         if !in(field, storage_fields)
-            msg = "storage $(S) has no field $(field)!\n"
+            msg = "storage $(S) has no field `$(field)`!\n"
             throw(ArgumentError(msg))
         end
     end
