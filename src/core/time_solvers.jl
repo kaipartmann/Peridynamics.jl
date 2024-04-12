@@ -10,7 +10,16 @@ function solve!(dh::AbstractDataHandler, ts::AbstractTimeSolver, options)
     error(msg)
 end
 
-function required_fields_timesolver(ts::Type{TS}) where {TS}
+function required_fields_timesolver(::Type{TS}) where {TS}
+    return (req_point_data_fields_timesolver(TS)..., req_data_fields_timesolver(TS)...)
+end
+
+function req_point_data_fields_timesolver(ts::Type{TS}) where {TS}
+    throw(MethodError(required_fields_timesolver, ts))
+    return nothing
+end
+
+function req_data_fields_timesolver(ts::Type{TS}) where {TS}
     throw(MethodError(required_fields_timesolver, ts))
     return nothing
 end

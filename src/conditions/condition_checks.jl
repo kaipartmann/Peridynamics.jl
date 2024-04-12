@@ -18,17 +18,3 @@ function check_condition_function(f::F) where {F<:Function}
     end
     return nothing
 end
-
-required_fields_conditions() = (:velocity, :velocity_half, :b_ext)
-
-function req_storage_fields_conditions(::Type{Storage}) where {Storage}
-    parameters = fieldnames(Storage)
-    for req_field in required_fields_conditions()
-        if !in(req_field, parameters)
-            msg = "required field $req_field not found in $(Storage)!\n"
-            msg *= "The field is required for the boundary conditions!\n"
-            error(msg)
-        end
-    end
-    return nothing
-end

@@ -114,8 +114,8 @@ function typecheck_storage(::Type{Storage}, ::Type{TimeSolver}) where {Storage,T
         msg = "$Storage is not a valid storage type!\n"
         throw(ArgumentError(msg))
     end
+    # TODO: add the material type! Then users can add requirements for own materials
     req_storage_fields_timesolver(Storage, TimeSolver)
-    req_storage_fields_conditions(Storage)
     req_storage_fields_fracture(Storage)
     return nothing
 end

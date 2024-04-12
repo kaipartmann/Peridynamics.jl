@@ -123,3 +123,6 @@ function get_elastic_params(p::Dict{Symbol,Any})
 end
 
 required_point_parameters() = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :Gc, :εc)
+
+#TODO: parameter checks material dependent...
+# req_param_material(::AbstractMaterial) = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ)

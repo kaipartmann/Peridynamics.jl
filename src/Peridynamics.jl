@@ -70,8 +70,8 @@ include("core/mpi_data_handler.jl")
 include("core/systems.jl")
 include("core/materials.jl")
 include("core/storages.jl")
+include("core/time_solvers.jl")
 
-include("time_solvers/time_solver_interface.jl")
 include("time_solvers/velocity_verlet.jl")
 
 include("physics/force_density.jl")

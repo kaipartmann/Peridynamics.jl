@@ -11,6 +11,7 @@ macro params(material, params)
     macrocheck_input_params(params)
     local _checks = quote
         Peridynamics.typecheck_material($(esc(material)))
+        #TODO: make this check material dependent -> overloadable for own types!
         Peridynamics.typecheck_params($(esc(params)))
     end
     local _pointparam_type = quote

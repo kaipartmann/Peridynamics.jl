@@ -76,7 +76,17 @@ end
     return nothing
 end
 
-required_fields_fracture() = (:damage, :bond_active, :n_active_bonds)
+function required_fields_fracture()
+    return (req_point_data_fields_fracture()..., req_data_fields_fracture()...)
+end
+
+function req_point_data_fields_fracture()
+    return (:damage, :n_active_bonds)
+end
+
+function req_data_fields_fracture()
+    return ()
+end
 
 function req_storage_fields_fracture(::Type{Storage}) where {Storage}
     parameters = fieldnames(Storage)

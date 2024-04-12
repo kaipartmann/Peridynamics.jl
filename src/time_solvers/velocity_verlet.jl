@@ -256,8 +256,12 @@ function solve_timestep!(dh::AbstractMPIDataHandler, options::AbstractOptions, Î
     return nothing
 end
 
-function required_fields_timesolver(::Type{VelocityVerlet})
+function req_point_data_fields_timesolver(::Type{VelocityVerlet})
     fields = (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
              :b_ext)
     return fields
+end
+
+function req_data_fields_timesolver(::Type{VelocityVerlet})
+    return ()
 end
