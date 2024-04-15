@@ -11,19 +11,15 @@ struct TestPointParameters <: Peridynamics.AbstractPointParameters
     Gc::Float64
     εc::Float64
 end
-Peridynamics.point_param_type(::TestMaterial) = TestPointParameters
-Peridynamics.allowed_material_kwargs(::TestMaterial) = Peridynamics.DEFAULT_POINT_KWARGS
-function Peridynamics.get_point_params(::TestMaterial, p::Dict{Symbol,Any})
+function TestPointParameters(::TestMaterial, p::Dict{Symbol,Any})
     δ = Peridynamics.get_horizon(p)
     rho = Peridynamics.get_density(p)
     E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(p)
     Gc, εc = Peridynamics.get_frac_params(p, δ, K)
     return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc)
 end
-Peridynamics.system_type(::TestMaterial) = Peridynamics.BondSystem
-function Peridynamics.get_system(body::Body{TestMaterial}, args...)
-    return Peridynamics.get_bond_system(body, args...)
-end
+Peridynamics.@params TestMaterial TestPointParameters
+Peridynamics.@system TestMaterial Peridynamics.BondSystem
 struct TestVerletStorage <: Peridynamics.AbstractStorage
     position::Matrix{Float64}
     displacement::Matrix{Float64}
@@ -36,14 +32,10 @@ struct TestVerletStorage <: Peridynamics.AbstractStorage
     bond_active::Vector{Bool}
     n_active_bonds::Vector{Int}
 end
-function Peridynamics.storage_type(::TestMaterial, ::Peridynamics.VelocityVerlet)
-    return TestVerletStorage
-end
-function Peridynamics.init_storage(::Body{TestMaterial}, ::Peridynamics.VelocityVerlet,
-                                   bd::Peridynamics.BondSystem,
-                                   ch::Peridynamics.ChunkHandler)
+function TestVerletStorage(::Body{TestMaterial}, ::Peridynamics.VelocityVerlet,
+                           system::Peridynamics.BondSystem, ch::Peridynamics.ChunkHandler)
     n_loc_points = length(ch.loc_points)
-    position = copy(bd.position)
+    position = copy(system.position)
     displacement = zeros(3, n_loc_points)
     velocity = zeros(3, n_loc_points)
     velocity_half = zeros(3, n_loc_points)
@@ -51,11 +43,12 @@ function Peridynamics.init_storage(::Body{TestMaterial}, ::Peridynamics.Velocity
     b_int = zeros(3, length(ch.point_ids))
     b_ext = zeros(3, n_loc_points)
     damage = zeros(n_loc_points)
-    bond_active = ones(Bool, length(bd.bonds))
-    n_active_bonds = copy(bd.n_neighbors)
+    bond_active = ones(Bool, length(system.bonds))
+    n_active_bonds = copy(system.n_neighbors)
     return TestVerletStorage(position, displacement, velocity, velocity_half,
-                                acceleration, b_int, b_ext, damage, bond_active,
-                                n_active_bonds)
+                             acceleration, b_int, b_ext, damage, bond_active,
+                             n_active_bonds)
 end
-Peridynamics.halo_read_fields(::TestVerletStorage) = (:position,)
-Peridynamics.halo_write_fields(::TestVerletStorage)  = (:b_int,)
+Peridynamics.@storage TestMaterial VelocityVerlet TestVerletStorage
+Peridynamics.@halo_read_fields TestVerletStorage :position
+Peridynamics.@halo_write_fields TestVerletStorage :b_int

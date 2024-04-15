@@ -28,7 +28,6 @@ function check_export_fields(::Type{S}, fields::Vector{Symbol}) where {S}
     return nothing
 end
 
-
 function _export_results(b::AbstractBodyChunk, chunk_id::Int, n_chunks::Int,
                          options::AbstractOptions, n::Int, t::Float64)
     filename = joinpath(options.vtk, @sprintf("timestep_%06d", n))

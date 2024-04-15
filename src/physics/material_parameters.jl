@@ -2,6 +2,10 @@ const ELASTIC_KWARGS = (:E, :nu)
 const FRAC_KWARGS = (:Gc, :epsilon_c)
 const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
 
+function allowed_material_kwargs(::AbstractMaterial)
+    return DEFAULT_POINT_KWARGS
+end
+
 """
     material!(b::Body{M,P}, name::Symbol; kwargs...)
     material!(b::Body{M,P}; kwargs...)
@@ -117,3 +121,8 @@ function get_elastic_params(p::Dict{Symbol,Any})
     μ = G
     return E, nu, G, K, λ, μ
 end
+
+required_point_parameters() = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :Gc, :εc)
+
+#TODO: parameter checks material dependent...
+# req_param_material(::AbstractMaterial) = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ)

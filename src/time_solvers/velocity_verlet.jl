@@ -255,3 +255,13 @@ function solve_timestep!(dh::AbstractMPIDataHandler, options::AbstractOptions, Î
     @timeit_debug TO "export_results" export_results(dh, options, n, t)
     return nothing
 end
+
+function req_point_data_fields_timesolver(::Type{VelocityVerlet})
+    fields = (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
+             :b_ext)
+    return fields
+end
+
+function req_data_fields_timesolver(::Type{VelocityVerlet})
+    return ()
+end
