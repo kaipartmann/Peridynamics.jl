@@ -34,6 +34,19 @@ function get_logfile_head()
 end
 
 function get_git_info()
+    try
+        git_info = _get_git_info()
+    catch err
+        if isa(err, LibGit2.GitError)
+            git_info = "ERROR DURING GIT-INFORMATION EXTRACTION!\n"
+        else
+            git_info = ""
+        end
+    end
+    return git_info
+end
+
+function _get_git_info()
     repo = LibGit2.GitRepo(pkgdir(@__MODULE__))
     head_name = LibGit2.headname(repo)
     head_oid = LibGit2.head_oid(repo)
