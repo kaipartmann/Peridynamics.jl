@@ -66,10 +66,9 @@ struct OSBVerletStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function OSBVerletStorage(::AbstractBody{OSBMaterial}, ::VelocityVerlet, bd::BondSystem,
-                          ch::ChunkHandler)
+function OSBVerletStorage(::OSBMaterial, ::VelocityVerlet, system::BondSystem, ch)
     n_loc_points = length(ch.loc_points)
-    position = copy(bd.position)
+    position = copy(system.position)
     displacement = zeros(3, n_loc_points)
     velocity = zeros(3, n_loc_points)
     velocity_half = zeros(3, n_loc_points)
@@ -77,8 +76,8 @@ function OSBVerletStorage(::AbstractBody{OSBMaterial}, ::VelocityVerlet, bd::Bon
     b_int = zeros(3, length(ch.point_ids))
     b_ext = zeros(3, n_loc_points)
     damage = zeros(n_loc_points)
-    bond_active = ones(Bool, length(bd.bonds))
-    n_active_bonds = copy(bd.n_neighbors)
+    bond_active = ones(Bool, length(system.bonds))
+    n_active_bonds = copy(system.n_neighbors)
     s = OSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
                          b_int, b_ext, damage, bond_active, n_active_bonds)
     return s

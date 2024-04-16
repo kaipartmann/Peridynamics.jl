@@ -32,7 +32,7 @@ struct TestVerletStorage <: Peridynamics.AbstractStorage
     bond_active::Vector{Bool}
     n_active_bonds::Vector{Int}
 end
-function TestVerletStorage(::Body{TestMaterial}, ::Peridynamics.VelocityVerlet,
+function TestVerletStorage(::TestMaterial, ::Peridynamics.VelocityVerlet,
                            system::Peridynamics.BondSystem, ch::Peridynamics.ChunkHandler)
     n_loc_points = length(ch.loc_points)
     position = copy(system.position)

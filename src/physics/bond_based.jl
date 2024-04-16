@@ -74,8 +74,7 @@ struct BBVerletStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function BBVerletStorage(::AbstractBody{BBMaterial}, ::VelocityVerlet, system::BondSystem,
-                         ch::ChunkHandler)
+function BBVerletStorage(::BBMaterial, ::VelocityVerlet, system::BondSystem, ch)
     n_loc_points = length(ch.loc_points)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)

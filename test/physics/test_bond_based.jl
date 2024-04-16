@@ -5,7 +5,7 @@
     ts = VelocityVerlet(steps=10)
     pd = Peridynamics.PointDecomposition(body, 1)
     db, ch = Peridynamics.get_system(body, pd, 1)
-    s = Peridynamics.init_storage(body, ts, db, ch)
+    s = Peridynamics.init_storage(body.mat, ts, db, ch)
 
     @test s isa Peridynamics.BBVerletStorage
     @test s.position == position
