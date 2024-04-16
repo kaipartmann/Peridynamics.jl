@@ -14,6 +14,8 @@ export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
        process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
        enable_mpi_timers!, disable_mpi_timers!, mpi_println, mpi_print
 
+export BBCMaterial
+
 function __init__()
     init_mpi()
     @static if Sys.islinux()
@@ -78,6 +80,7 @@ include("physics/force_density.jl")
 include("physics/material_parameters.jl")
 include("physics/fracture.jl")
 include("physics/bond_based.jl")
+include("physics/bond_based_corrected.jl")
 include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
 include("physics/correspondence.jl")
