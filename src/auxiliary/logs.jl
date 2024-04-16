@@ -36,12 +36,8 @@ end
 function get_git_info()
     git_info = try
         _get_git_info()
-    catch err
-        if isa(err, LibGit2.GitError)
-            "ERROR DURING GIT-INFORMATION EXTRACTION!\n"
-        else
-            ""
-        end
+    catch
+        ""
     end
     return git_info
 end
