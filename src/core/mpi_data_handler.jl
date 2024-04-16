@@ -66,6 +66,7 @@ end
 function _chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
                         ::Val{1}) where {M,P,T}
     @timeit_debug TO "chop chunk" chunk = BodyChunk(body, ts, pd, mpi_chunk_id())
+    init_chunk!(chunk)
     apply_precracks!(chunk, body)
     apply_initial_conditions!(chunk, body)
     return chunk
@@ -74,6 +75,7 @@ end
 function _chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
                         ::Val{N}) where {M,P,T,N}
     @timeit_debug TO "chop chunk" chunk = MultiParamBodyChunk(body, ts, pd, mpi_chunk_id())
+    init_chunk!(chunk)
     apply_precracks!(chunk, body)
     apply_initial_conditions!(chunk, body)
     return chunk

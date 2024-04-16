@@ -33,3 +33,7 @@ end
 @inline get_material_type(::Vector{BodyChunk{M,P,D,S}}) where {M,P,D,S} = M
 
 @inline each_point_idx(b::AbstractBodyChunk) = each_point_idx(b.ch)
+
+function init_chunk!(chunk::AbstractBodyChunk)
+    return nothing
+end

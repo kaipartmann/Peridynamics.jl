@@ -47,6 +47,7 @@ function _chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition, ::Ty
 
     @threads :static for chunk_id in eachindex(pd.decomp)
         body_chunk = BodyChunk(body, ts, pd, chunk_id)
+        init_chunk!(body_chunk)
         apply_precracks!(body_chunk, body)
         apply_initial_conditions!(body_chunk, body)
         body_chunks[chunk_id] = body_chunk
