@@ -34,13 +34,13 @@ function get_logfile_head()
 end
 
 function get_git_info()
-    try
-        git_info = _get_git_info()
+    git_info = try
+        _get_git_info()
     catch err
         if isa(err, LibGit2.GitError)
-            git_info = "ERROR DURING GIT-INFORMATION EXTRACTION!\n"
+            "ERROR DURING GIT-INFORMATION EXTRACTION!\n"
         else
-            git_info = ""
+            ""
         end
     end
     return git_info
