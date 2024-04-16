@@ -72,11 +72,13 @@ struct BBCVerletStorage <: AbstractStorage
     damage::Vector{Float64}
     bond_active::Vector{Bool}
     n_active_bonds::Vector{Int}
-    scorf::Vector{Float64}
+    h::Matrix{Float64}
+    sucofa::Vector{Float64}
 end
 
 function BBCVerletStorage(::BBCMaterial, ::VelocityVerlet, system::BondSystem, ch)
     n_loc_points = length(ch.loc_points)
+    n_points = length(ch.point_ids)
     n_bonds = length(system.bonds)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
@@ -88,30 +90,32 @@ function BBCVerletStorage(::BBCMaterial, ::VelocityVerlet, system::BondSystem, c
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, n_bonds)
     n_active_bonds = copy(system.n_neighbors)
-    scorf = zeros(n_bonds)
+    h = zeros(3, n_points)
+    sucofa = zeros(n_bonds)
     s = BBCVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                        b_int, b_ext, damage, bond_active, n_active_bonds, scorf)
+                        b_int, b_ext, damage, bond_active, n_active_bonds, h, sucofa)
     return s
 end
 
 @storage BBCMaterial VelocityVerlet BBCVerletStorage
 
-@halo_read_fields BBCVerletStorage :position
+@halo_read_fields BBCVerletStorage :position :h
+
+point_data_field(s::BBCVerletStorage, ::Val{:h}) = getfield(s, :h)
 
 function init_chunk!(chunk::AbstractBodyChunk{BBCMaterial})
-    chunk.scorf .= init_surface_correction_factors(chunk)
+    chunk.storage.h .= init_surface_correction_factors(chunk)
     return nothing
 end
 
 function init_surface_correction_factors(chunk)
     n_points = length(chunk.ch.point_ids)
-    n_loc_points = chunk.ch.n_loc_points
-    n_bonds = length(chunk.system.bonds)
+    # n_bonds = length(chunk.system.bonds)
 
-    h = zeros(3, n_loc_points)
+    h = zeros(3, n_points)
     stendens = zeros(3, n_points)
     defposition = zeros(3, n_points, 3)
-    sucofa = zeros(n_bonds)
+    # sucofa = zeros(n_bonds)
 
     @views for d in 1:3
         defposition[:,:,d] .= copy(chunk.system.position)
@@ -122,11 +126,14 @@ function init_surface_correction_factors(chunk)
             h[d,i] = 0.5 * param.G * 1e-6 / stendens[d,i]
         end
     end
-    for i in each_point_idx(chunk)
-        calc_sucofa!(sucofa, chunk.system, h, i)
-    end
 
-    return sucofa
+    # for i in each_point_idx(chunk)
+    #     calc_sucofa!(sucofa, chunk.system, h, i)
+    # end
+
+    # return sucofa
+
+    return h
 end
 
 function calc_stendens!(stendens, defposition, chunk, d)
@@ -145,60 +152,106 @@ function calc_stendens!(stendens, defposition, chunk, d)
             stendens[d, i] += temp * ε * ε * L * system.volume[j]
         end
     end
+    return nothing
 end
 
-function calc_sucofa!(sucofa, system, h, i)
-    for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j = bond.neighbor
-        Δxijx = system.position[1, j] - system.position[1, i]
-        Δxijy = system.position[2, j] - system.position[2, i]
-        Δxijz = system.position[3, j] - system.position[3, i]
-        if abs(Δxijz) <= 1e-10
-            if abs(Δxijy) <= 1e-10
-                θ = 0.0
-            elseif abs(Δxijx) <= 1e-10
-                θ = 90 * π / 180
-            else
-                θ = atan(abs(Δxijy)/abs(Δxijx))
-            end
-            ϕ = 90 * π / 180
-            scx = (h[1,i] + h[1,j]) / 2
-            scy = (h[2,i] + h[2,j]) / 2
-            scz = (h[3,i] + h[3,j]) / 2
-            scr = sqrt(
-                1/(
-                    (cos(θ) * sin(ϕ))^2 / scx^2 +
-                    (sin(θ) * sin(ϕ))^2 / scy^2 +
-                    cos(ϕ)^2 / scz^2
-                )
-            )
-        elseif abs(Δxijx) <= 1e-10 && abs(Δxijy) <= 1e-10
-            scz = (h[3,i] + h[3,j]) / 2
-            scr = scz
+# function calc_sucofa!(sucofa, system, h, i)
+#     for bond_id in each_bond_idx(system, i)
+#         bond = system.bonds[bond_id]
+#         j, L = bond.neighbor, bond.length
+#         Δxijx = system.position[1, j] - system.position[1, i]
+#         Δxijy = system.position[2, j] - system.position[2, i]
+#         Δxijz = system.position[3, j] - system.position[3, i]
+#         if abs(Δxijz) <= 1e-10
+#             if abs(Δxijy) <= 1e-10
+#                 θ = 0.0
+#             elseif abs(Δxijx) <= 1e-10
+#                 θ = 90 * π / 180
+#             else
+#                 θ = atan(abs(Δxijy)/abs(Δxijx))
+#             end
+#             ϕ = 90 * π / 180
+#             scx = (h[1,i] + h[1,j]) / 2
+#             scy = (h[2,i] + h[2,j]) / 2
+#             scz = (h[3,i] + h[3,j]) / 2
+#             scr = sqrt(
+#                 1/(
+#                     (cos(θ) * sin(ϕ))^2 / scx^2 +
+#                     (sin(θ) * sin(ϕ))^2 / scy^2 +
+#                     cos(ϕ)^2 / scz^2
+#                 )
+#             )
+#         elseif abs(Δxijx) <= 1e-10 && abs(Δxijy) <= 1e-10
+#             scz = (h[3,i] + h[3,j]) / 2
+#             scr = scz
+#         else
+#             θ = atan(abs(Δxijy)/abs(Δxijx))
+#             ϕ = acos(abs(Δxijz)/L)
+#             scx = (h[1,i] + h[1,j]) / 2
+#             scy = (h[2,i] + h[2,j]) / 2
+#             scz = (h[3,i] + h[3,j]) / 2
+#             scr = sqrt(
+#                 1/(
+#                     (cos(θ) * sin(ϕ))^2 / scx^2 +
+#                     (sin(θ) * sin(ϕ))^2 / scy^2 +
+#                     cos(ϕ)^2 / scz^2
+#                 )
+#             )
+#         end
+#         sucofa[bond_id] = scr
+#     end
+# end
+
+function calc_scr(Δxijx, Δxijy, Δxijz, L, h, i, j)
+    if abs(Δxijz) <= 1e-10
+        if abs(Δxijy) <= 1e-10
+            θ = 0.0
+        elseif abs(Δxijx) <= 1e-10
+            θ = 90 * π / 180
         else
             θ = atan(abs(Δxijy)/abs(Δxijx))
-            ϕ = acos(abs(Δxijz)/ξ)
-            scx = (h[1,i] + h[1,j]) / 2
-            scy = (h[2,i] + h[2,j]) / 2
-            scz = (h[3,i] + h[3,j]) / 2
-            scr = sqrt(
-                1/(
-                    (cos(θ) * sin(ϕ))^2 / scx^2 +
-                    (sin(θ) * sin(ϕ))^2 / scy^2 +
-                    cos(ϕ)^2 / scz^2
-                )
-            )
         end
-        sucofa[bond_id] = scr
+        ϕ = 90 * π / 180
+        scx = (h[1,i] + h[1,j]) / 2
+        scy = (h[2,i] + h[2,j]) / 2
+        scz = (h[3,i] + h[3,j]) / 2
+        scr = sqrt(
+            1/(
+                (cos(θ) * sin(ϕ))^2 / scx^2 +
+                (sin(θ) * sin(ϕ))^2 / scy^2 +
+                cos(ϕ)^2 / scz^2
+            )
+        )
+    elseif abs(Δxijx) <= 1e-10 && abs(Δxijy) <= 1e-10
+        scz = (h[3,i] + h[3,j]) / 2
+        scr = scz
+    else
+        θ = atan(abs(Δxijy)/abs(Δxijx))
+        ϕ = acos(abs(Δxijz)/L)
+        scx = (h[1,i] + h[1,j]) / 2
+        scy = (h[2,i] + h[2,j]) / 2
+        scz = (h[3,i] + h[3,j]) / 2
+        scr = sqrt(
+            1/(
+                (cos(θ) * sin(ϕ))^2 / scx^2 +
+                (sin(θ) * sin(ϕ))^2 / scy^2 +
+                cos(ϕ)^2 / scz^2
+            )
+        )
     end
+    return scr
 end
 
-function force_density_point!(s::BBCVerletStorage, bd::BondSystem, ::BBCMaterial,
+function force_density_point!(s::BBCVerletStorage, system::BondSystem, ::BBCMaterial,
                               param::BBCPointParameters, i::Int)
-    for bond_id in each_bond_idx(bd, i)
-        bond = bd.bonds[bond_id]
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
+
+        ΔXijx = system.position[1, j] - system.position[1, i]
+        ΔXijy = system.position[2, j] - system.position[2, i]
+        ΔXijz = system.position[3, j] - system.position[3, i]
+        scr = calc_scr(ΔXijx, ΔXijy, ΔXijz, L, s.h, i, j)
 
         # current bond length
         Δxijx = s.position[1, j] - s.position[1, i]
@@ -216,8 +269,8 @@ function force_density_point!(s::BBCVerletStorage, bd::BondSystem, ::BBCMaterial
         s.n_active_bonds[i] += s.bond_active[bond_id]
 
         # update of force density
-        factors = s.bond_active[bond_id] * s.scorf[i]
-        temp = factors * param.bc * ε / l * bd.volume[j]
+        factors = s.bond_active[bond_id] * scr
+        temp = factors * param.bc * ε / l * system.volume[j]
         s.b_int[1, i] += temp * Δxijx
         s.b_int[2, i] += temp * Δxijy
         s.b_int[3, i] += temp * Δxijz
