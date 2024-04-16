@@ -73,7 +73,6 @@ struct BBCVerletStorage <: AbstractStorage
     bond_active::Vector{Bool}
     n_active_bonds::Vector{Int}
     scorf::Vector{Float64}
-    vcorf::Vector{Float64}
 end
 
 function BBCVerletStorage(::BBCMaterial, ::VelocityVerlet, system::BondSystem, ch)
@@ -91,7 +90,7 @@ function BBCVerletStorage(::BBCMaterial, ::VelocityVerlet, system::BondSystem, c
     n_active_bonds = copy(system.n_neighbors)
     scorf = zeros(n_bonds)
     s = BBCVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                        b_int, b_ext, damage, bond_active, n_active_bonds, scorf, vcorf)
+                        b_int, b_ext, damage, bond_active, n_active_bonds, scorf)
     return s
 end
 
