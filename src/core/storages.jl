@@ -29,11 +29,11 @@ macro storage(material, timesolver, storage)
     return Expr(:block, _checks, _storage_type, _init_storage)
 end
 
-halo_read_fields(::AbstractStorage) = ()
-halo_write_fields(::AbstractStorage) = ()
+loc_to_halo_fields(::AbstractStorage) = ()
+halo_to_loc_fields(::AbstractStorage) = ()
 is_halo_field(::AbstractStorage, ::Val{F}) where {F} = false
 
-macro halo_read_fields(storage, fields...)
+macro loc_to_halo_fields(storage, fields...)
     macrocheck_input_storage(storage)
     macrocheck_input_fields(fields...)
     local _checks = quote
@@ -43,8 +43,8 @@ macro halo_read_fields(storage, fields...)
         end
         Peridynamics.typecheck_storage_has_fields($(esc(storage)), $(Expr(:tuple, fields...)))
     end
-    local _halo_read_fields = quote
-        function Peridynamics.halo_read_fields(::$(esc(storage)))
+    local _loc_to_halo_fields = quote
+        function Peridynamics.loc_to_halo_fields(::$(esc(storage)))
             return $(Expr(:tuple, fields...))
         end
     end
@@ -56,10 +56,10 @@ macro halo_read_fields(storage, fields...)
         end
         for _field in fields
     ]
-    return Expr(:block, _checks, _halo_read_fields, _is_halo_fields...)
+    return Expr(:block, _checks, _loc_to_halo_fields, _is_halo_fields...)
 end
 
-macro halo_write_fields(storage, fields...)
+macro halo_to_loc_fields(storage, fields...)
     macrocheck_input_storage(storage)
     macrocheck_input_fields(fields...)
     local _checks = quote
@@ -69,8 +69,8 @@ macro halo_write_fields(storage, fields...)
         end
         Peridynamics.typecheck_storage_has_fields($(esc(storage)), $(Expr(:tuple, fields...)))
     end
-    local _halo_read_fields = quote
-        function Peridynamics.halo_write_fields(::$(esc(storage)))
+    local _loc_to_halo_fields = quote
+        function Peridynamics.halo_to_loc_fields(::$(esc(storage)))
             return $(Expr(:tuple, fields...))
         end
     end
@@ -82,7 +82,7 @@ macro halo_write_fields(storage, fields...)
         end
         for _field in fields
     ]
-    return Expr(:block, _checks, _halo_read_fields, _is_halo_fields...)
+    return Expr(:block, _checks, _loc_to_halo_fields, _is_halo_fields...)
 end
 
 function macrocheck_input_storage(storage)
@@ -156,12 +156,12 @@ function point_data_fields(::Type{S}) where {S<:AbstractStorage}
     return fields
 end
 
-function get_halo_read_fields(s::AbstractStorage)
-    return Tuple(get_point_data(s, field) for field in halo_read_fields(s))
+function get_loc_to_halo_fields(s::AbstractStorage)
+    return Tuple(get_point_data(s, field) for field in loc_to_halo_fields(s))
 end
 
-function get_halo_write_fields(s::AbstractStorage)
-    return Tuple(get_point_data(s, field) for field in halo_write_fields(s))
+function get_halo_to_loc_fields(s::AbstractStorage)
+    return Tuple(get_point_data(s, field) for field in halo_to_loc_fields(s))
 end
 
 function get_loc_point_data(s::AbstractStorage, ch::AbstractChunkHandler, field::Symbol)

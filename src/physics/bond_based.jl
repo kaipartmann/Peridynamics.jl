@@ -93,7 +93,7 @@ end
 
 @storage BBMaterial VelocityVerlet BBVerletStorage
 
-@halo_read_fields BBVerletStorage :position
+@loc_to_halo_fields BBVerletStorage :position
 
 function force_density_point!(s::BBVerletStorage, bd::BondSystem, ::BBMaterial,
                               param::BBPointParameters, i::Int)

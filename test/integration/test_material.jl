@@ -50,5 +50,5 @@ function TestVerletStorage(::TestMaterial, ::Peridynamics.VelocityVerlet,
                              n_active_bonds)
 end
 Peridynamics.@storage TestMaterial VelocityVerlet TestVerletStorage
-Peridynamics.@halo_read_fields TestVerletStorage :position
-Peridynamics.@halo_write_fields TestVerletStorage :b_int
+Peridynamics.@loc_to_halo_fields TestVerletStorage :position
+Peridynamics.@halo_to_loc_fields TestVerletStorage :b_int
