@@ -8,8 +8,8 @@ end
 struct ThreadsDataHandler{C<:AbstractBodyChunk} <: AbstractThreadsDataHandler
     n_chunks::Int
     chunks::Vector{C}
-    read_halo_exs::Vector{Vector{HaloExchange}}
-    write_halo_exs::Vector{Vector{HaloExchange}}
+    loc_to_halo_exs::Vector{Vector{HaloExchange}}
+    halo_to_loc_exs::Vector{Vector{HaloExchange}}
 end
 
 function ThreadsDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
@@ -23,8 +23,8 @@ function ThreadsDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
                             point_decomp::PointDecomposition, v::Val{N}) where {N}
     chunks = chop_body_threads(body, time_solver, point_decomp, v)
     n_chunks = length(chunks)
-    read_halo_exs, write_halo_exs = find_halo_exchanges(chunks)
-    return ThreadsDataHandler(n_chunks, chunks, read_halo_exs, write_halo_exs)
+    loc_to_halo_exs, halo_to_loc_exs = find_halo_exchanges(chunks)
+    return ThreadsDataHandler(n_chunks, chunks, loc_to_halo_exs, halo_to_loc_exs)
 end
 
 function ThreadsDataHandler(multibody::AbstractMultibodySetup,
@@ -72,15 +72,15 @@ end
 function find_halo_exchanges(chunks::Vector{B}) where {B<:AbstractBodyChunk}
     has_read = has_read_halos(chunks)
     has_write = has_write_halos(chunks)
-    read_halo_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
-    write_halo_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
+    loc_to_halo_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
+    halo_to_loc_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
     @threads :static for chunk_id in eachindex(chunks)
         read_exs, write_exs = find_exs(chunks, chunk_id, has_read, has_write)
-        read_halo_exs[chunk_id] = read_exs
-        write_halo_exs[chunk_id] = write_exs
+        loc_to_halo_exs[chunk_id] = read_exs
+        halo_to_loc_exs[chunk_id] = write_exs
     end
-    reorder_write_exs!(write_halo_exs)
-    return read_halo_exs, write_halo_exs
+    reorder_write_exs!(halo_to_loc_exs)
+    return loc_to_halo_exs, halo_to_loc_exs
 end
 
 function has_read_halos(chunks::Vector{B}) where {B<:AbstractBodyChunk}
@@ -106,10 +106,10 @@ function find_exs(chunks::Vector{B}, chunk_id::Int, hasread::Bool,
     return readexs, writeexs
 end
 
-function reorder_write_exs!(write_halo_exs::Vector{Vector{HaloExchange}})
-    all_write_exs = reduce(vcat, write_halo_exs)
-    @threads :static for chunk_id in eachindex(write_halo_exs)
-        write_halo_exs[chunk_id] = filter(x -> x.dest_chunk_id == chunk_id, all_write_exs)
+function reorder_write_exs!(halo_to_loc_exs::Vector{Vector{HaloExchange}})
+    all_write_exs = reduce(vcat, halo_to_loc_exs)
+    @threads :static for chunk_id in eachindex(halo_to_loc_exs)
+        halo_to_loc_exs[chunk_id] = filter(x -> x.dest_chunk_id == chunk_id, all_write_exs)
     end
     return nothing
 end
@@ -125,7 +125,7 @@ end
 get_cells(n::Int) = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in 1:n]
 
 function exchange_read_fields!(dh::ThreadsDataHandler, chunk_id::Int)
-    for he in dh.read_halo_exs[chunk_id]
+    for he in dh.loc_to_halo_exs[chunk_id]
         dest_storage = dh.chunks[he.dest_chunk_id].storage
         src_storage = dh.chunks[he.src_chunk_id].storage
         _exchange_read_fields!(dest_storage, src_storage, he)
@@ -143,7 +143,7 @@ function _exchange_read_fields!(dest_storage::S, src_storage::S, he::HaloExchang
 end
 
 function exchange_write_fields!(dh::ThreadsDataHandler, chunk_id::Int)
-    for he in dh.write_halo_exs[chunk_id]
+    for he in dh.halo_to_loc_exs[chunk_id]
         dest_storage = dh.chunks[he.dest_chunk_id].storage
         src_storage = dh.chunks[he.src_chunk_id].storage
         _exchange_write_fields!(dest_storage, src_storage, he)
