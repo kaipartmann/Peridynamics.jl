@@ -212,11 +212,11 @@ function solve_timestep!(dh::AbstractThreadsDataHandler, options::AbstractOption
         update_disp_and_pos!(chunk, Δt)
     end
     @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_read_fields!(dh, chunk_id)
+        exchange_loc_to_halo!(dh, chunk_id)
         calc_force_density!(dh.chunks[chunk_id])
     end
     @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_write_fields!(dh, chunk_id)
+        exchange_halo_to_loc!(dh, chunk_id)
         chunk = dh.chunks[chunk_id]
         calc_damage!(chunk)
         update_acc_and_vel!(chunk, Δt½)
@@ -247,9 +247,9 @@ function solve_timestep!(dh::AbstractMPIDataHandler, options::AbstractOptions, �
     @timeit_debug TO "update_vel_half!" update_vel_half!(chunk, Δt½)
     @timeit_debug TO "apply_bcs!" apply_bcs!(chunk, t)
     @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
-    @timeit_debug TO "exchange_read_fields!" exchange_read_fields!(dh)
+    @timeit_debug TO "exchange_loc_to_halo!" exchange_loc_to_halo!(dh)
     @timeit_debug TO "calc_force_density!" calc_force_density!(chunk)
-    @timeit_debug TO "exchange_write_fields!" exchange_write_fields!(dh)
+    @timeit_debug TO "exchange_halo_to_loc!" exchange_halo_to_loc!(dh)
     @timeit_debug TO "calc_damage!" calc_damage!(chunk)
     @timeit_debug TO "update_acc_and_vel!" update_acc_and_vel!(chunk, Δt½)
     @timeit_debug TO "export_results" export_results(dh, options, n, t)

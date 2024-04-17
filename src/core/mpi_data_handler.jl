@@ -112,19 +112,19 @@ function get_all_point_ids(chunk::AbstractBodyChunk, n_points::Int)
 end
 
 function find_halo_exchange_bufs(chunk::AbstractBodyChunk, halo_infos::MPIHaloInfo)
-    has_read = has_read_halos(chunk)
-    has_write = has_write_halos(chunk)
+    has_read = has_loc_to_halo_exs(chunk)
+    has_write = has_halo_to_loc_exs(chunk)
     read_hexs, write_hexs = _find_halo_exchange_bufs(chunk, halo_infos, has_read, has_write)
     return read_hexs, write_hexs
 end
 
-function has_read_halos(chunk::AbstractBodyChunk)
+function has_loc_to_halo_exs(chunk::AbstractBodyChunk)
     hrfs = halo_read_fields(chunk.storage)
     isempty(hrfs) && return false
     return true
 end
 
-function has_write_halos(chunk::AbstractBodyChunk)
+function has_halo_to_loc_exs(chunk::AbstractBodyChunk)
     hwfs = halo_write_fields(chunk.storage)
     isempty(hwfs) && return false
     return true
@@ -222,7 +222,7 @@ function calc_stable_timestep(dh::MPIDataHandler, safety_factor::Float64)
     return Δt * safety_factor
 end
 
-function exchange_read_fields!(dh::MPIDataHandler)
+function exchange_loc_to_halo!(dh::MPIDataHandler)
     for (hex_id, hex) in enumerate(dh.read_hexs_send)
         send_read_he!(dh, hex, hex_id)
     end
@@ -255,7 +255,7 @@ function recv_read_he!(dh::MPIDataHandler, he::HaloExchangeBuf)
     return nothing
 end
 
-function exchange_write_fields!(dh::MPIDataHandler)
+function exchange_halo_to_loc!(dh::MPIDataHandler)
     for (hex_id, hex) in enumerate(dh.write_hexs_send)
         send_write_he!(dh, hex, hex_id)
     end
