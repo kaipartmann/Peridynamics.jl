@@ -212,14 +212,19 @@ end
 
 function exchange_loc_to_halo!(dh::MPIDataHandler, fields::NTuple{N,Symbol}) where {N}
     for field in fields
-        for (ex_id, ex) in enumerate(dh.lth_exs_send)
-            send_lth!(dh, ex, ex_id, field)
-        end
-        for (ex_id, ex) in enumerate(dh.lth_exs_recv)
-            recv_lth!(dh, ex, ex_id, field)
-        end
-        MPI.Waitall(get_lth_reqests(dh, field))
+        exchange_loc_to_halo!(dh, field)
     end
+    return nothing
+end
+
+function exchange_loc_to_halo!(dh::MPIDataHandler, field::Symbol)
+    for (ex_id, ex) in enumerate(dh.lth_exs_send)
+        send_lth!(dh, ex, ex_id, field)
+    end
+    for (ex_id, ex) in enumerate(dh.lth_exs_recv)
+        recv_lth!(dh, ex, ex_id, field)
+    end
+    MPI.Waitall(get_lth_reqests(dh, field))
     return nothing
 end
 
@@ -255,14 +260,19 @@ end
 
 function exchange_halo_to_loc!(dh::MPIDataHandler, fields::NTuple{N,Symbol}) where {N}
     for field in fields
-        for (ex_id, ex) in enumerate(dh.htl_exs_send)
-            send_htl!(dh, ex, ex_id, field)
-        end
-        for (ex_id, ex) in enumerate(dh.htl_exs_recv)
-            recv_htl!(dh, ex, ex_id, field)
-        end
-        MPI.Waitall(get_htl_reqests(dh, field))
+        exchange_halo_to_loc!(dh, field)
     end
+    return nothing
+end
+
+function exchange_halo_to_loc!(dh::MPIDataHandler, field::Symbol)
+    for (ex_id, ex) in enumerate(dh.htl_exs_send)
+        send_htl!(dh, ex, ex_id, field)
+    end
+    for (ex_id, ex) in enumerate(dh.htl_exs_recv)
+        recv_htl!(dh, ex, ex_id, field)
+    end
+    MPI.Waitall(get_htl_reqests(dh, field))
     return nothing
 end
 
