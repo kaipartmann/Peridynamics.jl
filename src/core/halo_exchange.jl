@@ -1,3 +1,11 @@
+struct HaloExchange
+    tag::Int
+    src_chunk_id::Int
+    dest_chunk_id::Int
+    src_idxs::Vector{Int}
+    dest_idxs::Vector{Int}
+end
+
 function exchange!(dest::Matrix{T}, src::Matrix{T}, dest_idxs::Vector{Int},
                    src_idxs::Vector{Int}) where {T}
     for i in eachindex(dest_idxs)

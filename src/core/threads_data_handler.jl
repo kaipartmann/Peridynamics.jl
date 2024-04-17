@@ -1,10 +1,3 @@
-struct HaloExchange
-    src_chunk_id::Int
-    dest_chunk_id::Int
-    src_idxs::Vector{Int}
-    dest_idxs::Vector{Int}
-end
-
 struct ThreadsDataHandler{C<:AbstractBodyChunk} <: AbstractThreadsDataHandler
     n_chunks::Int
     chunks::Vector{C}
@@ -70,12 +63,10 @@ function _chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition, ::Ty
 end
 
 function find_halo_exchanges(chunks::Vector{B}) where {B<:AbstractBodyChunk}
-    has_lth = has_lth_exs(chunks)
-    has_htl = has_htl_exs(chunks)
     lth_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
     htl_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
     @threads :static for chunk_id in eachindex(chunks)
-        _lth_exs, _htl_exs = find_exs(chunks, chunk_id, has_lth, has_htl)
+        _lth_exs, _htl_exs = find_exs(chunks, chunk_id)
         lth_exs[chunk_id] = _lth_exs
         htl_exs[chunk_id] = _htl_exs
     end
@@ -83,16 +74,7 @@ function find_halo_exchanges(chunks::Vector{B}) where {B<:AbstractBodyChunk}
     return lth_exs, htl_exs
 end
 
-function has_lth_exs(chunks::Vector{B}) where {B<:AbstractBodyChunk}
-    return has_lth_exs(first(chunks))
-end
-
-function has_htl_exs(chunks::Vector{B}) where {B<:AbstractBodyChunk}
-    return has_htl_exs(first(chunks))
-end
-
-function find_exs(chunks::Vector{B}, chunk_id::Int, has_lth::Bool,
-                  has_htl::Bool) where {B<:AbstractBodyChunk}
+function find_exs(chunks::Vector{B}, chunk_id::Int) where {B<:AbstractBodyChunk}
     lth_exs = Vector{HaloExchange}()
     htl_exs = Vector{HaloExchange}()
     chunk = chunks[chunk_id]
@@ -100,8 +82,8 @@ function find_exs(chunks::Vector{B}, chunk_id::Int, has_lth::Bool,
         halo_chunk = chunks[halo_chunk_id]
         halo_idxs = chunk.ch.point_ids[idxs]
         localize!(halo_idxs, halo_chunk.ch.localizer)
-        has_lth && push!(lth_exs, HaloExchange(halo_chunk_id, chunk_id, halo_idxs, idxs))
-        has_htl && push!(htl_exs, HaloExchange(chunk_id, halo_chunk_id, idxs, halo_idxs))
+        push!(lth_exs, HaloExchange(0, halo_chunk_id, chunk_id, halo_idxs, idxs))
+        push!(htl_exs, HaloExchange(0, chunk_id, halo_chunk_id, idxs, halo_idxs))
     end
     return lth_exs, htl_exs
 end
@@ -152,7 +134,7 @@ function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int)
 end
 
 function _exchange_halo_to_loc!(dest_storage::S, src_storage::S,
-                                 he::HaloExchange) where {S}
+                                he::HaloExchange) where {S}
     for field in halo_to_loc_fields(dest_storage)
         dest_field = get_point_data(dest_storage, field)
         src_field = get_point_data(src_storage, field)
