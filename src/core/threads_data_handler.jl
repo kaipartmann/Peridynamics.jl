@@ -8,8 +8,8 @@ end
 struct ThreadsDataHandler{C<:AbstractBodyChunk} <: AbstractThreadsDataHandler
     n_chunks::Int
     chunks::Vector{C}
-    loc_to_halo_exs::Vector{Vector{HaloExchange}}
-    halo_to_loc_exs::Vector{Vector{HaloExchange}}
+    lth_exs::Vector{Vector{HaloExchange}}
+    htl_exs::Vector{Vector{HaloExchange}}
 end
 
 function ThreadsDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
@@ -23,8 +23,8 @@ function ThreadsDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
                             point_decomp::PointDecomposition, v::Val{N}) where {N}
     chunks = chop_body_threads(body, time_solver, point_decomp, v)
     n_chunks = length(chunks)
-    loc_to_halo_exs, halo_to_loc_exs = find_halo_exchanges(chunks)
-    return ThreadsDataHandler(n_chunks, chunks, loc_to_halo_exs, halo_to_loc_exs)
+    lth_exs, htl_exs = find_halo_exchanges(chunks)
+    return ThreadsDataHandler(n_chunks, chunks, lth_exs, htl_exs)
 end
 
 function ThreadsDataHandler(multibody::AbstractMultibodySetup,
@@ -71,25 +71,25 @@ function _chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition, ::Ty
 end
 
 function find_halo_exchanges(chunks::Vector{B}) where {B<:AbstractBodyChunk}
-    has_lth = has_loc_to_halo_exs(chunks)
-    has_htl = has_halo_to_loc_exs(chunks)
-    loc_to_halo_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
-    halo_to_loc_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
+    has_lth = has_lth_exs(chunks)
+    has_htl = has_htl_exs(chunks)
+    lth_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
+    htl_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
     @threads :static for chunk_id in eachindex(chunks)
-        lth_exs, htl_exs = find_exs(chunks, chunk_id, has_lth, has_htl)
-        loc_to_halo_exs[chunk_id] = lth_exs
-        halo_to_loc_exs[chunk_id] = htl_exs
+        _lth_exs, _htl_exs = find_exs(chunks, chunk_id, has_lth, has_htl)
+        lth_exs[chunk_id] = _lth_exs
+        htl_exs[chunk_id] = _htl_exs
     end
-    reorder_htl_exs!(halo_to_loc_exs)
-    return loc_to_halo_exs, halo_to_loc_exs
+    reorder_htl_exs!(htl_exs)
+    return lth_exs, htl_exs
 end
 
-function has_loc_to_halo_exs(chunks::Vector{B}) where {B<:AbstractBodyChunk}
-    return has_loc_to_halo_exs(first(chunks))
+function has_lth_exs(chunks::Vector{B}) where {B<:AbstractBodyChunk}
+    return has_lth_exs(first(chunks))
 end
 
-function has_halo_to_loc_exs(chunks::Vector{B}) where {B<:AbstractBodyChunk}
-    return has_halo_to_loc_exs(first(chunks))
+function has_htl_exs(chunks::Vector{B}) where {B<:AbstractBodyChunk}
+    return has_htl_exs(first(chunks))
 end
 
 function find_exs(chunks::Vector{B}, chunk_id::Int, has_lth::Bool,
@@ -107,10 +107,10 @@ function find_exs(chunks::Vector{B}, chunk_id::Int, has_lth::Bool,
     return lth_exs, htl_exs
 end
 
-function reorder_htl_exs!(halo_to_loc_exs::Vector{Vector{HaloExchange}})
-    all_write_exs = reduce(vcat, halo_to_loc_exs)
-    @threads :static for chunk_id in eachindex(halo_to_loc_exs)
-        halo_to_loc_exs[chunk_id] = filter(x -> x.dest_chunk_id == chunk_id, all_write_exs)
+function reorder_htl_exs!(htl_exs::Vector{Vector{HaloExchange}})
+    all_htl_exs = reduce(vcat, htl_exs)
+    @threads :static for chunk_id in eachindex(htl_exs)
+        htl_exs[chunk_id] = filter(x -> x.dest_chunk_id == chunk_id, all_htl_exs)
     end
     return nothing
 end
@@ -126,7 +126,7 @@ end
 get_cells(n::Int) = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in 1:n]
 
 function exchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int)
-    for he in dh.loc_to_halo_exs[chunk_id]
+    for he in dh.lth_exs[chunk_id]
         dest_storage = dh.chunks[he.dest_chunk_id].storage
         src_storage = dh.chunks[he.src_chunk_id].storage
         _exchange_loc_to_halo!(dest_storage, src_storage, he)
@@ -144,7 +144,7 @@ function _exchange_loc_to_halo!(dest_storage::S, src_storage::S, he::HaloExchang
 end
 
 function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int)
-    for he in dh.halo_to_loc_exs[chunk_id]
+    for he in dh.htl_exs[chunk_id]
         dest_storage = dh.chunks[he.dest_chunk_id].storage
         src_storage = dh.chunks[he.src_chunk_id].storage
         _exchange_halo_to_loc!(dest_storage, src_storage, he)
