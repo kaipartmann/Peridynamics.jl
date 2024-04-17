@@ -206,7 +206,7 @@ end
 
     randpos = rand(3, 4)
     tdh.chunks[2].storage.position .= randpos
-    Peridynamics.exchange_read_fields!(tdh, 1)
+    Peridynamics.exchange_loc_to_halo!(tdh, 1)
 
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
     @test b1.storage.position[:,3:4] ≈ randpos[:,1:2]
@@ -234,7 +234,7 @@ end
     randbint = rand(3, 4)
     b2.storage.b_int .= randbint
     b1.storage.b_int .+= 1
-    Peridynamics.exchange_write_fields!(tdh, 1)
+    Peridynamics.exchange_halo_to_loc!(tdh, 1)
 
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
     @test b1.storage.position[:,3:4] ≈ randpos[:,1:2]
@@ -260,7 +260,7 @@ end
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    Peridynamics.exchange_write_fields!(tdh, 2)
+    Peridynamics.exchange_halo_to_loc!(tdh, 2)
 
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
     @test b1.storage.position[:,3:4] ≈ randpos[:,1:2]

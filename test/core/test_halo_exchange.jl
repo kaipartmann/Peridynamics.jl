@@ -91,7 +91,7 @@
     @test he4[3].dest_idxs == [4]
 end
 
-@testitem "exchange_read_fields! BBMaterial" begin
+@testitem "exchange_loc_to_halo! BBMaterial" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -136,7 +136,7 @@ end
 
     randpos = rand(3, 4)
     tdh.chunks[2].storage.position .= randpos
-    Peridynamics.exchange_read_fields!(tdh, 1)
+    Peridynamics.exchange_loc_to_halo!(tdh, 1)
 
     @test b1 isa Peridynamics.BodyChunk
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
