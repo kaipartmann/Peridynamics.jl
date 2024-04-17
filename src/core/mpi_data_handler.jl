@@ -117,21 +117,21 @@ function find_halo_exchange_bufs(chunk::AbstractBodyChunk, halo_infos::MPIHaloIn
 end
 
 function has_loc_to_halo_exs(chunk::AbstractBodyChunk)
-    hrfs = halo_read_fields(chunk.storage)
+    hrfs = loc_to_halo_fields(chunk.storage)
     isempty(hrfs) && return false
     return true
 end
 
 function has_halo_to_loc_exs(chunk::AbstractBodyChunk)
-    hwfs = halo_write_fields(chunk.storage)
+    hwfs = halo_to_loc_fields(chunk.storage)
     isempty(hwfs) && return false
     return true
 end
 
 function _find_halo_exchange_bufs(chunk::AbstractBodyChunk, halo_info::MPIHaloInfo,
                                   hasread::Bool, haswrite::Bool)
-    RB = get_halo_read_buftype(chunk.storage)
-    WB = get_halo_write_buftype(chunk.storage)
+    RB = get_loc_to_halo_buftype(chunk.storage)
+    WB = get_halo_to_loc_buftype(chunk.storage)
     read_hexs = Vector{HaloExchangeBuf{RB}}()
     write_hexs = Vector{HaloExchangeBuf{WB}}()
     ccid = mpi_chunk_id()
@@ -144,12 +144,12 @@ function _find_halo_exchange_bufs(chunk::AbstractBodyChunk, halo_info::MPIHaloIn
     return read_hexs, write_hexs
 end
 
-@inline function get_halo_read_buftype(s::AbstractStorage)
-    return typeof(get_halo_read_fields(s))
+@inline function get_loc_to_halo_buftype(s::AbstractStorage)
+    return typeof(get_loc_to_halo_fields(s))
 end
 
-@inline function get_halo_write_buftype(s::AbstractStorage)
-    return typeof(get_halo_write_fields(s))
+@inline function get_halo_to_loc_buftype(s::AbstractStorage)
+    return typeof(get_halo_to_loc_fields(s))
 end
 
 function _find_hexs!(rhexs::Vector, whexs::Vector, chunk::AbstractBodyChunk,
@@ -159,14 +159,14 @@ function _find_hexs!(rhexs::Vector, whexs::Vector, chunk::AbstractBodyChunk,
     hidxs = hi.point_ids[cid][idxs]
     localize!(hidxs, hi.localizers[hcid])
     if hasread
-        bufs = get_halo_read_bufs(chunk.storage, length(idxs))
+        bufs = get_loc_to_halo_bufs(chunk.storage, length(idxs))
         tags = get_tags(bufs, cid * mpi_nranks())
         n_fields = length(bufs)
         hex = HaloExchangeBuf(n_fields, hcid, cid, hidxs, idxs, bufs, tags)
         push!(rhexs, hex)
     end
     if haswrite
-        bufs = get_halo_read_bufs(chunk.storage, length(idxs))
+        bufs = get_loc_to_halo_bufs(chunk.storage, length(idxs))
         tags = get_tags(bufs, cid * mpi_nranks())
         n_fields = length(bufs)
         hex = HaloExchangeBuf(n_fields, cid, hcid, idxs, hidxs, bufs, tags)
@@ -175,12 +175,12 @@ function _find_hexs!(rhexs::Vector, whexs::Vector, chunk::AbstractBodyChunk,
     return nothing
 end
 
-@inline function get_halo_read_bufs(s::AbstractStorage, n_halo_points::Int)
-    return Tuple(get_buf(a, n_halo_points) for a in get_halo_read_fields(s))
+@inline function get_loc_to_halo_bufs(s::AbstractStorage, n_halo_points::Int)
+    return Tuple(get_buf(a, n_halo_points) for a in get_loc_to_halo_fields(s))
 end
 
-@inline function get_halo_write_bufs(s::AbstractStorage, n_halo_points::Int)
-    return Tuple(get_buf(a, n_halo_points) for a in get_halo_write_fields(s))
+@inline function get_halo_to_loc_bufs(s::AbstractStorage, n_halo_points::Int)
+    return Tuple(get_buf(a, n_halo_points) for a in get_halo_to_loc_fields(s))
 end
 
 @inline get_buf(a::Matrix{T}, n::Int) where {T} = zeros(T, size(a, 1), n)
@@ -232,7 +232,7 @@ function exchange_loc_to_halo!(dh::MPIDataHandler)
 end
 
 function send_read_he!(dh::MPIDataHandler, he::HaloExchangeBuf, hex_id::Int)
-    fields = halo_read_fields(dh.chunk.storage)
+    fields = loc_to_halo_fields(dh.chunk.storage)
     for i in eachindex(fields, he.bufs)
         src_field = get_point_data(dh.chunk.storage, fields[i])
         exchange_to_buf!(he.bufs[i], src_field, he.src_idxs)
@@ -244,7 +244,7 @@ function send_read_he!(dh::MPIDataHandler, he::HaloExchangeBuf, hex_id::Int)
 end
 
 function recv_read_he!(dh::MPIDataHandler, he::HaloExchangeBuf)
-    fields = halo_read_fields(dh.chunk.storage)
+    fields = loc_to_halo_fields(dh.chunk.storage)
     for i in eachindex(fields, he.bufs)
         MPI.Recv!(he.bufs[i], mpi_comm(); source=he.src_chunk_id - 1, tag=he.tags[i])
         dest_field = get_point_data(dh.chunk.storage, fields[i])
@@ -265,7 +265,7 @@ function exchange_halo_to_loc!(dh::MPIDataHandler)
 end
 
 function send_write_he!(dh::MPIDataHandler, he::HaloExchangeBuf, hex_id::Int)
-    fields = halo_write_fields(dh.chunk.storage)
+    fields = halo_to_loc_fields(dh.chunk.storage)
     for i in eachindex(fields, he.bufs)
         src_field = get_point_data(dh.chunk.storage, fields[i])
         exchange_to_buf!(he.bufs[i], src_field, he.src_idxs)
@@ -277,7 +277,7 @@ function send_write_he!(dh::MPIDataHandler, he::HaloExchangeBuf, hex_id::Int)
 end
 
 function recv_write_he!(dh::MPIDataHandler, he::HaloExchangeBuf)
-    fields = halo_write_fields(dh.chunk.storage)
+    fields = halo_to_loc_fields(dh.chunk.storage)
     for i in eachindex(fields, he.bufs)
         MPI.Recv!(he.bufs[i], mpi_comm(); source=he.src_chunk_id - 1, tag=he.tags[i])
         dest_field = get_point_data(dh.chunk.storage, fields[i])

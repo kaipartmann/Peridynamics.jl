@@ -134,7 +134,7 @@ function exchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int)
 end
 
 function _exchange_loc_to_halo!(dest_storage::S, src_storage::S, he::HaloExchange) where {S}
-    for field in halo_read_fields(dest_storage)
+    for field in loc_to_halo_fields(dest_storage)
         dest_field = get_point_data(dest_storage, field)
         src_field = get_point_data(src_storage, field)
         exchange!(dest_field, src_field, he.dest_idxs, he.src_idxs)
@@ -153,7 +153,7 @@ end
 
 function _exchange_halo_to_loc!(dest_storage::S, src_storage::S,
                                  he::HaloExchange) where {S}
-    for field in halo_write_fields(dest_storage)
+    for field in halo_to_loc_fields(dest_storage)
         dest_field = get_point_data(dest_storage, field)
         src_field = get_point_data(src_storage, field)
         exchange_add!(dest_field, src_field, he.dest_idxs, he.src_idxs)

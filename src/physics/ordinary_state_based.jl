@@ -85,8 +85,8 @@ end
 
 @storage OSBMaterial VelocityVerlet OSBVerletStorage
 
-@halo_read_fields OSBVerletStorage :position
-@halo_write_fields OSBVerletStorage :b_int
+@loc_to_halo_fields OSBVerletStorage :position
+@halo_to_loc_fields OSBVerletStorage :b_int
 
 function force_density_point!(s::OSBVerletStorage, bd::BondSystem, ::OSBMaterial,
                               param::OSBPointParameters, i::Int)
