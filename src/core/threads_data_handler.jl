@@ -107,39 +107,66 @@ end
 get_cells(n::Int) = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in 1:n]
 
 function exchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int)
-    for he in dh.lth_exs[chunk_id]
-        dest_storage = dh.chunks[he.dest_chunk_id].storage
-        src_storage = dh.chunks[he.src_chunk_id].storage
-        _exchange_loc_to_halo!(dest_storage, src_storage, he)
+    fields = loc_to_halo_fields(dh.chunks[chunk_id].storage)
+    isempty(fields) && return nothing
+    exchange_loc_to_halo!(dh, chunk_id, fields)
+    return nothing
+end
+
+function exchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int,
+                               fields::NTuple{N,Symbol}) where {N}
+    for field in fields
+        exchange_loc_to_halo!(dh, chunk_id, field)
     end
     return nothing
 end
 
-function _exchange_loc_to_halo!(dest_storage::S, src_storage::S, he::HaloExchange) where {S}
-    for field in loc_to_halo_fields(dest_storage)
-        dest_field = get_point_data(dest_storage, field)
-        src_field = get_point_data(src_storage, field)
-        exchange!(dest_field, src_field, he.dest_idxs, he.src_idxs)
+function exchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int, field::Symbol)
+    for ex in dh.lth_exs[chunk_id]
+        dest_chunk = dh.chunks[ex.dest_chunk_id]
+        src_chunk = dh.chunks[ex.src_chunk_id]
+        _exchange_loc_to_halo!(dest_chunk, src_chunk, ex, field)
     end
+    return nothing
+end
+
+function _exchange_loc_to_halo!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
+                                field::Symbol) where {C}
+    dest_field = get_point_data(dest_chunk.storage, field)
+    src_field = get_point_data(src_chunk.storage, field)
+    exchange!(dest_field, src_field, ex.dest_idxs, ex.src_idxs)
     return nothing
 end
 
 function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int)
-    for he in dh.htl_exs[chunk_id]
-        dest_storage = dh.chunks[he.dest_chunk_id].storage
-        src_storage = dh.chunks[he.src_chunk_id].storage
-        _exchange_halo_to_loc!(dest_storage, src_storage, he)
+    fields = halo_to_loc_fields(dh.chunks[chunk_id].storage)
+    isempty(fields) && return nothing
+    exchange_halo_to_loc!(dh, chunk_id, fields)
+    return nothing
+end
+
+function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int,
+                               fields::NTuple{N,Symbol}) where {N}
+    for field in fields
+        exchange_halo_to_loc!(dh, chunk_id, field)
     end
     return nothing
 end
 
-function _exchange_halo_to_loc!(dest_storage::S, src_storage::S,
-                                he::HaloExchange) where {S}
-    for field in halo_to_loc_fields(dest_storage)
-        dest_field = get_point_data(dest_storage, field)
-        src_field = get_point_data(src_storage, field)
-        exchange_add!(dest_field, src_field, he.dest_idxs, he.src_idxs)
+function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int, field::Symbol)
+    for ex in dh.htl_exs[chunk_id]
+        dest_chunk = dh.chunks[ex.dest_chunk_id]
+        src_chunk = dh.chunks[ex.src_chunk_id]
+        _exchange_halo_to_loc!(dest_chunk, src_chunk, ex, field)
     end
+    return nothing
+end
+
+function _exchange_halo_to_loc!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
+                                field::Symbol) where {C}
+    dest_field = get_point_data(dest_chunk.storage, field)
+    src_field = get_point_data(src_chunk.storage, field)
+    exchange_add!(dest_field, src_field, ex.dest_idxs, ex.src_idxs)
     return nothing
 end
 
