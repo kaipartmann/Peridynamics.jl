@@ -17,24 +17,32 @@
     point_decomp = Peridynamics.PointDecomposition(body, 2)
     body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
 
-    read_halo_exs, write_halo_exs = Peridynamics.find_halo_exchanges(body_chunks)
-    @test read_halo_exs[1][1].src_chunk_id == 2
-    @test read_halo_exs[1][1].dest_chunk_id == 1
-    @test read_halo_exs[1][1].src_idxs == [1, 2]
-    @test read_halo_exs[1][1].dest_idxs == [3, 4]
-    @test read_halo_exs[2][1].src_chunk_id == 1
-    @test read_halo_exs[2][1].dest_chunk_id == 2
-    @test read_halo_exs[2][1].src_idxs == [1, 2]
-    @test read_halo_exs[2][1].dest_idxs == [3, 4]
-    @test isempty(write_halo_exs[1])
-    @test isempty(write_halo_exs[2])
+    lth_exs, htl_exs = Peridynamics.find_halo_exchanges(body_chunks)
+
+    @test lth_exs[1][1].src_chunk_id == 2
+    @test lth_exs[1][1].dest_chunk_id == 1
+    @test lth_exs[1][1].src_idxs == [1, 2]
+    @test lth_exs[1][1].dest_idxs == [3, 4]
+    @test lth_exs[2][1].src_chunk_id == 1
+    @test lth_exs[2][1].dest_chunk_id == 2
+    @test lth_exs[2][1].src_idxs == [1, 2]
+    @test lth_exs[2][1].dest_idxs == [3, 4]
+
+    @test htl_exs[1][1].src_chunk_id == 2
+    @test htl_exs[1][1].dest_chunk_id == 1
+    @test htl_exs[1][1].src_idxs == [3, 4]
+    @test htl_exs[1][1].dest_idxs == [1, 2]
+    @test htl_exs[2][1].src_chunk_id == 1
+    @test htl_exs[2][1].dest_chunk_id == 2
+    @test htl_exs[2][1].src_idxs == [3, 4]
+    @test htl_exs[2][1].dest_idxs == [1, 2]
 
     point_decomp = Peridynamics.PointDecomposition(body, 4)
     body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
 
-    read_halo_exs, write_halo_exs = Peridynamics.find_halo_exchanges(body_chunks)
+    lth_exs, htl_exs = Peridynamics.find_halo_exchanges(body_chunks)
 
-    he1 = sort(read_halo_exs[1]; by=x -> x.src_chunk_id)
+    he1 = sort(lth_exs[1]; by=x -> x.src_chunk_id)
     @test he1[1].src_chunk_id == 2
     @test he1[1].dest_chunk_id == 1
     @test he1[1].src_idxs == [1]
@@ -48,7 +56,7 @@
     @test he1[3].src_idxs == [1]
     @test he1[3].dest_idxs == [4]
 
-    he2 = sort(read_halo_exs[2]; by=x -> x.src_chunk_id)
+    he2 = sort(lth_exs[2]; by=x -> x.src_chunk_id)
     @test he2[1].src_chunk_id == 1
     @test he2[1].dest_chunk_id == 2
     @test he2[1].src_idxs == [1]
@@ -62,7 +70,7 @@
     @test he2[3].src_idxs == [1]
     @test he2[3].dest_idxs == [4]
 
-    he3 = sort(read_halo_exs[3]; by=x -> x.src_chunk_id)
+    he3 = sort(lth_exs[3]; by=x -> x.src_chunk_id)
     @test he3[1].src_chunk_id == 1
     @test he3[1].dest_chunk_id == 3
     @test he3[1].src_idxs == [1]
@@ -76,7 +84,7 @@
     @test he3[3].src_idxs == [1]
     @test he3[3].dest_idxs == [4]
 
-    he4 = sort(read_halo_exs[4]; by=x -> x.src_chunk_id)
+    he4 = sort(lth_exs[4]; by=x -> x.src_chunk_id)
     @test he4[1].src_chunk_id == 1
     @test he4[1].dest_chunk_id == 4
     @test he4[1].src_idxs == [1]
@@ -91,7 +99,7 @@
     @test he4[3].dest_idxs == [4]
 end
 
-@testitem "exchange_read_fields! BBMaterial" begin
+@testitem "exchange_loc_to_halo! BBMaterial" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -136,7 +144,7 @@ end
 
     randpos = rand(3, 4)
     tdh.chunks[2].storage.position .= randpos
-    Peridynamics.exchange_read_fields!(tdh, 1)
+    Peridynamics.exchange_loc_to_halo!(tdh, 1)
 
     @test b1 isa Peridynamics.BodyChunk
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]

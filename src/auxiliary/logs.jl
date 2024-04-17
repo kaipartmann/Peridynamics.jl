@@ -24,6 +24,13 @@ function init_logfile(options::AbstractOptions)
     return nothing
 end
 
+function add_to_logfile(options::AbstractOptions, msg::AbstractString)
+    open(options.logfile, "a") do io
+        write(io, msg)
+    end
+    return nothing
+end
+
 function get_logfile_head()
     msg = "LOGFILE CREATED ON "
     msg *= Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")

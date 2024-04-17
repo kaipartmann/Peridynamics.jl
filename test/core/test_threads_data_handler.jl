@@ -18,10 +18,10 @@
 
     @test tdh.n_chunks == 2
     @test length(tdh.chunks) == 2
-    @test length(tdh.read_halo_exs[1]) == 1
-    @test length(tdh.read_halo_exs[2]) == 1
-    @test isempty(tdh.write_halo_exs[1])
-    @test isempty(tdh.write_halo_exs[2])
+    @test length(tdh.lth_exs[1]) == 1
+    @test length(tdh.lth_exs[2]) == 1
+    @test length(tdh.htl_exs[1]) == 1
+    @test length(tdh.htl_exs[2]) == 1
 
     #TODO
 end

@@ -135,26 +135,26 @@ end
     mat, vv = TestMaterial4(), VelocityVerlet(steps=1)
     @test Peridynamics.storage_type(mat, vv) == TestVerletStorage1
 
-    @test_throws ArgumentError Peridynamics.@halo_read_fields(TestVerletStorageNoSubtype,
+    @test_throws ArgumentError Peridynamics.@loc_to_halo_fields(TestVerletStorageNoSubtype,
                                                               :position)
 
-    @test_throws ArgumentError Peridynamics.@halo_read_fields(TestVerletStorage1,
+    @test_throws ArgumentError Peridynamics.@loc_to_halo_fields(TestVerletStorage1,
                                                               :randomfield)
 
-    Peridynamics.@halo_read_fields TestVerletStorage1 :position :displacement
-    @test hasmethod(Peridynamics.halo_read_fields, Tuple{TestVerletStorage1})
+    Peridynamics.@loc_to_halo_fields TestVerletStorage1 :position :displacement
+    @test hasmethod(Peridynamics.loc_to_halo_fields, Tuple{TestVerletStorage1})
     @test hasmethod(Peridynamics.is_halo_field, Tuple{TestVerletStorage1,Val{:position}})
     @test hasmethod(Peridynamics.is_halo_field,
                     Tuple{TestVerletStorage1,Val{:displacement}})
 
-    @test_throws ArgumentError Peridynamics.@halo_write_fields(TestVerletStorageNoSubtype,
+    @test_throws ArgumentError Peridynamics.@halo_to_loc_fields(TestVerletStorageNoSubtype,
                                                                :b_int)
 
-    @test_throws ArgumentError Peridynamics.@halo_write_fields(TestVerletStorage1,
+    @test_throws ArgumentError Peridynamics.@halo_to_loc_fields(TestVerletStorage1,
                                                                :randomfield)
 
-    Peridynamics.@halo_write_fields TestVerletStorage1 :b_int :b_ext
-    @test hasmethod(Peridynamics.halo_write_fields, Tuple{TestVerletStorage1})
+    Peridynamics.@halo_to_loc_fields TestVerletStorage1 :b_int :b_ext
+    @test hasmethod(Peridynamics.halo_to_loc_fields, Tuple{TestVerletStorage1})
     @test hasmethod(Peridynamics.is_halo_field, Tuple{TestVerletStorage1,Val{:b_int}})
     @test hasmethod(Peridynamics.is_halo_field, Tuple{TestVerletStorage1,Val{:b_ext}})
 end
@@ -206,7 +206,7 @@ end
 
     randpos = rand(3, 4)
     tdh.chunks[2].storage.position .= randpos
-    Peridynamics.exchange_read_fields!(tdh, 1)
+    Peridynamics.exchange_loc_to_halo!(tdh, 1)
 
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
     @test b1.storage.position[:,3:4] ≈ randpos[:,1:2]
@@ -234,7 +234,7 @@ end
     randbint = rand(3, 4)
     b2.storage.b_int .= randbint
     b1.storage.b_int .+= 1
-    Peridynamics.exchange_write_fields!(tdh, 1)
+    Peridynamics.exchange_halo_to_loc!(tdh, 1)
 
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
     @test b1.storage.position[:,3:4] ≈ randpos[:,1:2]
@@ -260,7 +260,7 @@ end
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    Peridynamics.exchange_write_fields!(tdh, 2)
+    Peridynamics.exchange_halo_to_loc!(tdh, 2)
 
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
     @test b1.storage.position[:,3:4] ≈ randpos[:,1:2]
