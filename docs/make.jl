@@ -64,19 +64,19 @@ makedocs(;
             "references.md"
         ],
         "How-to guides" => [
-            joinpath("generated", "howto_single_body_analysis.md"),
-            joinpath("generated", "howto_contact_analysis.md"),
-            joinpath("generated", "howto_pointclouds.md"),
-            joinpath("generated", "howto_precracks.md"),
-            joinpath("generated", "howto_matformulations.md"),
+            # joinpath("generated", "howto_single_body_analysis.md"),
+            # joinpath("generated", "howto_contact_analysis.md"),
+            # joinpath("generated", "howto_pointclouds.md"),
+            # joinpath("generated", "howto_precracks.md"),
+            # joinpath("generated", "howto_matformulations.md"),
             "howto_visualization.md",
         ],
         "Tutorials" => [
-            joinpath("generated", "tutorial_tension_static.md"),
+            # joinpath("generated", "tutorial_tension_static.md"),
             joinpath("generated", "tutorial_tension_dynfrac.md"),
             joinpath("generated", "tutorial_tension_precrack.md"),
             joinpath("generated", "tutorial_wave_in_bar.md"),
-            "tutorial_logo.md",
+            # "tutorial_logo.md",
         ],
         "API" => [
             "api_public.md",
