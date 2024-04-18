@@ -74,8 +74,8 @@ defines contact between multiple bodies
 
 # Keywords
 
-- `:radius::Float64`:
-- `:sc::Float64`:
+- `radius::Float64`:
+- `sc::Float64`:
 
 # Throws
 
