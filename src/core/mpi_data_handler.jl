@@ -21,16 +21,9 @@ struct MPIDataHandler{C<:AbstractBodyChunk,B} <: AbstractMPIDataHandler
     htl_reqs::Vector{Vector{MPI.Request}}
 end
 
-function MPIDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
+function MPIDataHandler(body::AbstractBody, solver::AbstractTimeSolver,
                         point_decomp::PointDecomposition)
-    n_param = length(body.point_params)
-    v = n_param == 1 ? Val{1}() : Val{2}()
-    return MPIDataHandler(body, time_solver, point_decomp, v)
-end
-
-function MPIDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
-                        point_decomp::PointDecomposition, v::Val{N}) where {N}
-    chunk = chop_body_mpi(body, time_solver, point_decomp, v)
+    @timeit_debug TO "chop chunk" chunk = chop_body_mpi(body, solver, point_decomp)
     @timeit_debug TO "find halo exchanges" begin
         halo_infos = get_halo_infos(chunk, point_decomp, body.n_points)
         lth_exs, htl_exs = find_halo_exchanges(halo_infos)
@@ -52,23 +45,9 @@ function MPIDataHandler(multibody::AbstractMultibodySetup,
     error("MultibodySetup not yet implemented!\n")
 end
 
-function chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
-                       v::Val{N}) where {M,P,T,N}
-    body_chunks = _chop_body_mpi(body, ts, pd, v)
-    return body_chunks
-end
-
-function _chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
-                        ::Val{1}) where {M,P,T}
-    @timeit_debug TO "chop chunk" chunk = BodyChunk(body, ts, pd, mpi_chunk_id())
-    apply_precracks!(chunk, body)
-    apply_initial_conditions!(chunk, body)
-    return chunk
-end
-
-function _chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
-                        ::Val{N}) where {M,P,T,N}
-    @timeit_debug TO "chop chunk" chunk = MultiParamBodyChunk(body, ts, pd, mpi_chunk_id())
+function chop_body_mpi(body::AbstractBody, solver::AbstractTimeSolver,
+                       point_decomp::PointDecomposition)
+    chunk = BodyChunk(body, solver, point_decomp, mpi_chunk_id())
     apply_precracks!(chunk, body)
     apply_initial_conditions!(chunk, body)
     return chunk

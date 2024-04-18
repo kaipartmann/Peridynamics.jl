@@ -12,7 +12,7 @@
     ts = VelocityVerlet(steps=10)
     point_decomp = Peridynamics.PointDecomposition(body, 2)
 
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
 
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.BodyChunk
@@ -102,7 +102,7 @@ end
     ts = VelocityVerlet(steps=10)
     point_decomp = Peridynamics.PointDecomposition(body, 2)
 
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
 
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.BodyChunk

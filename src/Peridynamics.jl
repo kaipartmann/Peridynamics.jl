@@ -34,6 +34,7 @@ abstract type AbstractOptions end
 abstract type AbstractSystem end
 abstract type AbstractPredefinedCrack end
 abstract type AbstractBodyChunk{T<:AbstractMaterial} end
+abstract type AbstractParameterHandler end
 abstract type AbstractChunkHandler end
 abstract type AbstractDataHandler end
 abstract type AbstractThreadsDataHandler <: AbstractDataHandler end
@@ -60,13 +61,13 @@ include("discretization/decomposition.jl")
 include("discretization/chunk_handler.jl")
 include("discretization/bond_system.jl")
 include("discretization/body_chunk.jl")
-include("discretization/multi_param_body_chunk.jl")
 
 include("core/job.jl")
 include("core/submit.jl")
 include("core/halo_exchange.jl")
 include("core/threads_data_handler.jl")
 include("core/mpi_data_handler.jl")
+include("core/parameter_handler.jl")
 include("core/systems.jl")
 include("core/materials.jl")
 include("core/storages.jl")

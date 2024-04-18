@@ -97,7 +97,7 @@ end
 function calc_timestep(b::AbstractBodyChunk)
     Δt = fill(Inf, length(each_point_idx(b.ch)))
     for point_id in each_point_idx(b.ch)
-        pp = get_param(b, point_id)
+        pp = get_params(b, point_id)
         Δt[point_id] = _calc_timestep(b.system, pp, point_id)
     end
     return minimum(Δt)
@@ -149,26 +149,11 @@ function _update_disp_and_pos!(displacement, position, velocity_half, Δt, each_
 end
 
 function update_acc_and_vel!(b::AbstractBodyChunk, Δt½::Float64)
-    _update_acc_and_vel!(b.storage.acceleration, b.storage.b_int, b.storage.b_ext,
-                         b.storage.velocity_half, b.storage.velocity, b.param.rho, Δt½,
-                         each_point_idx(b))
-    return nothing
-end
-
-function update_acc_and_vel!(b::MultiParamBodyChunk, Δt½::Float64)
     s = b.storage
-    for i in each_point
-        param = get_param(b, i)
-        _update_acc!(s.acceleration, s.b_int, s.b_ext, param.rho, i)
-        _update_vel!(s.velocity, s.velocity_half, s.acceleration, Δt½, i)
-    end
-    return nothing
-end
-
-function _update_acc_and_vel!(acc, b_int, b_ext, vel_half, vel, rho, Δt½, each_point)
-    for i in each_point
-        _update_acc!(acc, b_int, b_ext, rho, i)
-        _update_vel!(vel, vel_half, acc, Δt½, i)
+    for point_id in each_point_idx(b)
+        param = get_params(b, point_id)
+        _update_acc!(s.acceleration, s.b_int, s.b_ext, param.rho, point_id)
+        _update_vel!(s.velocity, s.velocity_half, s.acceleration, Δt½, point_id)
     end
     return nothing
 end
