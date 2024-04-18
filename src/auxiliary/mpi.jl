@@ -86,12 +86,44 @@ function disable_mpi_timers!()
     return nothing
 end
 
-@inline function mpi_println(args...)
-    mpi_isroot() && println(args...)
-    return nothing
+"""
+    @mpitime expression
+
+Time the `expression` if the mpi rank is zero. Lowers to:
+
+```julia
+if mpi_isroot()
+    @time expression
+else
+    expression
+end
+```
+"""
+macro mpitime(expr)
+    return quote
+        if Peridynamics.mpi_isroot()
+            Base.@time $(esc(expr))
+        else
+            $(esc(expr))
+        end
+    end
 end
 
-@inline function mpi_print(args...)
-    mpi_isroot() && print(args...)
-    return nothing
+"""
+    @rootdo expression
+
+Run the code if the mpi rank is zero. Lowers to:
+
+```julia
+if mpi_isroot()
+    expression
+end
+```
+"""
+macro rootdo(expr)
+    return quote
+        if Peridynamics.mpi_isroot()
+            $(esc(expr))
+        end
+    end
 end
