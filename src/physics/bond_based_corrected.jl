@@ -99,7 +99,7 @@ end
 
 @storage BBCMaterial VelocityVerlet BBCVerletStorage
 
-@halo_read_fields BBCVerletStorage :position :h
+@halo_to_loc_fields BBCVerletStorage :position :h
 
 point_data_field(s::BBCVerletStorage, ::Val{:h}) = getfield(s, :h)
 
