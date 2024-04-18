@@ -59,6 +59,7 @@ function submit_mpi(job::Job)
         point_decomp = PointDecomposition(job.spatial_setup, mpi_nranks())
         mdh = MPIDataHandler(job.spatial_setup, job.time_solver, point_decomp)
         init_time_solver!(job.time_solver, mdh)
+        init_data_handler!(mdh, job.time_solver)
     end
     @timeit_debug TO "solve!" begin
         solve!(mdh, job.time_solver, job.options)
@@ -75,6 +76,7 @@ function submit_threads(job::Job, n_chunks::Int)
     point_decomp = PointDecomposition(job.spatial_setup, n_chunks)
     tdh = ThreadsDataHandler(job.spatial_setup, job.time_solver, point_decomp)
     init_time_solver!(job.time_solver, tdh)
+    init_data_handler!(tdh, job.time_solver)
     solve!(tdh, job.time_solver, job.options)
     return tdh
 end

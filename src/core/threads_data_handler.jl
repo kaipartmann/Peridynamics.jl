@@ -237,3 +237,7 @@ function export_reference_results(dh::ThreadsDataHandler, options::AbstractOptio
     end
     return nothing
 end
+
+function init_data_handler!(dh::ThreadsDataHandler, timesolver::AbstractTimeSolver)
+    return nothing
+end
