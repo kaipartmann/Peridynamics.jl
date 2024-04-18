@@ -23,6 +23,10 @@ function BondSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     return bs, ch
 end
 
+point_data_field(s::BondSystem, ::Val{:position}) = getfield(s, :position)
+point_data_field(s::BondSystem, ::Val{:volume}) = getfield(s, :volume)
+point_data_field(s::BondSystem, ::Val{:n_neighbors}) = getfield(s, :n_neighbors)
+
 function check_bond_system_compat(mat::M) where {M<:AbstractMaterial}
     if system_type(mat) !== BondSystem
         msg = "body with $(M) incompatible to BondSystem!\n"

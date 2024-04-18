@@ -170,6 +170,56 @@ function _exchange_halo_to_loc!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
     return nothing
 end
 
+function sysexchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int,
+                                  fields::NTuple{N,Symbol}) where {N}
+    for field in fields
+        sysexchange_loc_to_halo!(dh, chunk_id, field)
+    end
+    return nothing
+end
+
+function sysexchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int, field::Symbol)
+    for ex in dh.lth_exs[chunk_id]
+        dest_chunk = dh.chunks[ex.dest_chunk_id]
+        src_chunk = dh.chunks[ex.src_chunk_id]
+        _sysexchange_loc_to_halo!(dest_chunk, src_chunk, ex, field)
+    end
+    return nothing
+end
+
+function _sysexchange_loc_to_halo!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
+                                   field::Symbol) where {C}
+    dest_field = get_point_data(dest_chunk.system, field)
+    src_field = get_point_data(src_chunk.system, field)
+    exchange!(dest_field, src_field, ex.dest_idxs, ex.src_idxs)
+    return nothing
+end
+
+function sysexchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int,
+                                  fields::NTuple{N,Symbol}) where {N}
+    for field in fields
+        sysexchange_halo_to_loc!(dh, chunk_id, field)
+    end
+    return nothing
+end
+
+function sysexchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int, field::Symbol)
+    for ex in dh.htl_exs[chunk_id]
+        dest_chunk = dh.chunks[ex.dest_chunk_id]
+        src_chunk = dh.chunks[ex.src_chunk_id]
+        _sysexchange_halo_to_loc!(dest_chunk, src_chunk, ex, field)
+    end
+    return nothing
+end
+
+function _sysexchange_halo_to_loc!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
+                                   field::Symbol) where {C}
+    dest_field = get_point_data(dest_chunk.system, field)
+    src_field = get_point_data(src_chunk.system, field)
+    exchange_add!(dest_field, src_field, ex.dest_idxs, ex.src_idxs)
+    return nothing
+end
+
 function export_results(dh::ThreadsDataHandler, options::AbstractOptions, chunk_id::Int,
                         timestep::Int, time::Float64)
     options.exportflag || return nothing

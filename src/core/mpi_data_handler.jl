@@ -144,6 +144,10 @@ end
     return Tuple(find_buf(a, n_halo_points) for a in get_halo_fields(s))
 end
 
+function find_buf(s, ex::HaloExchange, field::Symbol)
+    return find_buf(get_point_data(s, field), length(ex.dest_idxs))
+end
+
 @inline find_buf(a::Matrix{T}, n::Int) where {T} = zeros(T, size(a, 1), n)
 @inline find_buf(::Vector{T}, n::Int) where {T} = zeros(T, n)
 
@@ -295,6 +299,66 @@ function recv_htl!(dh::MPIDataHandler, ex::HaloExchange, ex_id::Int, field::Symb
     source = ex.src_chunk_id - 1
     MPI.Recv!(buf, mpi_comm(); source=source, tag=tag)
     dest_field = get_point_data(dh.chunk.storage, field)
+    exchange_from_buf_add!(dest_field, buf, ex.dest_idxs)
+    return nothing
+end
+
+function sysexchange_loc_to_halo!(dh::MPIDataHandler, field::Symbol)
+    reqs = Vector{MPI.MPI_Request}(undef, length(dh.lth_exs_send))
+    for (ex_id, ex) in enumerate(dh.lth_exs_send)
+        reqs[ex_id] = sys_send_lth!(dh, ex, field)
+    end
+    for ex in dh.lth_exs_recv
+        sys_recv_lth!(dh, ex, field)
+    end
+    MPI.Waitall(reqs)
+    return nothing
+end
+
+function sys_send_lth!(dh::MPIDataHandler, ex::HaloExchange, field::Symbol)
+    src_field = get_point_data(dh.chunk.system, field)
+    buf = find_buf(dh.chunk.system, ex, field)
+    exchange_to_buf!(buf, src_field, ex.src_idxs)
+    dest = ex.dest_chunk_id - 1
+    req = MPI.Isend(buf, mpi_comm(); dest=dest, tag=ex.tag)
+    return req
+end
+
+function sys_recv_lth!(dh::MPIDataHandler, ex::HaloExchange, field::Symbol)
+    buf = find_buf(dh.chunk.system, ex, field)
+    source = ex.src_chunk_id - 1
+    MPI.Recv!(buf, mpi_comm(); source=source, tag=ex.tag)
+    dest_field = get_point_data(dh.chunk.system, field)
+    exchange_from_buf!(dest_field, buf, ex.dest_idxs)
+    return nothing
+end
+
+function sysexchange_halo_to_loc!(dh::MPIDataHandler, field::Symbol)
+    reqs = Vector{MPI.MPI_Request}(undef, length(dh.htl_exs_send))
+    for (ex_id, ex) in enumerate(dh.htl_exs_send)
+        reqs[ex_id] = sys_send_htl!(dh, ex, field)
+    end
+    for ex in dh.htl_exs_recv
+        sys_recv_htl!(dh, ex, field)
+    end
+    MPI.Waitall(reqs)
+    return nothing
+end
+
+function sys_send_htl!(dh::MPIDataHandler, ex::HaloExchange, field::Symbol)
+    src_field = get_point_data(dh.chunk.system, field)
+    buf = find_buf(dh.chunk.system, ex, field)
+    exchange_to_buf!(buf, src_field, ex.src_idxs)
+    dest = ex.dest_chunk_id - 1
+    req = MPI.Isend(buf, mpi_comm(); dest=dest, tag=ex.tag)
+    return req
+end
+
+function sys_recv_htl!(dh::MPIDataHandler, ex::HaloExchange, field::Symbol)
+    buf = find_buf(dh.chunk.system, ex, field)
+    source = ex.src_chunk_id - 1
+    MPI.Recv!(buf, mpi_comm(); source=source, tag=ex.tag)
+    dest_field = get_point_data(dh.chunk.system, field)
     exchange_from_buf_add!(dest_field, buf, ex.dest_idxs)
     return nothing
 end
