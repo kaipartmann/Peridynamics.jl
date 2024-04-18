@@ -5,19 +5,14 @@ using Peridynamics
 using GLMakie #src
 using LaTeXStrings #src
 
-#-
-# ## Spatial Discretization
+# First some geometrical parameters are defined.
+# These are edge length `l`, point spacing `Δx` and crack length `a`.
+l, Δx, a = 100.0, 100/50, 50.0
 
-# To begin, let's define our geometry. In this example, we will create a point cloud
-# consisting of $50 \times 50 \times 5$ material points. The edge length of this block
-# is $l = 1\,\text{mm}$, with a thickness of $\frac{1}{10}l$.
-#-
-l = 1.0
-Δx = l / 50
-pc = PointCloud(l, l, 0.1l, Δx)
-
-#-
-#
+# Now a cuboid body with the specified edge lengths and a thickness of one tenth thereof is
+# created using the bond-based material model.
+pos, vol = uniform_box(l, l, 0.1l, Δx)
+b = Body(BBMaterial(), pos, vol)
 
 #-
 fig = Figure(resolution = (1000,500), figure_padding=0) #src
@@ -37,32 +32,28 @@ text!(ax, L"\mathbf{y}", position=Point3(-l/2,0.18,-0.08l), fontsize=30, #src
       align=(:center,:center), color=:black) #src
 text!(ax, L"\mathbf{z}", position=Point3(-l/2*1.03,l/2*1.03,0.13), fontsize=30, #src
       align=(:center,:center), color=:black) #src
-save(joinpath(@__DIR__, "..", "assets", "tutorial_tension_1.png"), fig; px_per_unit=3) #src
+# save(joinpath(@__DIR__, "..", "assets", "tutorial_tension_1.png"), fig; px_per_unit=3) #src
 fig #src
 
 #-
 # ![](../assets/tutorial_tension_1.png) #md
 
-#-
-# Define a continuum-based material with
-# - Horizon $\delta = 3\,\Delta x$
-# - Density $\rho = 8e-6\,\mathrm{kg}\,\mathrm{mm}^{-3}$
-# - Youngs modulus $E = 210 000 \, \mathrm{MPa}$
-# - Poisson ratio $\nu = \frac{1}{4}$
-# - Griffith's parameter $G_c = 2.7 \, \mathrm{N} \, \mathrm{mm}^{-1}$
-#-
-δ = 3.015Δx
-mat = CPDMaterial(horizon=δ, rho=8e-6, E=2.1e5, nu=0.25, Gc=2.7)
+# The following material parameters are set:
+#
+# | material parameter | value |
+# |:--------|:-------------|
+# | Horizon $ δ $ | $3.015 \cdot Δx$ |
+# | Young's modulus $E$ | $ 210000 \, \mathrm{MPa}$ |
+# | Density $ρ$ | $ 8 \cdot 10^{-6}\,\mathrm{kg}\,\mathrm{mm}^{-3}$ |
+# | Griffith's parameter $G_c$ | $2.7 \, \mathrm{N} \, \mathrm{mm}^{-1}$ |
 
-#-
-# To add a predefined crack with length $a$, we use two point sets.
-#-
-a = 0.5l
-set_a = findall(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, eachcol(pc.position))
-set_b = findall(p -> p[1] ≤ -l/2+a && -2δ ≤ p[2] < 0, eachcol(pc.position))
-precrack = PreCrack(set_a, set_b)
+material!(b; horizon=3.015Δx, E=2.1e5, rho=8e-6, Gc=2.7)
 
-#-
+# Two point sets are defined to insert a crack between them:
+point_set!(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, b, :set_a)
+point_set!(p -> p[1] ≤ -l/2+a && -2δ ≤ p[2] < 0, b, :set_b)
+precrack!(b, :set_a, :set_b)
+
 fig = Figure(resolution = (1000,500), figure_padding=0) #src
 ax = Axis3(fig[1,1]; aspect = :data) #src
 hidespines!(ax) #src
@@ -84,22 +75,11 @@ save(joinpath(@__DIR__, "..", "assets", "tutorial_tension_2.png"), fig; px_per_u
 fig #src
 # ![](../assets/tutorial_tension_2.png) #md
 
-#-
-# Additional point sets for the bottom and the top are used for the velocity boundary condition
-# of $\pm 20 \, \mathrm{mm} \, \mathrm{s}^{-1}$.
-#-
-set_top = findall(p -> p[2] > l/2-Δx, eachcol(pc.position))
-set_bottom = findall(p -> p[2] < -l/2+Δx, eachcol(pc.position));
+# Two more point sets at the top and at the bottom are created, which are used for the
+# velocity boundary condition.
+point_set!(p -> p[2] > l/2-Δx, b, :set_top)
+point_set!(p -> p[2] < -l/2+Δx, b, :set_bottom)
 
-#-
-bc_bottom = VelocityBC(t -> -20, set_bottom, 2)
-
-#-
-bc_top = VelocityBC(t -> 20, set_top, 2)
-
-#-
-
-#-
 fig = Figure(resolution = (1000,500), backgroundcolor = :transparent, figure_padding=0) #src
 ax = Axis3(fig[1,1]; aspect = :data) #src
 hidespines!(ax) #src
@@ -121,24 +101,18 @@ save(joinpath(@__DIR__, "..", "assets", "tutorial_tension_3.png"), fig; px_per_u
 fig #src
 # ![](../assets/tutorial_tension_3.png) #md
 
-
-#-
-# We set the number of time steps for the Velocity Verlet algorithm to 2000 time steps.
-vv = VelocityVerlet(2000)
-
-#-
-# The results of our analysis should be saved in the directory `"results/mode_I_tension_precrack"` every 10'th time step.
-jobname = "mode_I_tension_precrack"
-path = joinpath("results", jobname)
-!ispath(path) && mkpath(path) # create the path if it does not exist
-es = ExportSettings(path, 10)
-
-#-
-# Run a single body analysis:
-job = PDSingleBodyAnalysis(name=jobname, pc=pc, mat=mat, precracks=[precrack],
-                           bcs=[bc_bottom,bc_top], td=vv, es=es)
-
-#-
+# The tension is applied by moving the ends of the body apart at a constant speed of
+# $\pm 50 \, \mathrm{mm} \, \mathrm{s}^{-1}$:
+velocity_bc!(t -> -50, b, :set_bottom, :y)
+velocity_bc!(t -> 50, b, :set_top, :y)
+# The Velocity Verlet algorithm is used as time integration method and 2000 time steps
+# are calculated:
+vv = VelocityVerlet(steps=2000)
+# Then the storage path is defined:
+root = joinpath(@__DIR__, "results", "mode_i")
+#  Now the job is defined
+job = Job(b, vv; path=root)
+# Finally the job is submitted to start simulations
 #md # ```julia
 #md # submit(job)
 #md # ```

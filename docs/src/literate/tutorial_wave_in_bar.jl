@@ -54,7 +54,7 @@ velocity_bc!(t -> t < T ? vmax * sin(2π / T * t) : 0.0, body, :left, :x)
 vv = VelocityVerlet(steps=2000)
 # Then the storage path is defined:
 path = joinpath(@__DIR__, "results", "xwave", "xwave_osb")
-# The job is now defined and returned with the specified settings and parameters.
+# The job is now defined with the specified settings and parameters.
 job = Job(body, vv; path=path)
 
 # The last step is submitting the job to start the simulation.
