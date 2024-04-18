@@ -23,12 +23,12 @@ specifies material parameters used for body `b` or point set `name`
 Allowed keywords depend on selected material model. See material type documentation.
 Default material parameter keywords:
 
-- `:horizon::Float64`: radius of point interactions
-- `:rho::Float64`: density
-- `:E::Float64`: Young's modulus
-- `:nu::Float64`: Poisson's ratio
-- `:Gc::Float64`: critical energy release rate
-- `:epsilon_c::Float64`: critical strain
+- `horizon::Float64`: radius of point interactions
+- `rho::Float64`: density
+- `E::Float64`: Young's modulus
+- `nu::Float64`: Poisson's ratio
+- `Gc::Float64`: critical energy release rate
+- `epsilon_c::Float64`: critical strain
 
 # Throws
 

@@ -11,7 +11,7 @@ submits the job to start calculations
 
 # Keywords
 
-- `:quiet::Bool`: if `:quiet=true`, no outputs are printed in the terminal
+- `quiet::Bool`: if `:quiet=true`, no outputs are printed in the terminal
 
 # Throws
 

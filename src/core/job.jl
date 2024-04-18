@@ -27,9 +27,9 @@ Constructors:
 
 # Keywords
 
-- `:path::String`: storage path for results
-- `:freq::Int`: frequency of time steps that are exported
-- `:fields`: exported fields
+- `path::String`: storage path for results
+- `freq::Int`: frequency of time steps that are exported
+- `fields`: exported fields
              Possible export fields depend on selected material model.
              See material type documentation.
              default export fields: `:displacement`, `:damage`
@@ -46,8 +46,8 @@ julia> b = Body(BBMaterial(), pos, vol)
 julia> vv = VelocityVerlet(steps=2000)
 
 julia> job = Job(b, vv;
-           :path=joinpath(@__DIR__, "results", "mode_I"),
-           :fields=(:displacement, :velocity, :acceleration, :damage))
+           path=joinpath(@__DIR__, "results", "mode_I"),
+           fields=(:displacement, :velocity, :acceleration, :damage))
 Job{Body{BBMaterial, Peridynamics.BBPointParameters}, VelocityVerlet}(Body{BBMaterial,
 Peridynamics.BBPointParameters}(BBMaterial(), 12500, [-0.49 -0.47 …
 ```
