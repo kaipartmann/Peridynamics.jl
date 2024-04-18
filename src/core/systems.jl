@@ -39,3 +39,11 @@ function typecheck_system(::Type{System}) where {System}
     end
     return nothing
 end
+
+@inline function get_point_data(s::AbstractSystem, field::Symbol)
+    return point_data_field(s, Val(field))
+end
+
+function point_data_field(::AbstractStorage, ::Val{field}) where {field}
+    return throw(ArgumentError("field $field is not a valid point data field!\n"))
+end
