@@ -61,6 +61,7 @@ end
 function _chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
                         ::Val{1}) where {M,P,T}
     @timeit_debug TO "chop chunk" chunk = BodyChunk(body, ts, pd, mpi_chunk_id())
+    init_chunk!(chunk)
     apply_precracks!(chunk, body)
     apply_initial_conditions!(chunk, body)
     return chunk
@@ -69,6 +70,7 @@ end
 function _chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
                         ::Val{N}) where {M,P,T,N}
     @timeit_debug TO "chop chunk" chunk = MultiParamBodyChunk(body, ts, pd, mpi_chunk_id())
+    init_chunk!(chunk)
     apply_precracks!(chunk, body)
     apply_initial_conditions!(chunk, body)
     return chunk
@@ -134,6 +136,7 @@ function find_bufs(s::AbstractStorage, lth_exs_send::V, lth_exs_recv::V, htl_exs
     htl_recv = [find_bufs(s, ex) for ex in htl_exs_recv]
     field_to_buf = find_field_to_buf(s)
     return lth_send, lth_recv, htl_send, htl_recv, field_to_buf
+
 end
 
 @inline function find_bufs(s::AbstractStorage, ex::HaloExchange)
