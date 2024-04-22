@@ -8,35 +8,34 @@ Job that contains all the information required for a peridynamic simulation
 # Fields
 
 - `spatial_setup<:AbstractSpatialSetup`: Body or Multibody setup for the simulation
-- `time_solver<:AbstractTimeSolver`: method for calculating discrete time steps
-- `options<:AbstractOptions`: options for simulation data export
+- `time_solver<:AbstractTimeSolver`: Method for calculating discrete time steps
+- `options<:AbstractOptions`: Options for simulation data export
 
 ---
 
 Constructors:
 
-    Job(spatial_setup::AbstractSpatialSetup, time_solver::AbstractTimeSolver,
-        options::AbstractOptions)
-    Job(spatial_setup::AbstractSpatialSetup, time_solver::AbstractTimeSolver; kwargs...)
+    Job(spatial_setup, time_solver, options)
+    Job(spatial_setup, time_solver; kwargs...)
 
 # Arguments
 
 - `spatial_setup<:AbstractSpatialSetup`: Body or Multibody setup for the simulation
-- `time_solver<:AbstractTimeSolver`: method for calculating discrete time steps
-- `options<:AbstractOptions`: options for simulation data export
+- `time_solver<:AbstractTimeSolver`: Method for calculating discrete time steps
+- `options<:AbstractOptions`: Options for simulation data export
 
 # Keywords
 
-- `path::String`: storage path for results
-- `freq::Int`: frequency of time steps that are exported
-- `fields`: exported fields
-             Possible export fields depend on selected material model.
+- `path::String`: Storage path for results
+- `freq::Int`: Frequency of time steps that are exported
+- `fields`: Exported fields
+             Possible export fields depend on the selected material model.
              See material type documentation.
-             default export fields: `:displacement`, `:damage`
+             Default export fields: `:displacement`, `:damage`
 
 # Throws
 
-- error if keyword is not allowed
+- Error if keyword is not allowed
 
 # Example
 

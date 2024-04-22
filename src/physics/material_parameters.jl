@@ -7,32 +7,31 @@ function allowed_material_kwargs(::AbstractMaterial)
 end
 
 """
-    material!(b::Body{M,P}, name::Symbol; kwargs...)
-    material!(b::Body{M,P}; kwargs...)
-        where {M<:AbstractMaterial,P<:AbstractPointParameters}
+    material!(body, set; kwargs...)
+    material!(body; kwargs...)
 
-specifies material parameters used for body `b` or point set `name`
+Specifies material parameters used for `body` or point set `set`
 
 # Arguments
 
-- `b::Body{M<:AbstractMaterial,P<:AbstractPointParameters}`: peridynamic body
-- `name::Symbol`: point set on body `b`
+- `body::AbstractBody`: Peridynamic body
+- `set::Symbol`: Point set on `body`
 
 # Keywords
 
-Allowed keywords depend on selected material model. See material type documentation.
+Allowed keywords depend on the selected material model. See material type documentation.
 Default material parameter keywords:
 
-- `horizon::Float64`: radius of point interactions
-- `rho::Float64`: density
+- `horizon::Float64`: Radius of point interactions
+- `rho::Float64`: Density
 - `E::Float64`: Young's modulus
 - `nu::Float64`: Poisson's ratio
-- `Gc::Float64`: critical energy release rate
-- `epsilon_c::Float64`: critical strain
+- `Gc::Float64`: Critical energy release rate
+- `epsilon_c::Float64`: Critical strain
 
 # Throws
 
-- error if parameter is not eligible for specification in selected material model
+- Error if parameter is not eligible for specification in selected material model
 
 # Example
 

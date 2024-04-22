@@ -3,19 +3,19 @@ const SUBMIT_KWARGS = (:quiet,)
 """
     submit(job::Job; kwargs...)
 
-submits the job to start calculations
+Submits the job to start calculations
 
 # Arguments
 
-- `job::Job`: job that contains all defined parameters and conditions
+- `job::Job`: Job that contains all defined parameters and conditions
 
 # Keywords
 
-- `quiet::Bool`: if `:quiet=true`, no outputs are printed in the terminal
+- `quiet::Bool`: If `:quiet=true`, no outputs are printed in the terminal.
 
 # Throws
 
-- error if keyword is not allowed
+- Error if keyword is not allowed
 
 # Example
 
