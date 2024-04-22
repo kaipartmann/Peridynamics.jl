@@ -48,6 +48,7 @@ We recommend looking at the [how-to guides](https://kaipartmann.github.io/Peridy
 ## Authors
 
 - Kai Partmann (University of Siegen)
+- Manuel Dienst (University of Siegen)
 - Kerstin Weinberg (University of Siegen)
 
 ## Acknowledgement
