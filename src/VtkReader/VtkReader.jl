@@ -279,10 +279,10 @@ is_pvtu(file::AbstractString) = endswith(file, ".pvtu") ? true : false
 Read vtu or pvtu file containing simulation results of a time step.
 
 # Arguments
-- `file::String`: path to VTK file in vtu or pvtu format
+- `file::String`: Path to VTK file in vtu or pvtu format
 
 # Returns
-- `Dict{String, VecOrMat{Float64}}`: simulation results as a dictionary
+- `Dict{String, VecOrMat{Float64}}`: Simulation results as a dictionary
 
 # Examples
 

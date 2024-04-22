@@ -29,20 +29,20 @@ function apply_precrack!(b::AbstractBodyChunk, body::AbstractBody,
 end
 
 """
-    precrack!(b::AbstractBody, set_a::Symbol, set_b::Symbol; update_dmg::Bool=true)
+    precrack!(body, set_a, set_b; update_dmg=true)
 
-creates a crack between two point sets by prohibiting interaction between points of
-different point sets
+Creates a crack between two point sets by prohibiting interaction between points of
+different point sets.
 
 # Arguments
 
-- `b::AbstractBody`: peridynamic body
-- `set_a::Symbol`: first point set
-- `set_b::Symbol`: second point set
+- `body::AbstractBody`: Peridynamic body
+- `set_a::Symbol`: First point set on `body`
+- `set_b::Symbol`: Second point set on `body`
 
 # Keywords
 
-- `update_dmg::Bool`: if `update_dmg=true`, the material points involved in the predefined
+- `update_dmg::Bool`: If `update_dmg=true`, the material points involved in the predefined
                       are initially damaged. If `update_dmg=false`, the bonds involved are
                       deleted and the material points involved with the predefined crack
                       are not damaged.
@@ -50,8 +50,8 @@ different point sets
 
 # Throws
 
-- error if point set `set_a` or `set_b` does not exist
-- error if point sets contain common points
+- Error if point set `set_a` or `set_b` does not exist
+- Error if point sets contain common points
 
 # Example
 

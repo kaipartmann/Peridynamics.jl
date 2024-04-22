@@ -104,22 +104,22 @@ function _condition!(conditions::Vector{B}, condition::B) where {B<:AbstractCond
 end
 
 """
-    velocity_bc!(f::F, b::AbstractBody, name::Symbol, d::DimensionSpec) where {F<:Function}
+    velocity_bc!(fun, body, set, dim)
 
-specifies velocity boundary conditions for point set `name` on body `b`
+Specifies velocity boundary conditions for point set `set` on `body`
 
 # Arguments
 
-- `f<:Function`: velocity condition function
-- `b::AbstractBody`: peridynamic body
-- `name::Symbol`: point set on body `b`
-- `d::DimensionSpec`: direction of velocity
+- `fun<:Function`: Velocity condition function
+- `body::AbstractBody`: Peridynamic body
+- `set::Symbol`: Point set on `body`
+- `dim::DimensionSpec`: Direction of velocity
 
 # Throws
 
-- error if no point set called `name` exists
-- error if dimension is not correctly specified
-- error if function is not suitable as condition function
+- Error if no point set called `set` exists
+- Error if dimension is not correctly specified
+- Error if function is not suitable as condition function
 
 # Example
 
@@ -150,22 +150,22 @@ function velocity_bc!(f::F, b::AbstractBody, name::Symbol, d::Union{Integer,Symb
 end
 
 """
-    forcedensity_bc!(f::F, b::AbstractBody, name::Symbol, d::DimensionSpec) where {F<:Function}
+    forcedensity_bc!(fun, body, set, dim)
 
-specifies boundary conditions for force density on points of point set `name` on body `b`
+Specifies boundary conditions for force density on points of point set `set` on `body`
 
 # Arguments
 
-- `f<:Function`: condition function
-- `b::AbstractBody`: peridynamic body
-- `name::Symbol`: point set on body `b`
-- `d::DimensionSpec`: direction of force density
+- `fun<:Function`: Condition function
+- `body::AbstractBody`: Peridynamic body
+- `set::Symbol`: Point set on `body`
+- `dim::DimensionSpec`: Direction of force density
 
 # Throws
 
-- error if no point set called `name` exists
-- error if dimension is not correctly specified
-- error if function is not suitable as condition function
+- Error if no point set called `set` exists
+- Error if dimension is not correctly specified
+- Error if function is not suitable as condition function
 
 # Example
 
