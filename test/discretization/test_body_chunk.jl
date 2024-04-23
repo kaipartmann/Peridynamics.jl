@@ -43,7 +43,7 @@
 end
 
 
-@testitem "chop_body_threads BBMaterial Val{1}" begin
+@testitem "chop_body_threads BBMaterial N=1" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -60,7 +60,7 @@ end
     ts = VelocityVerlet(steps=10)
     point_decomp = Peridynamics.PointDecomposition(body, 2)
 
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
 
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.BodyChunk
@@ -90,21 +90,21 @@ end
     @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
     @test b1.storage.n_active_bonds == [1, 1]
 
-    @test b1.param isa Peridynamics.BBPointParameters
-    @test b1.param.δ ≈ 2.0
-    @test b1.param.rho ≈ 1.0
-    @test b1.param.E ≈ 1.0
-    @test b1.param.nu ≈ 0.25
-    @test b1.param.G ≈ 0.4
-    @test b1.param.K ≈ 2/3
-    @test b1.param.λ ≈ 0.4
-    @test b1.param.μ ≈ 0.4
-    @test b1.param.Gc ≈ 1.0
-    @test b1.param.εc ≈ 0.6454972243679028
-    @test b1.param.bc ≈ 0.238732414637843
-    @test b1.param == Peridynamics.get_param(b1, 1)
-    @test b1.param == Peridynamics.get_param(b1, 2)
-    @test b1.param == Peridynamics.get_param(b1, 100)
+    @test b1.paramhandler isa Peridynamics.ParameterHandler{Peridynamics.BBPointParameters,1}
+    b1_params = Peridynamics.get_params(b1, 1)
+    @test b1_params.δ ≈ 2.0
+    @test b1_params.rho ≈ 1.0
+    @test b1_params.E ≈ 1.0
+    @test b1_params.nu ≈ 0.25
+    @test b1_params.G ≈ 0.4
+    @test b1_params.K ≈ 2/3
+    @test b1_params.λ ≈ 0.4
+    @test b1_params.μ ≈ 0.4
+    @test b1_params.Gc ≈ 1.0
+    @test b1_params.εc ≈ 0.6454972243679028
+    @test b1_params.bc ≈ 0.238732414637843
+    @test b1_params == Peridynamics.get_params(b1, 2)
+    @test b1_params == Peridynamics.get_params(b1, 100)
 
     @test b1.psets[:a] == [1, 2]
     @test b1.psets[:b] == []
@@ -152,21 +152,21 @@ end
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    @test b2.param isa Peridynamics.BBPointParameters
-    @test b2.param.δ ≈ 2.0
-    @test b2.param.rho ≈ 1.0
-    @test b2.param.E ≈ 1.0
-    @test b2.param.nu ≈ 0.25
-    @test b2.param.G ≈ 0.4
-    @test b2.param.K ≈ 2/3
-    @test b2.param.λ ≈ 0.4
-    @test b2.param.μ ≈ 0.4
-    @test b2.param.Gc ≈ 1.0
-    @test b2.param.εc ≈ 0.6454972243679028
-    @test b2.param.bc ≈ 0.238732414637843
-    @test b2.param == Peridynamics.get_param(b2, 1)
-    @test b2.param == Peridynamics.get_param(b2, 2)
-    @test b2.param == Peridynamics.get_param(b2, 100)
+    @test b2.paramhandler isa Peridynamics.ParameterHandler{Peridynamics.BBPointParameters,1}
+    b2_params = Peridynamics.get_params(b2, 1)
+    @test b2_params.δ ≈ 2.0
+    @test b2_params.rho ≈ 1.0
+    @test b2_params.E ≈ 1.0
+    @test b2_params.nu ≈ 0.25
+    @test b2_params.G ≈ 0.4
+    @test b2_params.K ≈ 2/3
+    @test b2_params.λ ≈ 0.4
+    @test b2_params.μ ≈ 0.4
+    @test b2_params.Gc ≈ 1.0
+    @test b2_params.εc ≈ 0.6454972243679028
+    @test b2_params.bc ≈ 0.238732414637843
+    @test b2_params == Peridynamics.get_params(b2, 2)
+    @test b2_params == Peridynamics.get_params(b2, 100)
 
     @test b2.psets[:a] == []
     @test b2.psets[:b] == [1, 2]
@@ -188,7 +188,7 @@ end
     @test b2.ch.localizer[2] == 4
 end
 
-@testitem "chop_body_threads BBMaterial Val{N}" begin
+@testitem "chop_body_threads BBMaterial N=2" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -206,10 +206,10 @@ end
     ts = VelocityVerlet(steps=10)
     point_decomp = Peridynamics.PointDecomposition(body, 2)
 
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{2}())
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
 
     b1 = body_chunks[1]
-    @test b1 isa Peridynamics.MultiParamBodyChunk
+    @test b1 isa Peridynamics.BodyChunk
     @test b1.mat == BBMaterial()
     @test b1.system isa Peridynamics.BondSystem
     @test b1.system.position == position
@@ -236,9 +236,9 @@ end
     @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
     @test b1.storage.n_active_bonds == [1, 1]
 
-    @test length(b1.param) == 2
+    @test length(b1.paramhandler.parameters) == 2
 
-    pp1 = Peridynamics.get_param(b1, 1)
+    pp1 = Peridynamics.get_params(b1, 1)
     @test pp1 isa Peridynamics.BBPointParameters
     @test pp1.δ ≈ 2.0
     @test pp1.rho ≈ 1.0
@@ -252,7 +252,7 @@ end
     @test pp1.εc ≈ 0.6454972243679028
     @test pp1.bc ≈ 0.238732414637843
 
-    pp2 = Peridynamics.get_param(b1, 2)
+    pp2 = Peridynamics.get_params(b1, 2)
     @test pp2 isa Peridynamics.BBPointParameters
     @test pp2.δ ≈ 2.0
     @test pp2.rho ≈ 1.0
@@ -266,8 +266,8 @@ end
     @test pp2.εc ≈ 0.6454972243679028
     @test pp2.bc ≈ 0.238732414637843
 
-    @test_throws BoundsError Peridynamics.get_param(b1, 3)
-    @test_throws BoundsError Peridynamics.get_param(b1, 4)
+    @test_throws BoundsError Peridynamics.get_params(b1, 3)
+    @test_throws BoundsError Peridynamics.get_params(b1, 4)
 
     @test b1.psets[:a] == [1, 2]
     @test b1.psets[:b] == []
@@ -288,7 +288,7 @@ end
     end
 
     b2 = body_chunks[2]
-    @test b2 isa Peridynamics.MultiParamBodyChunk
+    @test b2 isa Peridynamics.BodyChunk
     @test b2.mat == BBMaterial()
     @test b2.system isa Peridynamics.BondSystem
     @test b2.system.position == position[:, [3, 4, 1, 2]]
@@ -315,9 +315,9 @@ end
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    @test length(b2.param) == 2
+    @test length(b2.paramhandler.parameters) == 2
 
-    pp3 = Peridynamics.get_param(b2, 1)
+    pp3 = Peridynamics.get_params(b2, 1)
     @test pp3 isa Peridynamics.BBPointParameters
     @test pp3.δ ≈ 3.0
     @test pp3.rho ≈ 2.0
@@ -331,7 +331,7 @@ end
     @test pp3.εc ≈ 0.5270462766947299
     @test pp3.bc ≈ 0.0943140403507528
 
-    pp4= Peridynamics.get_param(b2, 2)
+    pp4= Peridynamics.get_params(b2, 2)
     @test pp4 isa Peridynamics.BBPointParameters
     @test pp4.δ ≈ 3.0
     @test pp4.rho ≈ 2.0
@@ -345,8 +345,8 @@ end
     @test pp4.εc ≈ 0.5270462766947299
     @test pp4.bc ≈ 0.0943140403507528
 
-    @test_throws BoundsError Peridynamics.get_param(b1, 3)
-    @test_throws BoundsError Peridynamics.get_param(b1, 4)
+    @test_throws BoundsError Peridynamics.get_params(b1, 3)
+    @test_throws BoundsError Peridynamics.get_params(b1, 4)
 
     @test b2.psets[:a] == []
     @test b2.psets[:b] == [1, 2]
