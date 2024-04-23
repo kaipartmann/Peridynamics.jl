@@ -1,6 +1,6 @@
-struct ThreadsDataHandler{C<:AbstractBodyChunk} <: AbstractThreadsDataHandler
+struct ThreadsDataHandler{System,Material,Params,Storage} <: AbstractThreadsDataHandler
     n_chunks::Int
-    chunks::Vector{C}
+    chunks::Vector{BodyChunk{System,Material,Params,Storage}}
     lth_exs::Vector{Vector{HaloExchange}}
     htl_exs::Vector{Vector{HaloExchange}}
 end

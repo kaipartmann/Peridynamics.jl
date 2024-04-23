@@ -5,17 +5,17 @@ struct MPIHaloInfo
     hidxs_by_src::Dict{Int,Dict{Int,Vector{Int}}}
 end
 
-struct MPIDataHandler{C<:AbstractBodyChunk,B} <: AbstractMPIDataHandler
-    chunk::C
+struct MPIDataHandler{System,Material,Params,Storage,Bufs} <: AbstractMPIDataHandler
+    chunk::BodyChunk{System,Material,Params,Storage}
     n_halo_fields::Int
     lth_exs_send::Vector{HaloExchange}
     lth_exs_recv::Vector{HaloExchange}
     htl_exs_send::Vector{HaloExchange}
     htl_exs_recv::Vector{HaloExchange}
-    lth_send_bufs::Vector{B}
-    lth_recv_bufs::Vector{B}
-    htl_send_bufs::Vector{B}
-    htl_recv_bufs::Vector{B}
+    lth_send_bufs::Vector{Bufs}
+    lth_recv_bufs::Vector{Bufs}
+    htl_send_bufs::Vector{Bufs}
+    htl_recv_bufs::Vector{Bufs}
     field_to_buf::Dict{Symbol,Int}
     lth_reqs::Vector{Vector{MPI.Request}}
     htl_reqs::Vector{Vector{MPI.Request}}

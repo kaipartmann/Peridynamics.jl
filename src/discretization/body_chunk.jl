@@ -1,7 +1,7 @@
 struct BodyChunk{System<:AbstractSystem,
                  Material<:AbstractMaterial,
                  Params<:AbstractParameterHandler,
-                 Storage<:AbstractStorage} <: AbstractBodyChunk{Material}
+                 Storage<:AbstractStorage} <: AbstractBodyChunk{System,Material}
     system::System
     mat::Material
     paramhandler::Params
