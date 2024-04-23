@@ -291,3 +291,8 @@ function export_reference_results(dh::MPIDataHandler, options::AbstractOptions)
     _export_results(dh.chunk, mpi_chunk_id(), mpi_nranks(), options, 0, 0.0)
     return nothing
 end
+
+function init_data_handler!(dh::MPIDataHandler, ::AbstractTimeSolver)
+    init_system!(dh)
+    return nothing
+end

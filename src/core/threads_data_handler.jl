@@ -162,3 +162,8 @@ function export_reference_results(dh::ThreadsDataHandler, options::AbstractOptio
     end
     return nothing
 end
+
+function init_data_handler!(dh::ThreadsDataHandler, ::AbstractTimeSolver)
+    init_system!(dh)
+    return nothing
+end

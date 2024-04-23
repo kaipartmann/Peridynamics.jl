@@ -2,6 +2,16 @@ function system_type(mat::AbstractMaterial)
     throw(MethodError(system_type, mat))
 end
 
+function get_system_type(mat::AbstractMaterial)
+    Sys = system_type(mat)
+    FullSys = full_system_type(Sys, mat)
+    return FullSys
+end
+
+function full_system_type(::Type{System}, mat::AbstractMaterial) where {System}
+    return system_type(mat)
+end
+
 function get_system(::AbstractBody{M}, args...) where {M}
     msg = "system for material $M not specified!\n"
     return error(msg)

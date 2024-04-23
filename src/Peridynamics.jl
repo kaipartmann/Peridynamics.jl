@@ -33,12 +33,13 @@ abstract type AbstractJob end
 abstract type AbstractOptions end
 abstract type AbstractSystem end
 abstract type AbstractPredefinedCrack end
-abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
+abstract type AbstractBodyChunk{System,Material} end
 abstract type AbstractParameterHandler{N} end
 abstract type AbstractChunkHandler end
 abstract type AbstractDataHandler end
 abstract type AbstractThreadsDataHandler <: AbstractDataHandler end
 abstract type AbstractMPIDataHandler <: AbstractDataHandler end
+abstract type AbstractCorrectionHandler end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
 
