@@ -1,4 +1,4 @@
-struct BodyChunk{System,
+struct BodyChunk{System<:AbstractSystem,
                  Material<:AbstractMaterial,
                  Params<:AbstractParameterHandler,
                  Storage<:AbstractStorage} <: AbstractBodyChunk{System,Material}
