@@ -13,8 +13,8 @@ struct BodyChunk{System<:AbstractSystem,
     cells::Vector{MeshCell{VTKCellType, Tuple{Int64}}}
 end
 
-function BodyChunk(body::Body{M,P}, solver::AbstractTimeSolver, pd::PointDecomposition,
-                   chunk_id::Int, param_spec::AbstractParamSpec) where {M,P}
+function BodyChunk(body::AbstractBody, solver::AbstractTimeSolver, pd::PointDecomposition,
+                   chunk_id::Int, param_spec::AbstractParamSpec)
     mat = body.mat
     system, ch = get_system(body, pd, chunk_id)
     paramsetup = init_params(body, ch, param_spec)
