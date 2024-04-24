@@ -14,7 +14,8 @@
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
     pd = Peridynamics.PointDecomposition(body, 2)
-    bc = Peridynamics.BodyChunk(body, ts, pd, 1)
+    ps = Peridynamics.get_param_spec(body)
+    bc = Peridynamics.BodyChunk(body, ts, pd, 1, ps)
 
     @test bc.mat == mat
     @test bc.system isa Peridynamics.BondSystem
@@ -59,8 +60,9 @@ end
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
     point_decomp = Peridynamics.PointDecomposition(body, 2)
+    param_spec = Peridynamics.get_param_spec(body)
 
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, param_spec)
 
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.BodyChunk
@@ -90,7 +92,7 @@ end
     @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
     @test b1.storage.n_active_bonds == [1, 1]
 
-    @test b1.paramhandler isa Peridynamics.ParameterHandler{Peridynamics.BBPointParameters,1}
+    @test b1.paramsetup isa Peridynamics.BBPointParameters
     b1_params = Peridynamics.get_params(b1, 1)
     @test b1_params.δ ≈ 2.0
     @test b1_params.rho ≈ 1.0
@@ -152,7 +154,7 @@ end
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    @test b2.paramhandler isa Peridynamics.ParameterHandler{Peridynamics.BBPointParameters,1}
+    @test b2.paramsetup isa Peridynamics.BBPointParameters
     b2_params = Peridynamics.get_params(b2, 1)
     @test b2_params.δ ≈ 2.0
     @test b2_params.rho ≈ 1.0
@@ -205,8 +207,9 @@ end
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
     point_decomp = Peridynamics.PointDecomposition(body, 2)
+    param_spec = Peridynamics.get_param_spec(body)
 
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, param_spec)
 
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.BodyChunk
@@ -236,7 +239,7 @@ end
     @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
     @test b1.storage.n_active_bonds == [1, 1]
 
-    @test length(b1.paramhandler.parameters) == 2
+    @test length(b1.paramsetup.parameters) == 2
 
     pp1 = Peridynamics.get_params(b1, 1)
     @test pp1 isa Peridynamics.BBPointParameters
@@ -315,7 +318,7 @@ end
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    @test length(b2.paramhandler.parameters) == 2
+    @test length(b2.paramsetup.parameters) == 2
 
     pp3 = Peridynamics.get_params(b2, 1)
     @test pp3 isa Peridynamics.BBPointParameters

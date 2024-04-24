@@ -149,7 +149,7 @@ function _update_disp_and_pos!(displacement, position, velocity_half, Δt, each_
 end
 
 function update_acc_and_vel!(b::AbstractBodyChunk, Δt½::Float64)
-    _update_acc_and_vel!(b.storage, b.paramhandler, Δt½, each_point_idx(b))
+    _update_acc_and_vel!(b.storage, b.paramsetup, Δt½, each_point_idx(b))
     return nothing
 end
 
@@ -163,11 +163,10 @@ function _update_acc_and_vel!(s::AbstractStorage, paramhandler::AbstractParamete
     return nothing
 end
 
-function _update_acc_and_vel!(s::AbstractStorage, paramhandler::AbstractParameterHandler{1},
+function _update_acc_and_vel!(s::AbstractStorage, params::AbstractPointParameters,
                               Δt½::Float64, each_point)
-    param = get_params(paramhandler)
     for point_id in each_point
-        _update_acc!(s.acceleration, s.b_int, s.b_ext, param.rho, point_id)
+        _update_acc!(s.acceleration, s.b_int, s.b_ext, params.rho, point_id)
         _update_vel!(s.velocity, s.velocity_half, s.acceleration, Δt½, point_id)
     end
     return nothing

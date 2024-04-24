@@ -23,7 +23,10 @@ end
 
 function MPIDataHandler(body::AbstractBody, solver::AbstractTimeSolver,
                         point_decomp::PointDecomposition)
-    @timeit_debug TO "chop chunk" chunk = chop_body_mpi(body, solver, point_decomp)
+    param_spec = get_param_spec(body)
+    @timeit_debug TO "chop chunk" begin
+        chunk = chop_body_mpi(body, solver, point_decomp, param_spec)
+    end
     @timeit_debug TO "find halo exchanges" begin
         halo_infos = get_halo_infos(chunk, point_decomp, body.n_points)
         lth_exs, htl_exs = find_halo_exchanges(halo_infos)
@@ -46,8 +49,8 @@ function MPIDataHandler(multibody::AbstractMultibodySetup,
 end
 
 function chop_body_mpi(body::AbstractBody, solver::AbstractTimeSolver,
-                       point_decomp::PointDecomposition)
-    chunk = BodyChunk(body, solver, point_decomp, mpi_chunk_id())
+                       point_decomp::PointDecomposition, param_spec::AbstractParamSpec)
+    chunk = BodyChunk(body, solver, point_decomp, mpi_chunk_id(), param_spec)
     apply_precracks!(chunk, body)
     apply_initial_conditions!(chunk, body)
     return chunk
