@@ -27,14 +27,16 @@ abstract type AbstractMaterial end
 abstract type AbstractSpatialSetup end
 abstract type AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup end
 abstract type AbstractMultibodySetup{T<:AbstractMaterial} <: AbstractSpatialSetup end
-abstract type AbstractPointParameters end
+abstract type AbstractParameterSetup end
+abstract type AbstractPointParameters <: AbstractParameterSetup end
+abstract type AbstractParamSpec end
 abstract type AbstractTimeSolver end
 abstract type AbstractJob end
 abstract type AbstractOptions end
 abstract type AbstractSystem end
 abstract type AbstractPredefinedCrack end
-abstract type AbstractBodyChunk{System,Material} end
-abstract type AbstractParameterHandler{N} end
+abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
+abstract type AbstractParameterHandler <: AbstractParameterSetup end
 abstract type AbstractChunkHandler end
 abstract type AbstractDataHandler end
 abstract type AbstractThreadsDataHandler <: AbstractDataHandler end

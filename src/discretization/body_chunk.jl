@@ -1,10 +1,10 @@
 struct BodyChunk{System<:AbstractSystem,
                  Material<:AbstractMaterial,
-                 Params<:AbstractParameterHandler,
+                 Params<:AbstractParameterSetup,
                  Storage<:AbstractStorage} <: AbstractBodyChunk{System,Material}
     system::System
     mat::Material
-    paramhandler::Params
+    paramsetup::Params
     storage::Storage
     ch::ChunkHandler
     psets::Dict{Symbol,Vector{Int}}
@@ -12,26 +12,22 @@ struct BodyChunk{System<:AbstractSystem,
     pdsdbcs::Vector{PosDepSingleDimBC}
     cells::Vector{MeshCell{VTKCellType,Tuple{Int64}}}
 
-    function BodyChunk(body::AbstractBody, solver::AbstractTimeSolver,
-                       pd::PointDecomposition, chunk_id::Int)
-        mat = body.mat
-        system, ch = get_system(body, pd, chunk_id)
-        paramhandler = ParameterHandler(body, ch)
-        storage = init_storage(mat, solver, system, ch)
-        psets = localized_point_sets(body.point_sets, ch)
-        sdbcs = body.single_dim_bcs
-        pdsdbcs = body.posdep_single_dim_bcs
-        cells = get_cells(ch.n_loc_points)
-        Sys, M, P, S = typeof(system), typeof(mat), typeof(paramhandler), typeof(storage)
-        chunk = new{Sys,M,P,S}(system, mat, paramhandler, storage, ch, psets, sdbcs,
-                               pdsdbcs, cells)
-        return chunk
-    end
+function BodyChunk(body::Body{M,P}, solver::AbstractTimeSolver, pd::PointDecomposition,
+                   chunk_id::Int, param_spec::AbstractParamSpec) where {M,P}
+    mat = body.mat
+    system, ch = get_system(body, pd, chunk_id)
+    paramsetup = init_params(body, ch, param_spec)
+    storage = init_storage(mat, solver, system, ch)
+    psets = localized_point_sets(body.point_sets, ch)
+    sdbcs = body.single_dim_bcs
+    pdsdbcs = body.posdep_single_dim_bcs
+    cells = get_cells(ch.n_loc_points)
+    return BodyChunk(system, mat, paramsetup, storage, ch, psets, sdbcs, pdsdbcs, cells)
 end
 
 
 @inline function get_params(b::BodyChunk, point_id::Int)
-    return get_params(b.paramhandler, point_id)
+    return get_params(b.paramsetup, point_id)
 end
 
 @inline get_system_type(::BodyChunk{Sys,M,P,S}) where {Sys,M,P,S} = Sys
@@ -50,10 +46,10 @@ end
     return get_storage_type(first(vb))
 end
 
-@inline function body_chunk_type(body::AbstractBody{Material},
-                                 solver::AbstractTimeSolver) where {Material}
-    System = get_system_type(body.mat)
-    Params = parameter_handler_type(body)
+@inline function body_chunk_type(body::AbstractBody{Material}, solver::AbstractTimeSolver,
+                                 param_spec::AbstractParamSpec) where {Material}
+    System = system_type(body.mat)
+    Params = parameter_setup_type(body, param_spec)
     Storage = storage_type(body, solver)
     return BodyChunk{System,Material,Params,Storage}
 end

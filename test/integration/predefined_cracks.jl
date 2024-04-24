@@ -11,8 +11,9 @@
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
     point_decomp = Peridynamics.PointDecomposition(body, 2)
+    param_spec = Peridynamics.get_param_spec(body)
 
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, param_spec)
 
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.BodyChunk
@@ -101,8 +102,9 @@ end
     precrack!(body, :a, :b; update_dmg=false)
     ts = VelocityVerlet(steps=10)
     point_decomp = Peridynamics.PointDecomposition(body, 2)
+    param_spec = Peridynamics.get_param_spec(body)
 
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp)
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, param_spec)
 
     b1 = body_chunks[1]
     @test b1 isa Peridynamics.BodyChunk
