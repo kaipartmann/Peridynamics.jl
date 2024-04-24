@@ -3,8 +3,14 @@ struct SingleParamChunk <: AbstractParamSpec end
 struct MultiParamChunk <: AbstractParamSpec end
 
 struct ParameterHandler{P<:AbstractPointParameters} <: AbstractParameterHandler
+struct SingleParamChunk <: AbstractParamSpec end
+
+struct MultiParamChunk <: AbstractParamSpec end
+
+struct ParameterHandler{P<:AbstractPointParameters} <: AbstractParameterHandler
     parameters::Vector{P}
     point_mapping::Vector{Int}
+end
 end
 
 function ParameterHandler(body::AbstractBody, ch::AbstractChunkHandler)
