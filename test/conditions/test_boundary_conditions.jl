@@ -11,7 +11,8 @@
     forcedensity_bc!(t -> t, body, :a, :x)
     ts = VelocityVerlet(steps=10)
     pd = Peridynamics.PointDecomposition(body, 2)
-    b = Peridynamics.BodyChunk(body, ts, pd, 1)
+    ps = Peridynamics.get_param_spec(body)
+    b = Peridynamics.BodyChunk(body, ts, pd, 1, ps)
     Peridynamics.apply_bcs!(b, 1.0)
 
     @test b.storage.velocity_half ≈ [1.0 1.0; 0.0 0.0; 0.0 0.0]

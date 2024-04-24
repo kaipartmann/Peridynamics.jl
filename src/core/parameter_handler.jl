@@ -1,28 +1,42 @@
-struct ParameterHandler{P<:AbstractPointParameters,N} <: AbstractParameterHandler{N}
+struct SingleParamChunk <: AbstractParamSpec end
+
+struct MultiParamChunk <: AbstractParamSpec end
+
+struct ParameterHandler{P<:AbstractPointParameters} <: AbstractParameterHandler
     parameters::Vector{P}
     point_mapping::Vector{Int}
-
-    function ParameterHandler(body::Body{M,P}, ch::AbstractChunkHandler) where {M,P}
-        parameters = body.point_params
-        point_mapping = body.params_map[ch.loc_points]
-        N = length(body.point_params)
-        return new{P,N}(parameters, point_mapping)
-    end
 end
 
-@inline function get_params(ph::ParameterHandler, point_id::Int)
-    return ph.parameters[ph.point_mapping[point_id]]
+function ParameterHandler(body::AbstractBody, ch::AbstractChunkHandler)
+    parameters = body.point_params
+    point_mapping = body.params_map[ch.loc_points]
+    return ParameterHandler(parameters, point_mapping)
 end
 
-@inline function get_params(ph::ParameterHandler{P,1}, ::Int) where {P}
-    return first(ph.parameters)
+function init_params(body::AbstractBody, ::AbstractChunkHandler, ::SingleParamChunk)
+    return first(body.point_params)
 end
 
-@inline function get_params(ph::ParameterHandler{P,1}) where {P}
-    return first(ph.parameters)
+function init_params(body::AbstractBody, ch::AbstractChunkHandler, ::MultiParamChunk)
+    return ParameterHandler(body, ch)
 end
 
-@inline function parameter_handler_type(body::Body{M,P}) where {M,P}
-    N = length(body.point_params)
-    return ParameterHandler{P,N}
+@inline function get_params(paramhandler::ParameterHandler, point_id::Int)
+    return paramhandler.parameters[paramhandler.point_mapping[point_id]]
+end
+
+@inline function get_params(params::AbstractPointParameters, ::Int)
+    return params
+end
+
+@inline function parameter_setup_type(::Body{M,P}, ::SingleParamChunk) where {M,P}
+    return P
+end
+
+@inline function parameter_setup_type(::Body{M,P}, ::MultiParamChunk) where {M,P}
+    return ParameterHandler{P}
+end
+
+@inline function get_param_spec(body::AbstractBody)
+    return length(body.point_params) == 1 ? SingleParamChunk() : MultiParamChunk()
 end

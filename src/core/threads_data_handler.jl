@@ -7,7 +7,8 @@ end
 
 function ThreadsDataHandler(body::AbstractBody, solver::AbstractTimeSolver,
                             point_decomp::PointDecomposition)
-    chunks = chop_body_threads(body, solver, point_decomp)
+    param_spec = get_param_spec(body)
+    chunks = chop_body_threads(body, solver, point_decomp, param_spec)
     n_chunks = length(chunks)
     lth_exs, htl_exs = find_halo_exchanges(chunks)
     return ThreadsDataHandler(n_chunks, chunks, lth_exs, htl_exs)
@@ -19,18 +20,18 @@ function ThreadsDataHandler(multibody::AbstractMultibodySetup, solver::AbstractT
 end
 
 function chop_body_threads(body::AbstractBody, solver::AbstractTimeSolver,
-                           point_decomp::PointDecomposition)
-    ChunkType = body_chunk_type(body, solver)
-    chunks = _chop_body_threads(ChunkType, body, solver, point_decomp)
+                           point_decomp::PointDecomposition, param_spec::AbstractParamSpec)
+    ChunkType = body_chunk_type(body, solver, param_spec)
+    chunks = _chop_body_threads(ChunkType, body, solver, point_decomp, param_spec)
     return chunks
 end
 
 function _chop_body_threads(::Type{ChunkType}, body::AbstractBody,
-                            solver::AbstractTimeSolver,
-                            point_decomp::PointDecomposition) where {ChunkType}
+                            solver::AbstractTimeSolver, point_decomp::PointDecomposition,
+                            param_spec::AbstractParamSpec) where {ChunkType}
     chunks = Vector{ChunkType}(undef, point_decomp.n_chunks)
     @threads :static for chunk_id in eachindex(point_decomp.decomp)
-        chunk = BodyChunk(body, solver, point_decomp, chunk_id)
+        chunk = BodyChunk(body, solver, point_decomp, chunk_id, param_spec)
         apply_precracks!(chunk, body)
         apply_initial_conditions!(chunk, body)
         chunks[chunk_id] = chunk
