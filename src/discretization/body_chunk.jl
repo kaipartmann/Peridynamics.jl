@@ -11,9 +11,10 @@ struct BodyChunk{System<:AbstractSystem,
     sdbcs::Vector{SingleDimBC}
     pdsdbcs::Vector{PosDepSingleDimBC}
     cells::Vector{MeshCell{VTKCellType,Tuple{Int64}}}
+end
 
-function BodyChunk(body::Body{M,P}, solver::AbstractTimeSolver, pd::PointDecomposition,
-                   chunk_id::Int, param_spec::AbstractParamSpec) where {M,P}
+function BodyChunk(body::AbstractBody, solver::AbstractTimeSolver, pd::PointDecomposition,
+                   chunk_id::Int, param_spec::AbstractParamSpec)
     mat = body.mat
     system, ch = get_system(body, pd, chunk_id)
     paramsetup = init_params(body, ch, param_spec)
@@ -24,7 +25,6 @@ function BodyChunk(body::Body{M,P}, solver::AbstractTimeSolver, pd::PointDecompo
     cells = get_cells(ch.n_loc_points)
     return BodyChunk(system, mat, paramsetup, storage, ch, psets, sdbcs, pdsdbcs, cells)
 end
-
 
 @inline function get_params(b::BodyChunk, point_id::Int)
     return get_params(b.paramsetup, point_id)
