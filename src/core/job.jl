@@ -8,9 +8,9 @@ Job that contains all the information required for a peridynamic simulation
 
 # Arguments
 
-- `spatial_setup<:AbstractSpatialSetup`: Body or Multibody setup for the simulation
-- `time_solver<:AbstractTimeSolver`: Method for calculating discrete time steps
-- `options<:AbstractOptions`: Options for simulation data export
+- `spatial_setup::AbstractSpatialSetup`: Body or Multibody setup for the simulation
+- `time_solver::AbstractTimeSolver`: Method for calculating discrete time steps
+- `options::AbstractOptions`: Options for simulation data export
 
 # Keywords
 
@@ -58,9 +58,9 @@ Job{SpatialSetup,TimeSolver,Options}
 
 # Fields
 
-- `spatial_setup<:AbstractSpatialSetup`: Body or Multibody setup for the simulation
-- `time_solver<:AbstractTimeSolver`: Method for calculating discrete time steps
-- `options<:AbstractOptions`: Options for simulation data export
+- `spatial_setup::AbstractSpatialSetup`: Body or Multibody setup for the simulation
+- `time_solver::AbstractTimeSolver`: Method for calculating discrete time steps
+- `options::AbstractOptions`: Options for simulation data export
 """
 struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractOptions}
     spatial_setup::S
