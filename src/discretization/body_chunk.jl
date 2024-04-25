@@ -30,22 +30,6 @@ end
     return get_params(b.paramsetup, point_id)
 end
 
-@inline get_system_type(::BodyChunk{Sys,M,P,S}) where {Sys,M,P,S} = Sys
-@inline get_material_type(::BodyChunk{Sys,M,P,S}) where {Sys,M,P,S} = M
-@inline get_storage_type(::BodyChunk{Sys,M,P,S}) where {Sys,M,P,S} = S
-
-@inline function get_system_type(vb::Vector{BodyChunk})
-    return get_system_type(first(vb))
-end
-
-@inline function get_material_type(vb::Vector{BodyChunk})
-    return get_material_type(first(vb))
-end
-
-@inline function get_storage_type(vb::Vector{BodyChunk})
-    return get_storage_type(first(vb))
-end
-
 @inline function body_chunk_type(body::AbstractBody{Material}, solver::AbstractTimeSolver,
                                  param_spec::AbstractParamSpec) where {Material}
     System = system_type(body.mat)
