@@ -19,8 +19,8 @@ Creates a grid of points in a cuboid form with lengths `lx`, `ly` and `lz` and t
 
 # Returns
 
-- `position::Matrix{<:Real}`: 3×n matrix with position of each point
-- `volume::Vector{<:Real}`: Vector with volume of each point
+- `position::Matrix`: 3×n matrix with position of each point
+- `volume::Vector`: Vector with volume of each point
 
 # Example
 
