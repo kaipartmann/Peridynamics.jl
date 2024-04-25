@@ -21,6 +21,7 @@ Determines whether failure is permitted `fail_permit = true` or prohibited
 
 ```julia-repl
 julia> failure_permit!(b, :set_bottom, false)
+
 julia> b.fail_permit
 12500-element Vector{Bool}:
  0

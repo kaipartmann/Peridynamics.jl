@@ -55,6 +55,7 @@ Specifies initital conditions for the velocity of points in point set `set` on `
 
 ```julia-repl
 julia> velocity_ic!(b, :set_b, :y, 20)
+
 julia> b.single_dim_ics
 1-element Vector{Peridynamics.SingleDimIC}:
  Peridynamics.SingleDimIC(20.0, :velocity, :set_b, 0x02)
