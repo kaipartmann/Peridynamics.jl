@@ -1,22 +1,10 @@
 const JOB_KWARGS = (:path, :freq, :fields)
 
 """
-    Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractOptions}
-
-Job that contains all the information required for a peridynamic simulation
-
-# Fields
-
-- `spatial_setup<:AbstractSpatialSetup`: Body or Multibody setup for the simulation
-- `time_solver<:AbstractTimeSolver`: Method for calculating discrete time steps
-- `options<:AbstractOptions`: Options for simulation data export
-
----
-
-Constructors:
-
     Job(spatial_setup, time_solver, options)
     Job(spatial_setup, time_solver; kwargs...)
+
+Job that contains all the information required for a peridynamic simulation
 
 # Arguments
 
@@ -50,6 +38,29 @@ julia> job = Job(b, vv;
 Job{Body{BBMaterial, Peridynamics.BBPointParameters}, VelocityVerlet}(Body{BBMaterial,
 Peridynamics.BBPointParameters}(BBMaterial(), 12500, [-0.49 -0.47 …
 ```
+
+---
+
+!!! warning "Internal use only"
+    Please note that the fields are intended for internal use only. They are *not* part of
+    the public API of Peridynamics.jl, and thus can be altered (or removed) at any time
+    without it being considered a breaking change.
+
+```julia
+Job{SpatialSetup,TimeSolver,Options}
+```
+
+# Type Parameters
+
+- `SpatialSetup <: AbstractSpatialSetup`: Type of the spatial setup
+- `TimeSolver <: AbstractTimeSolver`: Type of the time solver
+- `Options <: AbstractOptions`: Type of the export options
+
+# Fields
+
+- `spatial_setup<:AbstractSpatialSetup`: Body or Multibody setup for the simulation
+- `time_solver<:AbstractTimeSolver`: Method for calculating discrete time steps
+- `options<:AbstractOptions`: Options for simulation data export
 """
 struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractOptions}
     spatial_setup::S

@@ -1,18 +1,7 @@
 """
-    MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
+    MultibodySetup(bodies)
 
 Setup for a peridynamic simulation with multiple bodies
-
-# Fields
-
-- `bodies::Dict{Symbol,Body{M,P}}`:
-- `contacts::Vector{Contact}`:
-
----
-
-Constructors:
-
-    MultibodySetup(bodies)
 
 # Arguments
 
@@ -24,6 +13,27 @@ Constructors:
 - Error if defined bodies have different material types
 
 # Example
+
+---
+
+!!! warning "Internal use only"
+    Please note that the fields are intended for internal use only. They are *not* part of
+    the public API of Peridynamics.jl, and thus can be altered (or removed) at any time
+    without it being considered a breaking change.
+
+```julia
+MultibodySetup{Material,PointParameters}
+```
+
+# Type Parameters
+
+- `Material <: AbstractMaterial`: Type of the specified material model
+- `PointParameters <: AbstractPointParameters`: Type of the point parameters
+
+# Fields
+
+- `bodies::Dict{Symbol,Body{M,P}}`:
+- `contacts::Vector{Contact}`:
 
 TODO
 """
