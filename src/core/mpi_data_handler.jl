@@ -53,6 +53,7 @@ function chop_body_mpi(body::AbstractBody, solver::AbstractTimeSolver,
     chunk = BodyChunk(body, solver, point_decomp, mpi_chunk_id(), param_spec)
     apply_precracks!(chunk, body)
     apply_initial_conditions!(chunk, body)
+    initialize!(chunk)
     return chunk
 end
 

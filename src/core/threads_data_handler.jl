@@ -34,6 +34,7 @@ function _chop_body_threads(::Type{ChunkType}, body::AbstractBody,
         chunk = BodyChunk(body, solver, point_decomp, chunk_id, param_spec)
         apply_precracks!(chunk, body)
         apply_initial_conditions!(chunk, body)
+        initialize!(chunk)
         chunks[chunk_id] = chunk
     end
     return chunks

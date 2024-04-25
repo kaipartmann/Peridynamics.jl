@@ -39,3 +39,7 @@ end
 end
 
 @inline each_point_idx(b::AbstractBodyChunk) = each_point_idx(b.ch)
+
+function initialize!(::BodyChunk)
+    return nothing
+end
