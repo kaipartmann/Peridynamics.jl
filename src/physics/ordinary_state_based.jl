@@ -24,7 +24,9 @@ material type for ordinary state-based peridynamic simulations
 - `damage::Vector{Float64}`: damage of each point
 - `n_active_bonds::Vector{Int}`: number of intact bonds for each point
 """
-struct OSBMaterial <: AbstractBondSystemMaterial{NoCorrection} end
+struct OSBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
+
+OSBMaterial() = OSBMaterial{NoCorrection}()
 
 struct OSBPointParameters <: AbstractPointParameters
     δ::Float64
@@ -112,7 +114,8 @@ function force_density_point!(storage::OSBVerletStorage, system::BondSystem, ::O
         storage.n_active_bonds[i] += storage.bond_active[bond_id]
 
         # update of force density
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
+        scfactor = surface_correction_factor(system.correction, bond_id)
+        ωij = (1 + params.δ / L) * storage.bond_active[bond_id] * scfactor
         temp = ωij * (c2 * L + c1 * (l - L)) / l
         storage.b_int[1, i] += temp * Δxijx * system.volume[j]
         storage.b_int[2, i] += temp * Δxijy * system.volume[j]
@@ -134,7 +137,8 @@ function calc_weighted_volume(storage::OSBVerletStorage, system::BondSystem,
         ΔXijy = system.position[2, j] - system.position[2, i]
         ΔXijz = system.position[3, j] - system.position[3, i]
         ΔXij_sq = ΔXijx * ΔXijx + ΔXijy * ΔXijy + ΔXijz * ΔXijz
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
+        scfactor = surface_correction_factor(system.correction, bond_id)
+        ωij = (1 + params.δ / L) * storage.bond_active[bond_id] * scfactor
         wvol += ωij * ΔXij_sq * system.volume[j]
     end
     return wvol
@@ -151,7 +155,8 @@ function calc_dilatation(storage::OSBVerletStorage, system::BondSystem,
         Δxijy = storage.position[2, j] - storage.position[2, i]
         Δxijz = storage.position[3, j] - storage.position[3, i]
         l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
+        scfactor = surface_correction_factor(system.correction, bond_id)
+        ωij = (1 + params.δ / L) * storage.bond_active[bond_id] * scfactor
         dil += ωij * c1 * L * (l - L) * system.volume[j]
     end
     return dil

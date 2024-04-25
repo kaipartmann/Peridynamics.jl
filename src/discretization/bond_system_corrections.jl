@@ -47,7 +47,8 @@ end
     return correction.scfactor[bond_id]
 end
 
-function initialize!(dh::AbstractThreadsDataHandler{BondSystem{EnergySurfaceCorrection}})
+function initialize!(dh::AbstractThreadsDataHandler{BondSystem{EnergySurfaceCorrection}},
+                     ::AbstractTimeSolver)
     @threads :static for chunk in dh.chunks
         calc_mfactor!(chunk)
     end
@@ -58,7 +59,8 @@ function initialize!(dh::AbstractThreadsDataHandler{BondSystem{EnergySurfaceCorr
     return nothing
 end
 
-function initialize!(dh::AbstractMPIDataHandler{BondSystem{EnergySurfaceCorrection}})
+function initialize!(dh::AbstractMPIDataHandler{BondSystem{EnergySurfaceCorrection}},
+                     ::AbstractTimeSolver)
     calc_mfactor!(dh.chunk)
     exchange_loc_to_halo!(get_mfactor, dh)
     calc_scfactor!(dh.chunk)
@@ -68,14 +70,14 @@ end
 function calc_mfactor!(chunk::AbstractBodyChunk{BondSystem{EnergySurfaceCorrection}})
     system = chunk.system
     mfactor = system.correction.mfactor
-    stendens = zeros(3, n_points)
+    stendens = zeros(3, length(chunk.ch.point_ids))
     for d in 1:3
-        defposition .= copy(system.position)
+        defposition = copy(system.position)
         defposition[d,:] .*= 1.001
         @views calc_stendens!(stendens[d,:], defposition, chunk)
         for i in each_point_idx(chunk)
-            param = get_params(chunk, i)
-            mfactor[d,i] = 0.5 * param.G * 1e-6 / stendens[d,i]
+            params = get_params(chunk, i)
+            mfactor[d,i] = 0.6 * 1e-6 * params.E / stendens[d,i]
         end
     end
     return nothing
@@ -84,8 +86,7 @@ end
 function calc_stendens!(stendens, defposition, chunk)
     system = chunk.system
     for i in each_point_idx(chunk)
-        param = get_params(chunk, i)
-        temp = 15 * param.G /(2π * param.δ * param.δ * param.δ * param.δ)
+        params = get_params(chunk, i)
         for bond_id in each_bond_idx(system, i)
             bond = system.bonds[bond_id]
             j, L = bond.neighbor, bond.length
@@ -94,7 +95,7 @@ function calc_stendens!(stendens, defposition, chunk)
             Δxijz = defposition[3, j] - defposition[3, i]
             l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
             ε = (l - L) / L
-            stendens[i] += temp * ε * ε * L * system.volume[j]
+            stendens[i] += 0.25 * params.bc * ε * ε * L * system.volume[j]
         end
     end
     return nothing
@@ -104,6 +105,7 @@ end
 
 function calc_scfactor!(chunk::AbstractBodyChunk)
     system = chunk.system
+    mfactor = system.correction.mfactor
     scfactor = system.correction.scfactor
     for i in each_point_idx(chunk)
         for bond_id in each_bond_idx(system, i)
@@ -121,9 +123,9 @@ function calc_scfactor!(chunk::AbstractBodyChunk)
                     θ = atan(abs(Δxijy)/abs(Δxijx))
                 end
                 ϕ = 90 * π / 180
-                scx = (h[1,i] + h[1,j]) / 2
-                scy = (h[2,i] + h[2,j]) / 2
-                scz = (h[3,i] + h[3,j]) / 2
+                scx = (mfactor[1,i] + mfactor[1,j]) / 2
+                scy = (mfactor[2,i] + mfactor[2,j]) / 2
+                scz = (mfactor[3,i] + mfactor[3,j]) / 2
                 scr = sqrt(
                     1/(
                         (cos(θ) * sin(ϕ))^2 / scx^2 +
@@ -132,14 +134,14 @@ function calc_scfactor!(chunk::AbstractBodyChunk)
                     )
                 )
             elseif abs(Δxijx) <= 1e-10 && abs(Δxijy) <= 1e-10
-                scz = (h[3,i] + h[3,j]) / 2
+                scz = (mfactor[3,i] + mfactor[3,j]) / 2
                 scr = scz
             else
                 θ = atan(abs(Δxijy)/abs(Δxijx))
                 ϕ = acos(abs(Δxijz)/L)
-                scx = (h[1,i] + h[1,j]) / 2
-                scy = (h[2,i] + h[2,j]) / 2
-                scz = (h[3,i] + h[3,j]) / 2
+                scx = (mfactor[1,i] + mfactor[1,j]) / 2
+                scy = (mfactor[2,i] + mfactor[2,j]) / 2
+                scz = (mfactor[3,i] + mfactor[3,j]) / 2
                 scr = sqrt(
                     1/(
                         (cos(θ) * sin(ϕ))^2 / scx^2 +

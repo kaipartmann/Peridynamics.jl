@@ -366,6 +366,6 @@ function export_reference_results(dh::MPIDataHandler, options::AbstractOptions)
     return nothing
 end
 
-function initialize!(::MPIDataHandler, ::AbstractTimeSolver)
+function initialize!(::AbstractMPIDataHandler, ::AbstractTimeSolver)
     return nothing
 end

@@ -185,6 +185,6 @@ function export_reference_results(dh::ThreadsDataHandler, options::AbstractOptio
     return nothing
 end
 
-function initialize!(::ThreadsDataHandler, ::AbstractTimeSolver)
+function initialize!(::AbstractThreadsDataHandler, ::AbstractTimeSolver)
     return nothing
 end
