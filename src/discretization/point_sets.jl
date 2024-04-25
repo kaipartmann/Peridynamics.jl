@@ -13,7 +13,7 @@ Creates the point set `set` in `body` containing all points either defined in ve
 - `body::AbstractBody`: Peridynamic body
 - `set::Symbol`: Point set on `body`
 - `points::AbstractVector`: Vector of point indices
-- `f::Function`: Function that describes points contained in point set
+- `fun::Function`: Function that describes points contained in point set
 
 # Throws
 

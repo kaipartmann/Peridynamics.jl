@@ -1,11 +1,11 @@
 """
-    Body(mat, position, volume)
+    Body(material, position, volume)
 
 Creates a body for use in peridynamic calculation
 
 # Arguments
 
-- `mat::AbstractMaterial`: Specifies which material model is used
+- `material::AbstractMaterial`: Specifies which material model is used
 - `position::AbstractMatrix`: 3×n matrix with position of each point
 - `volume::AbstractVector`: Vector with volume of each point
 
