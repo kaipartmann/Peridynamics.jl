@@ -1,20 +1,7 @@
 """
-    VelocityVerlet <: AbstractTimeSolver
+    VelocityVerlet(; time=-1, steps=-1, stepsize=-1, safety_factor=0.7)
 
 Procedure for calculating discrete time steps
-
-# Fields
-
-- `end_time::Float64`: Time covered by the simulation
-- `n_steps::Int`: Number of calculated time steps
-- `Δt::Float64`: Size of discrete time steps
-- `safety_factor::Float64`: Safety factor for step size to ensure stability
-
----
-
-Constructors:
-
-    VelocityVerlet(; time=-1, steps=-1, stepsize=-1, safety_factor=0.7)
 
 # Keywords
 
@@ -34,6 +21,27 @@ Constructors:
 ```julia-repl
 julia> vv = VelocityVerlet(steps=2000)
 ```
+
+---
+
+!!! warning "Internal use only"
+    Please note that the fields are intended for internal use only. They are *not* part of
+    the public API of Peridynamics.jl, and thus can be altered (or removed) at any time
+    without it being considered a breaking change.
+
+```julia
+VelocityVerlet <: AbstractTimeSolver
+```
+
+# Type Parameter
+-`AbstractTimeSolver`: Type of the time solver
+
+# Fields
+
+- `end_time::Float64`: Time covered by the simulation
+- `n_steps::Int`: Number of calculated time steps
+- `Δt::Float64`: Size of discrete time steps
+- `safety_factor::Float64`: Safety factor for step size to ensure stability
 """
 mutable struct VelocityVerlet <: AbstractTimeSolver
     end_time::Float64
