@@ -113,7 +113,7 @@ Specifies velocity boundary conditions for point set `set` on `body`
 - `fun::Function`: Velocity condition function
 - `body::AbstractBody`: Peridynamic body
 - `set::Symbol`: Point set on `body`
-- `dim::DimensionSpec`: Direction of velocity
+- `dim::Union{Integer,Symbol}`: Direction of velocity
 
 # Throws
 
@@ -163,7 +163,7 @@ Specifies boundary conditions for force density on points of point set `set` on 
 - `fun::Function`: Condition function
 - `body::AbstractBody`: Peridynamic body
 - `set::Symbol`: Point set on `body`
-- `dim::DimensionSpec`: Direction of force density
+- `dim::Union{Integer,Symbol}`: Direction of force density
 
 # Throws
 

@@ -1,7 +1,6 @@
 const JOB_KWARGS = (:path, :freq, :fields)
 
 """
-    Job(spatial_setup, time_solver, options)
     Job(spatial_setup, time_solver; kwargs...)
 
 Job that contains all the information required for a peridynamic simulation
@@ -10,16 +9,15 @@ Job that contains all the information required for a peridynamic simulation
 
 - `spatial_setup::AbstractSpatialSetup`: Body or Multibody setup for the simulation
 - `time_solver::AbstractTimeSolver`: Method for calculating discrete time steps
-- `options::AbstractOptions`: Options for simulation data export
 
 # Keywords
 
 - `path::String`: Storage path for results
 - `freq::Int`: Frequency of time steps that are exported
-- `fields`: Exported fields
+- `fields::NTuple{N,Symbol}`: Exported fields
              Possible export fields depend on the selected material model.
              See material type documentation.
-             Default export fields: `:displacement`, `:damage`
+             Default export fields: `(:displacement, :damage)`
 
 # Throws
 
@@ -37,6 +35,14 @@ julia> job = Job(b, vv;
            fields=(:displacement, :velocity, :acceleration, :damage))
 Job{Body{BBMaterial, Peridynamics.BBPointParameters}, VelocityVerlet}(Body{BBMaterial,
 Peridynamics.BBPointParameters}(BBMaterial(), 12500, [-0.49 -0.47 …
+```
+
+Note that for the keyword `fields` a NTuple is expected! If you want to export only one
+field, insert `,` after the field:
+```julia-repl
+julia> job = Job(b, vv;
+           path=joinpath(@__DIR__, "results", "mode_I"),
+           fields=(:displacement,))
 ```
 
 ---
