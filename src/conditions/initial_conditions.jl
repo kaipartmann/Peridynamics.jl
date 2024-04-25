@@ -43,7 +43,7 @@ Specifies initital conditions for the velocity of points in point set `set` on `
 
 - `body::AbstractBody`: Peridynamic body
 - `set::Symbol`: Point set on `body`
-- `dim::DimensionSpec`: Direction of velocity
+- `dim::Union{Integer,Symbol}`: Direction of velocity
 - `value::Real`: Initial velocity value
 
 # Throws
