@@ -4,7 +4,7 @@ Continuum-kinematics-inspired peridynamics (CPD) is a formulation that is suppos
 The internal force density is calculated as the sum of three types of point interactions which are one-, two- and three-neighbor interactions [Javili2019](@cite):
 
 ```math
-\boldsymbol{b}^{\mathrm{int},i} = \boldsymbol{b}_1^{\mathrm{int},i} + \boldsymbol{b}_2^{\mathrm{int},i} + \boldsymbol{b}_3^{\mathrm{int},i}
+\boldsymbol{b}^{\mathrm{int},i} = \boldsymbol{b}_1^{\mathrm{int},i} + \boldsymbol{b}_2^{\mathrm{int},i} + \boldsymbol{b}_3^{\mathrm{int},i} \; .
 ``` 
 
 ## One-neighbor interactions
@@ -17,7 +17,7 @@ One-neighbor interactions in CPD correspond to the bonds in [bond-based](@ref bo
 
 First, the neighborhood volume is determined:
 ```math
-V_\mathcal{H}^i = \beta^i \cdot \frac {4} {3} \cdot\pi\cdot\delta^3
+V_\mathcal{H}^i = \beta^i \cdot \frac {4} {3} \cdot\pi\cdot\delta^3 \; .
 ```
 
 Here $\beta^i\in [0,1]$ is a factor for the completeness of the neighborhood that takes incomplete point families at the surface into account (see figure 1).

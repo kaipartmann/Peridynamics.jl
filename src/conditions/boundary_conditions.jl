@@ -104,31 +104,35 @@ function _condition!(conditions::Vector{B}, condition::B) where {B<:AbstractCond
 end
 
 """
-    velocity_bc!(f::F, b::AbstractBody, name::Symbol, d::DimensionSpec) where {F<:Function}
+    velocity_bc!(fun, body, set, dim)
 
-specifies velocity boundary conditions for point set `name` on body `b`
+Specifies velocity boundary conditions for point set `set` on `body`
 
 # Arguments
 
-- `f<:Function`: velocity condition function
-- `b::AbstractBody`: peridynamic body
-- `name::Symbol`: point set on body `b`
-- `d::DimensionSpec`: direction of velocity
+- `fun::Function`: Velocity condition function
+- `body::AbstractBody`: Peridynamic body
+- `set::Symbol`: Point set on `body`
+- `dim::Union{Integer,Symbol}`: Direction of velocity
 
 # Throws
 
-- error if no point set called `name` exists
-- error if dimension is not correctly specified
-- error if function is not suitable as condition function
+- Error if no point set called `set` exists
+- Error if dimension is not correctly specified
+- Error if function is not suitable as condition function
 
 # Example
 
 ```julia-repl
 julia> velocity_bc!(t -> -9.81 * t, b, :set_bottom, :y)
+
 julia> b.single_dim_bcs
+
 1-element Vector{Peridynamics.SingleDimBC}:
  Peridynamics.SingleDimBC{var"#15#16"}(var"#15#16"(), :velocity_half, :set_bottom, 0x02)
+
 julia> velocity_bc!(t -> 40, b, :set_a, 1)
+
 julia> b.single_dim_bcs
 2-element Vector{Peridynamics.SingleDimBC}:
  Peridynamics.SingleDimBC{var"#15#16"}(var"#15#16"(), :velocity_half, :set_bottom, 0x02)
@@ -150,27 +154,28 @@ function velocity_bc!(f::F, b::AbstractBody, name::Symbol, d::Union{Integer,Symb
 end
 
 """
-    forcedensity_bc!(f::F, b::AbstractBody, name::Symbol, d::DimensionSpec) where {F<:Function}
+    forcedensity_bc!(fun, body, set, dim)
 
-specifies boundary conditions for force density on points of point set `name` on body `b`
+Specifies boundary conditions for force density on points of point set `set` on `body`
 
 # Arguments
 
-- `f<:Function`: condition function
-- `b::AbstractBody`: peridynamic body
-- `name::Symbol`: point set on body `b`
-- `d::DimensionSpec`: direction of force density
+- `fun::Function`: Condition function
+- `body::AbstractBody`: Peridynamic body
+- `set::Symbol`: Point set on `body`
+- `dim::Union{Integer,Symbol}`: Direction of force density
 
 # Throws
 
-- error if no point set called `name` exists
-- error if dimension is not correctly specified
-- error if function is not suitable as condition function
+- Error if no point set called `set` exists
+- Error if dimension is not correctly specified
+- Error if function is not suitable as condition function
 
 # Example
 
 ```julia-repl
 julia> forcedensity_bc!(t -> 40, b, :set_a, 1)
+
 julia> b.single_dim_bcs
 1-element Vector{Peridynamics.SingleDimBC}:
  Peridynamics.SingleDimBC{var"#25#26"}(var"#25#26"(), :b_ext, :set_a, 0x01)

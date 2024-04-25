@@ -1,47 +1,28 @@
 """
-    Body{M<:AbstractMaterial,P<:AbstractPointParameters}
-
-Body for use in peridynamic calculation
-
-# Fields
-
-- `mat<:AbstractMaterial`: specified material model
-- `n_points::Int`: number of material points that represent the body
-- `position::Matrix{Float64}`: 3×n_points matrix with position for each point
-- `volume::Vector{Float64}`: vector with volume for each point
-- `fail_permit::Vector{Bool}`: vector that describes if failure is allowed for each point
-- `point_sets::Dict{Symbol,Vector{Int}}`: dictionary containing the defined point sets
-- `point_params::Vector{P}`: vector with material parameter sets
-- `params_map::Vector{Int}`: vector that assigns a material parameter set to each point
-- `single_dim_bcs::Vector{SingleDimBC}`: vector with defined boundary conditions
-- `single_dim_ics::Vector{SingleDimIC}`: vector with defined initial conditions
-- `point_sets_precracks::Vector{PointSetsPreCrack}`: vector with defined cracks
-
----
-
-Constructors:
-
-    Body(mat<:AbstractMaterial, position::AbstractMatrix, volume::AbstractVector)
+    Body(material, position, volume)
 
 Creates a body for use in peridynamic calculation
 
 # Arguments
 
-- `mat<:AbstractMaterial`: specifies which material model is used
+- `material::AbstractMaterial`: Specifies which material model is used
 - `position::AbstractMatrix`: 3×n matrix with position of each point
-- `volume::AbstractVector`: vector with volume of each point
+- `volume::AbstractVector`: Vector with volume of each point
 
 # Throws
 
-- error if n_points = 0
-- `DimensionMismatch`: error if dimension of position != 3
+- Error if n_points = 0
+- `DimensionMismatch`: Error if dimension of position != 3
 
 # Example
 
 ```julia-repl
 julia> l, Δx, = 1.0, 1/50;
+
 julia> pos, vol = uniform_box(l, l, 0.1l, Δx);
+
 julia> b = Body(BBMaterial(), pos, vol);
+
 julia> b
 Body{BBMaterial, Peridynamics.BBPointParameters}(BBMaterial(), 12500,
 [-0.49 -0.47 … 0.47 0.49; -0.49 -0.49 … 0.49 0.49; -0.04 -0.04 … 0.04 0.04],
@@ -51,6 +32,36 @@ Dict{Symbol, Vector{Int64}}(), Peridynamics.BBPointParameters[],
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0  …  0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 Peridynamics.SingleDimBC[], Peridynamics.SingleDimIC[], Peridynamics.PointSetsPreCrack[])
 ```
+
+---
+
+!!! warning "Internal use only"
+    Please note that the fields are intended for internal use only. They are *not* part of
+    the public API of Peridynamics.jl, and thus can be altered (or removed) at any time
+    without it being considered a breaking change.
+
+```julia
+Body{Material,PointParameters}
+```
+
+# Type Parameters
+
+- `Material <: AbstractMaterial`: Type of the specified material model
+- `PointParameters <: AbstractPointParameters`: Type of the point parameters
+
+# Fields
+
+- `mat::Material`: Specified material model
+- `n_points::Int`: Number of material points that represent the body
+- `position::Matrix{Float64}`: 3×n_points matrix with position for each point
+- `volume::Vector{Float64}`: Vector with volume for each point
+- `fail_permit::Vector{Bool}`: Vector that describes if failure is allowed for each point
+- `point_sets::Dict{Symbol,Vector{Int}}`: Dictionary containing the defined point sets
+- `point_params::Vector{PointParameters}`: Vector with material parameter sets
+- `params_map::Vector{Int}`: Vector that assigns a material parameter set to each point
+- `single_dim_bcs::Vector{SingleDimBC}`: Vector with defined boundary conditions
+- `single_dim_ics::Vector{SingleDimIC}`: Vector with defined initial conditions
+- `point_sets_precracks::Vector{PointSetsPreCrack}`: Vector with defined cracks
 """
 struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     mat::M

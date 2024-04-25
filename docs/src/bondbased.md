@@ -5,7 +5,7 @@ The initial version of peridynamics is the bond-based (BB) formulation. [Silling
 Here, a pairwise force function $\boldsymbol{f}$ is defined and calculated for each bond of two material points, which depends on the strain of the bond and is aligned in its direction: 
 
 ```math
- \boldsymbol{f} = d^{ij} \cdot c \cdot \varepsilon^{ij} \cdot \boldsymbol{n} 
+ \boldsymbol{f} = d^{ij} \cdot c \cdot \varepsilon^{ij} \cdot \boldsymbol{n} \; .
 ```
 
 with
@@ -31,7 +31,7 @@ and the strain of the bond [Silling2005a](@cite)
 ``` 
 with bond lengths $L^{ij} =\left|\boldsymbol{\Delta X}^{ij}\right|$ and $l^{ij} =\left|\boldsymbol{\Delta x}^{ij}\right|$ are used.
 
-To get the resulting body forces, now the force function is integrated over the whole body.
+To get the resulting body forces, now the force function is integrated over the whole body:
 
 ```math
 \boldsymbol{b}^{\mathrm{int},i} = \boldsymbol{b}^{\mathrm{int}} (\boldsymbol{X} ^ {i} , t) = \int_{\mathcal{H}_i} \boldsymbol{f} \; \mathrm{d}V^j \; .

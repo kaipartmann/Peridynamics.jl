@@ -1,42 +1,27 @@
 const JOB_KWARGS = (:path, :freq, :fields)
 
 """
-    Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractOptions}
+    Job(spatial_setup, time_solver; kwargs...)
 
 Job that contains all the information required for a peridynamic simulation
 
-# Fields
-
-- `spatial_setup<:AbstractSpatialSetup`: Body or Multibody setup for the simulation
-- `time_solver<:AbstractTimeSolver`: method for calculating discrete time steps
-- `options<:AbstractOptions`: options for simulation data export
-
----
-
-Constructors:
-
-    Job(spatial_setup::AbstractSpatialSetup, time_solver::AbstractTimeSolver,
-        options::AbstractOptions)
-    Job(spatial_setup::AbstractSpatialSetup, time_solver::AbstractTimeSolver; kwargs...)
-
 # Arguments
 
-- `spatial_setup<:AbstractSpatialSetup`: Body or Multibody setup for the simulation
-- `time_solver<:AbstractTimeSolver`: method for calculating discrete time steps
-- `options<:AbstractOptions`: options for simulation data export
+- `spatial_setup::AbstractSpatialSetup`: Body or Multibody setup for the simulation
+- `time_solver::AbstractTimeSolver`: Method for calculating discrete time steps
 
 # Keywords
 
-- `:path::String`: storage path for results
-- `:freq::Int`: frequency of time steps that are exported
-- `:fields`: exported fields
-             Possible export fields depend on selected material model.
+- `path::String`: Storage path for results
+- `freq::Int`: Frequency of time steps that are exported
+- `fields::NTuple{N,Symbol}`: Exported fields
+             Possible export fields depend on the selected material model.
              See material type documentation.
-             default export fields: `:displacement`, `:damage`
+             Default export fields: `(:displacement, :damage)`
 
 # Throws
 
-- error if keyword is not allowed
+- Error if keyword is not allowed
 
 # Example
 
@@ -46,11 +31,42 @@ julia> b = Body(BBMaterial(), pos, vol)
 julia> vv = VelocityVerlet(steps=2000)
 
 julia> job = Job(b, vv;
-           :path=joinpath(@__DIR__, "results", "mode_I"),
-           :fields=(:displacement, :velocity, :acceleration, :damage))
+           path=joinpath(@__DIR__, "results", "mode_I"),
+           fields=(:displacement, :velocity, :acceleration, :damage))
 Job{Body{BBMaterial, Peridynamics.BBPointParameters}, VelocityVerlet}(Body{BBMaterial,
 Peridynamics.BBPointParameters}(BBMaterial(), 12500, [-0.49 -0.47 …
 ```
+
+Note that for the keyword `fields` a NTuple is expected! If you want to export only one
+field, insert `,` after the field:
+```julia-repl
+julia> job = Job(b, vv;
+           path=joinpath(@__DIR__, "results", "mode_I"),
+           fields=(:displacement,))
+```
+
+---
+
+!!! warning "Internal use only"
+    Please note that the fields are intended for internal use only. They are *not* part of
+    the public API of Peridynamics.jl, and thus can be altered (or removed) at any time
+    without it being considered a breaking change.
+
+```julia
+Job{SpatialSetup,TimeSolver,Options}
+```
+
+# Type Parameters
+
+- `SpatialSetup <: AbstractSpatialSetup`: Type of the spatial setup
+- `TimeSolver <: AbstractTimeSolver`: Type of the time solver
+- `Options <: AbstractOptions`: Type of the export options
+
+# Fields
+
+- `spatial_setup::AbstractSpatialSetup`: Body or Multibody setup for the simulation
+- `time_solver::AbstractTimeSolver`: Method for calculating discrete time steps
+- `options::AbstractOptions`: Options for simulation data export
 """
 struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractOptions}
     spatial_setup::S

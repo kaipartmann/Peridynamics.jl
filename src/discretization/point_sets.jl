@@ -2,29 +2,31 @@ const FIND_POINTS_ALLOWED_SYMBOLS = (:x, :y, :z, :p)
 const SYMBOL_TO_DIM = Dict(:x => 0x1, :y => 0x2, :z => 0x3)
 
 """
-    point_set!(b::AbstractBody, name::Symbol, points::V) where {V<:AbstractVector}
-    point_set!(f::F, b::AbstractBody, name::Symbol) where {F<:Function}
+    point_set!(body, set, points)
+    point_set!(fun, body, set)
 
-Creates the point set `name` in Body `b` containing all points either defined in `V` or
-described by `F`
+Creates the point set `set` in `body` containing all points either defined in vector
+`points` or described by function `fun`.
 
 # Arguments
 
-- `b::AbstractBody`: peridynamic body
-- `name::Symbol`: name of the point set
-- `points<:AbstractVector`: vector of point indices
-- `f<:Function`: function that describes points contained in point set
+- `body::AbstractBody`: Peridynamic body
+- `set::Symbol`: Point set on `body`
+- `points::AbstractVector`: Vector of point indices
+- `fun::Function`: Function that describes points contained in point set
 
 # Throws
 
-- error if a point set called `name` is already defined
-- `BoundsError`: if points in `V` do not exist
+- Error if a point set called `set` is already defined
+- `BoundsError`: If points in `V` do not exist
 
 # Example
 
 ```julia-repl
 julia> point_set!(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, b, :set_a)
+
 julia> point_set!(p -> p[1] ≤ -l/2+a && -2δ ≤ p[2] < 0, b, :set_b)
+
 julia> b.point_sets
 Dict{Symbol, Vector{Int64}} with 4 entries:
   :set_a      => [1251, 1252, 1253, 1254, 1255, 1256, 1257, 1258, 1259, …

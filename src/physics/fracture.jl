@@ -1,26 +1,27 @@
 
 
 """
-    failure_permit!(b::AbstractBody, fail_permit::Bool)
-    failure_permit!(b::AbstractBody, name::Symbol, fail_permit::Bool)
+    failure_permit!(body, fail_permit)
+    failure_permit!(body, set, fail_permit)
 
-determines whether failure is permitted `fail_permit = true` or prohibited
-`fail_permit = false` in the body `b` or the point set `name` of body `b`
+Determines whether failure is permitted `fail_permit = true` or prohibited
+`fail_permit = false` in the `body` or the point set `set` of the `body`.
 
 # Arguments
 
-- `b::AbstractBody`: peridynamic body
-- `name::Symbol`: name of the point set on body `b`
-- `fail_permit::Bool`: decides if failure is allowed on considered body or point set
+- `body::AbstractBody`: Peridynamic body
+- `set::Symbol`: Point set on `body`
+- `fail_permit::Bool`: Decides if failure is allowed on considered body or point set.
 
 # Throws
 
-- error if no point set called `name` exists
+- Error if no point set called `set` exists
 
 # Example
 
 ```julia-repl
 julia> failure_permit!(b, :set_bottom, false)
+
 julia> b.fail_permit
 12500-element Vector{Bool}:
  0

@@ -1,18 +1,7 @@
 """
-    MultibodySetup{M<:AbstractMaterial,P<:AbstractPointParameters}
+    MultibodySetup(bodies)
 
-setup for a peridynamic simulation with multiple bodies
-
-# Fields
-
-- `bodies::Dict{Symbol,Body{M,P}}`:
-- `contacts::Vector{Contact}`:
-
----
-
-Constructors:
-
-    MultibodySetup(bodies::Dict{Symbol,Body{M,P}}) where {M,P}
+Setup for a peridynamic simulation with multiple bodies
 
 # Arguments
 
@@ -20,10 +9,31 @@ Constructors:
 
 # Throws
 
-- error if less than 2 bodies are defined
-- error if defined bodies have different material types
+- Error if less than 2 bodies are defined
+- Error if defined bodies have different material types
 
 # Example
+
+---
+
+!!! warning "Internal use only"
+    Please note that the fields are intended for internal use only. They are *not* part of
+    the public API of Peridynamics.jl, and thus can be altered (or removed) at any time
+    without it being considered a breaking change.
+
+```julia
+MultibodySetup{Material,PointParameters}
+```
+
+# Type Parameters
+
+- `Material <: AbstractMaterial`: Type of the specified material model
+- `PointParameters <: AbstractPointParameters`: Type of the point parameters
+
+# Fields
+
+- `bodies::Dict{Symbol,Body{M,P}}`:
+- `contacts::Vector{Contact}`:
 
 TODO
 """
@@ -62,25 +72,25 @@ function check_if_bodyname_is_defined(ms::AbstractMultibodySetup, name::Symbol)
 end
 
 """
-    contact!(ms::AbstractMultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
+    contact!(ms, body_a, body_b; kwargs...)
 
-defines contact between multiple bodies
+Defines contact between multiple bodies
 
 # Arguments
 
-- `ms::AbstractMultibodySetup`: the multibody setup defined to simulate the contact
-- `body_a::Symbol`: first body in contact
-- `body_b::Symbol`: second body in contact
+- `ms::AbstractMultibodySetup`: The multibody setup defined to simulate the contact
+- `body_a::Symbol`: First body in contact
+- `body_b::Symbol`: Second body in contact
 
 # Keywords
 
-- `:radius::Float64`:
-- `:sc::Float64`:
+- `radius::Float64`:
+- `sc::Float64`:
 
 # Throws
 
-- error if a called body is not defined in the multibody setup
-- error if keyword is not allowed
+- Error if a called body is not defined in the multibody setup
+- Error if keyword is not allowed
 
 TODO kwargs
 """

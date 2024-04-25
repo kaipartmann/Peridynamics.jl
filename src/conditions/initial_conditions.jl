@@ -35,26 +35,27 @@ function apply_ic!(b::AbstractBodyChunk, ic::SingleDimIC)
 end
 
 """
-    velocity_ic!(b::AbstractBody, name::Symbol, d::DimensionSpec, value::Real)
+    velocity_ic!(body, set, dim, value)
 
-specifies initital conditions for the velocity of points in point set `name` on body `b`
+Specifies initital conditions for the velocity of points in point set `set` on `body`
 
 # Arguments
 
-- `b::AbstractBody`: peridynamic body
-- `name::Symbol`: point set on body `b`
-- `d::DimensionSpec`: direction of velocity
-- `value::Real`: initial velocity value
+- `body::AbstractBody`: Peridynamic body
+- `set::Symbol`: Point set on `body`
+- `dim::Union{Integer,Symbol}`: Direction of velocity
+- `value::Real`: Initial velocity value
 
 # Throws
 
-- error if no point set called `name` exists
-- error if dimension is not correctly specified
+- Error if no point set called `set` exists
+- Error if dimension is not correctly specified
 
 # Example
 
 ```julia-repl
 julia> velocity_ic!(b, :set_b, :y, 20)
+
 julia> b.single_dim_ics
 1-element Vector{Peridynamics.SingleDimIC}:
  Peridynamics.SingleDimIC(20.0, :velocity, :set_b, 0x02)

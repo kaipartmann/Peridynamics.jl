@@ -1,27 +1,26 @@
 """
-    uniform_box(lx::Real, ly::Real, lz::Real, Δx::Real;
-                center_x::Real=0, center_y::Real=0, center_z::Real=0)
+    uniform_box(lx, ly, lz, Δx; center_x=0, center_y=0, center_z=0)
 
 Creates a grid of points in a cuboid form with lengths `lx`, `ly` and `lz` and the distance
 `Δx` between the points.
 
 # Arguments
 
-- `lx::Real`: length in x-dimension
-- `ly::Real`: length in y-dimension
-- `lz::Real`: length in z-dimension
-- `Δx::Real`: distance between neighboring points
+- `lx::Real`: Length in x-dimension
+- `ly::Real`: Length in y-dimension
+- `lz::Real`: Length in z-dimension
+- `Δx::Real`: Distance between neighboring points
 
 # Keywords
 
-- `center_x::Real=0`: center of the cuboid in x-dimension
-- `center_y::Real=0`: center of the cuboid in y-dimension
-- `center_z::Real=0`: center of the cuboid in z-dimension
+- `center_x::Real=0`: Center of the cuboid in x-dimension
+- `center_y::Real=0`: Center of the cuboid in y-dimension
+- `center_z::Real=0`: Center of the cuboid in z-dimension
 
 # Returns
 
-- `position::Matrix{<:Real}`: 3×n matrix with position of each point
-- `volume::Vector{<:Real}`: vector with volume of each point
+- `position::Matrix`: 3×n matrix with position of each point
+- `volume::Vector`: Vector with volume of each point
 
 # Example
 
