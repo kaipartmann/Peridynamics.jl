@@ -2,7 +2,7 @@ function storage_type(mat::AbstractMaterial, ts::AbstractTimeSolver)
     throw(MethodError(storage_type, mat, ts))
 end
 
-function init_storage(::M, ts::T, system, chandler) where {M,T}
+function get_storage(::M, ts::T, system, chandler) where {M,T}
     msg = "storage for material $M and time solver $T not specified!\n"
     return error(msg)
 end
@@ -20,13 +20,13 @@ macro storage(material, timesolver, storage)
             return $(esc(storage))
         end
     end
-    local _init_storage = quote
-        function Peridynamics.init_storage(mat::$(esc(material)), ts::$(esc(timesolver)),
+    local _get_storage = quote
+        function Peridynamics.get_storage(mat::$(esc(material)), ts::$(esc(timesolver)),
                                            system, ch)
             return $(esc(storage))(mat, ts, system, ch)
         end
     end
-    return Expr(:block, _checks, _storage_type, _init_storage)
+    return Expr(:block, _checks, _storage_type, _get_storage)
 end
 
 loc_to_halo_fields(::AbstractStorage) = ()

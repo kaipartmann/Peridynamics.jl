@@ -18,7 +18,7 @@ function BodyChunk(body::AbstractBody, solver::AbstractTimeSolver, pd::PointDeco
     mat = body.mat
     system, ch = get_system(body, pd, chunk_id)
     paramsetup = init_params(body, ch, param_spec)
-    storage = init_storage(mat, solver, system, ch)
+    storage = get_storage(mat, solver, system, ch)
     psets = localized_point_sets(body.point_sets, ch)
     sdbcs = body.single_dim_bcs
     pdsdbcs = body.posdep_single_dim_bcs
