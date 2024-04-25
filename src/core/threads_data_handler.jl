@@ -1,6 +1,6 @@
-struct ThreadsDataHandler{System,Material,Params,Storage} <: AbstractThreadsDataHandler
+struct ThreadsDataHandler{Sys,M,P,S} <: AbstractThreadsDataHandler{Sys,M,P,S}
     n_chunks::Int
-    chunks::Vector{BodyChunk{System,Material,Params,Storage}}
+    chunks::Vector{BodyChunk{Sys,M,P,S}}
     lth_exs::Vector{Vector{HaloExchange}}
     htl_exs::Vector{Vector{HaloExchange}}
 end
@@ -116,6 +116,16 @@ function _exchange_loc_to_halo!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
     return nothing
 end
 
+function exchange_loc_to_halo!(get_field_function::F, dh::ThreadsDataHandler,
+                               chunk_id::Int) where {F<:Function}
+    for ex in dh.lth_exs[chunk_id]
+        dest_field = get_field_function(dh.chunks[ex.dest_chunk_id])
+        src_field = get_field_function(dh.chunks[ex.src_chunk_id])
+        exchange!(dest_field, src_field, ex.dest_idxs, ex.src_idxs)
+    end
+    return nothing
+end
+
 function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int)
     fields = halo_to_loc_fields(dh.chunks[chunk_id].storage)
     isempty(fields) && return nothing
@@ -148,6 +158,16 @@ function _exchange_halo_to_loc!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
     return nothing
 end
 
+function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsDataHandler,
+                               chunk_id::Int) where {F<:Function}
+    for ex in dh.htl_exs[chunk_id]
+        dest_field = get_field_function(dh.chunks[ex.dest_chunk_id])
+        src_field = get_field_function(dh.chunks[ex.src_chunk_id])
+        exchange_add!(dest_field, src_field, ex.dest_idxs, ex.src_idxs)
+    end
+    return nothing
+end
+
 function export_results(dh::ThreadsDataHandler, options::AbstractOptions, chunk_id::Int,
                         timestep::Int, time::Float64)
     options.exportflag || return nothing
@@ -165,7 +185,6 @@ function export_reference_results(dh::ThreadsDataHandler, options::AbstractOptio
     return nothing
 end
 
-function init_data_handler!(dh::ThreadsDataHandler, ::AbstractTimeSolver)
-    init_system!(dh)
+function initialize!(::ThreadsDataHandler, ::AbstractTimeSolver)
     return nothing
 end

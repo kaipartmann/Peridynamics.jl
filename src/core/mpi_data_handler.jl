@@ -5,8 +5,8 @@ struct MPIHaloInfo
     hidxs_by_src::Dict{Int,Dict{Int,Vector{Int}}}
 end
 
-struct MPIDataHandler{System,Material,Params,Storage,Bufs} <: AbstractMPIDataHandler
-    chunk::BodyChunk{System,Material,Params,Storage}
+struct MPIDataHandler{Sys,M,P,S,Bufs} <: AbstractMPIDataHandler{Sys,M,P,S}
+    chunk::BodyChunk{Sys,M,P,S}
     n_halo_fields::Int
     lth_exs_send::Vector{HaloExchange}
     lth_exs_recv::Vector{HaloExchange}
@@ -130,6 +130,10 @@ end
 @inline find_buf(a::Matrix{T}, n::Int) where {T} = zeros(T, size(a, 1), n)
 @inline find_buf(::Vector{T}, n::Int) where {T} = zeros(T, n)
 
+@inline function find_buf(a::VecOrMat, ex::HaloExchange)
+    return find_buf(a, length(ex.dest_idxs))
+end
+
 function find_field_to_buf(s::AbstractStorage)
     fields = get_halo_fieldnames(s)
     field_to_buf = Dict{Symbol,Int}()
@@ -211,6 +215,19 @@ function exchange_loc_to_halo!(dh::MPIDataHandler, field::Symbol)
     return nothing
 end
 
+function exchange_loc_to_halo!(get_field_function::F,
+                               dh::MPIDataHandler) where {F<:Function}
+    reqs = Vector{MPI.Request}(undef, length(dh.lth_exs_send))
+    for (ex_id, ex) in enumerate(dh.lth_exs_send)
+        reqs[ex_id] = send_lth(get_field_function, dh, ex)
+    end
+    for ex in dh.lth_exs_recv
+        recv_lth!(get_field_function, dh, ex)
+    end
+    MPI.Waitall(reqs)
+    return nothing
+end
+
 function send_lth!(dh::MPIDataHandler, ex::HaloExchange, ex_id::Int, field::Symbol)
     src_field = get_point_data(dh.chunk.storage, field)
     field_id = dh.field_to_buf[field]
@@ -223,6 +240,16 @@ function send_lth!(dh::MPIDataHandler, ex::HaloExchange, ex_id::Int, field::Symb
     return nothing
 end
 
+function send_lth(get_field_function::F, dh::MPIDataHandler,
+                  ex::HaloExchange) where {F<:Function}
+    src_field = get_field_function(dh.chunk)
+    buf = find_buf(src_field, ex)
+    exchange_to_buf!(buf, src_field, ex.src_idxs)
+    dest = ex.dest_chunk_id - 1
+    req = MPI.Isend(buf, mpi_comm(); dest=dest, tag=ex.tag)
+    return req
+end
+
 function recv_lth!(dh::MPIDataHandler, ex::HaloExchange, ex_id::Int, field::Symbol)
     field_id = dh.field_to_buf[field]
     buf = get_buf(dh.lth_recv_bufs[ex_id], field_id)
@@ -230,6 +257,16 @@ function recv_lth!(dh::MPIDataHandler, ex::HaloExchange, ex_id::Int, field::Symb
     source = ex.src_chunk_id - 1
     MPI.Recv!(buf, mpi_comm(); source=source, tag=tag)
     dest_field = get_point_data(dh.chunk.storage, field)
+    exchange_from_buf!(dest_field, buf, ex.dest_idxs)
+    return nothing
+end
+
+function recv_lth!(get_field_function::F, dh::MPIDataHandler,
+                   ex::HaloExchange) where {F<:Function}
+    dest_field = get_field_function(dh.chunk)
+    buf = find_buf(dest_field, ex)
+    source = ex.src_chunk_id - 1
+    MPI.Recv!(buf, mpi_comm(); source=source, tag=ex.tag)
     exchange_from_buf!(dest_field, buf, ex.dest_idxs)
     return nothing
 end
@@ -259,6 +296,19 @@ function exchange_halo_to_loc!(dh::MPIDataHandler, field::Symbol)
     return nothing
 end
 
+function exchange_halo_to_loc!(get_field_function::F,
+                               dh::MPIDataHandler) where {F<:Function}
+    reqs = Vector{MPI.Request}(undef, length(dh.htl_exs_send))
+    for (ex_id, ex) in enumerate(dh.htl_exs_send)
+        reqs[ex_id] = send_htl(get_field_function, dh, ex)
+    end
+    for ex in dh.htl_exs_recv
+        recv_htl!(get_field_function, dh, ex)
+    end
+    MPI.Waitall(reqs)
+    return nothing
+end
+
 function send_htl!(dh::MPIDataHandler, ex::HaloExchange, ex_id::Int, field::Symbol)
     src_field = get_point_data(dh.chunk.storage, field)
     field_id = dh.field_to_buf[field]
@@ -271,6 +321,16 @@ function send_htl!(dh::MPIDataHandler, ex::HaloExchange, ex_id::Int, field::Symb
     return nothing
 end
 
+function send_htl(get_field_function::F, dh::MPIDataHandler,
+                  ex::HaloExchange) where {F<:Function}
+    src_field = get_field_function(dh.chunk)
+    buf = find_buf(src_field, ex)
+    exchange_to_buf!(buf, src_field, ex.src_idxs)
+    dest = ex.dest_chunk_id - 1
+    req = MPI.Isend(buf, mpi_comm(); dest=dest, tag=ex.tag)
+    return req
+end
+
 function recv_htl!(dh::MPIDataHandler, ex::HaloExchange, ex_id::Int, field::Symbol)
     field_id = dh.field_to_buf[field]
     buf = get_buf(dh.htl_recv_bufs[ex_id], field_id)
@@ -278,6 +338,16 @@ function recv_htl!(dh::MPIDataHandler, ex::HaloExchange, ex_id::Int, field::Symb
     source = ex.src_chunk_id - 1
     MPI.Recv!(buf, mpi_comm(); source=source, tag=tag)
     dest_field = get_point_data(dh.chunk.storage, field)
+    exchange_from_buf_add!(dest_field, buf, ex.dest_idxs)
+    return nothing
+end
+
+function recv_htl!(get_field_function::F, dh::MPIDataHandler,
+                   ex::HaloExchange) where {F<:Function}
+    dest_field = get_field_function(dh.chunk)
+    buf = find_buf(dest_field, ex)
+    source = ex.src_chunk_id - 1
+    MPI.Recv!(buf, mpi_comm(); source=source, tag=ex.tag)
     exchange_from_buf_add!(dest_field, buf, ex.dest_idxs)
     return nothing
 end
@@ -296,7 +366,6 @@ function export_reference_results(dh::MPIDataHandler, options::AbstractOptions)
     return nothing
 end
 
-function init_data_handler!(dh::MPIDataHandler, ::AbstractTimeSolver)
-    init_system!(dh)
+function initialize!(::MPIDataHandler, ::AbstractTimeSolver)
     return nothing
 end
