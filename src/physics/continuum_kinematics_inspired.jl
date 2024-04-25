@@ -16,7 +16,9 @@ material type for continuum-kinematics-inspired peridynamic simulations
 
 TODO struct
 """
-struct CKIMaterial <: AbstractMaterial end
+struct CKIMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
+
+CKIMaterial() = CKIMaterial{NoCorrection}()
 
 struct CKIPointParameters <: AbstractPointParameters
     δ::Float64

@@ -41,9 +41,10 @@ abstract type AbstractChunkHandler end
 abstract type AbstractDataHandler end
 abstract type AbstractThreadsDataHandler <: AbstractDataHandler end
 abstract type AbstractMPIDataHandler <: AbstractDataHandler end
-abstract type AbstractCorrectionHandler end
+abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
+abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 
 include("auxiliary/function_arguments.jl")
 include("auxiliary/io.jl")
@@ -62,6 +63,7 @@ include("discretization/contact.jl")
 include("discretization/multibody_setup.jl")
 include("discretization/decomposition.jl")
 include("discretization/chunk_handler.jl")
+include("discretization/bond_system_corrections.jl")
 include("discretization/bond_system.jl")
 include("discretization/body_chunk.jl")
 
