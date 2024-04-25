@@ -2,7 +2,7 @@ function storage_type(mat::AbstractMaterial, ts::AbstractTimeSolver)
     throw(MethodError(storage_type, mat, ts))
 end
 
-function get_storage(::M, ts::T, system, chandler) where {M,T}
+function get_storage(::M, ts::T, system, ch) where {M,T}
     msg = "storage for material $M and time solver $T not specified!\n"
     return error(msg)
 end
