@@ -1,65 +1,42 @@
-struct ThreadsDataHandler{C<:AbstractBodyChunk} <: AbstractThreadsDataHandler
+struct ThreadsDataHandler{System,Material,Params,Storage} <: AbstractThreadsDataHandler
     n_chunks::Int
-    chunks::Vector{C}
+    chunks::Vector{BodyChunk{System,Material,Params,Storage}}
     lth_exs::Vector{Vector{HaloExchange}}
     htl_exs::Vector{Vector{HaloExchange}}
 end
 
-function ThreadsDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
+function ThreadsDataHandler(body::AbstractBody, solver::AbstractTimeSolver,
                             point_decomp::PointDecomposition)
-    n_param = length(body.point_params)
-    v = n_param == 1 ? Val{1}() : Val{2}()
-    return ThreadsDataHandler(body, time_solver, point_decomp, v)
-end
-
-function ThreadsDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
-                            point_decomp::PointDecomposition, v::Val{N}) where {N}
-    chunks = chop_body_threads(body, time_solver, point_decomp, v)
+    param_spec = get_param_spec(body)
+    chunks = chop_body_threads(body, solver, point_decomp, param_spec)
     n_chunks = length(chunks)
     lth_exs, htl_exs = find_halo_exchanges(chunks)
     return ThreadsDataHandler(n_chunks, chunks, lth_exs, htl_exs)
 end
 
-function ThreadsDataHandler(multibody::AbstractMultibodySetup,
-                            time_solver::AbstractTimeSolver,
+function ThreadsDataHandler(multibody::AbstractMultibodySetup, solver::AbstractTimeSolver,
                             point_decomp::PointDecomposition)
     error("MultibodySetup not yet implemented!\n")
 end
 
-function chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition,
-                           v::Val{N}) where {M,P,T,N}
-    D = system_type(body.mat)
-    S = storage_type(body.mat, ts)
-    body_chunks = _chop_body_threads(body, ts, pd, D, S, v)
-    return body_chunks
+function chop_body_threads(body::AbstractBody, solver::AbstractTimeSolver,
+                           point_decomp::PointDecomposition, param_spec::AbstractParamSpec)
+    ChunkType = body_chunk_type(body, solver, param_spec)
+    chunks = _chop_body_threads(ChunkType, body, solver, point_decomp, param_spec)
+    return chunks
 end
 
-function _chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition, ::Type{D},
-                            ::Type{S}, ::Val{1}) where {M,P,D,S,T}
-    body_chunks = Vector{BodyChunk{M,P,D,S}}(undef, pd.n_chunks)
-
-    @threads :static for chunk_id in eachindex(pd.decomp)
-        body_chunk = BodyChunk(body, ts, pd, chunk_id)
-        apply_precracks!(body_chunk, body)
-        apply_initial_conditions!(body_chunk, body)
-        body_chunks[chunk_id] = body_chunk
+function _chop_body_threads(::Type{ChunkType}, body::AbstractBody,
+                            solver::AbstractTimeSolver, point_decomp::PointDecomposition,
+                            param_spec::AbstractParamSpec) where {ChunkType}
+    chunks = Vector{ChunkType}(undef, point_decomp.n_chunks)
+    @threads :static for chunk_id in eachindex(point_decomp.decomp)
+        chunk = BodyChunk(body, solver, point_decomp, chunk_id, param_spec)
+        apply_precracks!(chunk, body)
+        apply_initial_conditions!(chunk, body)
+        chunks[chunk_id] = chunk
     end
-
-    return body_chunks
-end
-
-function _chop_body_threads(body::Body{M,P}, ts::T, pd::PointDecomposition, ::Type{D},
-                            ::Type{S}, ::Val{N}) where {M,P,D,S,T,N}
-    body_chunks = Vector{MultiParamBodyChunk{M,P,D,S}}(undef, pd.n_chunks)
-
-    @threads :static for chunk_id in eachindex(pd.decomp)
-        body_chunk = MultiParamBodyChunk(body, ts, pd, chunk_id)
-        apply_precracks!(body_chunk, body)
-        apply_initial_conditions!(body_chunk, body)
-        body_chunks[chunk_id] = body_chunk
-    end
-
-    return body_chunks
+    return chunks
 end
 
 function find_halo_exchanges(chunks::Vector{B}) where {B<:AbstractBodyChunk}

@@ -14,8 +14,9 @@
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
 
+    param_spec = Peridynamics.get_param_spec(body)
     point_decomp = Peridynamics.PointDecomposition(body, 2)
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, param_spec)
 
     lth_exs, htl_exs = Peridynamics.find_halo_exchanges(body_chunks)
 
@@ -38,7 +39,7 @@
     @test htl_exs[2][1].dest_idxs == [1, 2]
 
     point_decomp = Peridynamics.PointDecomposition(body, 4)
-    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, Val{1}())
+    body_chunks = Peridynamics.chop_body_threads(body, ts, point_decomp, param_spec)
 
     lth_exs, htl_exs = Peridynamics.find_halo_exchanges(body_chunks)
 

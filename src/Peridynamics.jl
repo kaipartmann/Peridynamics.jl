@@ -27,13 +27,16 @@ abstract type AbstractMaterial end
 abstract type AbstractSpatialSetup end
 abstract type AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup end
 abstract type AbstractMultibodySetup{T<:AbstractMaterial} <: AbstractSpatialSetup end
-abstract type AbstractPointParameters end
+abstract type AbstractParameterSetup end
+abstract type AbstractPointParameters <: AbstractParameterSetup end
+abstract type AbstractParamSpec end
 abstract type AbstractTimeSolver end
 abstract type AbstractJob end
 abstract type AbstractOptions end
 abstract type AbstractSystem end
 abstract type AbstractPredefinedCrack end
-abstract type AbstractBodyChunk{T<:AbstractMaterial} end
+abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
+abstract type AbstractParameterHandler <: AbstractParameterSetup end
 abstract type AbstractChunkHandler end
 abstract type AbstractDataHandler end
 abstract type AbstractThreadsDataHandler <: AbstractDataHandler end
@@ -60,17 +63,17 @@ include("discretization/decomposition.jl")
 include("discretization/chunk_handler.jl")
 include("discretization/bond_system.jl")
 include("discretization/body_chunk.jl")
-include("discretization/multi_param_body_chunk.jl")
 
 include("core/job.jl")
 include("core/submit.jl")
-include("core/halo_exchange.jl")
-include("core/threads_data_handler.jl")
-include("core/mpi_data_handler.jl")
+include("core/parameter_handler.jl")
 include("core/systems.jl")
 include("core/materials.jl")
 include("core/storages.jl")
 include("core/time_solvers.jl")
+include("core/halo_exchange.jl")
+include("core/threads_data_handler.jl")
+include("core/mpi_data_handler.jl")
 
 include("time_solvers/velocity_verlet.jl")
 

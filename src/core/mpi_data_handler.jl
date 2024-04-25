@@ -5,32 +5,28 @@ struct MPIHaloInfo
     hidxs_by_src::Dict{Int,Dict{Int,Vector{Int}}}
 end
 
-struct MPIDataHandler{C<:AbstractBodyChunk,B} <: AbstractMPIDataHandler
-    chunk::C
+struct MPIDataHandler{System,Material,Params,Storage,Bufs} <: AbstractMPIDataHandler
+    chunk::BodyChunk{System,Material,Params,Storage}
     n_halo_fields::Int
     lth_exs_send::Vector{HaloExchange}
     lth_exs_recv::Vector{HaloExchange}
     htl_exs_send::Vector{HaloExchange}
     htl_exs_recv::Vector{HaloExchange}
-    lth_send_bufs::Vector{B}
-    lth_recv_bufs::Vector{B}
-    htl_send_bufs::Vector{B}
-    htl_recv_bufs::Vector{B}
+    lth_send_bufs::Vector{Bufs}
+    lth_recv_bufs::Vector{Bufs}
+    htl_send_bufs::Vector{Bufs}
+    htl_recv_bufs::Vector{Bufs}
     field_to_buf::Dict{Symbol,Int}
     lth_reqs::Vector{Vector{MPI.Request}}
     htl_reqs::Vector{Vector{MPI.Request}}
 end
 
-function MPIDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
+function MPIDataHandler(body::AbstractBody, solver::AbstractTimeSolver,
                         point_decomp::PointDecomposition)
-    n_param = length(body.point_params)
-    v = n_param == 1 ? Val{1}() : Val{2}()
-    return MPIDataHandler(body, time_solver, point_decomp, v)
-end
-
-function MPIDataHandler(body::AbstractBody, time_solver::AbstractTimeSolver,
-                        point_decomp::PointDecomposition, v::Val{N}) where {N}
-    chunk = chop_body_mpi(body, time_solver, point_decomp, v)
+    param_spec = get_param_spec(body)
+    @timeit_debug TO "chop chunk" begin
+        chunk = chop_body_mpi(body, solver, point_decomp, param_spec)
+    end
     @timeit_debug TO "find halo exchanges" begin
         halo_infos = get_halo_infos(chunk, point_decomp, body.n_points)
         lth_exs, htl_exs = find_halo_exchanges(halo_infos)
@@ -52,23 +48,9 @@ function MPIDataHandler(multibody::AbstractMultibodySetup,
     error("MultibodySetup not yet implemented!\n")
 end
 
-function chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
-                       v::Val{N}) where {M,P,T,N}
-    body_chunks = _chop_body_mpi(body, ts, pd, v)
-    return body_chunks
-end
-
-function _chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
-                        ::Val{1}) where {M,P,T}
-    @timeit_debug TO "chop chunk" chunk = BodyChunk(body, ts, pd, mpi_chunk_id())
-    apply_precracks!(chunk, body)
-    apply_initial_conditions!(chunk, body)
-    return chunk
-end
-
-function _chop_body_mpi(body::Body{M,P}, ts::T, pd::PointDecomposition,
-                        ::Val{N}) where {M,P,T,N}
-    @timeit_debug TO "chop chunk" chunk = MultiParamBodyChunk(body, ts, pd, mpi_chunk_id())
+function chop_body_mpi(body::AbstractBody, solver::AbstractTimeSolver,
+                       point_decomp::PointDecomposition, param_spec::AbstractParamSpec)
+    chunk = BodyChunk(body, solver, point_decomp, mpi_chunk_id(), param_spec)
     apply_precracks!(chunk, body)
     apply_initial_conditions!(chunk, body)
     return chunk
