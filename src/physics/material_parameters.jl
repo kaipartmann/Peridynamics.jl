@@ -37,6 +37,7 @@ Default material parameter keywords:
 
 ```julia-repl
 julia> material!(b; horizon=δ, E=2.1e5, rho=8e-6, Gc=2.7)
+
 julia> b.point_params
 1-element Vector{Peridynamics.BBPointParameters}:
  Peridynamics.BBPointParameters(0.0603, 8.0e-6, 210000.0, 0.25, 84000.0, 140000.0, 84000.0,

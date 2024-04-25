@@ -24,7 +24,9 @@ Creates the point set `set` in `body` containing all points either defined in ve
 
 ```julia-repl
 julia> point_set!(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, b, :set_a)
+
 julia> point_set!(p -> p[1] ≤ -l/2+a && -2δ ≤ p[2] < 0, b, :set_b)
+
 julia> b.point_sets
 Dict{Symbol, Vector{Int64}} with 4 entries:
   :set_a      => [1251, 1252, 1253, 1254, 1255, 1256, 1257, 1258, 1259, …

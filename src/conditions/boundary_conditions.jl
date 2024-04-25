@@ -125,10 +125,14 @@ Specifies velocity boundary conditions for point set `set` on `body`
 
 ```julia-repl
 julia> velocity_bc!(t -> -9.81 * t, b, :set_bottom, :y)
+
 julia> b.single_dim_bcs
+
 1-element Vector{Peridynamics.SingleDimBC}:
  Peridynamics.SingleDimBC{var"#15#16"}(var"#15#16"(), :velocity_half, :set_bottom, 0x02)
+
 julia> velocity_bc!(t -> 40, b, :set_a, 1)
+
 julia> b.single_dim_bcs
 2-element Vector{Peridynamics.SingleDimBC}:
  Peridynamics.SingleDimBC{var"#15#16"}(var"#15#16"(), :velocity_half, :set_bottom, 0x02)
@@ -171,6 +175,7 @@ Specifies boundary conditions for force density on points of point set `set` on 
 
 ```julia-repl
 julia> forcedensity_bc!(t -> 40, b, :set_a, 1)
+
 julia> b.single_dim_bcs
 1-element Vector{Peridynamics.SingleDimBC}:
  Peridynamics.SingleDimBC{var"#25#26"}(var"#25#26"(), :b_ext, :set_a, 0x01)

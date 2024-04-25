@@ -18,8 +18,11 @@ Creates a body for use in peridynamic calculation
 
 ```julia-repl
 julia> l, Δx, = 1.0, 1/50;
+
 julia> pos, vol = uniform_box(l, l, 0.1l, Δx);
+
 julia> b = Body(BBMaterial(), pos, vol);
+
 julia> b
 Body{BBMaterial, Peridynamics.BBPointParameters}(BBMaterial(), 12500,
 [-0.49 -0.47 … 0.47 0.49; -0.49 -0.49 … 0.49 0.49; -0.04 -0.04 … 0.04 0.04],
