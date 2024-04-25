@@ -20,7 +20,7 @@ end
 function get_correction(::AbstractBondSystemMaterial{EnergySurfaceCorrection},
                         n_loc_points::Int, n_points::Int, n_bonds::Int)
     mfactor = zeros(3, n_points)
-    scfactor = zeros(n_bonds)
+    scfactor = ones(n_bonds)
     return EnergySurfaceCorrection(mfactor, scfactor)
 end
 
