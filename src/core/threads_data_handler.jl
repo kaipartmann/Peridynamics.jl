@@ -1,6 +1,6 @@
-struct ThreadsDataHandler{System,Material,Params,Storage} <: AbstractThreadsDataHandler
+struct ThreadsDataHandler{Sys,M,P,S} <: AbstractThreadsDataHandler{Sys,M,P,S}
     n_chunks::Int
-    chunks::Vector{BodyChunk{System,Material,Params,Storage}}
+    chunks::Vector{BodyChunk{Sys,M,P,S}}
     lth_exs::Vector{Vector{HaloExchange}}
     htl_exs::Vector{Vector{HaloExchange}}
 end
@@ -34,6 +34,7 @@ function _chop_body_threads(::Type{ChunkType}, body::AbstractBody,
         chunk = BodyChunk(body, solver, point_decomp, chunk_id, param_spec)
         apply_precracks!(chunk, body)
         apply_initial_conditions!(chunk, body)
+        initialize!(chunk)
         chunks[chunk_id] = chunk
     end
     return chunks
@@ -115,6 +116,16 @@ function _exchange_loc_to_halo!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
     return nothing
 end
 
+function exchange_loc_to_halo!(get_field_function::F, dh::ThreadsDataHandler,
+                               chunk_id::Int) where {F<:Function}
+    for ex in dh.lth_exs[chunk_id]
+        dest_field = get_field_function(dh.chunks[ex.dest_chunk_id])
+        src_field = get_field_function(dh.chunks[ex.src_chunk_id])
+        exchange!(dest_field, src_field, ex.dest_idxs, ex.src_idxs)
+    end
+    return nothing
+end
+
 function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int)
     fields = halo_to_loc_fields(dh.chunks[chunk_id].storage)
     isempty(fields) && return nothing
@@ -147,6 +158,16 @@ function _exchange_halo_to_loc!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
     return nothing
 end
 
+function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsDataHandler,
+                               chunk_id::Int) where {F<:Function}
+    for ex in dh.htl_exs[chunk_id]
+        dest_field = get_field_function(dh.chunks[ex.dest_chunk_id])
+        src_field = get_field_function(dh.chunks[ex.src_chunk_id])
+        exchange_add!(dest_field, src_field, ex.dest_idxs, ex.src_idxs)
+    end
+    return nothing
+end
+
 function export_results(dh::ThreadsDataHandler, options::AbstractOptions, chunk_id::Int,
                         timestep::Int, time::Float64)
     options.exportflag || return nothing
@@ -161,5 +182,9 @@ function export_reference_results(dh::ThreadsDataHandler, options::AbstractOptio
     @threads :static for chunk_id in eachindex(dh.chunks)
         _export_results(dh.chunks[chunk_id], chunk_id, dh.n_chunks, options, 0, 0.0)
     end
+    return nothing
+end
+
+function initialize!(::AbstractThreadsDataHandler, ::AbstractTimeSolver)
     return nothing
 end

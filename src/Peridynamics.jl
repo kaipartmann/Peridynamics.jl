@@ -8,10 +8,27 @@ end
 
 import LibGit2, Dates
 
-export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial, Body, point_set!,
-       failure_permit!, material!, velocity_bc!, velocity_ic!, forcedensity_bc!, precrack!,
-       VelocityVerlet, MultibodySetup, contact!, Job, read_vtk, uniform_box, submit,
-       process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
+# Abstract types
+export AbstractMaterial, AbstractBondSystemMaterial, AbstractSpatialSetup, AbstractBody,
+       AbstractMultibodySetup, AbstractParameterSetup, AbstractPointParameters,
+       AbstractTimeSolver, AbstractJob, AbstractSystem, AbstractPredefinedCrack,
+       AbstractCorrection, AbstractStorage, AbstractCondition
+
+# Material models
+export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial
+
+# Systems related types
+export BondSystem, NoCorrection, EnergySurfaceCorrection
+
+# Discretization
+export Body, point_set!, failure_permit!, material!, velocity_bc!, velocity_ic!,
+       forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box
+
+# Running simulations
+export VelocityVerlet, Job, submit
+
+# Post processing and helpers
+export read_vtk, process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
        enable_mpi_timers!, disable_mpi_timers!, @mpitime, @rootdo
 
 function __init__()
@@ -39,10 +56,12 @@ abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
 abstract type AbstractParameterHandler <: AbstractParameterSetup end
 abstract type AbstractChunkHandler end
 abstract type AbstractDataHandler end
-abstract type AbstractThreadsDataHandler <: AbstractDataHandler end
-abstract type AbstractMPIDataHandler <: AbstractDataHandler end
+abstract type AbstractThreadsDataHandler{Sys,M,P,S} <: AbstractDataHandler end
+abstract type AbstractMPIDataHandler{Sys,M,P,S} <: AbstractDataHandler end
+abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
+abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 
 include("auxiliary/function_arguments.jl")
 include("auxiliary/io.jl")
@@ -62,6 +81,7 @@ include("discretization/multibody_setup.jl")
 include("discretization/decomposition.jl")
 include("discretization/chunk_handler.jl")
 include("discretization/bond_system.jl")
+include("discretization/bond_system_corrections.jl")
 include("discretization/body_chunk.jl")
 
 include("core/job.jl")

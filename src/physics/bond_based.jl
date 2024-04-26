@@ -24,7 +24,9 @@ Material type for bond-based peridynamic simulations
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds for each point
 """
-struct BBMaterial <: AbstractMaterial end
+struct BBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
+
+BBMaterial() = BBMaterial{NoCorrection}()
 
 struct BBPointParameters <: AbstractPointParameters
     δ::Float64
@@ -58,8 +60,6 @@ function BBPointParameters(::BBMaterial, p::Dict{Symbol,Any})
 end
 
 @params BBMaterial BBPointParameters
-
-@system BBMaterial BondSystem
 
 struct BBVerletStorage <: AbstractStorage
     position::Matrix{Float64}
@@ -95,32 +95,34 @@ end
 
 @loc_to_halo_fields BBVerletStorage :position
 
-function force_density_point!(s::BBVerletStorage, bd::BondSystem, ::BBMaterial,
-                              param::BBPointParameters, i::Int)
-    for bond_id in each_bond_idx(bd, i)
-        bond = bd.bonds[bond_id]
+function force_density_point!(storage::BBVerletStorage, system::BondSystem, ::BBMaterial,
+                              params::BBPointParameters, i::Int)
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
 
         # current bond length
-        Δxijx = s.position[1, j] - s.position[1, i]
-        Δxijy = s.position[2, j] - s.position[2, i]
-        Δxijz = s.position[3, j] - s.position[3, i]
+        Δxijx = storage.position[1, j] - storage.position[1, i]
+        Δxijy = storage.position[2, j] - storage.position[2, i]
+        Δxijz = storage.position[3, j] - storage.position[3, i]
         l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
 
         # bond strain
         ε = (l - L) / L
 
         # failure mechanism
-        if ε > param.εc && bond.fail_permit
-            s.bond_active[bond_id] = false
+        if ε > params.εc && bond.fail_permit
+            storage.bond_active[bond_id] = false
         end
-        s.n_active_bonds[i] += s.bond_active[bond_id]
+        storage.n_active_bonds[i] += storage.bond_active[bond_id]
 
         # update of force density
-        temp = s.bond_active[bond_id] * param.bc * ε / l * bd.volume[j]
-        s.b_int[1, i] += temp * Δxijx
-        s.b_int[2, i] += temp * Δxijy
-        s.b_int[3, i] += temp * Δxijz
+        scfactor = surface_correction_factor(system.correction, bond_id)
+        bond_fail = storage.bond_active[bond_id]
+        temp = bond_fail * scfactor * params.bc * ε / l * system.volume[j]
+        storage.b_int[1, i] += temp * Δxijx
+        storage.b_int[2, i] += temp * Δxijy
+        storage.b_int[3, i] += temp * Δxijz
     end
     return nothing
 end

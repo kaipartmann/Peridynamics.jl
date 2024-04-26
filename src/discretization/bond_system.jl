@@ -4,12 +4,13 @@ struct Bond
     fail_permit::Bool
 end
 
-struct BondSystem <: AbstractSystem
+struct BondSystem{Correction<:AbstractCorrection} <: AbstractSystem
     position::Matrix{Float64}
     volume::Vector{Float64}
     bonds::Vector{Bond}
     n_neighbors::Vector{Int}
     bond_ids::Vector{UnitRange{Int}}
+    correction::Correction
 end
 
 function BondSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
@@ -19,16 +20,28 @@ function BondSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     ch = get_chunk_handler(bonds, pd, chunk_id)
     localize!(bonds, ch.localizer)
     position, volume = get_pos_and_vol_chunk(body, ch.point_ids)
-    bs = BondSystem(position, volume, bonds, n_neighbors, bond_ids)
+    correction = get_correction(body.mat, ch.n_loc_points, length(ch.point_ids),
+                                 length(bonds))
+    bs = BondSystem(position, volume, bonds, n_neighbors, bond_ids, correction)
     return bs, ch
 end
 
-function check_bond_system_compat(mat::M) where {M<:AbstractMaterial}
-    if system_type(mat) !== BondSystem
-        msg = "body with $(M) incompatible to BondSystem!\n"
-        msg *= "Check the method `system_type` for $(M)!\n"
-        throw(ArgumentError(msg))
-    end
+function get_system(body::AbstractBody{Material}, pd::PointDecomposition,
+                    chunk_id::Int) where {Material<:AbstractBondSystemMaterial}
+    return BondSystem(body, pd, chunk_id)
+end
+
+@inline function system_type(mat::AbstractBondSystemMaterial)
+    return BondSystem{correction_type(mat)}
+end
+
+function check_bond_system_compat(::M) where {M<:AbstractMaterial}
+    msg = "body with material $(M) incompatible to BondSystem!\n"
+    msg *= "The material has to be a subtype of `AbstractBondSystemMaterial`!\n"
+    return throw(ArgumentError(msg))
+end
+
+function check_bond_system_compat(::AbstractBondSystemMaterial)
     return nothing
 end
 
@@ -103,8 +116,8 @@ function find_bond_ids(n_neighbors::Vector{Int})
 end
 
 function get_pos_and_vol_chunk(body::AbstractBody, point_ids::AbstractVector{<:Integer})
-    position = @views body.position[:, point_ids]
-    volume = @views body.volume[point_ids]
+    position = body.position[:, point_ids]
+    volume = body.volume[point_ids]
     return position, volume
 end
 

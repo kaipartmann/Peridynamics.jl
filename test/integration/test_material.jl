@@ -1,4 +1,4 @@
-struct TestMaterial <: Peridynamics.AbstractMaterial end
+struct TestMaterial <: Peridynamics.AbstractBondSystemMaterial{Peridynamics.NoCorrection} end
 struct TestPointParameters <: Peridynamics.AbstractPointParameters
     δ::Float64
     rho::Float64
@@ -19,7 +19,7 @@ function TestPointParameters(::TestMaterial, p::Dict{Symbol,Any})
     return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc)
 end
 Peridynamics.@params TestMaterial TestPointParameters
-Peridynamics.@system TestMaterial Peridynamics.BondSystem
+# Peridynamics.@system TestMaterial Peridynamics.BondSystem
 struct TestVerletStorage <: Peridynamics.AbstractStorage
     position::Matrix{Float64}
     displacement::Matrix{Float64}

@@ -25,7 +25,7 @@ Material type for non-ordinary state-based peridynamic simulations
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds for each point
 """
-Base.@kwdef struct NOSBMaterial <: AbstractMaterial
+Base.@kwdef struct NOSBMaterial <: AbstractBondSystemMaterial{NoCorrection}
     maxdmg::Float64 = 0.95
     maxjacobi::Float64 = 1.03
     corr::Float64 = 100.0
@@ -55,8 +55,6 @@ function NOSBPointParameters(::NOSBMaterial, p::Dict{Symbol,Any})
 end
 
 @params NOSBMaterial NOSBPointParameters
-
-@system NOSBMaterial BondSystem
 
 struct NOSBVerletStorage <: AbstractStorage
     position::Matrix{Float64}
@@ -93,74 +91,74 @@ end
 @loc_to_halo_fields NOSBVerletStorage :position
 @halo_to_loc_fields NOSBVerletStorage :b_int
 
-function force_density_point!(s::NOSBVerletStorage, bd::BondSystem, mat::NOSBMaterial,
-                              param::NOSBPointParameters, i::Int)
-    F, Kinv, ω0 = calc_deformation_gradient(s, bd, param, i)
-    if s.damage[i] > mat.maxdmg || containsnan(F)
-        kill_point!(s, bd, i)
+function force_density_point!(storage::NOSBVerletStorage, system::BondSystem,
+                              mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
+    F, Kinv, ω0 = calc_deformation_gradient(storage, system, params, i)
+    if storage.damage[i] > mat.maxdmg || containsnan(F)
+        kill_point!(storage, system, i)
         return nothing
     end
-    P = calc_first_piola_stress(F, mat, param)
+    P = calc_first_piola_stress(F, mat, params)
     if iszero(P) || containsnan(P)
-        kill_point!(s, bd, i)
+        kill_point!(storage, system, i)
         return nothing
     end
     PKinv = P * Kinv
-    for bond_id in each_bond_idx(bd, i)
-        bond = bd.bonds[bond_id]
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
 
-        ΔXij = SVector{3}(bd.position[1, j] - bd.position[1, i],
-                          bd.position[2, j] - bd.position[2, i],
-                          bd.position[3, j] - bd.position[3, i])
-        Δxij = SVector{3}(s.position[1, j] - s.position[1, i],
-                          s.position[2, j] - s.position[2, i],
-                          s.position[3, j] - s.position[3, i])
+        ΔXij = SVector{3}(system.position[1, j] - system.position[1, i],
+                          system.position[2, j] - system.position[2, i],
+                          system.position[3, j] - system.position[3, i])
+        Δxij = SVector{3}(storage.position[1, j] - storage.position[1, i],
+                          storage.position[2, j] - storage.position[2, i],
+                          storage.position[3, j] - storage.position[3, i])
         l = sqrt(Δxij.x * Δxij.x + Δxij.y * Δxij.y + Δxij.z * Δxij.z)
         ε = (l - L) / L
 
         # failure mechanism
-        if ε > param.εc && bond.fail_permit
-            s.bond_active[bond_id] = false
+        if ε > params.εc && bond.fail_permit
+            storage.bond_active[bond_id] = false
         end
 
         # stabilization
-        ωij = (1 + param.δ / L) * s.bond_active[bond_id]
-        Tij = mat.corr .* param.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
+        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
+        Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
 
         # update of force density
         tij = ωij * PKinv * ΔXij + Tij
         if containsnan(tij)
             tij = zero(SMatrix{3,3})
-            s.bond_active[bond_id] = false
+            storage.bond_active[bond_id] = false
         end
-        s.n_active_bonds[i] += s.bond_active[bond_id]
-        s.b_int[1, i] += tij.x * bd.volume[j]
-        s.b_int[2, i] += tij.y * bd.volume[j]
-        s.b_int[3, i] += tij.z * bd.volume[j]
-        s.b_int[1, j] -= tij.x * bd.volume[i]
-        s.b_int[2, j] -= tij.y * bd.volume[i]
-        s.b_int[3, j] -= tij.z * bd.volume[i]
+        storage.n_active_bonds[i] += storage.bond_active[bond_id]
+        storage.b_int[1, i] += tij.x * system.volume[j]
+        storage.b_int[2, i] += tij.y * system.volume[j]
+        storage.b_int[3, i] += tij.z * system.volume[j]
+        storage.b_int[1, j] -= tij.x * system.volume[i]
+        storage.b_int[2, j] -= tij.y * system.volume[i]
+        storage.b_int[3, j] -= tij.z * system.volume[i]
     end
     return nothing
 end
 
-function calc_deformation_gradient(s::NOSBVerletStorage, bd::BondSystem,
-                                   param::NOSBPointParameters, i::Int)
+function calc_deformation_gradient(storage::NOSBVerletStorage, system::BondSystem,
+                                   params::NOSBPointParameters, i::Int)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
     ω0 = 0.0
-    for bond_id in each_bond_idx(bd, i)
-        bond = bd.bonds[bond_id]
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        ΔXij = SVector{3}(bd.position[1, j] - bd.position[1, i],
-                          bd.position[2, j] - bd.position[2, i],
-                          bd.position[3, j] - bd.position[3, i])
-        Δxij = SVector{3}(s.position[1, j] - s.position[1, i],
-                          s.position[2, j] - s.position[2, i],
-                          s.position[3, j] - s.position[3, i])
-        Vj = bd.volume[j]
-        ωij = (1 + param.δ / L) * s.bond_active[bond_id]
+        ΔXij = SVector{3}(system.position[1, j] - system.position[1, i],
+                          system.position[2, j] - system.position[2, i],
+                          system.position[3, j] - system.position[3, i])
+        Δxij = SVector{3}(storage.position[1, j] - storage.position[1, i],
+                          storage.position[2, j] - storage.position[2, i],
+                          storage.position[3, j] - storage.position[3, i])
+        Vj = system.volume[j]
+        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
         ω0 += ωij
         temp = ωij * Vj
         K += temp * ΔXij * ΔXij'
@@ -172,14 +170,14 @@ function calc_deformation_gradient(s::NOSBVerletStorage, bd::BondSystem,
 end
 
 function calc_first_piola_stress(F::SMatrix{3,3}, mat::NOSBMaterial,
-                                 param::NOSBPointParameters)
+                                 params::NOSBPointParameters)
     J = det(F)
     J < eps() && return zero(SMatrix{3,3})
     J > mat.maxjacobi && return zero(SMatrix{3,3})
     C = F' * F
     Cinv = inv(C)
-    S = param.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
-        param.K / 4 .* (J^2 - J^(-2)) .* Cinv
+    S = params.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
+        params.K / 4 .* (J^2 - J^(-2)) .* Cinv
     P = F * S
     return P
 end

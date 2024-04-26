@@ -4,14 +4,14 @@
     b3 = Body(CKIMaterial(), rand(3,10), rand(10))
 
     ms = MultibodySetup(:body1 => b1, :body2 => b2)
-    @test ms isa MultibodySetup{Peridynamics.BBMaterial,Peridynamics.BBPointParameters}
-    @test Peridynamics.material_type(ms) == Peridynamics.BBMaterial
+    @test ms isa MultibodySetup{Peridynamics.BBMaterial{Peridynamics.NoCorrection},Peridynamics.BBPointParameters}
+    @test Peridynamics.material_type(ms) == Peridynamics.BBMaterial{Peridynamics.NoCorrection}
     @test length(ms.bodies) == 2
     @test isempty(ms.contacts)
 
     ms = MultibodySetup(Dict(:body1 => b1, :body2 => b2))
-    @test ms isa MultibodySetup{Peridynamics.BBMaterial,Peridynamics.BBPointParameters}
-    @test Peridynamics.material_type(ms) == Peridynamics.BBMaterial
+    @test ms isa MultibodySetup{Peridynamics.BBMaterial{Peridynamics.NoCorrection},Peridynamics.BBPointParameters}
+    @test Peridynamics.material_type(ms) == Peridynamics.BBMaterial{Peridynamics.NoCorrection}
     @test length(ms.bodies) == 2
     @test isempty(ms.contacts)
 

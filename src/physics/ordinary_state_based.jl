@@ -24,7 +24,9 @@ Material type for ordinary state-based peridynamic simulations
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds for each point
 """
-struct OSBMaterial <: AbstractMaterial end
+struct OSBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
+
+OSBMaterial() = OSBMaterial{NoCorrection}()
 
 struct OSBPointParameters <: AbstractPointParameters
     δ::Float64
@@ -50,8 +52,6 @@ function OSBPointParameters(::OSBMaterial, p::Dict{Symbol,Any})
 end
 
 @params OSBMaterial OSBPointParameters
-
-@system OSBMaterial BondSystem
 
 struct OSBVerletStorage <: AbstractStorage
     position::Matrix{Float64}
@@ -88,73 +88,76 @@ end
 @loc_to_halo_fields OSBVerletStorage :position
 @halo_to_loc_fields OSBVerletStorage :b_int
 
-function force_density_point!(s::OSBVerletStorage, bd::BondSystem, ::OSBMaterial,
-                              param::OSBPointParameters, i::Int)
+function force_density_point!(storage::OSBVerletStorage, system::BondSystem, ::OSBMaterial,
+                              params::OSBPointParameters, i::Int)
     # weighted volume
-    wvol = calc_weighted_volume(s, bd, param, i)
+    wvol = calc_weighted_volume(storage, system, params, i)
     iszero(wvol) && return nothing
     # dilatation
-    dil = calc_dilatation(s, bd, param, wvol, i)
+    dil = calc_dilatation(storage, system, params, wvol, i)
     # force density
-    c1 = 15.0 * param.G / wvol
-    c2 = dil * (3.0 * param.K / wvol - c1 / 3.0)
-    for bond_id in each_bond_idx(bd, i)
-        bond = bd.bonds[bond_id]
+    c1 = 15.0 * params.G / wvol
+    c2 = dil * (3.0 * params.K / wvol - c1 / 3.0)
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxijx = s.position[1, j] - s.position[1, i]
-        Δxijy = s.position[2, j] - s.position[2, i]
-        Δxijz = s.position[3, j] - s.position[3, i]
+        Δxijx = storage.position[1, j] - storage.position[1, i]
+        Δxijy = storage.position[2, j] - storage.position[2, i]
+        Δxijz = storage.position[3, j] - storage.position[3, i]
         l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
         ε = (l - L) / L
 
         # failure mechanism
-        if ε > param.εc && bond.fail_permit
-            s.bond_active[bond_id] = false
+        if ε > params.εc && bond.fail_permit
+            storage.bond_active[bond_id] = false
         end
-        s.n_active_bonds[i] += s.bond_active[bond_id]
+        storage.n_active_bonds[i] += storage.bond_active[bond_id]
 
         # update of force density
-        ωij = (1 + param.δ / L) * s.bond_active[bond_id]
+        scfactor = surface_correction_factor(system.correction, bond_id)
+        ωij = (1 + params.δ / L) * storage.bond_active[bond_id] * scfactor
         temp = ωij * (c2 * L + c1 * (l - L)) / l
-        s.b_int[1, i] += temp * Δxijx * bd.volume[j]
-        s.b_int[2, i] += temp * Δxijy * bd.volume[j]
-        s.b_int[3, i] += temp * Δxijz * bd.volume[j]
-        s.b_int[1, j] -= temp * Δxijx * bd.volume[i]
-        s.b_int[2, j] -= temp * Δxijy * bd.volume[i]
-        s.b_int[3, j] -= temp * Δxijz * bd.volume[i]
+        storage.b_int[1, i] += temp * Δxijx * system.volume[j]
+        storage.b_int[2, i] += temp * Δxijy * system.volume[j]
+        storage.b_int[3, i] += temp * Δxijz * system.volume[j]
+        storage.b_int[1, j] -= temp * Δxijx * system.volume[i]
+        storage.b_int[2, j] -= temp * Δxijy * system.volume[i]
+        storage.b_int[3, j] -= temp * Δxijz * system.volume[i]
     end
     return nothing
 end
 
-function calc_weighted_volume(s::OSBVerletStorage, bd::BondSystem,
-                              param::OSBPointParameters, i::Int)
+function calc_weighted_volume(storage::OSBVerletStorage, system::BondSystem,
+                              params::OSBPointParameters, i::Int)
     wvol = 0.0
-    for bond_id in each_bond_idx(bd, i)
-        bond = bd.bonds[bond_id]
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        ΔXijx = bd.position[1, j] - bd.position[1, i]
-        ΔXijy = bd.position[2, j] - bd.position[2, i]
-        ΔXijz = bd.position[3, j] - bd.position[3, i]
+        ΔXijx = system.position[1, j] - system.position[1, i]
+        ΔXijy = system.position[2, j] - system.position[2, i]
+        ΔXijz = system.position[3, j] - system.position[3, i]
         ΔXij_sq = ΔXijx * ΔXijx + ΔXijy * ΔXijy + ΔXijz * ΔXijz
-        ωij = (1 + param.δ / L) * s.bond_active[bond_id]
-        wvol += ωij * ΔXij_sq * bd.volume[j]
+        scfactor = surface_correction_factor(system.correction, bond_id)
+        ωij = (1 + params.δ / L) * storage.bond_active[bond_id] * scfactor
+        wvol += ωij * ΔXij_sq * system.volume[j]
     end
     return wvol
 end
 
-function calc_dilatation(s::OSBVerletStorage, bd::BondSystem, param::OSBPointParameters,
-                         wvol::Float64, i::Int)
+function calc_dilatation(storage::OSBVerletStorage, system::BondSystem,
+                         params::OSBPointParameters, wvol::Float64, i::Int)
     dil = 0.0
     c1 = 3.0 / wvol
-    for bond_id in each_bond_idx(bd, i)
-        bond = bd.bonds[bond_id]
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxijx = s.position[1, j] - s.position[1, i]
-        Δxijy = s.position[2, j] - s.position[2, i]
-        Δxijz = s.position[3, j] - s.position[3, i]
+        Δxijx = storage.position[1, j] - storage.position[1, i]
+        Δxijy = storage.position[2, j] - storage.position[2, i]
+        Δxijz = storage.position[3, j] - storage.position[3, i]
         l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
-        ωij = (1 + param.δ / L) * s.bond_active[bond_id]
-        dil += ωij * c1 * L * (l - L) * bd.volume[j]
+        scfactor = surface_correction_factor(system.correction, bond_id)
+        ωij = (1 + params.δ / L) * storage.bond_active[bond_id] * scfactor
+        dil += ωij * c1 * L * (l - L) * system.volume[j]
     end
     return dil
 end

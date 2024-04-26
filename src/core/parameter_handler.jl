@@ -13,11 +13,11 @@ function ParameterHandler(body::AbstractBody, ch::AbstractChunkHandler)
     return ParameterHandler(parameters, point_mapping)
 end
 
-function init_params(body::AbstractBody, ::AbstractChunkHandler, ::SingleParamChunk)
+function get_paramsetup(body::AbstractBody, ::AbstractChunkHandler, ::SingleParamChunk)
     return first(body.point_params)
 end
 
-function init_params(body::AbstractBody, ch::AbstractChunkHandler, ::MultiParamChunk)
+function get_paramsetup(body::AbstractBody, ch::AbstractChunkHandler, ::MultiParamChunk)
     return ParameterHandler(body, ch)
 end
 

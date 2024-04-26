@@ -55,19 +55,20 @@ end
     @test hasmethod(Peridynamics.get_point_params, Tuple{TestMaterial2,Dict{Symbol,Any}})
 end
 
-@testitem "System declaration" begin
-    struct TestMaterial3 <: Peridynamics.AbstractMaterial end
-    struct WrongMaterial2 end
+# TODO
+# @testitem "System declaration" begin
+#     struct TestMaterial3 <: Peridynamics.AbstractMaterial end
+#     struct WrongMaterial2 end
 
-    @test_throws ArgumentError Peridynamics.@system WrongMaterial2 Peridynamics.BondSystem
-    @test_throws ArgumentError Peridynamics.@system TestMaterial3 Peridynamics.BBMaterial
+#     @test_throws ArgumentError Peridynamics.@system WrongMaterial2 Peridynamics.BondSystem
+#     @test_throws ArgumentError Peridynamics.@system TestMaterial3 Peridynamics.BBMaterial
 
-    Peridynamics.@system TestMaterial3 Peridynamics.BondSystem
-    @test hasmethod(Peridynamics.system_type, Tuple{TestMaterial3})
-    @test Peridynamics.system_type(TestMaterial3()) == Peridynamics.BondSystem
-    @test hasmethod(Peridynamics.get_system,
-                    Tuple{Peridynamics.AbstractBody{TestMaterial3}})
-end
+#     Peridynamics.@system TestMaterial3 Peridynamics.BondSystem
+#     @test hasmethod(Peridynamics.system_type, Tuple{TestMaterial3})
+#     @test Peridynamics.system_type(TestMaterial3()) == Peridynamics.BondSystem
+#     @test hasmethod(Peridynamics.get_system,
+#                     Tuple{Peridynamics.AbstractBody{TestMaterial3}})
+# end
 
 @testitem "Storage declaration" begin
     struct TestMaterial4 <: Peridynamics.AbstractMaterial end
