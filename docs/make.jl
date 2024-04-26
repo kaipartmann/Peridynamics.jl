@@ -17,15 +17,15 @@ LIT_MD_OUT = joinpath(@__DIR__, "src", "generated")
 rm(LIT_MD_OUT; recursive = true, force = true)
 # rm(LIT_NB_OUT; recursive = true, force = true) #TODO
 
-LIT_MANUAL_IN = [
-    "howto_single_body_analysis.jl",
-    "howto_contact_analysis.jl",
-    "howto_pointclouds.jl",
-    "howto_precracks.jl",
-    "howto_matformulations.jl",
-]
-LIT_MANUAL_IN .= joinpath.(@__DIR__, "src", "literate", LIT_MANUAL_IN)
-Literate.markdown.(LIT_MANUAL_IN, LIT_MD_OUT; credit=false)
+# LIT_MANUAL_IN = [
+    # "howto_single_body_analysis.jl",
+    # "howto_contact_analysis.jl",
+    # "howto_pointclouds.jl",
+    # "howto_precracks.jl",
+    # "howto_matformulations.jl",
+# ]
+# LIT_MANUAL_IN .= joinpath.(@__DIR__, "src", "literate", LIT_MANUAL_IN)
+# Literate.markdown.(LIT_MANUAL_IN, LIT_MD_OUT; credit=false)
 
 LIT_TUTORIALS_IN = [
     "tutorial_tension_static.jl",
