@@ -21,6 +21,18 @@ Material type for continuum-kinematics-inspired peridynamic simulations
 
 # Allowed export fields
 
+
+
+# Examples
+
+```julia-repl
+julia> mat = CKIMaterial()
+CKIMaterial{NoCorrection}()
+
+julia> mat = CKIMaterial{EnergySurfaceCorrection}()
+CKIMaterial{EnergySurfaceCorrection}()
+```
+
 TODO struct
 """
 struct CKIMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end

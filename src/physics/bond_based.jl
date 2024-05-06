@@ -30,6 +30,17 @@ Material type for bond-based peridynamic simulations
 - `b_ext::Matrix{Float64}`: External force density of each point
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds for each point
+
+# Examples
+
+```julia-repl
+julia> mat = BBMaterial()
+BBMaterial{NoCorrection}()
+
+julia> mat = BBMaterial{EnergySurfaceCorrection}()
+BBMaterial{EnergySurfaceCorrection}()
+```
+
 """
 struct BBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
 

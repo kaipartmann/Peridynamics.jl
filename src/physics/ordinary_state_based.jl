@@ -30,6 +30,17 @@ Material type for ordinary state-based peridynamic simulations
 - `b_ext::Matrix{Float64}`: External force density of each point
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds for each point
+
+# Examples
+
+```julia-repl
+julia> mat = OSBMaterial()
+OSBMaterial{NoCorrection}()
+
+julia> mat = OSBMaterial{EnergySurfaceCorrection}()
+OSBMaterial{EnergySurfaceCorrection}()
+```
+
 """
 struct OSBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
 
