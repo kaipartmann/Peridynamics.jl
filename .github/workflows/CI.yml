@@ -33,7 +33,7 @@ jobs:
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-downgrade-compat@v1
         with:
-          skip: Pkg, TOML, Base64, Dates, LinearAlgebra, Printf
+          skip: Pkg, TOML, Base64, Dates, LibGit2, LinearAlgebra, Printf
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
