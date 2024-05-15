@@ -47,9 +47,9 @@ We recommend looking at the [how-to guides](https://kaipartmann.github.io/Peridy
 
 ## Authors
 
-- Kai Partmann (University of Siegen)
+- <a href="https://orcid.org/0000-0002-5238-4355">Kai Partmann (University of Siegen) <img alt="ORCID logo" src="https://info.orcid.org/wp-content/uploads/2019/11/orcid_16x16.png" width="16" height="16" /></a>
 - Manuel Dienst (University of Siegen)
-- Kerstin Weinberg (University of Siegen)
+- <a href="https://orcid.org/0000-0002-2213-8401">Kerstin Weinberg (University of Siegen) <img alt="ORCID logo" src="https://info.orcid.org/wp-content/uploads/2019/11/orcid_16x16.png" width="16" height="16" /></a>
 
 ## Acknowledgement
 <img src=https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/0d14a65b-4e05-4408-8107-59ac9c1477d2 width=500>
