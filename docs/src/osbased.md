@@ -20,5 +20,5 @@ Then the dilatation $\theta_i$ is needed, which is determined with the weighted 
 
 With the previously determined variables, the force vector state $\boldsymbol{t}^i$ can now be calculated: [Silling2007](@cite)
 ```math
-\boldsymbol{t}^i \left( \boldsymbol{\Delta X}^{ij} \right) = \frac{\kappa \cdot \theta_i}{m_i} \cdot \omega \cdot | \boldsymbol{\Delta X}^{ij} | + \frac{15 \cdot \mu}{m_i} \cdot \omega \cdot \left( |\boldsymbol{\Delta x}^{ij}|-|\boldsymbol{\Delta X}^{ij}| - \frac{\theta_i \cdot |\boldsymbol{\Delta X}^{ij}|}{3} \right) \; .
+\boldsymbol{t}^i \left( \boldsymbol{\Delta X}^{ij} \right) = \frac{\kappa \cdot \theta_i}{m_i} \cdot \omega \cdot | \boldsymbol{\Delta X}^{ij} | + \frac{15 \cdot G}{m_i} \cdot \omega \cdot \left( |\boldsymbol{\Delta x}^{ij}|-|\boldsymbol{\Delta X}^{ij}| - \frac{\theta_i \cdot |\boldsymbol{\Delta X}^{ij}|}{3} \right) \; .
 ```
