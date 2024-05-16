@@ -3,6 +3,11 @@
 \documentclass{juliacon}
 \setcounter{page}{1}
 
+%%---- definition of custom commands
+\newcommand{\abs}[1]{\left|#1\right|}
+\newcommand{\vb}{\boldsymbol}
+%%----
+
 \begin{document}
 
 \input{header}
@@ -12,6 +17,30 @@
 \section{Summary}
 % from the JOSS docs:
 % The paper should include a summary describing the high-level functionality and purpose of the software for a diverse, non-specialist audience.
+
+\texttt{Peridynamics.jl} is an open source implementation of the nonlocal continuum mechanics formulation by Silling (ref?).
+In peridynamics, a body is described by material points and, based on interactions between them, internal force densities are calculated. 
+The equation of motion reads
+\begin{equation}
+    \varrho \, \vb{\ddot{u}}(\vb{X},t) = \vb{b}^{\mathrm{int}}(\vb{X},t) + \vb{b}^{\mathrm{ext}}(\vb{X},t) \qquad \forall \vb{X} \in \mathcal{B}_0, \; t \geq 0 \; ,
+\end{equation} 
+with the mass density $\varrho$, the point acceleration vector $\vb{\ddot{u}}$, and the point force density vectors $\vb{b}^{\mathrm{int}}$ and $\vb{b}^{\mathrm{ext}}$. 
+In the original bond-based formulation (BB), the internal force density is calculated by
+\begin{equation}
+    \vb{b}^{\mathrm{int}}(\vb{X},t) = \int_\mathcal{H} \vb{f} \; \mathrm{d}V' \; ,
+\end{equation}
+with the \emph{pairwise force function} $\vb{f}$, which is evaluated for each material point $\vb{X}^i$ and depends on the deformation of the bonds to each point in its neighborhood $\mathcal{H}$.
+These point families contain each point within a distance $\delta$, also called horizon.
+
+To overcome the restrictions of the BB formulation with only one determinable material parameter, the state-based formulation was established.
+Here not only the bonds to neighboring material points, but also the states of neighboring points influence the internal force density $\vb{b}^{\mathrm{int}}$ of each material point.
+The equation reads
+\begin{equation}
+    \vb{b}^{\mathrm{int}} (\vb{X},t) = \int_\mathcal{H} \vb{t} - \vb{t}' \; \mathrm{d}V' \; ,
+\end{equation}
+with the force vector states $\vb{t}=\vb{t}(\vb{\Delta X}, t)$ and $\vb{t}'=\vb{t}(-\vb{\Delta X}, t)$.
+
+The \texttt{Peridynamics.jl} package enables users to perform peridynamic simulations 
 
 \cite{bezanson2017julia}
 
