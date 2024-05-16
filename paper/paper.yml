@@ -7,14 +7,16 @@ keywords:
   - Simulation Framework
 authors:
   - name: Kai Partmann
-    orcid: 0000-0003-1361-440X
+    orcid: 0000-0002-5238-4355
     affiliation: 1
   - name: Manuel Dienst
+    orcid: 0009-0004-9195-0112
     affiliation: 1
   - name: Kerstin Weinberg
+    orcid: 0000-0002-2213-8401
     affiliation: 1
 affiliations:
   - name: Chair of Solid Mechanics, University of Siegen, Siegen, Germany
     index: 1
-date: 24 April 2019
+date: 17 May 2024
 bibliography: ref.bib
