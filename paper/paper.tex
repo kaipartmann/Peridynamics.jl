@@ -18,7 +18,8 @@
 % from the JOSS docs:
 % The paper should include a summary describing the high-level functionality and purpose of the software for a diverse, non-specialist audience.
 
-\texttt{Peridynamics.jl} is an open source implementation of the nonlocal continuum mechanics formulation by Silling (ref?).
+%--- What is Peridynamics? ---%
+\texttt{Peridynamics.jl} is an open source Julia \cite{bezanson2017julia} implementation of the nonlocal continuum mechanics formulation by Silling (ref?).
 In peridynamics, a body is described by material points and, based on interactions between them, internal force densities are calculated. 
 The equation of motion reads
 \begin{equation}
@@ -40,20 +41,37 @@ The equation reads
 \end{equation}
 with the force vector states $\vb{t}=\vb{t}(\vb{\Delta X}, t)$ and $\vb{t}'=\vb{t}(-\vb{\Delta X}, t)$.
 
-The \texttt{Peridynamics.jl} package enables users to perform peridynamic simulations 
+%--- What is the high-level functionality of Peridynamics.jl? ---%
+The \texttt{Peridynamics.jl} package enables users to perform peridynamic simulations.
 
-\cite{bezanson2017julia}
+\begin{figure}
+\centerline{\includegraphics[width=0.8\linewidth]{logo.png}}
+\caption{High-velocity contact simulation of three spheres crashing into a rectangular panel; logo of Peridynamics.jl}
+\label{fig:logo}
+\end{figure}
+
+\begin{figure}
+\centerline{\includegraphics[width=0.8\linewidth]{tensile_test.png}}
+\caption{Fracture simulation of tensile tension test with a crack propagating in the middle of the specimen}
+\label{fig:tensiletest}
+\end{figure}
 
 \section{Statement of need}
 % from the JOSS docs:
 % The paper should include a Statement of need section that clearly illustrates the research purpose of the software and places it in the context of related work.
 
+%--- Place the package in the context of related work
+The package was already used in numerous publications, e.g. \cite{Friebertshaeuser2022PAMM,Friebertshaeuser2022AIMS,Partmann2023IJF,Partmann2024AAM,Partmann2024PAMM,Tornquist2022PAMM}.
+
+%--- What is the research purpose of Peridynamics.jl?
+
+
 \section{Acknowledgments}
 The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) in the project \mbox{WE~2525/15-1}.
 
-The authors gratefully acknowledge the support and the supercomputing resources of the Paderborn Center for Parallel Computing (https://pc2.uni-paderborn.de) and the University of Siegen (https://cluster.uni-siegen.de) used to conduct the research reported in this paper.
+The authors gratefully acknowledge the support and the supercomputing resources of the Paderborn Center for Parallel Computing (https://pc2.uni-paderborn.de).
 
-%\vadjust{\vfill\pagebreak}
+% \vadjust{\vfill\pagebreak}
 
 \input{bib.tex}
 
