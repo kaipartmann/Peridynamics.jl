@@ -26,3 +26,15 @@ Manifest.toml
 ._*
 .Spotlight-V100
 .Trashes
+
+# LaTeX paper
+paper/paper.pdf
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.bcf
+*.run.xml
