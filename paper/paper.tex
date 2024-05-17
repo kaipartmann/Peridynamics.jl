@@ -28,7 +28,7 @@
 %- General peridynamics context
 Peridynamics is a nonlocal continuum mechanics formulation, which was invented by Silling \cite{Silling2000}.
 It has gained increased popularity as an approach for modeling fracture.
-The material behavior is described by integro-differential equations that are also fulfilled for discontinuities, making it very capable of modeling crack propagation and fragmentation with large displacements.
+The deformation of the solid is described by integro-differential equations that are also fulfilled for discontinuities, making it very capable of modeling crack propagation and fragmentation with large displacements.
 Much peridynamics research has been done in recent years, summarized in various review papers and books \cite{Diehl2019,Javili2019Review,Madenci2014}.
 
 %- Peridynamics short introduction
@@ -43,30 +43,26 @@ The equation of motion reads
 \varrho \, \vb{\ddot{u}}(\vb{X},t) = \vb{b}^{\mathrm{int}}(\vb{X},t) + \vb{b}^{\mathrm{ext}}(\vb{X},t) \; ,
 \end{equation} 
 with the mass density $\varrho$, the point acceleration vector $\vb{\ddot{u}}$, and the point force density vectors $\vb{b}^{\mathrm{int}}$ and $\vb{b}^{\mathrm{ext}}$.
-Various formulations of peridynamics exist for the calculation of the internal force density $\vb{b}^{\mathrm{int}}$, and all of them are based on the nonlocal interactions between material points.
+Various material formulations of peridynamics exist for the calculation of the internal force density $\vb{b}^{\mathrm{int}}$, and all of them are based on the nonlocal interactions between material points.
 
 %- Some information on peridynamic material models
-In the first original bond-based formulation (BB) of peridynamics, the internal force density is calculated by
-\begin{equation}
-\vb{b}^{\mathrm{int}}(\vb{X},t) = \int_\mathcal{H} \vb{f}(\vb{\Delta X}, t) \; \mathrm{d}V' \; ,
-\end{equation}
-with the \emph{pairwise force function} $\vb{f}$.
-The BB model has intrinsic limitations due to a restriction on the Poisson's ratio \cite{Silling2007,Trageser2020}.
-To overcome these restrictions, state-based peridynamics was established.
-In state-based Peridynamics, the deformation states of neighboring points also influence the internal force density \cite{Silling2007}.
 The general internal force density for state-based peridynamics is defined as
 \begin{equation}
 \vb{b}^{\mathrm{int}} (\vb{X},t) = \int_\mathcal{H} \vb{t} - \vb{t}' \; \mathrm{d}V' \; ,
 \end{equation}
-with the force vector states $\vb{t}=\vb{t}(\vb{\Delta X}, t)$ and $\vb{t}'=\vb{t}(-\vb{\Delta X}, t)$.
-State-based peridynamics can be divided in two subcategories.
-In ordinary state-based peridynamics, the force vector state $\vb{t}$ is always parallel to the deformed bond.
-Non-ordinary state-based formulations do not have this restriction.
-Within the local continuum consistent correspondence formulation of non-ordinary state-based peridynamics, an elastic model from the classical material theory can be used to calculate the internal force density.
-Other formulations of peridynamics exist, such as continuum-kinematics-inspired peridynamics \cite{Javili2019}.
+with the \emph{force vector states} $\vb{t}=\vb{t}(\vb{\Delta X}, t)$ and $\vb{t}'=\vb{t}(-\vb{\Delta X}, t)$.
+In the first original bond-based formulation of peridynamics, the force vector states $\vb{t}$ and  $\vb{t}'$ have the same value and opposite direction.
+This implies intrinsic limitation to only one material parameter and in consequence to restrictions on the Poisson's ratio \cite{Silling2007,Trageser2020}.
+To overcome these restrictions, a state-based peridynamics was established.
+In the ordinary state-based peridynamics, the deformation states of neighboring points also influence the internal force density \cite{Silling2007}.
+This leads to force vector states which are still collinear but not of same value anymore.
+
+Further developments are summarized as non-ordinary state-based peridynamics.
+A recent development in this regard is continuum-kinematics-inspired peridynamics \cite{Javili2019}.
+Another peridynamic formulation is the local continuum consistent correspondence formulation of non-ordinary state-based peridynamics, where an elastic model from the classical local material theory can be used to calculate the internal force density.
 
 \begin{figure}
-\centerline{\includegraphics[width=0.9\linewidth]{tensile_test.png}}
+\centerline{\includegraphics[width=0.8\linewidth]{tensile_test.png}}
 \caption{Fracture simulation of tensile tension test with a crack propagating in the middle of the specimen}
 \label{fig:tensiletest}
 \end{figure}
@@ -88,18 +84,24 @@ Therefore, researchers can use the package to develop new peridynamic material m
 % from the JOSS docs:
 % The paper should include a Statement of need section that clearly illustrates the research purpose of the software and places it in the context of related work.
 
-%=== What is the research purpose of Peridynamics.jl? ===%
-
-
 %=== Place the package in the context of related work ===%
-The package was already used in numerous publications \cite{Friebertshaeuser2022PAMM,Friebertshaeuser2022AIMS,Partmann2023IJF,Partmann2024AAM,Partmann2024PAMM,Tornquist2022PAMM}.
+Various peridynamics software projects exist, including \texttt{PeriPy} \cite{PeriPy2021}, \texttt{NLMech} \cite{Jha2021}, \texttt{Peridigm} \cite{Peridigm2024}, and \texttt{PeriHub} \cite{Willberg2023}.
+\texttt{Peridigm} stands out as a mature package capable of large-scale peridynamics simulations that also 
+includes several material models and features.
+However, the installation process and integrating custom models is notably complex.
 
+The initial intention in developing the package was to simplify the process of implementing new material models within the Julia ecosystem.
+In contrast to \texttt{Peridigm}, installing and extending \texttt{Peridynamics.jl} is straightforward, as it benefits from the Julia ecosystem.
+\texttt{Peridynamics.jl} was already used in numerous publications \cite{Friebertshaeuser2022PAMM,Friebertshaeuser2022AIMS,Partmann2023IJF,Partmann2024AAM,Partmann2024PAMM,Tornquist2022PAMM}, which shows the practical usability of the package.
 
 \section{Perspectives}
-
+In version \texttt{0.2.0}, a multithreading approach is employed.
+An extension to a hybrid approach utilizing MPI and multithreading is currently underway and is planned for version \texttt{0.3.0}.
+The internals have been thoroughly reworked to incorporate a parallel data structure, resulting in significantly faster simulations that surpass the performance of \texttt{Peridigm}.
+The planned changes include new material models and a simplified API with streamlined internal structures.
 
 \section{Acknowledgments}
-The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) in the project \mbox{WE~2525/15-1}.
+The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) in the project \mbox{WE~2525/15-1} and \mbox{WE~2525/15-2}.
 
 The authors gratefully acknowledge the support and the supercomputing resources of the Paderborn Center for Parallel Computing (https://pc2.uni-paderborn.de).
 
