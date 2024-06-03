@@ -19,6 +19,7 @@ Manifest.toml
 
 # local debugging
 /scripts/
+/paper/
 
 # OS generated files
 *.DS_Store
