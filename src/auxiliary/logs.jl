@@ -91,28 +91,48 @@ function _get_git_info()
     return git_info
 end
 
-function peridynamics_banner_color()
-    msg =  "          _____         \u001b[31m_\u001b[0m     _                            "
-    msg *= " \u001b[32m_\u001b[0m\n         | ___ \\       \u001b[31m(_)\u001b[0m   | |"
-    msg *= "                           \u001b[32m(_)\u001b[0m\n         | |_/ /__ _ __ _ "
-    msg *= " __| |_   _ _ __   __ _ _ __ ___  _  ___ ___\n         |  __/ _ \\ '__| |/ _`"
-    msg *= " | | | | '_ \\ / _` | '_ ` _ \\| |/ __/ __|\n         | | |  __/ |  | | (_| |"
-    msg *= " |_| | | | | (_| | | | | | | | (__\\__ \\\n         \\_|  \\___|_|  |_|\\__"
-    msg *= ",_|\\__, |_| |_|\\__,_|_| |_| |_|_|\\___|___/\n                              "
-    msg *= "   __/ |\n                                |___/   "
+function peridynamics_banner_color(; indentation::Int=8)
+    indent = indentation > 0 ? " "^indentation : ""
+    msg = indent
+    msg *= " _____         \u001b[31m_\u001b[0m     _                             "
+    msg *= "\u001b[32m_\u001b[0m\n"
+    msg *= indent
+    msg *= "| ___ \\       \u001b[31m(_)\u001b[0m   | |"
+    msg *= "                           \u001b[32m(_)\u001b[0m\n"
+    msg *= indent
+    msg *= "| |_/ /__ _ __ _  __| |_   _ _ __   __ _ _ __ ___  _  ___ ___\n"
+    msg *= indent
+    msg *= "|  __/ _ \\ '__| |/ _` | | | | '_ \\ / _` | '_ ` _ \\| |/ __/ __|\n"
+    msg *= indent
+    msg *= "| | |  __/ |  | | (_| | |_| | | | | (_| | | | | | | | (__\\__ \\\n"
+    msg *= indent
+    msg *= "\\_|  \\___|_|  |_|\\__,_|\\__, |_| |_|\\__,_|_| |_| |_|_|\\___|___/\n"
+    msg *= indent
+    msg *= "                        __/ |\n"
+    msg *= indent
+    msg *= "                       |___/   "
     msg *= "Copyright (c) $(Dates.format(Dates.now(), "yyyy")) Kai Partmann\n\n"
     return msg
 end
 
-function peridynamics_banner()
-    msg =  "          _____         _     _                            "
-    msg *= " _\n         | ___ \\       (_)   | |"
-    msg *= "                           (_)\n         | |_/ /__ _ __ _ "
-    msg *= " __| |_   _ _ __   __ _ _ __ ___  _  ___ ___\n         |  __/ _ \\ '__| |/ _`"
-    msg *= " | | | | '_ \\ / _` | '_ ` _ \\| |/ __/ __|\n         | | |  __/ |  | | (_| |"
-    msg *= " |_| | | | | (_| | | | | | | | (__\\__ \\\n         \\_|  \\___|_|  |_|\\__"
-    msg *= ",_|\\__, |_| |_|\\__,_|_| |_| |_|_|\\___|___/\n                              "
-    msg *= "   __/ |\n                                |___/   "
+function peridynamics_banner(; indentation::Int=8)
+    indent = indentation > 0 ? " "^indentation : ""
+    msg = indent
+    msg *= " _____         _     _                             _\n"
+    msg *= indent
+    msg *= "| ___ \\       (_)   | |                           (_)\n"
+    msg *= indent
+    msg *= "| |_/ /__ _ __ _  __| |_   _ _ __   __ _ _ __ ___  _  ___ ___\n"
+    msg *= indent
+    msg *= "|  __/ _ \\ '__| |/ _` | | | | '_ \\ / _` | '_ ` _ \\| |/ __/ __|\n"
+    msg *= indent
+    msg *= "| | |  __/ |  | | (_| | |_| | | | | (_| | | | | | | | (__\\__ \\\n"
+    msg *= indent
+    msg *= "\\_|  \\___|_|  |_|\\__,_|\\__, |_| |_|\\__,_|_| |_| |_|_|\\___|___/\n"
+    msg *= indent
+    msg *= "                        __/ |\n"
+    msg *= indent
+    msg *= "                       |___/   "
     msg *= "Copyright (c) $(Dates.format(Dates.now(), "yyyy")) Kai Partmann\n\n"
     return msg
 end
@@ -140,14 +160,31 @@ function log_it(options::AbstractOptions, msg::AbstractString)
     return nothing
 end
 
-function log_qty(descr::AbstractString, qty::Integer)
-    return @sprintf("  %-44s %35d\n", descr, qty)
+function log_qty(descr::AbstractString, qty::AbstractString; linewidth::Int=82,
+                 indentation::Int=2, filler::Char='.')
+    len_filling = linewidth - indentation - length(descr) - length(qty)
+    if len_filling > 1
+        n_fillers = len_filling - 2
+        filling = " " * filler^n_fillers * " "
+    else
+        filling = " "
+    end
+    msg = " "^indentation * descr * filling * qty * "\n"
+    return msg
 end
 
-function log_qty(descr::AbstractString, qty::Real)
-    return @sprintf("  %-44s %35g\n", descr, qty)
+function log_qty(descr::AbstractString, qty::Real; kwargs...)
+    return log_qty(descr, @sprintf("%.7g", qty); kwargs...)
 end
 
-function log_qty(descr::AbstractString, qty::Any)
-    return @sprintf("  %-44s %35s\n", descr, string(qty))
+function log_qty(descr::AbstractString, qty::Any; kwargs...)
+    return log_qty(descr, string(qty); kwargs...)
 end
+
+# function log_qty(descr::AbstractString, qty::Real; linewidth::Int=82, indentation::Int=2)
+#     return @sprintf("  %-44s %35g\n", descr, qty)
+# end
+
+# function log_qty(descr::AbstractString, qty::Any; linewidth::Int=82)
+#     return @sprintf("  %-44s %35s\n", descr, string(qty))
+# end
