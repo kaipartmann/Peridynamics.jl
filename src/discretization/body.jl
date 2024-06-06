@@ -133,13 +133,13 @@ end
 
 function log_spatial_setup(options::AbstractOptions, body::AbstractBody)
     msg = "BODY\n"
-    msg *= log_msg("number of points", body.n_points)
-    msg *= log_msg("number of point sets", length(keys(body.point_sets)))
-    msg *= log_msg("number of parameters", length(body.point_params))
+    msg *= log_qty("number of points", body.n_points)
+    msg *= log_qty("number of point sets", length(keys(body.point_sets)))
+    msg *= log_qty("number of parameters", length(body.point_params))
     n_bcs = length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
-    n_bcs > 0 && (msg *= log_msg("number of BC's", n_bcs))
+    n_bcs > 0 && (msg *= log_qty("number of BC's", n_bcs))
     n_ics = length(body.single_dim_ics)
-    n_ics > 0 && (msg *= log_msg("number of IC's", length(body.single_dim_ics)))
+    n_ics > 0 && (msg *= log_qty("number of IC's", length(body.single_dim_ics)))
     log_it(options, msg)
     return nothing
 end

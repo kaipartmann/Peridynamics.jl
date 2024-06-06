@@ -140,14 +140,14 @@ function log_it(options::AbstractOptions, msg::AbstractString)
     return nothing
 end
 
-function log_msg(descr::AbstractString, qty::Integer)
+function log_qty(descr::AbstractString, qty::Integer)
     return @sprintf("  %-44s %35d\n", descr, qty)
 end
 
-function log_msg(descr::AbstractString, qty::Real)
+function log_qty(descr::AbstractString, qty::Real)
     return @sprintf("  %-44s %35g\n", descr, qty)
 end
 
-function log_msg(descr::AbstractString, qty::Any)
+function log_qty(descr::AbstractString, qty::Any)
     return @sprintf("  %-44s %35s\n", descr, string(qty))
 end
