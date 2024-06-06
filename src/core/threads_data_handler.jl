@@ -188,3 +188,14 @@ end
 function initialize!(::AbstractThreadsDataHandler, ::AbstractTimeSolver)
     return nothing
 end
+
+function log_data_handler(options::AbstractOptions,
+                          dh::AbstractThreadsDataHandler{Sys,M,P,S}) where {Sys,M,P,S}
+    msg = "THREADS DATA HANDLER\n"
+    msg *= log_msg("system type", Sys)
+    msg *= log_msg("material type", M)
+    # msg *= log_msg("parameter type", P)
+    # msg *= log_msg("storage type", S)
+    log_it(options, msg)
+    return nothing
+end

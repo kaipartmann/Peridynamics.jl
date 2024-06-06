@@ -199,8 +199,8 @@ function solve!(dh::AbstractThreadsDataHandler, vv::VelocityVerlet,
     export_reference_results(dh, options)
     Δt = vv.Δt
     Δt½ = 0.5 * vv.Δt
-    p = Progress(vv.n_steps; dt=1, desc="solve...", color=:normal, barlen=20,
-                 enabled=progress_enabled())
+    p = Progress(vv.n_steps; dt=1, desc="TIME INTEGRATION LOOP", color=:normal, barlen=40,
+                 enabled=progress_bars())
     for n in 1:vv.n_steps
         solve_timestep!(dh, options, Δt, Δt½, n)
         next!(p)
@@ -237,7 +237,8 @@ function solve!(dh::AbstractMPIDataHandler, vv::VelocityVerlet, options::Abstrac
     Δt = vv.Δt
     Δt½ = 0.5 * vv.Δt
     if mpi_isroot()
-        p = Progress(vv.n_steps; dt=1, desc="solve...", color=:normal, barlen=20)
+        p = Progress(vv.n_steps; dt=1, desc="TIME INTEGRATION LOOP", color=:normal,
+                     barlen=35, enabled=progress_bars())
     end
     for n in 1:vv.n_steps
         solve_timestep!(dh, options, Δt, Δt½, n)
@@ -265,10 +266,20 @@ end
 
 function req_point_data_fields_timesolver(::Type{VelocityVerlet})
     fields = (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
-             :b_ext)
+              :b_ext)
     return fields
 end
 
 function req_data_fields_timesolver(::Type{VelocityVerlet})
     return ()
+end
+
+function log_timesolver(options::AbstractOptions, vv::VelocityVerlet)
+    msg = "VELOCITY VERLET TIME SOLVER\n"
+    msg *= log_msg("number of time steps", vv.n_steps)
+    msg *= log_msg("time step size", vv.Δt)
+    msg *= log_msg("time step safety factor", vv.safety_factor)
+    msg *= log_msg("simulation time", vv.end_time)
+    log_it(options, msg)
+    return nothing
 end
