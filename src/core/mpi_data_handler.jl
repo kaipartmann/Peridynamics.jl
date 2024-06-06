@@ -372,12 +372,13 @@ end
 
 
 function log_data_handler(options::AbstractOptions,
-                          dh::AbstractMPIDataHandler{Sys,M,P,S}) where {Sys,M,P,S}
-    msg = "MPI DATA HANDLER\n"
-    msg *= log_qty("system type", Sys)
-    msg *= log_qty("material type", M)
-    msg *= log_qty("parameter type", P)
-    msg *= log_qty("storage type", S)
+                          dh::AbstractMPIDataHandler{Sys}) where {Sys<:BondSystem}
+    msg = "BOND SYSTEM\n"
+
+    n_bonds = MPI.Reduce(length(dh.chunk.system.bonds), MPI.SUM, mpi_comm())
+    if mpi_isroot()
+        msg *= log_qty("number of bonds", n_bonds)
+    end
     log_it(options, msg)
     return nothing
 end

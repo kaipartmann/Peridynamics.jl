@@ -238,7 +238,7 @@ function solve!(dh::AbstractMPIDataHandler, vv::VelocityVerlet, options::Abstrac
     Δt½ = 0.5 * vv.Δt
     if mpi_isroot()
         p = Progress(vv.n_steps; dt=1, desc="TIME INTEGRATION LOOP", color=:normal,
-                     barlen=35, enabled=progress_bars())
+                     barlen=40, enabled=progress_bars())
     end
     for n in 1:vv.n_steps
         solve_timestep!(dh, options, Δt, Δt½, n)

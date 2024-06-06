@@ -91,7 +91,7 @@ function _get_git_info()
     return git_info
 end
 
-function peridynamics_banner_color(; indentation::Int=8)
+function peridynamics_banner_color(; indentation::Int=10)
     indent = indentation > 0 ? " "^indentation : ""
     msg = indent
     msg *= " _____         \u001b[31m_\u001b[0m     _                             "
@@ -115,7 +115,7 @@ function peridynamics_banner_color(; indentation::Int=8)
     return msg
 end
 
-function peridynamics_banner(; indentation::Int=8)
+function peridynamics_banner(; indentation::Int=10)
     indent = indentation > 0 ? " "^indentation : ""
     msg = indent
     msg *= " _____         _     _                             _\n"
@@ -181,10 +181,18 @@ function log_qty(descr::AbstractString, qty::Any; kwargs...)
     return log_qty(descr, string(qty); kwargs...)
 end
 
-# function log_qty(descr::AbstractString, qty::Real; linewidth::Int=82, indentation::Int=2)
-#     return @sprintf("  %-44s %35g\n", descr, qty)
-# end
+function log_create_data_handler_start()
+    mpi_isroot() || return nothing
+    quiet() && return nothing
+    progress_bars() || return nothing
+    print("DATA HANDLER CREATION ... ⏳")
+    return nothing
+end
 
-# function log_qty(descr::AbstractString, qty::Any; linewidth::Int=82)
-#     return @sprintf("  %-44s %35s\n", descr, string(qty))
-# end
+function log_create_data_handler_end()
+    mpi_isroot() || return nothing
+    quiet() && return nothing
+    progress_bars() || return nothing
+    println("\rDATA HANDLER CREATION COMPLETED ✓")
+    return nothing
+end
