@@ -1,8 +1,7 @@
 module Peridynamics
 
-using Base.Threads, Printf, LinearAlgebra, StaticArrays, NearestNeighbors, ProgressMeter,
+using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, ProgressMeter,
       WriteVTK, TimerOutputs, MPI, PrecompileTools
-import PointNeighbors
 @static if Sys.islinux()
     using ThreadPinning
 end

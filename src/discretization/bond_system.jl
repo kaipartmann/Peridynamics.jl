@@ -46,24 +46,25 @@ function check_bond_system_compat(::AbstractBondSystemMaterial)
 end
 
 function find_bonds(body::AbstractBody, loc_points::UnitRange{Int})
-    δmax = maximum_horizon(body) #TODO: each point can have a different horizon!
-    nhs = PointNeighbors.GridNeighborhoodSearch{3}(δmax, body.n_points;
-                                                   threaded_nhs_update=false)
+    δmax = maximum_horizon(body)
+    nhs = GridNeighborhoodSearch{3}(δmax, body.n_points; threaded_nhs_update=false)
     PointNeighbors.initialize!(nhs, body.position, body.position)
     bonds = Vector{Bond}()
     sizehint!(bonds, body.n_points * 300)
     n_neighbors = zeros(Int, length(loc_points))
     for (li, i) in enumerate(loc_points)
-        n_neighbors[li] = find_bonds!(bonds, nhs, body.position, body.fail_permit, i)
+        n_neighbors[li] = find_bonds!(bonds, nhs, body.position, body.fail_permit,
+                                      get_point_param(body, :δ, i), i)
     end
     filter_bonds!(bonds, n_neighbors, loc_points, body)
     return bonds, n_neighbors
 end
 
 function find_bonds!(bonds::Vector{Bond}, nhs::PointNeighbors.GridNeighborhoodSearch,
-                     position::Matrix{Float64}, fail_permit::Vector{Bool}, i::Int)
+                     position::Matrix{Float64}, fail_permit::Vector{Bool}, δ::Float64,
+                     i::Int)
     n_bonds_pre = length(bonds)
-    PointNeighbors.for_particle_neighbor_inner(position, position, nhs, i) do i, j, _, L
+    foreach_neighbor(position, position, nhs, i; search_radius=δ) do i, j, _, L
         if i != j
             push!(bonds, Bond(j, L, fail_permit[i] & fail_permit[j]))
         end
