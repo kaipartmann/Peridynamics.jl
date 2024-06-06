@@ -71,16 +71,23 @@ function calc_mfactor!(chunk::AbstractBodyChunk{BondSystem{EnergySurfaceCorrecti
     system = chunk.system
     mfactor = system.correction.mfactor
     stendens = zeros(3, length(chunk.ch.point_ids))
+    a = 1.001
     for d in 1:3
         defposition = copy(system.position)
-        defposition[d,:] .*= 1.001
+        defposition[d,:] .*= a
         @views calc_stendens!(stendens[d,:], defposition, chunk)
         for i in each_point_idx(chunk)
             params = get_params(chunk, i)
-            mfactor[d,i] = 0.6 * 1e-6 * params.E / stendens[d,i]
+            mfactor[d,i] = analytical_stendens(params) / stendens[d,i]
         end
     end
     return nothing
+end
+
+@inline function analytical_stendens(params::AbstractPointParameters)
+    E, nu, a = params.E, params.nu, 1.001
+    U = E / (2 + (1 + nu)) * (nu / (1 - 2nu) * a^2 + a^2)
+    return U
 end
 
 function calc_stendens!(stendens, defposition, chunk)
