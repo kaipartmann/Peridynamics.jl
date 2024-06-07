@@ -91,40 +91,20 @@ function _get_git_info()
     return git_info
 end
 
-function peridynamics_banner_color(; indentation::Int=10)
+function peridynamics_banner(; color::Bool=true, indentation::Int=10)
     indent = indentation > 0 ? " "^indentation : ""
-    c = Base.text_colors
-    tx, d1, d2, d3, d4 = c[:normal], c[:blue], c[:red], c[:green], c[:magenta]
+    if color
+        c = Base.text_colors
+        tx, d1, d2, d3, d4 = c[:normal], c[:blue], c[:red], c[:green], c[:magenta]
+    else
+        tx, d1, d2, d3, d4 = "", "", "", "", ""
+    end
     msg = indent
     msg *= "                                                     $(d3)_$(tx)\n"
     msg *= indent
     msg *= " _____         $(d1)_$(tx)     _" * " "^29 * "$(d2)_$(d3)(_)$(d4)_$(tx)\n"
     msg *= indent
     msg *= "| ___ \\       $(d1)(_)$(tx)   | |" * " "^27 * "$(d2)(_) $(d4)(_)$(tx)\n"
-    msg *= indent
-    msg *= "| |_/ /__ _ __ _  __| |_   _ _ __   __ _ _ __ ___  _  ___ ___\n"
-    msg *= indent
-    msg *= "|  __/ _ \\ '__| |/ _` | | | | '_ \\ / _` | '_ ` _ \\| |/ __/ __|\n"
-    msg *= indent
-    msg *= "| | |  __/ |  | | (_| | |_| | | | | (_| | | | | | | | (__\\__ \\\n"
-    msg *= indent
-    msg *= "\\_|  \\___|_|  |_|\\__,_|\\__, |_| |_|\\__,_|_| |_| |_|_|\\___|___/\n"
-    msg *= indent
-    msg *= "                        __/ |\n"
-    msg *= indent
-    msg *= "                       |___/   "
-    msg *= "Copyright (c) $(Dates.format(Dates.now(), "yyyy")) Kai Partmann\n\n"
-    return msg
-end
-
-function peridynamics_banner(; indentation::Int=10)
-    indent = indentation > 0 ? " "^indentation : ""
-    msg = indent
-    msg *= "                                                     _\n"
-    msg *= indent
-    msg *= " _____         _     _                             _(_)_\n"
-    msg *= indent
-    msg *= "| ___ \\       (_)   | |                           (_) (_)\n"
     msg *= indent
     msg *= "| |_/ /__ _ __ _  __| |_   _ _ __   __ _ _ __ ___  _  ___ ___\n"
     msg *= indent
