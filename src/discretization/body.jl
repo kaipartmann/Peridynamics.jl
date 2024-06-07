@@ -130,3 +130,19 @@ end
 end
 
 @inline storage_type(b::AbstractBody, ts::AbstractTimeSolver) = storage_type(b.mat, ts)
+
+function maximum_horizon(b::AbstractBody)
+    n_params = length(b.point_params)
+    n_params == 1 && return get_horizon(first(b.point_params))
+    n_params == 0 && error("body has no material parameters!\n")
+    δmax = 0.0
+    for point_id in eachindex(b.volume)
+        δ::Float64 = get_horizon(b.point_params[b.params_map[point_id]])
+        if δ > δmax
+            δmax = δ
+        end
+    end
+    return δmax
+end
+
+@inline get_horizon(param::AbstractPointParameters) = getfield(param, :δ)
