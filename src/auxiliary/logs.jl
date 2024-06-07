@@ -23,7 +23,7 @@ end
 
 function init_logs(options::AbstractOptions)
     mpi_isroot() || return nothing
-    print_log(peridynamics_banner_color())
+    print_log(peridynamics_banner())
     print_log(get_run_info())
     set_progress_bars!()
     options.exportflag || return nothing
@@ -35,7 +35,7 @@ end
 function init_logfile(options::AbstractOptions)
     open(options.logfile, "w+") do io
         write(io, get_logfile_head())
-        write(io, peridynamics_banner())
+        write(io, peridynamics_banner(color=false))
         write(io, get_run_info())
     end
     return nothing
