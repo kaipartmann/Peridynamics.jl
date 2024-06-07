@@ -93,12 +93,14 @@ end
 
 function peridynamics_banner_color(; indentation::Int=10)
     indent = indentation > 0 ? " "^indentation : ""
+    c = Base.text_colors
+    tx, d1, d2, d3, d4 = c[:normal], c[:blue], c[:red], c[:green], c[:magenta]
     msg = indent
-    msg *= " _____         \u001b[31m_\u001b[0m     _                             "
-    msg *= "\u001b[32m_\u001b[0m\n"
+    msg *= "                                                     $(d3)_$(tx)\n"
     msg *= indent
-    msg *= "| ___ \\       \u001b[31m(_)\u001b[0m   | |"
-    msg *= "                           \u001b[32m(_)\u001b[0m\n"
+    msg *= " _____         $(d1)_$(tx)     _" * " "^29 * "$(d2)_$(d3)(_)$(d4)_$(tx)\n"
+    msg *= indent
+    msg *= "| ___ \\       $(d1)(_)$(tx)   | |" * " "^27 * "$(d2)(_) $(d4)(_)$(tx)\n"
     msg *= indent
     msg *= "| |_/ /__ _ __ _  __| |_   _ _ __   __ _ _ __ ___  _  ___ ___\n"
     msg *= indent
@@ -118,9 +120,11 @@ end
 function peridynamics_banner(; indentation::Int=10)
     indent = indentation > 0 ? " "^indentation : ""
     msg = indent
-    msg *= " _____         _     _                             _\n"
+    msg *= "                                                     _\n"
     msg *= indent
-    msg *= "| ___ \\       (_)   | |                           (_)\n"
+    msg *= " _____         _     _                             _(_)_\n"
+    msg *= indent
+    msg *= "| ___ \\       (_)   | |                           (_) (_)\n"
     msg *= indent
     msg *= "| |_/ /__ _ __ _  __| |_   _ _ __   __ _ _ __ ___  _  ___ ___\n"
     msg *= indent
