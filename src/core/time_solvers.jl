@@ -35,3 +35,7 @@ function req_storage_fields_timesolver(::Type{S}, ::Type{TS}) where {S,TS}
     end
     return nothing
 end
+
+function log_timesolver(::AbstractOptions, ::AbstractTimeSolver)
+    return nothing
+end

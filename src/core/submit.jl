@@ -57,10 +57,15 @@ function submit_mpi(job::Job)
     timeit_debug_enabled() && reset_timer!(TO)
     @timeit_debug TO "initialization" begin
         init_logs(job.options)
+        log_spatial_setup(job.options, job.spatial_setup)
         point_decomp = PointDecomposition(job.spatial_setup, mpi_nranks())
+        log_create_data_handler_start()
         mdh = MPIDataHandler(job.spatial_setup, job.time_solver, point_decomp)
         init_time_solver!(job.time_solver, mdh)
         initialize!(mdh, job.time_solver)
+        log_create_data_handler_end()
+        log_data_handler(job.options, mdh)
+        log_timesolver(job.options, job.time_solver)
     end
     @timeit_debug TO "solve!" begin
         solve!(mdh, job.time_solver, job.options)
@@ -74,10 +79,15 @@ end
 
 function submit_threads(job::Job, n_chunks::Int)
     init_logs(job.options)
+    log_spatial_setup(job.options, job.spatial_setup)
     point_decomp = PointDecomposition(job.spatial_setup, n_chunks)
+    log_create_data_handler_start()
     tdh = ThreadsDataHandler(job.spatial_setup, job.time_solver, point_decomp)
     init_time_solver!(job.time_solver, tdh)
     initialize!(tdh, job.time_solver)
+    log_create_data_handler_end()
+    log_data_handler(job.options, tdh)
+    log_timesolver(job.options, job.time_solver)
     solve!(tdh, job.time_solver, job.options)
     return tdh
 end
