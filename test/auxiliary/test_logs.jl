@@ -45,3 +45,40 @@ end
     Peridynamics.set_progress_bars!()
     @test Peridynamics.progress_bars() == false
 end
+
+@testitem "log_qty" begin
+    msg = Peridynamics.log_qty("test1", "test2"; linewidth=1)
+    @test msg == "  test1 test2\n"
+    msg = Peridynamics.log_qty("   test1   ", "   test2   "; linewidth=1)
+    @test msg == "  test1 test2\n"
+    msg = Peridynamics.log_qty("test1", "test2"; linewidth=1, indentation=0)
+    @test msg == "test1 test2\n"
+    msg = Peridynamics.log_qty("test1", "test2"; linewidth=1, indentation=5)
+    @test msg == "     test1 test2\n"
+    msg = Peridynamics.log_qty("test1", "test2"; linewidth=16, filler='a')
+    @test msg == "  test1 aa test2\n"
+    msg = Peridynamics.log_qty("test1", "test2"; linewidth=16)
+    @test msg == "  test1 .. test2\n"
+    msg = Peridynamics.log_qty("test", 1; linewidth=10)
+    @test msg == "  test . 1\n"
+    msg = Peridynamics.log_qty("   test  ", 1; linewidth=10)
+    @test msg == "  test . 1\n"
+    msg = Peridynamics.log_qty("test", 1; linewidth=9)
+    @test msg == "  test  1\n"
+    msg = Peridynamics.log_qty("test", 1; linewidth=8)
+    @test msg == "  test 1\n"
+    msg = Peridynamics.log_qty("test", 1; linewidth=1)
+    @test msg == "  test 1\n"
+    msg = Peridynamics.log_qty("test", 123456789101112; linewidth=23)
+    @test msg == "  test ... 1.234568e+14\n"
+    msg = Peridynamics.log_qty("test", 123456789101112; linewidth=19)
+    @test msg == "  test 1.234568e+14\n"
+    msg = Peridynamics.log_qty("test", 123456789101112; linewidth=1)
+    @test msg == "  test 1.234568e+14\n"
+    msg = Peridynamics.log_qty("test", 1.123456789101112; linewidth=20)
+    @test msg == "  test .... 1.123457\n"
+    msg = Peridynamics.log_qty("test", 1.123456789101112; linewidth=15)
+    @test msg == "  test 1.123457\n"
+    msg = Peridynamics.log_qty("test", 1.123456789101112; linewidth=1)
+    @test msg == "  test 1.123457\n"
+end

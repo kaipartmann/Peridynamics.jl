@@ -162,8 +162,9 @@ function log_it(options::AbstractOptions, msg::AbstractString)
     return nothing
 end
 
-function log_qty(descr::AbstractString, qty::AbstractString; linewidth::Int=82,
+function log_qty(descr_raw::AbstractString, qty_raw::AbstractString; linewidth::Int=82,
                  indentation::Int=2, filler::Char='.')
+    descr, qty = strip(descr_raw), strip(qty_raw)
     len_filling = linewidth - indentation - length(descr) - length(qty)
     if len_filling > 1
         n_fillers = len_filling - 2
