@@ -60,36 +60,39 @@
     @test ch.localizer[2] == 4
 end
 
-# @testitem "find_bonds!" begin
-#     # setup
-#     position = [0.0 1.0
-#                 0.0 0.0
-#                 0.0 0.0]
-#     fail_permit = [true, true]
-#     balltree = Peridynamics.NearestNeighbors.BallTree(position)
+@testitem "find_bonds!" begin
+    using Peridynamics: PointNeighbors
+    # setup
+    position = [0.0 1.0
+                0.0 0.0
+                0.0 0.0]
+    fail_permit = [true, true]
+    δmax = 1.5
+    nhs = PointNeighbors.GridNeighborhoodSearch{3}(δmax, 2; threaded_nhs_update=false)
+    PointNeighbors.initialize!(nhs, position, position)
 
-#     # find point 2
-#     δ = 1.5
-#     bonds = Vector{Peridynamics.Bond}()
-#     n_neighbors = Peridynamics.find_bonds!(bonds, balltree, position, fail_permit, δ, 1)
-#     @test n_neighbors == 1
-#     @test bonds == [Peridynamics.Bond(2, 1.0, true)]
+    # find point 2
+    δ = 1.5
+    bonds = Vector{Peridynamics.Bond}()
+    n_neighbors = Peridynamics.find_bonds!(bonds, nhs, position, fail_permit, δ, 1)
+    @test n_neighbors == 1
+    @test bonds == [Peridynamics.Bond(2, 1.0, true)]
 
-#     # horizon too small - find nothing
-#     δ = 0.9
-#     bonds = Vector{Peridynamics.Bond}()
-#     n_neighbors = Peridynamics.find_bonds!(bonds, balltree, position, fail_permit, δ, 1)
-#     @test n_neighbors == 0
-#     @test bonds == Vector{Peridynamics.Bond}()
+    # horizon too small - find nothing
+    δ = 0.9
+    bonds = Vector{Peridynamics.Bond}()
+    n_neighbors = Peridynamics.find_bonds!(bonds, nhs, position, fail_permit, δ, 1)
+    @test n_neighbors == 0
+    @test bonds == Vector{Peridynamics.Bond}()
 
-#     # no failure allowed for point 2
-#     fail_permit[2] = false
-#     δ = 1.5
-#     bonds = Vector{Peridynamics.Bond}()
-#     n_neighbors = Peridynamics.find_bonds!(bonds, balltree, position, fail_permit, δ, 1)
-#     @test n_neighbors == 1
-#     @test bonds == [Peridynamics.Bond(2, 1.0, false)]
-# end
+    # no failure allowed for point 2
+    fail_permit[2] = false
+    δ = 1.5
+    bonds = Vector{Peridynamics.Bond}()
+    n_neighbors = Peridynamics.find_bonds!(bonds, nhs, position, fail_permit, δ, 1)
+    @test n_neighbors == 1
+    @test bonds == [Peridynamics.Bond(2, 1.0, false)]
+end
 
 @testitem "find_bonds" begin
     # setup
