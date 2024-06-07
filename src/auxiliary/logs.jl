@@ -147,12 +147,14 @@ function get_run_info()
     return msg
 end
 
-function print_log(msg::AbstractString)
+function print_log(io::IO, msg::AbstractString)
     mpi_isroot() || return nothing
     quiet() && return nothing
-    print(msg)
+    print(io, msg)
     return nothing
 end
+
+print_log(msg::AbstractString) = print_log(stdout, msg)
 
 function log_it(options::AbstractOptions, msg::AbstractString)
     print_log(msg)
@@ -181,18 +183,18 @@ function log_qty(descr::AbstractString, qty::Any; kwargs...)
     return log_qty(descr, string(qty); kwargs...)
 end
 
-function log_create_data_handler_start()
+function log_create_data_handler_start(io::IO=stdout)
     mpi_isroot() || return nothing
     quiet() && return nothing
     progress_bars() || return nothing
-    print("DATA HANDLER CREATION ... ⏳")
+    print(io, "DATA HANDLER CREATION ... ⏳")
     return nothing
 end
 
-function log_create_data_handler_end()
+function log_create_data_handler_end(io::IO=stdout)
     mpi_isroot() || return nothing
     quiet() && return nothing
     progress_bars() || return nothing
-    println("\rDATA HANDLER CREATION COMPLETED ✓")
+    println(io, "\rDATA HANDLER CREATION COMPLETED ✓")
     return nothing
 end
