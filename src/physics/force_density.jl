@@ -20,7 +20,7 @@ function _calc_force_density!(storage::AbstractStorage, system::AbstractSystem,
                               params::AbstractPointParameters, each_point_idx)
     storage.b_int .= 0
     storage.n_active_bonds .= 0
-    for point_id in each_point_idx
+    Threads.@threads :static for point_id in each_point_idx
         force_density_point!(storage, system, mat, params, point_id)
     end
     return nothing
@@ -43,8 +43,10 @@ function _calc_force_density!(storage::AbstractStorage, system::AbstractSystem,
     storage.b_int .= 0
     storage.n_active_bonds .= 0
 
-    for_particle_neighbor(storage.position, storage.position, nhs,
-                          particles=each_point_idx, parallel=false) do i, j, _, L
+    # for_particle_neighbor(storage.position, storage.position, nhs,
+    #                       particles=each_point_idx, parallel=false) do i, j, _, L
+    Threads.@threads :static for point_id in each_point_idx
+    foreach_neighbor(storage.position, storage.position, nhs, point_id) do i, j, _, L
         # current bond length
         Δxijx = storage.position[1, j] - storage.position[1, i]
         Δxijy = storage.position[2, j] - storage.position[2, i]
@@ -67,6 +69,7 @@ function _calc_force_density!(storage::AbstractStorage, system::AbstractSystem,
         storage.b_int[1, i] += temp * Δxijx
         storage.b_int[2, i] += temp * Δxijy
         storage.b_int[3, i] += temp * Δxijz
+    end
     end
     return nothing
 end

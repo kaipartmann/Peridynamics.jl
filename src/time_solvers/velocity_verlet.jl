@@ -218,7 +218,7 @@ function solve_timestep!(dh::AbstractThreadsDataHandler, options::AbstractOption
         apply_bcs!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
-    @threads :static for chunk_id in eachindex(dh.chunks)
+    for chunk_id in eachindex(dh.chunks)
         exchange_loc_to_halo!(dh, chunk_id)
         calc_force_density!(dh.chunks[chunk_id])
     end
