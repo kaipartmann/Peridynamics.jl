@@ -25,7 +25,7 @@ export Body, point_set!, failure_permit!, material!, velocity_bc!, velocity_ic!,
        forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box
 
 # Running simulations
-export VelocityVerlet, Job, submit
+export VelocityVerlet, DynamicRelaxation, Job, submit
 
 # Post processing and helpers
 export read_vtk, process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
