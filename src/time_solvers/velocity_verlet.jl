@@ -202,14 +202,14 @@ function solve!(dh::AbstractThreadsDataHandler, vv::VelocityVerlet,
     p = Progress(vv.n_steps; dt=1, desc="TIME INTEGRATION LOOP", color=:normal, barlen=40,
                  enabled=progress_bars())
     for n in 1:vv.n_steps
-        solve_timestep!(dh, options, Δt, Δt½, n)
+        verlet_timestep!(dh, options, Δt, Δt½, n)
         next!(p)
     end
     finish!(p)
     return dh
 end
 
-function solve_timestep!(dh::AbstractThreadsDataHandler, options::AbstractOptions,
+function verlet_timestep!(dh::AbstractThreadsDataHandler, options::AbstractOptions,
                          Δt::Float64, Δt½::Float64, n::Int)
     t = n * Δt
     @threads :static for chunk_id in eachindex(dh.chunks)
@@ -241,14 +241,14 @@ function solve!(dh::AbstractMPIDataHandler, vv::VelocityVerlet, options::Abstrac
                      barlen=40, enabled=progress_bars())
     end
     for n in 1:vv.n_steps
-        solve_timestep!(dh, options, Δt, Δt½, n)
+        verlet_timestep!(dh, options, Δt, Δt½, n)
         mpi_isroot() && next!(p)
     end
     mpi_isroot() && finish!(p)
     return dh
 end
 
-function solve_timestep!(dh::AbstractMPIDataHandler, options::AbstractOptions, Δt::Float64,
+function verlet_timestep!(dh::AbstractMPIDataHandler, options::AbstractOptions, Δt::Float64,
                          Δt½::Float64, n::Int)
     t = n * Δt
     chunk = dh.chunk
