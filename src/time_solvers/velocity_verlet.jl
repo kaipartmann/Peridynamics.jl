@@ -102,6 +102,20 @@ function calc_stable_timestep(dh::AbstractDataHandler, safety_factor::Float64)
     throw(MethodError(calc_stable_timestep, dh, safety_factor))
 end
 
+function calc_stable_timestep(dh::ThreadsDataHandler, safety_factor::Float64)
+    Δt = zeros(length(dh.chunks))
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        Δt[chunk_id] = calc_timestep(dh.chunks[chunk_id])
+    end
+    return minimum(Δt) * safety_factor
+end
+
+function calc_stable_timestep(dh::MPIDataHandler, safety_factor::Float64)
+    _Δt = calc_timestep(dh.chunk)
+    Δt = MPI.Allreduce(_Δt, MPI.MIN, mpi_comm())
+    return Δt * safety_factor
+end
+
 function calc_timestep(b::AbstractBodyChunk)
     Δt = fill(Inf, length(each_point_idx(b.ch)))
     for point_id in each_point_idx(b.ch)
@@ -118,6 +132,61 @@ function _calc_timestep(bd::BondSystem, pp::AbstractPointParameters, point_id::I
         dtsum += bd.volume[bond.neighbor] * pp.bc / bond.length
     end
     return sqrt(2 * pp.rho / dtsum)
+end
+
+function solve!(dh::AbstractDataHandler, vv::VelocityVerlet, options::AbstractOptions)
+    export_reference_results(dh, options)
+    Δt = vv.Δt
+    Δt½ = 0.5 * vv.Δt
+    if mpi_isroot()
+        p = Progress(vv.n_steps; dt=1, desc="TIME INTEGRATION LOOP", color=:normal,
+                     barlen=40, enabled=progress_bars())
+    end
+    for n in 1:vv.n_steps
+        verlet_timestep!(dh, options, Δt, Δt½, n)
+        mpi_isroot() && next!(p)
+    end
+    mpi_isroot() && finish!(p)
+    return dh
+end
+
+function verlet_timestep!(dh::AbstractThreadsDataHandler, options::AbstractOptions,
+                         Δt::Float64, Δt½::Float64, n::Int)
+    t = n * Δt
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        update_vel_half!(chunk, Δt½)
+        apply_bcs!(chunk, t)
+        update_disp_and_pos!(chunk, Δt)
+    end
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        exchange_loc_to_halo!(dh, chunk_id)
+        calc_force_density!(dh.chunks[chunk_id])
+    end
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        exchange_halo_to_loc!(dh, chunk_id)
+        chunk = dh.chunks[chunk_id]
+        calc_damage!(chunk)
+        update_acc_and_vel!(chunk, Δt½)
+        export_results(dh, options, chunk_id, n, t)
+    end
+    return nothing
+end
+
+function verlet_timestep!(dh::AbstractMPIDataHandler, options::AbstractOptions, Δt::Float64,
+                         Δt½::Float64, n::Int)
+    t = n * Δt
+    chunk = dh.chunk
+    @timeit_debug TO "update_vel_half!" update_vel_half!(chunk, Δt½)
+    @timeit_debug TO "apply_bcs!" apply_bcs!(chunk, t)
+    @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
+    @timeit_debug TO "exchange_loc_to_halo!" exchange_loc_to_halo!(dh)
+    @timeit_debug TO "calc_force_density!" calc_force_density!(chunk)
+    @timeit_debug TO "exchange_halo_to_loc!" exchange_halo_to_loc!(dh)
+    @timeit_debug TO "calc_damage!" calc_damage!(chunk)
+    @timeit_debug TO "update_acc_and_vel!" update_acc_and_vel!(chunk, Δt½)
+    @timeit_debug TO "export_results" export_results(dh, options, n, t)
+    return nothing
 end
 
 function update_vel_half!(b::AbstractBodyChunk, Δt½::Float64)
@@ -191,76 +260,6 @@ function _update_vel!(velocity, velocity_half, acceleration, Δt½, i)
     velocity[1, i] = velocity_half[1, i] + acceleration[1, i] * Δt½
     velocity[2, i] = velocity_half[2, i] + acceleration[2, i] * Δt½
     velocity[3, i] = velocity_half[3, i] + acceleration[3, i] * Δt½
-    return nothing
-end
-
-function solve!(dh::AbstractThreadsDataHandler, vv::VelocityVerlet,
-                options::AbstractOptions)
-    export_reference_results(dh, options)
-    Δt = vv.Δt
-    Δt½ = 0.5 * vv.Δt
-    p = Progress(vv.n_steps; dt=1, desc="TIME INTEGRATION LOOP", color=:normal, barlen=40,
-                 enabled=progress_bars())
-    for n in 1:vv.n_steps
-        verlet_timestep!(dh, options, Δt, Δt½, n)
-        next!(p)
-    end
-    finish!(p)
-    return dh
-end
-
-function verlet_timestep!(dh::AbstractThreadsDataHandler, options::AbstractOptions,
-                         Δt::Float64, Δt½::Float64, n::Int)
-    t = n * Δt
-    @threads :static for chunk_id in eachindex(dh.chunks)
-        chunk = dh.chunks[chunk_id]
-        update_vel_half!(chunk, Δt½)
-        apply_bcs!(chunk, t)
-        update_disp_and_pos!(chunk, Δt)
-    end
-    @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_loc_to_halo!(dh, chunk_id)
-        calc_force_density!(dh.chunks[chunk_id])
-    end
-    @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_halo_to_loc!(dh, chunk_id)
-        chunk = dh.chunks[chunk_id]
-        calc_damage!(chunk)
-        update_acc_and_vel!(chunk, Δt½)
-        export_results(dh, options, chunk_id, n, t)
-    end
-    return nothing
-end
-
-function solve!(dh::AbstractMPIDataHandler, vv::VelocityVerlet, options::AbstractOptions)
-    export_reference_results(dh, options)
-    Δt = vv.Δt
-    Δt½ = 0.5 * vv.Δt
-    if mpi_isroot()
-        p = Progress(vv.n_steps; dt=1, desc="TIME INTEGRATION LOOP", color=:normal,
-                     barlen=40, enabled=progress_bars())
-    end
-    for n in 1:vv.n_steps
-        verlet_timestep!(dh, options, Δt, Δt½, n)
-        mpi_isroot() && next!(p)
-    end
-    mpi_isroot() && finish!(p)
-    return dh
-end
-
-function verlet_timestep!(dh::AbstractMPIDataHandler, options::AbstractOptions, Δt::Float64,
-                         Δt½::Float64, n::Int)
-    t = n * Δt
-    chunk = dh.chunk
-    @timeit_debug TO "update_vel_half!" update_vel_half!(chunk, Δt½)
-    @timeit_debug TO "apply_bcs!" apply_bcs!(chunk, t)
-    @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
-    @timeit_debug TO "exchange_loc_to_halo!" exchange_loc_to_halo!(dh)
-    @timeit_debug TO "calc_force_density!" calc_force_density!(chunk)
-    @timeit_debug TO "exchange_halo_to_loc!" exchange_halo_to_loc!(dh)
-    @timeit_debug TO "calc_damage!" calc_damage!(chunk)
-    @timeit_debug TO "update_acc_and_vel!" update_acc_and_vel!(chunk, Δt½)
-    @timeit_debug TO "export_results" export_results(dh, options, n, t)
     return nothing
 end
 

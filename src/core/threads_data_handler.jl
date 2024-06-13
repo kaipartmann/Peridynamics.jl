@@ -74,14 +74,6 @@ function reorder_htl_exs!(htl_exs::Vector{Vector{HaloExchange}})
     return nothing
 end
 
-function calc_stable_timestep(dh::ThreadsDataHandler, safety_factor::Float64)
-    Δt = zeros(length(dh.chunks))
-    @threads :static for chunk_id in eachindex(dh.chunks)
-        Δt[chunk_id] = calc_timestep(dh.chunks[chunk_id])
-    end
-    return minimum(Δt) * safety_factor
-end
-
 get_cells(n::Int) = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in 1:n]
 
 function exchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int)

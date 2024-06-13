@@ -184,12 +184,6 @@ function get_lth_reqests(dh::MPIDataHandler, field::Symbol)
     return dh.lth_reqs[field_id]
 end
 
-function calc_stable_timestep(dh::MPIDataHandler, safety_factor::Float64)
-    _Δt = calc_timestep(dh.chunk)
-    Δt = MPI.Allreduce(_Δt, MPI.MIN, mpi_comm())
-    return Δt * safety_factor
-end
-
 function exchange_loc_to_halo!(dh::MPIDataHandler)
     fields = loc_to_halo_fields(dh.chunk.storage)
     isempty(fields) && return nothing
