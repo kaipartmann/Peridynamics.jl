@@ -136,7 +136,7 @@ macro mpitime(expr)
 end
 
 """
-    @rootdo expression
+    @mpiroot expression
 
 Run the code if the mpi rank is zero. Lowers to:
 
@@ -146,7 +146,7 @@ if mpi_isroot()
 end
 ```
 """
-macro rootdo(expr)
+macro mpiroot(expr)
     return quote
         if Peridynamics.mpi_isroot()
             $(esc(expr))
