@@ -1,6 +1,6 @@
 module Peridynamics
 
-using Base.Threads, Printf, LinearAlgebra, StaticArrays, NearestNeighbors, ProgressMeter,
+using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, ProgressMeter,
       WriteVTK, TimerOutputs, MPI, PrecompileTools
 @static if Sys.islinux()
     using ThreadPinning
@@ -29,7 +29,8 @@ export VelocityVerlet, Job, submit
 
 # Post processing and helpers
 export read_vtk, process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
-       enable_mpi_timers!, disable_mpi_timers!, @mpitime, @rootdo
+       enable_mpi_timers!, disable_mpi_timers!, enable_mpi_progress_bars!,
+       reset_mpi_progress_bars!, @mpitime, @mpiroot
 
 function __init__()
     init_mpi()

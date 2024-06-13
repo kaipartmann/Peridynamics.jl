@@ -188,3 +188,15 @@ end
 function initialize!(::AbstractThreadsDataHandler, ::AbstractTimeSolver)
     return nothing
 end
+
+function log_data_handler(options::AbstractOptions,
+                          dh::AbstractThreadsDataHandler{Sys}) where {Sys<:BondSystem}
+    msg = "BOND SYSTEM\n"
+    n_bonds = 0
+    for chunk in dh.chunks
+        n_bonds += length(chunk.system.bonds)
+    end
+    msg *= log_qty("number of bonds", n_bonds)
+    log_it(options, msg)
+    return nothing
+end

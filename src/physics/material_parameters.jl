@@ -126,3 +126,13 @@ required_point_parameters() = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :Gc, :εc)
 
 #TODO: parameter checks material dependent...
 # req_param_material(::AbstractMaterial) = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ)
+
+function log_material_parameters(param::AbstractPointParameters; indentation::Int=2)
+    msg = log_qty("horizon", param.δ; indentation=indentation)
+    msg *= log_qty("density", param.rho; indentation=indentation)
+    msg *= log_qty("Young's modulus", param.E; indentation=indentation)
+    msg *= log_qty("Poisson's ratio", param.nu; indentation=indentation)
+    msg *= log_qty("shear modulus", param.G; indentation=indentation)
+    msg *= log_qty("bulk modulus", param.K; indentation=indentation)
+    return msg
+end

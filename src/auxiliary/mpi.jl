@@ -2,6 +2,7 @@ const MPI_INITIALIZED = Ref(false)
 const MPI_RUN = Ref(false)
 const MPI_RUN_FORCED = Ref(false)
 const MPI_ISROOT = Ref(false)
+const MPI_PROGRESS_BARS = Ref(false)
 const TO = TimerOutput()
 
 @inline mpi_comm() = MPI.COMM_WORLD
@@ -10,6 +11,8 @@ const TO = TimerOutput()
 @inline mpi_run() = MPI_RUN[]
 @inline mpi_chunk_id() = mpi_rank() + 1
 @inline mpi_isroot() = MPI_ISROOT[]
+@inline mpi_progress_bars() = MPI_PROGRESS_BARS[]
+@inline set_mpi_progress_bars!(b::Bool) = (MPI_PROGRESS_BARS[] = b; return nothing)
 
 """
     force_mpi_run!()
@@ -87,6 +90,29 @@ function disable_mpi_timers!()
 end
 
 """
+    enable_mpi_progress_bars!()
+
+After this function is called, progress bars are enabled on MPI simulations.
+"""
+function enable_mpi_progress_bars!()
+    mpi_run() || return nothing
+    set_mpi_progress_bars!(true)
+    return nothing
+end
+
+"""
+    reset_mpi_progress_bars!()
+
+After this function is called, progress bars are again disabled on MPI simulations
+(standard setting).
+"""
+function reset_mpi_progress_bars!()
+    mpi_run() || return nothing
+    set_mpi_progress_bars!(false)
+    return nothing
+end
+
+"""
     @mpitime expression
 
 Time the `expression` if the mpi rank is zero. Lowers to:
@@ -110,7 +136,7 @@ macro mpitime(expr)
 end
 
 """
-    @rootdo expression
+    @mpiroot expression
 
 Run the code if the mpi rank is zero. Lowers to:
 
@@ -120,7 +146,7 @@ if mpi_isroot()
 end
 ```
 """
-macro rootdo(expr)
+macro mpiroot(expr)
     return quote
         if Peridynamics.mpi_isroot()
             $(esc(expr))

@@ -130,3 +130,58 @@ end
 end
 
 @inline storage_type(b::AbstractBody, ts::AbstractTimeSolver) = storage_type(b.mat, ts)
+
+function log_spatial_setup(options::AbstractOptions, body::AbstractBody)
+    msg = "BODY\n"
+    msg *= "  POINT CLOUD\n"
+    msg *= log_qty("number of points", body.n_points; indentation=4)
+    @views min_x, max_x = minimum(body.position[1,:]), maximum(body.position[1,:])
+    @views min_y, max_y = minimum(body.position[2,:]), maximum(body.position[2,:])
+    @views min_z, max_z = minimum(body.position[3,:]), maximum(body.position[3,:])
+    minmax_x = @sprintf("%.7g, %.7g", min_x, max_x)
+    minmax_y = @sprintf("%.7g, %.7g", min_y, max_y)
+    minmax_z = @sprintf("%.7g, %.7g", min_z, max_z)
+    msg *= log_qty("min, max values x-direction", minmax_x; indentation=4)
+    msg *= log_qty("min, max values y-direction", minmax_y; indentation=4)
+    msg *= log_qty("min, max values z-direction", minmax_z; indentation=4)
+    msg *= "  POINT SETS\n"
+    for (key,points) in body.point_sets
+        descr = @sprintf("number of points in set `%s`", string(key))
+        msg *= log_qty(descr, length(points); indentation=4)
+    end
+    msg *= "  CONDITIONS\n"
+    n_bcs = length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
+    n_bcs > 0 && (msg *= log_qty("number of BC's", n_bcs; indentation=4))
+    n_ics = length(body.single_dim_ics)
+    n_ics > 0 && (msg *= log_qty("number of IC's", n_ics; indentation=4))
+
+    if length(body.point_params) == 1
+        msg *= "  MATERIAL\n"
+        msg *= log_qty("material type", material_type(body); indentation=4)
+        msg *= log_material_parameters(first(body.point_params); indentation=4)
+    else
+        for (i, params) in enumerate(body.point_params)
+            msg *= @sprintf("  MATERIAL %d\n", i)
+            msg *= log_material_parameters(params; indentation=4)
+        end
+    end
+    log_it(options, msg)
+    return nothing
+end
+
+function maximum_horizon(b::AbstractBody)
+    n_params = length(b.point_params)
+    n_params == 1 && return get_horizon(first(b.point_params))
+    n_params == 0 && error("body has no material parameters!\n")
+    δmax = 0.0
+    for point_id in eachindex(b.volume)
+        δ::Float64 = get_horizon(b.point_params[b.params_map[point_id]])
+        if δ > δmax
+            δmax = δ
+        end
+    end
+    return δmax
+end
+
+@inline get_horizon(param::AbstractPointParameters) = getfield(param, :δ)
+
