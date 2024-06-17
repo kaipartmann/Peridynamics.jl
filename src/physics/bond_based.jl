@@ -138,7 +138,6 @@ end
 
 const BBStorage = Union{BBVerletStorage,BBRelaxationStorage}
 
-
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
                               params::BBPointParameters, i::Int)
     for bond_id in each_bond_idx(system, i)

@@ -186,9 +186,9 @@ end
 function log_timesolver(options::AbstractOptions, dr::DynamicRelaxation)
     msg = "DYNAMIC RELAXATION TIME SOLVER\n"
     msg *= log_qty("number of time steps", dr.n_steps)
-    msg *= log_qty("time step size", dr.Δt)
+    msg *= log_qty("relaxation time step size", dr.Δt)
     msg *= log_qty("damping factor", dr.Λ)
-    msg *= log_qty("simulation time", dr.n_steps * dr.Δt)
+    msg *= log_qty("relaxation time", dr.n_steps * dr.Δt)
     log_it(options, msg)
     return nothing
 end
