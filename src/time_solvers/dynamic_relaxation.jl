@@ -158,7 +158,8 @@ end
 function relaxation_first_step!(chunk::AbstractBodyChunk, Δt::Float64)
     s = chunk.storage
     for i in each_point_idx(chunk.ch), d in 1:3
-        s.velocity_half[d, i] = 0.5 * Δt * (s.b_int[d, i] + s.b_ext[d, i]) / s.density_matrix[d, i]
+        s.velocity_half[d, i] = 0.5 * Δt * (s.b_int[d, i] + s.b_ext[d, i]) /
+                                s.density_matrix[d, i]
         relaxation_updates!(s, d, i)
     end
     return nothing
