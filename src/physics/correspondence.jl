@@ -91,7 +91,49 @@ end
 @loc_to_halo_fields NOSBVerletStorage :position
 @halo_to_loc_fields NOSBVerletStorage :b_int
 
-function force_density_point!(storage::NOSBVerletStorage, system::BondSystem,
+struct NOSBRelaxationStorage <: AbstractStorage
+    position::Matrix{Float64}
+    displacement::Matrix{Float64}
+    velocity::Matrix{Float64}
+    velocity_half::Matrix{Float64}
+    velocity_half_old::Matrix{Float64}
+    b_int::Matrix{Float64}
+    b_int_old::Matrix{Float64}
+    b_ext::Matrix{Float64}
+    density_matrix::Matrix{Float64}
+    damage::Vector{Float64}
+    bond_active::Vector{Bool}
+    n_active_bonds::Vector{Int}
+end
+
+function NOSBRelaxationStorage(::NOSBMaterial, ::DynamicRelaxation, system::BondSystem, ch)
+    n_loc_points = length(ch.loc_points)
+    position = copy(system.position)
+    displacement = zeros(3, n_loc_points)
+    velocity = zeros(3, n_loc_points)
+    velocity_half = zeros(3, n_loc_points)
+    velocity_half_old = zeros(3, n_loc_points)
+    b_int = zeros(3, length(ch.point_ids))
+    b_int_old = zeros(3, n_loc_points)
+    b_ext = zeros(3, n_loc_points)
+    density_matrix = zeros(3, n_loc_points)
+    damage = zeros(n_loc_points)
+    bond_active = ones(Bool, length(system.bonds))
+    n_active_bonds = copy(system.n_neighbors)
+    s = NOSBRelaxationStorage(position, displacement, velocity, velocity_half,
+                              velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
+                              damage, bond_active, n_active_bonds)
+    return s
+end
+
+@storage NOSBMaterial DynamicRelaxation NOSBRelaxationStorage
+
+@loc_to_halo_fields NOSBRelaxationStorage :position
+@halo_to_loc_fields NOSBRelaxationStorage :b_int
+
+const NOSBStorage = Union{NOSBVerletStorage,NOSBRelaxationStorage}
+
+function force_density_point!(storage::NOSBStorage, system::BondSystem,
                               mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
     F, Kinv, ω0 = calc_deformation_gradient(storage, system, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
@@ -143,7 +185,7 @@ function force_density_point!(storage::NOSBVerletStorage, system::BondSystem,
     return nothing
 end
 
-function calc_deformation_gradient(storage::NOSBVerletStorage, system::BondSystem,
+function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
                                    params::NOSBPointParameters, i::Int)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
