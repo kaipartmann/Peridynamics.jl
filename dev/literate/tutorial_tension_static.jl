@@ -3,48 +3,52 @@
 #-
 # Import the package:
 using Peridynamics
+using Peridynamics.AbaqusMeshConverter
 
 #-
-# Read and convert the [Abaqus FEM mesh of a tensile test](https://github.com/kaipartmann/Peridynamics.jl/blob/main/docs/src/assets/TensileTestMesh.inp):
+# Read and convert the [Abaqus FEM mesh of a tensile test](https://github.com/kaipartmann/Peridynamics.jl/blob/main/docs/src/assets/TensileTestMesh.inp)
+# into a point cloud for the peridynamic model:
 ## insert your correct path to the downloaded mesh file!
-pc = read_inp(joinpath(@__DIR__, "..", "assets", "TensileTestMesh.inp"))
+pos, vol, pointsets = read_inp(joinpath(@__DIR__, "..", "assets", "TensileTestMesh.inp"))
 # ![](../assets/TensileTestMesh.png)
 
 #-
-# Do not allow failure in the entire point cloud:
-pc.failure_flag .= false
+# Create a body with the points from the mesh: (The bond-based material model is used here.)
+b = Body(BBMaterial(), pos, vol)
 
-#-
-# Define a bond-based material with
-# - Horizon $\delta = 0.01\,\mathrm{m}$
-# - Density $\rho = 2700\,\mathrm{kg}\,\mathrm{m}^{-3}$
-# - Youngs modulus $E = 70 \times 10^9 \, \mathrm{Pa}$
-# - Griffith's parameter $G_c = 100 \, \mathrm{N} \, \mathrm{m}^{-1}$
-mat = BBMaterial(; horizon=0.01, rho=2700, E=70e9, Gc=100)
+# Convert the element sets defined in Abaqus into point sets of the Body:
+point_set!(b, :top, pointsets["top"])
+point_set!(b, :bottom, pointsets["bottom"])
+
+# Specify the material parameters as:
+
+# | material parameter | value |
+# |:--------|:-------------|
+# | Horizon $ δ $ | $0.01 \, \mathrm{m}$ |
+# | Density $ρ$ | $ 2700 \,\mathrm{kg}\,\mathrm{m}^{-3}$ |
+# | Young's modulus $E$ | $ 70 \cdot 10^{9} \, \mathrm{Pa}$ |
+# | Griffith's parameter $G_c$ | $100 \, \mathrm{N} \, \mathrm{m}^{-1}$ |
+
+material!(b; horizon=0.01, rho=2700, E=70e9, Gc=100)
 
 #-
 # As loading condition for the specimen, a constant force density of $1 \times 10^9 \, \mathrm{N}\,\mathrm{m}^{-3}$ in $x$-direction is set for the bottom and top.
-# Note, that element sets defined in Abaqus are converted to `point_sets` of the `PointCloud`.
-bcs = [
-    ForceDensityBC(t -> -1e9, pc.point_sets["bottom"], 1),
-    ForceDensityBC(t -> 1e9, pc.point_sets["top"], 1),
-]
+forcedensity_bc!(t -> -1e9, b, :bottom, 1)
+forcedensity_bc!(t -> 1e9, b, :top, 1)
+
+#-
+# Do not allow failure in the entire body:
+failure_permit!(b, false)
 
 #-
 # We set the number of time steps for the dynamic relaxation algorithm to 500 time steps.
-dr = DynamicRelaxation(500)
+dr = DynamicRelaxation(steps=500)
 
-#-
-# The results of our analysis should be saved in the directory `"results/TensileTestStatic"` every 10'th time step.
-name = "TensileTestStatic"
-path = joinpath("results", name)
-!ispath(path) && mkpath(path) # create the path if it does not exist
-es = ExportSettings(path, 10)
+# Define the storage path:
+root = joinpath(@__DIR__, "results", "tension_static");
 
-#-
-# Run a single body analysis:
-#-
-job = PDSingleBodyAnalysis(name=name, pc=pc, mat=mat, bcs=bcs, td=dr, es=es)
+# Create the job:
+job = Job(b, dr; path=root)
 
 #-
 #md # ```julia
