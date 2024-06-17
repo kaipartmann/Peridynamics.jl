@@ -33,14 +33,14 @@ MultibodySetup{Material,PointParameters}
 # Fields
 
 - `bodies::Dict{Symbol,Body{M,P}}`:
-- `contacts::Vector{Contact}`:
+- `srf_contacts::Vector{ShortRangeForceContact}`:
 
 TODO
 """
 mutable struct MultibodySetup{M<:AbstractMaterial,
                               P<:AbstractPointParameters} <: AbstractMultibodySetup{M}
     bodies::Dict{Symbol,Body{M,P}}
-    contacts::Vector{Contact}
+    srf_contacts::Vector{ShortRangeForceContact}
 
     function MultibodySetup(bodies::Dict{Symbol,Body{M,P}}) where {M,P}
         if length(bodies) < 2
@@ -48,8 +48,8 @@ mutable struct MultibodySetup{M<:AbstractMaterial,
             msg *= "Please specify 2 or more!\n"
             throw(ArgumentError(msg))
         end
-        contacts = Vector{Contact}()
-        return new{M,P}(bodies, contacts)
+        srf_contacts = Vector{ShortRangeForceContact}()
+        return new{M,P}(bodies, srf_contacts)
     end
 end
 
@@ -70,6 +70,8 @@ function check_if_bodyname_is_defined(ms::AbstractMultibodySetup, name::Symbol)
     end
     return nothing
 end
+
+@inline get_body(ms::AbstractMultibodySetup, name::Symbol) = ms.bodies[name]
 
 """
     contact!(ms, body_a, body_b; kwargs...)
@@ -94,15 +96,21 @@ Defines contact between multiple bodies
 
 TODO kwargs
 """
-function contact!(ms::AbstractMultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
-    check_if_bodyname_is_defined(ms, body_a)
-    check_if_bodyname_is_defined(ms, body_b)
+function contact!(ms::AbstractMultibodySetup, name_body_a::Symbol, name_body_b::Symbol;
+                  kwargs...)
+    check_if_bodyname_is_defined(ms, name_body_a)
+    check_if_bodyname_is_defined(ms, name_body_b)
 
     p = Dict{Symbol,Any}(kwargs)
     check_kwargs(p, CONTACT_KWARGS)
-    radius, sc = get_contact_params(p)
+    radius, penalty_factor = get_contact_params(p)
 
-    push!(ms.contacts, Contact(body_a, body_b, radius, sc))
+    body_b = get_body(ms, name_body_b)
+    nhs = GridNeighborhoodSearch{3}(radius, body_b.n_points)
+
+    srfc = ShortRangeForceContact(name_body_a, name_body_b, radius, penalty_factor, nhs)
+    push!(ms.srf_contacts, srfc)
+
     return nothing
 end
 

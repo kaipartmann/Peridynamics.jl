@@ -1,10 +1,11 @@
-const CONTACT_KWARGS = (:radius, :sc)
+const CONTACT_KWARGS = (:radius, :penalty_factor)
 
-struct Contact
+struct ShortRangeForceContact{N}
     body_id_a::Symbol
     body_id_b::Symbol
     radius::Float64
-    sc::Float64
+    penalty_factor::Float64
+    nhs::N
 end
 
 function get_contact_params(p::Dict{Symbol,Any})
@@ -20,14 +21,14 @@ function get_contact_params(p::Dict{Symbol,Any})
         throw(ArgumentError("`radius` should be larger than zero!\n"))
     end
 
-    if haskey(p, :sc)
-        sc = float(p[:sc])
+    if haskey(p, :penalty_factor)
+        penalty_factor = float(p[:penalty_factor])
     else
-        sc = 1e12
+        penalty_factor = 1e12
     end
-    if sc ≤ 0
+    if penalty_factor ≤ 0
         throw(ArgumentError("`sc` should be larger than zero!\n"))
     end
 
-    return radius, sc
+    return radius, penalty_factor
 end
