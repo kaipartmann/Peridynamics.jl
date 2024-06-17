@@ -159,8 +159,7 @@ function relaxation_step!(chunk::AbstractBodyChunk, Δt::Float64, cn::Float64)
     for i in each_point_idx(chunk.ch), d in 1:3
         a = (s.b_int[d, i] + s.b_ext[d, i]) / s.mass[d, i]
         v½_old = s.velocity_half_old[d, i]
-        v½ = ((2 - cn * Δt) * v½_old + 2 * Δt * a) / (2 + cn * Δt)
-        s.velocity_half[d, i] = v½
+        s.velocity_half[d, i] = ((2 - cn * Δt) * v½_old + 2 * Δt * a) / (2 + cn * Δt)
         relaxation_updates!(s, d, i)
     end
     return nothing
