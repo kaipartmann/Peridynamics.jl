@@ -72,7 +72,7 @@ makedocs(;
             "howto_visualization.md",
         ],
         "Tutorials" => [
-            # joinpath("generated", "tutorial_tension_static.md"),
+            joinpath("generated", "tutorial_tension_static.md"),
             joinpath("generated", "tutorial_tension_dynfrac.md"),
             joinpath("generated", "tutorial_tension_precrack.md"),
             joinpath("generated", "tutorial_wave_in_bar.md"),
