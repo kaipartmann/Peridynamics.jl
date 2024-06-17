@@ -94,11 +94,10 @@ struct OSBRelaxationStorage <: AbstractStorage
     velocity::Matrix{Float64}
     velocity_half::Matrix{Float64}
     velocity_half_old::Matrix{Float64}
-    acceleration::Matrix{Float64}
     b_int::Matrix{Float64}
     b_int_old::Matrix{Float64}
     b_ext::Matrix{Float64}
-    mass::Matrix{Float64}
+    density_matrix::Matrix{Float64}
     damage::Vector{Float64}
     bond_active::Vector{Bool}
     n_active_bonds::Vector{Int}
@@ -111,16 +110,15 @@ function OSBRelaxationStorage(::OSBMaterial, ::DynamicRelaxation, system::BondSy
     velocity = zeros(3, n_loc_points)
     velocity_half = zeros(3, n_loc_points)
     velocity_half_old = zeros(3, n_loc_points)
-    acceleration = zeros(3, n_loc_points)
     b_int = zeros(3, length(ch.point_ids))
     b_int_old = zeros(3, n_loc_points)
     b_ext = zeros(3, n_loc_points)
-    mass = zeros(3, n_loc_points)
+    density_matrix = zeros(3, n_loc_points)
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, length(system.bonds))
     n_active_bonds = copy(system.n_neighbors)
     s = OSBRelaxationStorage(position, displacement, velocity, velocity_half,
-                             velocity_half_old, acceleration, b_int, b_int_old, b_ext, mass,
+                             velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
                              damage, bond_active, n_active_bonds)
     return s
 end

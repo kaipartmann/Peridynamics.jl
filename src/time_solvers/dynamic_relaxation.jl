@@ -43,7 +43,7 @@ function solve!(dh::AbstractDataHandler, dr::DynamicRelaxation,
                 options::AbstractOptions)
     export_reference_results(dh, options)
     Δt = dr.Δt
-    init_mass!(dh, dr)
+    init_density_matrix!(dh, dr)
     if mpi_isroot()
         p = Progress(dr.n_steps; dt=1, desc="TIME INTEGRATION LOOP", color=:normal,
                      barlen=40, enabled=progress_bars())
@@ -56,38 +56,48 @@ function solve!(dh::AbstractDataHandler, dr::DynamicRelaxation,
     return nothing
 end
 
-function init_mass!(dh::AbstractThreadsDataHandler, dr::DynamicRelaxation)
+function init_density_matrix!(dh::AbstractThreadsDataHandler, dr::DynamicRelaxation)
     @threads :static for chunk in dh.chunks
-        _init_mass!(chunk, dr, chunk.paramsetup)
+        _init_density_matrix!(chunk, dr, chunk.paramsetup)
     end
     return nothing
 end
 
-function init_mass!(dh::AbstractMPIDataHandler, dr::DynamicRelaxation)
-    _init_mass!(dh.chunk, dr, dh.chunk.paramsetup)
+function init_density_matrix!(dh::AbstractMPIDataHandler, dr::DynamicRelaxation)
+    _init_density_matrix!(dh.chunk, dr, dh.chunk.paramsetup)
     return nothing
 end
 
-function _init_mass!(chunk::AbstractBodyChunk, dr::DynamicRelaxation,
+function _init_density_matrix!(chunk::AbstractBodyChunk, dr::DynamicRelaxation,
                                params::AbstractPointParameters)
-    mass = chunk.storage.mass
+    system = chunk.system
+    density_matrix = chunk.storage.density_matrix
     for i in each_point_idx(chunk.ch)
-        for j in 1:3
-            mass[j, i] = dr.Λ * 6 * params.K * dr.Δt^2 / (1 / 3 * params.δ^2)
-        end
+        calc_density_matrix!(density_matrix, system, params, dr, i)
     end
     return nothing
 end
 
-function _init_mass!(chunk::AbstractBodyChunk, dr::DynamicRelaxation,
+function _init_density_matrix!(chunk::AbstractBodyChunk, dr::DynamicRelaxation,
                                paramsetup::AbstractParameterHandler)
-    mass = chunk.storage.mass
+    system = chunk.system
+    density_matrix = chunk.storage.density_matrix
     for i in each_point_idx(chunk.ch)
-        params = get_params(chunk, i)
-        for d in 1:3
-            mass[d, i] = dr.Λ * 6 * params.K * dr.Δt^2 / (1 / 3 * params.δ^2)
-        end
+        params = get_params(paramsetup, i)
+        calc_density_matrix!(density_matrix, system, params, dr, i)
     end
+    return nothing
+end
+
+@inline function calc_density_matrix!(density_matrix::Matrix{Float64}, system::BondSystem,
+                                      params::AbstractPointParameters,
+                                      dr::DynamicRelaxation, i::Int)
+    n_bonds = system.n_neighbors[i]
+    k = 5π * params.δ^2 * params.bc
+    Λ = dr.Λ * 1 / 4 * dr.Δt^2 * n_bonds * k
+    density_matrix[1, i] = Λ
+    density_matrix[2, i] = Λ
+    density_matrix[3, i] = Λ
     return nothing
 end
 
@@ -125,7 +135,7 @@ function calc_damping(chunk::AbstractBodyChunk, Δt::Float64)
     for i in each_point_idx(chunk.ch), d in 1:3
         if s.velocity_half_old[d, i] != 0.0
             Δb_int = s.b_int[d, i] - s.b_int_old[d, i]
-            temp = Δt * s.mass[d, i] * s.velocity_half_old[d, i]
+            temp = Δt * s.density_matrix[d, i] * s.velocity_half_old[d, i]
             cn1 -= s.displacement[d, i]^2 * Δb_int / temp
         end
         cn2 += s.displacement[d, i]^2
@@ -148,7 +158,7 @@ end
 function relaxation_first_step!(chunk::AbstractBodyChunk, Δt::Float64)
     s = chunk.storage
     for i in each_point_idx(chunk.ch), d in 1:3
-        s.velocity_half[d, i] = 0.5 * Δt * (s.b_int[d, i] + s.b_ext[d, i]) / s.mass[d, i]
+        s.velocity_half[d, i] = 0.5 * Δt * (s.b_int[d, i] + s.b_ext[d, i]) / s.density_matrix[d, i]
         relaxation_updates!(s, d, i)
     end
     return nothing
@@ -157,7 +167,7 @@ end
 function relaxation_step!(chunk::AbstractBodyChunk, Δt::Float64, cn::Float64)
     s = chunk.storage
     for i in each_point_idx(chunk.ch), d in 1:3
-        a = (s.b_int[d, i] + s.b_ext[d, i]) / s.mass[d, i]
+        a = (s.b_int[d, i] + s.b_ext[d, i]) / s.density_matrix[d, i]
         v½_old = s.velocity_half_old[d, i]
         s.velocity_half[d, i] = ((2 - cn * Δt) * v½_old + 2 * Δt * a) / (2 + cn * Δt)
         relaxation_updates!(s, d, i)
@@ -174,7 +184,7 @@ end
 
 function req_point_data_fields_timesolver(::Type{DynamicRelaxation})
     fields = (:position, :displacement, :velocity, :velocity_half, :velocity_half_old,
-              :acceleration, :b_int, :b_int_old, :b_ext)
+              :b_int, :b_int_old, :b_ext)
     return fields
 end
 
