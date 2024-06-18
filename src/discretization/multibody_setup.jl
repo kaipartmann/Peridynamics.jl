@@ -120,5 +120,5 @@ function pre_submission_check(ms::AbstractMultibodySetup)
 end
 
 @inline function storage_type(ms::AbstractMultibodySetup, ts::AbstractTimeSolver)
-    return storage_type(first(ms.bodies).mat, ts)
+    return storage_type(first(values(ms.bodies)).mat, ts)
 end

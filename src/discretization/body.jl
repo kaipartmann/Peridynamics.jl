@@ -131,8 +131,11 @@ end
 
 @inline storage_type(b::AbstractBody, ts::AbstractTimeSolver) = storage_type(b.mat, ts)
 
-function log_spatial_setup(options::AbstractOptions, body::AbstractBody)
-    msg = "BODY\n"
+function log_spatial_setup(options::AbstractOptions, body::AbstractBody;
+                           bodyname::AbstractString="")
+    msg = "BODY"
+    isempty(bodyname) || (msg *= " `" * bodyname * "`")
+    msg *= "\n"
     msg *= "  POINT CLOUD\n"
     msg *= log_qty("number of points", body.n_points; indentation=4)
     @views min_x, max_x = minimum(body.position[1,:]), maximum(body.position[1,:])
