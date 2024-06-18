@@ -57,8 +57,12 @@ abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
 abstract type AbstractParameterHandler <: AbstractParameterSetup end
 abstract type AbstractChunkHandler end
 abstract type AbstractDataHandler end
-abstract type AbstractThreadsBodyDataHandler{Sys,M,P,S} <: AbstractDataHandler end
-abstract type AbstractMPIBodyDataHandler{Sys,M,P,S} <: AbstractDataHandler end
+abstract type AbstractThreadsDataHandler <: AbstractDataHandler end
+abstract type AbstractMPIDataHandler <: AbstractDataHandler end
+abstract type AbstractThreadsBodyDataHandler{Sys,M,P,S} <: AbstractThreadsDataHandler end
+abstract type AbstractThreadsMultibodyDataHandler{Sys,M,P,S} <: AbstractThreadsDataHandler end
+abstract type AbstractMPIBodyDataHandler{Sys,M,P,S} <: AbstractMPIDataHandler end
+abstract type AbstractMPIMultibodyDataHandler{Sys,M,P,S} <: AbstractMPIDataHandler end
 abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
@@ -93,6 +97,7 @@ include("core/materials.jl")
 include("core/storages.jl")
 include("core/time_solvers.jl")
 include("core/halo_exchange.jl")
+include("core/data_handler.jl")
 include("core/threads_body_data_handler.jl")
 include("core/mpi_body_data_handler.jl")
 

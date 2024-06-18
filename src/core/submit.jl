@@ -59,33 +59,33 @@ function submit_mpi(job::Job)
         init_logs(job.options)
         log_spatial_setup(job.options, job.spatial_setup)
         log_create_data_handler_start()
-        mdh = MPIBodyDataHandler(job.spatial_setup, job.time_solver)
-        init_time_solver!(job.time_solver, mdh)
-        initialize!(mdh, job.time_solver)
+        dh = mpi_data_handler(job.spatial_setup, job.time_solver)
+        init_time_solver!(job.time_solver, dh)
+        initialize!(dh, job.time_solver)
         log_create_data_handler_end()
-        log_data_handler(job.options, mdh)
+        log_data_handler(job.options, dh)
         log_timesolver(job.options, job.time_solver)
     end
     @timeit_debug TO "solve!" begin
-        solve!(mdh, job.time_solver, job.options)
+        solve!(dh, job.time_solver, job.options)
     end
     if timeit_debug_enabled()
         TimerOutputs.complement!(TO)
         log_mpi_timers(job.options)
     end
-    return mdh
+    return dh
 end
 
 function submit_threads(job::Job, n_chunks::Int)
     init_logs(job.options)
     log_spatial_setup(job.options, job.spatial_setup)
     log_create_data_handler_start()
-    tdh = ThreadsBodyDataHandler(job.spatial_setup, job.time_solver, n_chunks)
-    init_time_solver!(job.time_solver, tdh)
-    initialize!(tdh, job.time_solver)
+    dh = threads_data_handler(job.spatial_setup, job.time_solver, n_chunks)
+    init_time_solver!(job.time_solver, dh)
+    initialize!(dh, job.time_solver)
     log_create_data_handler_end()
-    log_data_handler(job.options, tdh)
+    log_data_handler(job.options, dh)
     log_timesolver(job.options, job.time_solver)
-    solve!(tdh, job.time_solver, job.options)
-    return tdh
+    solve!(dh, job.time_solver, job.options)
+    return dh
 end

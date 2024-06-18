@@ -5,7 +5,7 @@ struct ThreadsBodyDataHandler{Sys,M,P,S} <: AbstractThreadsBodyDataHandler{Sys,M
     htl_exs::Vector{Vector{HaloExchange}}
 end
 
-function ThreadsBodyDataHandler(body::AbstractBody, solver::AbstractTimeSolver, n_chunks::Int)
+function threads_data_handler(body::AbstractBody, solver::AbstractTimeSolver, n_chunks::Int)
     point_decomp = PointDecomposition(body, n_chunks)
     param_spec = get_param_spec(body)
     chunks = chop_body_threads(body, solver, point_decomp, param_spec)

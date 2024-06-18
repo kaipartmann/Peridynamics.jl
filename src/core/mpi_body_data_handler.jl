@@ -21,7 +21,7 @@ struct MPIBodyDataHandler{Sys,M,P,S,Bufs} <: AbstractMPIBodyDataHandler{Sys,M,P,
     htl_reqs::Vector{Vector{MPI.Request}}
 end
 
-function MPIBodyDataHandler(body::AbstractBody, solver::AbstractTimeSolver)
+function mpi_data_handler(body::AbstractBody, solver::AbstractTimeSolver)
     point_decomp = PointDecomposition(body, mpi_nranks())
     param_spec = get_param_spec(body)
     @timeit_debug TO "chop chunk" begin

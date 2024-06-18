@@ -47,8 +47,8 @@ end
 
     vv = VelocityVerlet(steps=10)
 
-    tdh = Peridynamics.ThreadsBodyDataHandler(body, vv, 1)
-    Peridynamics.init_time_solver!(vv, tdh)
+    dh = Peridynamics.threads_data_handler(body, vv, 1)
+    Peridynamics.init_time_solver!(vv, dh)
 
     bc = 18 * E / (3 * (1 - 2 * nu)) / (π * δ^4)
     Δt = 0.7 * sqrt(2 * rho / bc)
@@ -59,8 +59,8 @@ end
 
     vv = VelocityVerlet(time=11)
 
-    tdh = Peridynamics.ThreadsBodyDataHandler(body, vv, 1)
-    Peridynamics.init_time_solver!(vv, tdh)
+    dh = Peridynamics.threads_data_handler(body, vv, 1)
+    Peridynamics.init_time_solver!(vv, dh)
 
     bc = 18 * E / (3 * (1 - 2 * nu)) / (π * δ^4)
     Δt = 0.7 * sqrt(2 * rho / bc)
