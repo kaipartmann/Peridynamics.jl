@@ -81,7 +81,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
         n_points = length(volume)
         check_pos_and_vol(n_points, position, volume)
         fail_permit = fill(true, length(volume))
-        point_sets = Dict{Symbol,Vector{Int}}()
+        point_sets = Dict{Symbol,Vector{Int}}(:all_points => 1:length(volume))
 
         P = point_param_type(mat)
         point_params = Vector{P}()
@@ -184,4 +184,3 @@ function maximum_horizon(b::AbstractBody)
 end
 
 @inline get_horizon(param::AbstractPointParameters) = getfield(param, :δ)
-
