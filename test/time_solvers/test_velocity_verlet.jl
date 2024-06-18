@@ -47,8 +47,7 @@ end
 
     vv = VelocityVerlet(steps=10)
 
-    point_decomp = Peridynamics.PointDecomposition(body, 1)
-    tdh = Peridynamics.ThreadsDataHandler(body, vv, point_decomp)
+    tdh = Peridynamics.ThreadsDataHandler(body, vv, 1)
     Peridynamics.init_time_solver!(vv, tdh)
 
     bc = 18 * E / (3 * (1 - 2 * nu)) / (π * δ^4)
@@ -60,8 +59,7 @@ end
 
     vv = VelocityVerlet(time=11)
 
-    point_decomp = Peridynamics.PointDecomposition(body, 1)
-    tdh = Peridynamics.ThreadsDataHandler(body, vv, point_decomp)
+    tdh = Peridynamics.ThreadsDataHandler(body, vv, 1)
     Peridynamics.init_time_solver!(vv, tdh)
 
     bc = 18 * E / (3 * (1 - 2 * nu)) / (π * δ^4)

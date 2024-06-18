@@ -5,8 +5,8 @@ struct ThreadsDataHandler{Sys,M,P,S} <: AbstractThreadsDataHandler{Sys,M,P,S}
     htl_exs::Vector{Vector{HaloExchange}}
 end
 
-function ThreadsDataHandler(body::AbstractBody, solver::AbstractTimeSolver,
-                            point_decomp::PointDecomposition)
+function ThreadsDataHandler(body::AbstractBody, solver::AbstractTimeSolver, n_chunks::Int)
+    point_decomp = PointDecomposition(body, n_chunks)
     param_spec = get_param_spec(body)
     chunks = chop_body_threads(body, solver, point_decomp, param_spec)
     n_chunks = length(chunks)
@@ -14,10 +14,10 @@ function ThreadsDataHandler(body::AbstractBody, solver::AbstractTimeSolver,
     return ThreadsDataHandler(n_chunks, chunks, lth_exs, htl_exs)
 end
 
-function ThreadsDataHandler(multibody::AbstractMultibodySetup, solver::AbstractTimeSolver,
-                            point_decomp::PointDecomposition)
-    error("MultibodySetup not yet implemented!\n")
-end
+# function ThreadsDataHandler(multibody::AbstractMultibodySetup, solver::AbstractTimeSolver,
+#                             point_decomp::PointDecomposition)
+#     error("MultibodySetup not yet implemented!\n")
+# end
 
 function chop_body_threads(body::AbstractBody, solver::AbstractTimeSolver,
                            point_decomp::PointDecomposition, param_spec::AbstractParamSpec)

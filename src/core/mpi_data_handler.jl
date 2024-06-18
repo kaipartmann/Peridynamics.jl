@@ -21,8 +21,8 @@ struct MPIDataHandler{Sys,M,P,S,Bufs} <: AbstractMPIDataHandler{Sys,M,P,S}
     htl_reqs::Vector{Vector{MPI.Request}}
 end
 
-function MPIDataHandler(body::AbstractBody, solver::AbstractTimeSolver,
-                        point_decomp::PointDecomposition)
+function MPIDataHandler(body::AbstractBody, solver::AbstractTimeSolver)
+    point_decomp = PointDecomposition(body, mpi_nranks())
     param_spec = get_param_spec(body)
     @timeit_debug TO "chop chunk" begin
         chunk = chop_body_mpi(body, solver, point_decomp, param_spec)
@@ -42,11 +42,11 @@ function MPIDataHandler(body::AbstractBody, solver::AbstractTimeSolver,
     return mdh
 end
 
-function MPIDataHandler(multibody::AbstractMultibodySetup,
-                        time_solver::AbstractTimeSolver,
-                        point_decomp::PointDecomposition)
-    error("MultibodySetup not yet implemented!\n")
-end
+# function MPIDataHandler(multibody::AbstractMultibodySetup,
+#                         time_solver::AbstractTimeSolver,
+#                         point_decomp::PointDecomposition)
+#     error("MultibodySetup not yet implemented!\n")
+# end
 
 function chop_body_mpi(body::AbstractBody, solver::AbstractTimeSolver,
                        point_decomp::PointDecomposition, param_spec::AbstractParamSpec)

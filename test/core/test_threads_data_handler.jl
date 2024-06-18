@@ -13,8 +13,7 @@
     forcedensity_bc!(t->t, body, :a, :x)
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
-    point_decomp = Peridynamics.PointDecomposition(body, 2)
-    tdh = Peridynamics.ThreadsDataHandler(body, ts, point_decomp)
+    tdh = Peridynamics.ThreadsDataHandler(body, ts, 2)
 
     @test tdh.n_chunks == 2
     @test length(tdh.chunks) == 2
