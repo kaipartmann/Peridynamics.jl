@@ -152,12 +152,11 @@ function log_spatial_setup(options::AbstractOptions, body::AbstractBody;
         descr = @sprintf("number of points in set `%s`", string(key))
         msg *= log_qty(descr, length(points); indentation=4)
     end
-    msg *= "  CONDITIONS\n"
     n_bcs = length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
-    n_bcs > 0 && (msg *= log_qty("number of BC's", n_bcs; indentation=4))
     n_ics = length(body.single_dim_ics)
+    n_bcs + n_ics > 0 && (msg *= "  CONDITIONS\n")
+    n_bcs > 0 && (msg *= log_qty("number of BC's", n_bcs; indentation=4))
     n_ics > 0 && (msg *= log_qty("number of IC's", n_ics; indentation=4))
-
     if length(body.point_params) == 1
         msg *= "  MATERIAL\n"
         msg *= log_qty("material type", material_type(body); indentation=4)

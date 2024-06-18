@@ -341,7 +341,7 @@ function recv_htl!(get_field_function::F, dh::MPIBodyDataHandler,
 end
 
 function export_results(dh::MPIBodyDataHandler, options::AbstractOptions, n::Int,
-                        t::Float64; prefix::AbstractString="")
+                        t::Float64; prefix="")
     options.exportflag || return nothing
     if mod(n, options.freq) == 0
         _export_results(options, dh.chunk, mpi_chunk_id(), mpi_nranks(), prefix, n, t)
@@ -350,7 +350,7 @@ function export_results(dh::MPIBodyDataHandler, options::AbstractOptions, n::Int
 end
 
 function export_reference_results(dh::MPIBodyDataHandler, options::AbstractOptions;
-                                  prefix::AbstractString="")
+                                  prefix="")
     options.exportflag || return nothing
     _export_results(options, dh.chunk, mpi_chunk_id(), mpi_nranks(), prefix, 0, 0.0)
     return nothing

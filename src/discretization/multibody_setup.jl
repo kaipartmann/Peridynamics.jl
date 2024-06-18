@@ -40,7 +40,7 @@ TODO
 mutable struct MultibodySetup{M<:AbstractMaterial,
                               P<:AbstractPointParameters} <: AbstractMultibodySetup{M}
     bodies::Vector{Body{M,P}}
-    bodynames::Vector{Symbol}
+    body_names::Vector{Symbol}
     body_idxs::Dict{Symbol,Int}
     srf_contacts::Vector{ShortRangeForceContact}
 
@@ -52,15 +52,15 @@ mutable struct MultibodySetup{M<:AbstractMaterial,
             throw(ArgumentError(msg))
         end
         bodies = Vector{Body{M,P}}(undef, n_bodies)
-        bodynames = Vector{Symbol}(undef, n_bodies)
+        body_names = Vector{Symbol}(undef, n_bodies)
         body_idxs = Dict{Symbol,Int}()
         for (i, (name,body)) in enumerate(bodies_dict)
             bodies[i] = body
-            bodynames[i] = name
+            body_names[i] = name
             body_idxs[name] = i
         end
         srf_contacts = Vector{ShortRangeForceContact}()
-        return new{M,P}(bodies, bodynames, body_idxs, srf_contacts)
+        return new{M,P}(bodies, body_names, body_idxs, srf_contacts)
     end
 end
 
@@ -84,8 +84,11 @@ end
 
 @inline get_body(ms::AbstractMultibodySetup, name::Symbol) = ms.bodies[ms.body_idxs[name]]
 @inline get_body(ms::AbstractMultibodySetup, idx::Int) = ms.bodies[idx]
+@inline get_body_name(ms::AbstractMultibodySetup, idx::Int) = string(ms.body_names[idx])
 
 @inline each_body(ms::AbstractMultibodySetup) = ms.bodies
+@inline each_body_idx(ms::AbstractMultibodySetup) = eachindex(ms.bodies)
+@inline each_body_name(ms::AbstractMultibodySetup) = ms.body_names
 
 """
     contact!(ms, body_a, body_b; kwargs...)
@@ -135,4 +138,13 @@ end
 
 @inline function storage_type(ms::AbstractMultibodySetup, ts::AbstractTimeSolver)
     return storage_type(first(values(ms.bodies)).mat, ts)
+end
+
+function log_spatial_setup(options::AbstractOptions, ms::MultibodySetup)
+    for body_idx in each_body_idx(ms)
+        body = get_body(ms, body_idx)
+        name = get_body_name(ms, body_idx)
+        log_spatial_setup(options, body; bodyname=name)
+    end
+    return nothing
 end

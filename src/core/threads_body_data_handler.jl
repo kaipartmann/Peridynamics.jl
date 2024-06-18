@@ -156,7 +156,7 @@ function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsBodyDataHandler
 end
 
 function export_results(dh::ThreadsBodyDataHandler, options::AbstractOptions, chunk_id::Int,
-                        timestep::Int, time::Float64; prefix::AbstractString="")
+                        timestep::Int, time::Float64; prefix="")
     options.exportflag || return nothing
     if mod(timestep, options.freq) == 0
         _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, prefix,
@@ -166,7 +166,7 @@ function export_results(dh::ThreadsBodyDataHandler, options::AbstractOptions, ch
 end
 
 function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractOptions;
-                                  prefix::AbstractString="")
+                                  prefix="")
     options.exportflag || return nothing
     @threads :static for chunk_id in eachindex(dh.chunks)
         _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, prefix, 0, 0.0)

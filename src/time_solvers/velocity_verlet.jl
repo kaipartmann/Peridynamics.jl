@@ -156,7 +156,7 @@ function solve!(dh::AbstractDataHandler, vv::VelocityVerlet, options::AbstractOp
 end
 
 function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractOptions,
-                         Δt::Float64, Δt½::Float64, n::Int)
+                          Δt::Float64, Δt½::Float64, n::Int)
     t = n * Δt
     @threads :static for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
@@ -178,8 +178,35 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractO
     return nothing
 end
 
-function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractOptions, Δt::Float64,
-                         Δt½::Float64, n::Int)
+function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler, options::AbstractOptions,
+                          Δt::Float64, Δt½::Float64, n::Int)
+    t = n * Δt
+    for body_idx in each_body_idx(dh)
+        body_dh = get_body_dh(dh, body_idx)
+        body_name = get_body_name(dh, body_idx)
+        @threads :static for chunk_id in eachindex(body_dh.chunks)
+            chunk = body_dh.chunks[chunk_id]
+            update_vel_half!(chunk, Δt½)
+            apply_bcs!(chunk, t)
+            update_disp_and_pos!(chunk, Δt)
+        end
+        @threads :static for chunk_id in eachindex(body_dh.chunks)
+            exchange_loc_to_halo!(body_dh, chunk_id)
+            calc_force_density!(body_dh.chunks[chunk_id])
+        end
+        @threads :static for chunk_id in eachindex(body_dh.chunks)
+            exchange_halo_to_loc!(body_dh, chunk_id)
+            chunk = body_dh.chunks[chunk_id]
+            calc_damage!(chunk)
+            update_acc_and_vel!(chunk, Δt½)
+            export_results(body_dh, options, chunk_id, n, t; prefix=body_name)
+        end
+    end
+    return nothing
+end
+
+function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractOptions,
+                          Δt::Float64, Δt½::Float64, n::Int)
     t = n * Δt
     chunk = dh.chunk
     @timeit_debug TO "update_vel_half!" update_vel_half!(chunk, Δt½)
@@ -195,8 +222,8 @@ function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractOptio
 end
 
 function update_vel_half!(b::AbstractBodyChunk, Δt½::Float64)
-    _update_vel_half!(b.storage.velocity_half, b.storage.velocity, b.storage.acceleration, Δt½,
-                      each_point_idx(b))
+    _update_vel_half!(b.storage.velocity_half, b.storage.velocity, b.storage.acceleration,
+                      Δt½, each_point_idx(b))
     return nothing
 end
 
