@@ -156,18 +156,20 @@ function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsBodyDataHandler
 end
 
 function export_results(dh::ThreadsBodyDataHandler, options::AbstractOptions, chunk_id::Int,
-                        timestep::Int, time::Float64)
+                        timestep::Int, time::Float64; prefix::AbstractString="")
     options.exportflag || return nothing
     if mod(timestep, options.freq) == 0
-        _export_results(dh.chunks[chunk_id], chunk_id, dh.n_chunks, options, timestep, time)
+        _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, prefix,
+                        timestep, time)
     end
     return nothing
 end
 
-function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractOptions)
+function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractOptions;
+                                  prefix::AbstractString="")
     options.exportflag || return nothing
     @threads :static for chunk_id in eachindex(dh.chunks)
-        _export_results(dh.chunks[chunk_id], chunk_id, dh.n_chunks, options, 0, 0.0)
+        _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, prefix, 0, 0.0)
     end
     return nothing
 end

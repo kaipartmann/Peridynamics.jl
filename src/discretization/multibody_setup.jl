@@ -39,17 +39,28 @@ TODO
 """
 mutable struct MultibodySetup{M<:AbstractMaterial,
                               P<:AbstractPointParameters} <: AbstractMultibodySetup{M}
-    bodies::Dict{Symbol,Body{M,P}}
+    bodies::Vector{Body{M,P}}
+    bodynames::Vector{Symbol}
+    body_idxs::Dict{Symbol,Int}
     srf_contacts::Vector{ShortRangeForceContact}
 
-    function MultibodySetup(bodies::Dict{Symbol,Body{M,P}}) where {M,P}
-        if length(bodies) < 2
+    function MultibodySetup(bodies_dict::Dict{Symbol,Body{M,P}}) where {M,P}
+        n_bodies = length(keys(bodies_dict))
+        if n_bodies < 2
             msg = "not enough bodies given!\n"
             msg *= "Please specify 2 or more!\n"
             throw(ArgumentError(msg))
         end
+        bodies = Vector{Body{M,P}}(undef, n_bodies)
+        bodynames = Vector{Symbol}(undef, n_bodies)
+        body_idxs = Dict{Symbol,Int}()
+        for (i, (name,body)) in enumerate(bodies_dict)
+            bodies[i] = body
+            bodynames[i] = name
+            body_idxs[name] = i
+        end
         srf_contacts = Vector{ShortRangeForceContact}()
-        return new{M,P}(bodies, srf_contacts)
+        return new{M,P}(bodies, bodynames, body_idxs, srf_contacts)
     end
 end
 
@@ -65,13 +76,16 @@ MultibodySetup(body_pairs...) = MultibodySetup(Dict(body_pairs...))
 @inline material_type(::MultibodySetup{M}) where {M} = M
 
 function check_if_bodyname_is_defined(ms::AbstractMultibodySetup, name::Symbol)
-    if !haskey(ms.bodies, name)
+    if !haskey(ms.body_idxs, name)
         throw(ArgumentError("there is no body with name $(name)!"))
     end
     return nothing
 end
 
-@inline get_body(ms::AbstractMultibodySetup, name::Symbol) = ms.bodies[name]
+@inline get_body(ms::AbstractMultibodySetup, name::Symbol) = ms.bodies[ms.body_idxs[name]]
+@inline get_body(ms::AbstractMultibodySetup, idx::Int) = ms.bodies[idx]
+
+@inline each_body(ms::AbstractMultibodySetup) = ms.bodies
 
 """
     contact!(ms, body_a, body_b; kwargs...)

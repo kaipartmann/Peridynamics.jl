@@ -38,7 +38,7 @@ function mpi_data_handler(body::AbstractBody, solver::AbstractTimeSolver)
         htl_reqs = init_reqs(htl_send, n_halo_fields)
     end
     mdh = MPIBodyDataHandler(chunk, n_halo_fields, lth_send, lth_recv, htl_send, htl_recv,
-                         bufs..., lth_reqs, htl_reqs)
+                             bufs..., lth_reqs, htl_reqs)
     return mdh
 end
 
@@ -340,24 +340,25 @@ function recv_htl!(get_field_function::F, dh::MPIBodyDataHandler,
     return nothing
 end
 
-function export_results(dh::MPIBodyDataHandler, options::AbstractOptions, n::Int, t::Float64)
+function export_results(dh::MPIBodyDataHandler, options::AbstractOptions, n::Int,
+                        t::Float64; prefix::AbstractString="")
     options.exportflag || return nothing
     if mod(n, options.freq) == 0
-        _export_results(dh.chunk, mpi_chunk_id(), mpi_nranks(), options, n, t)
+        _export_results(options, dh.chunk, mpi_chunk_id(), mpi_nranks(), prefix, n, t)
     end
     return nothing
 end
 
-function export_reference_results(dh::MPIBodyDataHandler, options::AbstractOptions)
+function export_reference_results(dh::MPIBodyDataHandler, options::AbstractOptions;
+                                  prefix::AbstractString="")
     options.exportflag || return nothing
-    _export_results(dh.chunk, mpi_chunk_id(), mpi_nranks(), options, 0, 0.0)
+    _export_results(options, dh.chunk, mpi_chunk_id(), mpi_nranks(), prefix, 0, 0.0)
     return nothing
 end
 
 function initialize!(::AbstractMPIBodyDataHandler, ::AbstractTimeSolver)
     return nothing
 end
-
 
 function log_data_handler(options::AbstractOptions,
                           dh::AbstractMPIBodyDataHandler{Sys}) where {Sys<:BondSystem}

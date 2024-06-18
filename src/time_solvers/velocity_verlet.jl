@@ -110,6 +110,11 @@ function calc_stable_timestep(dh::ThreadsBodyDataHandler, safety_factor::Float64
     return minimum(Δt) * safety_factor
 end
 
+function calc_stable_timestep(dh::ThreadsMultibodyDataHandler, safety_factor::Float64)
+    Δt = minimum(calc_stable_timestep(bdh, safety_factor) for bdh in each_body_dh(dh))
+    return Δt
+end
+
 function calc_stable_timestep(dh::MPIBodyDataHandler, safety_factor::Float64)
     _Δt = calc_timestep(dh.chunk)
     Δt = MPI.Allreduce(_Δt, MPI.MIN, mpi_comm())

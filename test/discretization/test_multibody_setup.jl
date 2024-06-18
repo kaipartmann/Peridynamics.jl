@@ -28,7 +28,7 @@ end
     nhs = GridNeighborhoodSearch{3}(1, 10)
 
     contact!(ms, :body1, :body2; radius=1)
-    srfc = ms.srf_contacts[1] #Peridynamics.ShortRangeForceContact(:body1, :body2, 1.0, 1e12, nhs)
+    srfc = ms.srf_contacts[1]
     @test srfc.body_id_a === :body1
     @test srfc.body_id_b === :body2
     @test srfc.radius == 1.0
@@ -37,7 +37,7 @@ end
     empty!(ms.srf_contacts)
 
     contact!(ms, :body1, :body2; radius=2, penalty_factor=1.5e12)
-    srfc = ms.srf_contacts[1] # Peridynamics.ShortRangeForceContact(:body1, :body2, 2.0, 1.5e12, nhs)
+    srfc = ms.srf_contacts[1]
     @test srfc.body_id_a === :body1
     @test srfc.body_id_b === :body2
     @test srfc.radius == 2.0
