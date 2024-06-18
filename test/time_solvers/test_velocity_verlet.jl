@@ -37,7 +37,7 @@ end
     @test_throws ArgumentError VelocityVerlet(time=1.0, safety_factor=1)
 end
 
-@testitem "init_time_solver! ThreadsDataHandler" begin
+@testitem "init_time_solver! ThreadsBodyDataHandler" begin
     pos = [0 1; 0 0; 0 0]
     Δx, δ = 1, 1.5
     E, nu, rho = 1, 0.25, 1
@@ -47,7 +47,7 @@ end
 
     vv = VelocityVerlet(steps=10)
 
-    tdh = Peridynamics.ThreadsDataHandler(body, vv, 1)
+    tdh = Peridynamics.ThreadsBodyDataHandler(body, vv, 1)
     Peridynamics.init_time_solver!(vv, tdh)
 
     bc = 18 * E / (3 * (1 - 2 * nu)) / (π * δ^4)
@@ -59,7 +59,7 @@ end
 
     vv = VelocityVerlet(time=11)
 
-    tdh = Peridynamics.ThreadsDataHandler(body, vv, 1)
+    tdh = Peridynamics.ThreadsBodyDataHandler(body, vv, 1)
     Peridynamics.init_time_solver!(vv, tdh)
 
     bc = 18 * E / (3 * (1 - 2 * nu)) / (π * δ^4)

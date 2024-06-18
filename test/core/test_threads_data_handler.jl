@@ -1,4 +1,4 @@
-@testitem "ThreadsDataHandler BBMaterial VelocityVerlet" begin
+@testitem "ThreadsBodyDataHandler BBMaterial VelocityVerlet" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -13,7 +13,7 @@
     forcedensity_bc!(t->t, body, :a, :x)
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
-    tdh = Peridynamics.ThreadsDataHandler(body, ts, 2)
+    tdh = Peridynamics.ThreadsBodyDataHandler(body, ts, 2)
 
     @test tdh.n_chunks == 2
     @test length(tdh.chunks) == 2

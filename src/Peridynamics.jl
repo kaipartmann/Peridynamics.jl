@@ -57,8 +57,8 @@ abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
 abstract type AbstractParameterHandler <: AbstractParameterSetup end
 abstract type AbstractChunkHandler end
 abstract type AbstractDataHandler end
-abstract type AbstractThreadsDataHandler{Sys,M,P,S} <: AbstractDataHandler end
-abstract type AbstractMPIDataHandler{Sys,M,P,S} <: AbstractDataHandler end
+abstract type AbstractThreadsBodyDataHandler{Sys,M,P,S} <: AbstractDataHandler end
+abstract type AbstractMPIBodyDataHandler{Sys,M,P,S} <: AbstractDataHandler end
 abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractCondition end

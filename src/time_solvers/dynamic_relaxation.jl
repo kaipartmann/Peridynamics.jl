@@ -56,14 +56,14 @@ function solve!(dh::AbstractDataHandler, dr::DynamicRelaxation,
     return nothing
 end
 
-function init_density_matrix!(dh::AbstractThreadsDataHandler, dr::DynamicRelaxation)
+function init_density_matrix!(dh::AbstractThreadsBodyDataHandler, dr::DynamicRelaxation)
     @threads :static for chunk in dh.chunks
         _init_density_matrix!(chunk, dr, chunk.paramsetup)
     end
     return nothing
 end
 
-function init_density_matrix!(dh::AbstractMPIDataHandler, dr::DynamicRelaxation)
+function init_density_matrix!(dh::AbstractMPIBodyDataHandler, dr::DynamicRelaxation)
     _init_density_matrix!(dh.chunk, dr, dh.chunk.paramsetup)
     return nothing
 end
@@ -101,7 +101,7 @@ end
     return nothing
 end
 
-function relaxation_timestep!(dh::AbstractThreadsDataHandler, options::AbstractOptions,
+function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractOptions,
                               Δt::Float64, n::Int)
     t = n * Δt
     @threads :static for chunk_id in eachindex(dh.chunks)

@@ -102,7 +102,7 @@ function calc_stable_timestep(dh::AbstractDataHandler, safety_factor::Float64)
     throw(MethodError(calc_stable_timestep, dh, safety_factor))
 end
 
-function calc_stable_timestep(dh::ThreadsDataHandler, safety_factor::Float64)
+function calc_stable_timestep(dh::ThreadsBodyDataHandler, safety_factor::Float64)
     Δt = zeros(length(dh.chunks))
     @threads :static for chunk_id in eachindex(dh.chunks)
         Δt[chunk_id] = calc_timestep(dh.chunks[chunk_id])
@@ -110,7 +110,7 @@ function calc_stable_timestep(dh::ThreadsDataHandler, safety_factor::Float64)
     return minimum(Δt) * safety_factor
 end
 
-function calc_stable_timestep(dh::MPIDataHandler, safety_factor::Float64)
+function calc_stable_timestep(dh::MPIBodyDataHandler, safety_factor::Float64)
     _Δt = calc_timestep(dh.chunk)
     Δt = MPI.Allreduce(_Δt, MPI.MIN, mpi_comm())
     return Δt * safety_factor
@@ -150,7 +150,7 @@ function solve!(dh::AbstractDataHandler, vv::VelocityVerlet, options::AbstractOp
     return dh
 end
 
-function verlet_timestep!(dh::AbstractThreadsDataHandler, options::AbstractOptions,
+function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractOptions,
                          Δt::Float64, Δt½::Float64, n::Int)
     t = n * Δt
     @threads :static for chunk_id in eachindex(dh.chunks)
@@ -173,7 +173,7 @@ function verlet_timestep!(dh::AbstractThreadsDataHandler, options::AbstractOptio
     return nothing
 end
 
-function verlet_timestep!(dh::AbstractMPIDataHandler, options::AbstractOptions, Δt::Float64,
+function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractOptions, Δt::Float64,
                          Δt½::Float64, n::Int)
     t = n * Δt
     chunk = dh.chunk
