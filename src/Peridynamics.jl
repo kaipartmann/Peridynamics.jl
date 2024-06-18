@@ -22,7 +22,7 @@ export BondSystem, NoCorrection, EnergySurfaceCorrection
 
 # Discretization
 export Body, point_set!, failure_permit!, material!, velocity_bc!, velocity_ic!,
-       forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box
+       forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box, uniform_sphere
 
 # Running simulations
 export VelocityVerlet, DynamicRelaxation, Job, submit
