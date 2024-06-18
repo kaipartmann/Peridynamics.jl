@@ -14,11 +14,6 @@ function ThreadsBodyDataHandler(body::AbstractBody, solver::AbstractTimeSolver, 
     return ThreadsBodyDataHandler(n_chunks, chunks, lth_exs, htl_exs)
 end
 
-# function ThreadsBodyDataHandler(multibody::AbstractMultibodySetup, solver::AbstractTimeSolver,
-#                             point_decomp::PointDecomposition)
-#     error("MultibodySetup not yet implemented!\n")
-# end
-
 function chop_body_threads(body::AbstractBody, solver::AbstractTimeSolver,
                            point_decomp::PointDecomposition, param_spec::AbstractParamSpec)
     ChunkType = body_chunk_type(body, solver, param_spec)

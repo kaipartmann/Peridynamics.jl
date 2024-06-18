@@ -42,12 +42,6 @@ function MPIBodyDataHandler(body::AbstractBody, solver::AbstractTimeSolver)
     return mdh
 end
 
-# function MPIBodyDataHandler(multibody::AbstractMultibodySetup,
-#                         time_solver::AbstractTimeSolver,
-#                         point_decomp::PointDecomposition)
-#     error("MultibodySetup not yet implemented!\n")
-# end
-
 function chop_body_mpi(body::AbstractBody, solver::AbstractTimeSolver,
                        point_decomp::PointDecomposition, param_spec::AbstractParamSpec)
     chunk = BodyChunk(body, solver, point_decomp, mpi_chunk_id(), param_spec)
