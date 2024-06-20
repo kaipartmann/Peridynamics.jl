@@ -1,6 +1,6 @@
-struct ThreadsMultibodyDataHandler{Sys,M,P,S,PC,VC} <: AbstractThreadsMultibodyDataHandler{Sys,M,P,S}
+struct ThreadsMultibodyDataHandler{BDH,PC,VC} <: AbstractThreadsMultibodyDataHandler
     n_bodies::Int
-    body_dhs::Vector{ThreadsBodyDataHandler{Sys,M,P,S}}
+    body_dhs::BDH
     body_names::Vector{Symbol}
     body_idxs::Dict{Symbol,Int}
     srf_contacts::Vector{ShortRangeForceContact}
@@ -10,7 +10,7 @@ end
 
 function threads_data_handler(ms::AbstractMultibodySetup, solver::AbstractTimeSolver,
                               n_chunks::Int)
-    body_dhs = [threads_data_handler(body, solver, n_chunks) for body in each_body(ms)]
+    body_dhs = Tuple(threads_data_handler(body, solver, n_chunks) for body in each_body(ms))
     position_caches = [body.position for body in each_body(ms)]
     volume_caches = [body.volume for body in each_body(ms)]
     n_bodies = length(body_dhs)

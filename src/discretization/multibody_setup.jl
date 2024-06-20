@@ -37,38 +37,28 @@ MultibodySetup{Material,PointParameters}
 
 TODO
 """
-mutable struct MultibodySetup{M<:AbstractMaterial,
-                              P<:AbstractPointParameters} <: AbstractMultibodySetup{M}
-    bodies::Vector{Body{M,P}}
+struct MultibodySetup{B} <: AbstractMultibodySetup
+    bodies::B
     body_names::Vector{Symbol}
     body_idxs::Dict{Symbol,Int}
     srf_contacts::Vector{ShortRangeForceContact}
-
-    function MultibodySetup(bodies_dict::Dict{Symbol,Body{M,P}}) where {M,P}
-        n_bodies = length(keys(bodies_dict))
-        if n_bodies < 2
-            msg = "not enough bodies given!\n"
-            msg *= "Please specify 2 or more!\n"
-            throw(ArgumentError(msg))
-        end
-        bodies = Vector{Body{M,P}}(undef, n_bodies)
-        body_names = Vector{Symbol}(undef, n_bodies)
-        body_idxs = Dict{Symbol,Int}()
-        for (i, (name,body)) in enumerate(bodies_dict)
-            bodies[i] = body
-            body_names[i] = name
-            body_idxs[name] = i
-        end
-        srf_contacts = Vector{ShortRangeForceContact}()
-        return new{M,P}(bodies, body_names, body_idxs, srf_contacts)
-    end
 end
 
-function MultibodySetup(::Dict{Symbol,Body})
-    msg = "bodies have different material types!\n"
-    msg *= "Only bodies with the same material types can be used for MultibodySetup!\n"
-    throw(ArgumentError(msg))
-    return nothing
+function MultibodySetup(bodies_dict::Dict{Symbol,B}) where {B<:AbstractBody}
+    n_bodies = length(keys(bodies_dict))
+    if n_bodies < 2
+        msg = "not enough bodies given!\n"
+        msg *= "Please specify 2 or more!\n"
+        throw(ArgumentError(msg))
+    end
+    bodies = Tuple(body for body in values(bodies_dict))
+    body_names = [name for name in keys(bodies_dict)]
+    body_idxs = Dict{Symbol,Int}()
+    for (i, name) in enumerate(body_names)
+        body_idxs[name] = i
+    end
+    srf_contacts = Vector{ShortRangeForceContact}()
+    return MultibodySetup(bodies, body_names, body_idxs, srf_contacts)
 end
 
 MultibodySetup(body_pairs...) = MultibodySetup(Dict(body_pairs...))

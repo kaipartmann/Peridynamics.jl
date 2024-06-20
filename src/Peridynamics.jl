@@ -44,7 +44,7 @@ end
 abstract type AbstractMaterial end
 abstract type AbstractSpatialSetup end
 abstract type AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup end
-abstract type AbstractMultibodySetup{T<:AbstractMaterial} <: AbstractSpatialSetup end
+abstract type AbstractMultibodySetup <: AbstractSpatialSetup end
 abstract type AbstractParameterSetup end
 abstract type AbstractPointParameters <: AbstractParameterSetup end
 abstract type AbstractParamSpec end
@@ -60,9 +60,9 @@ abstract type AbstractDataHandler end
 abstract type AbstractThreadsDataHandler <: AbstractDataHandler end
 abstract type AbstractMPIDataHandler <: AbstractDataHandler end
 abstract type AbstractThreadsBodyDataHandler{Sys,M,P,S} <: AbstractThreadsDataHandler end
-abstract type AbstractThreadsMultibodyDataHandler{Sys,M,P,S} <: AbstractThreadsDataHandler end
+abstract type AbstractThreadsMultibodyDataHandler <: AbstractThreadsDataHandler end
 abstract type AbstractMPIBodyDataHandler{Sys,M,P,S} <: AbstractMPIDataHandler end
-abstract type AbstractMPIMultibodyDataHandler{Sys,M,P,S} <: AbstractMPIDataHandler end
+abstract type AbstractMPIMultibodyDataHandler <: AbstractMPIDataHandler end
 abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
