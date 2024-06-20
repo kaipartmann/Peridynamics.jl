@@ -77,6 +77,10 @@ end
     return eachindex(ch.loc_points)
 end
 
+@inline function each_point_idx_pair(ch::ChunkHandler)
+    return enumerate(ch.loc_points)
+end
+
 @inline function get_loc_view(a::Matrix{T}, ch::ChunkHandler) where {T}
     return view(a, :, 1:ch.n_loc_points)
 end

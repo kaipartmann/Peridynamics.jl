@@ -183,7 +183,6 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler, options::Abst
     t = n * Δt
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
-        body_name = get_body_name(dh, body_idx)
         @threads :static for chunk_id in eachindex(body_dh.chunks)
             chunk = body_dh.chunks[chunk_id]
             update_vel_half!(chunk, Δt½)
@@ -194,6 +193,12 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler, options::Abst
             exchange_loc_to_halo!(body_dh, chunk_id)
             calc_force_density!(body_dh.chunks[chunk_id])
         end
+    end
+    update_caches!(dh)
+    calc_contact_force_densities!(dh)
+    for body_idx in each_body_idx(dh)
+        body_dh = get_body_dh(dh, body_idx)
+        body_name = get_body_name(dh, body_idx)
         @threads :static for chunk_id in eachindex(body_dh.chunks)
             exchange_halo_to_loc!(body_dh, chunk_id)
             chunk = body_dh.chunks[chunk_id]
