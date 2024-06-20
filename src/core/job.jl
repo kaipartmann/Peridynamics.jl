@@ -60,15 +60,15 @@ Job{SpatialSetup,TimeSolver,Options}
 
 - `SpatialSetup <: AbstractSpatialSetup`: Type of the spatial setup
 - `TimeSolver <: AbstractTimeSolver`: Type of the time solver
-- `Options <: AbstractOptions`: Type of the export options
+- `Options <: AbstractJobOptions`: Type of the export options
 
 # Fields
 
 - `spatial_setup::AbstractSpatialSetup`: Body or Multibody setup for the simulation
 - `time_solver::AbstractTimeSolver`: Method for calculating discrete time steps
-- `options::AbstractOptions`: Options for simulation data export
+- `options::AbstractJobOptions`: Options for simulation data export
 """
-struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractOptions}
+struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractJobOptions}
     spatial_setup::S
     time_solver::T
     options::O
@@ -88,23 +88,23 @@ end
 
 const DEFAULT_EXPORT_FIELDS = (:displacement, :damage)
 
-struct ExportOptions <: AbstractOptions
-    exportflag::Bool
+struct JobOptions{F} <: AbstractJobOptions
+    export_allowed::Bool
     root::String
     vtk::String
     logfile::String
     freq::Int
-    fields::Vector{Symbol}
+    fields::F
 end
 
-function ExportOptions(root::String, freq::Int, fields::Vector{Symbol})
+function JobOptions(root::String, freq::Int, fields)
     vtk = joinpath(root, "vtk")
     logfile = joinpath(root, "logfile.log")
-    return ExportOptions(true, root, vtk, logfile, freq, fields)
+    return JobOptions(true, root, vtk, logfile, freq, fields)
 end
 
-function ExportOptions()
-    return ExportOptions(false, "", "", "", 0, Vector{Symbol}())
+function JobOptions()
+    return JobOptions(false, "", "", "", 0, Vector{Symbol}())
 end
 
 function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractStorage}
@@ -129,9 +129,9 @@ function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractSt
     fields = get_export_fields(S, o)
 
     if isempty(root)
-        eo = ExportOptions()
+        eo = JobOptions()
     else
-        eo = ExportOptions(root, freq, fields)
+        eo = JobOptions(root, freq, fields)
     end
 
     return eo

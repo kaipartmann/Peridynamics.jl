@@ -155,9 +155,9 @@ function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsBodyDataHandler
     return nothing
 end
 
-function export_results(dh::ThreadsBodyDataHandler, options::AbstractOptions, chunk_id::Int,
+function export_results(dh::ThreadsBodyDataHandler, options::AbstractJobOptions, chunk_id::Int,
                         timestep::Int, time::Float64; prefix="")
-    options.exportflag || return nothing
+    options.export_allowed || return nothing
     if mod(timestep, options.freq) == 0
         _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, prefix,
                         timestep, time)
@@ -165,16 +165,16 @@ function export_results(dh::ThreadsBodyDataHandler, options::AbstractOptions, ch
     return nothing
 end
 
-function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractOptions;
+function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractJobOptions;
                                   prefix="")
-    options.exportflag || return nothing
+    options.export_allowed || return nothing
     @threads :static for chunk_id in eachindex(dh.chunks)
         _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, prefix, 0, 0.0)
     end
     return nothing
 end
 
-function log_data_handler(options::AbstractOptions,
+function log_data_handler(options::AbstractJobOptions,
                           dh::AbstractThreadsBodyDataHandler{Sys}) where {Sys<:BondSystem}
     msg = "BOND SYSTEM\n"
     n_bonds = 0

@@ -69,8 +69,8 @@ function mpi_run_initial_check()
     return false
 end
 
-function log_mpi_timers(options::AbstractOptions)
-    options.exportflag || return nothing
+function log_mpi_timers(options::AbstractJobOptions)
+    options.export_allowed || return nothing
     file = joinpath(options.root, @sprintf("timers_rank_%d.log", mpi_rank()))
     open(file, "w+") do io
         show(IOContext(io, :displaysize => (24,150)), TO)

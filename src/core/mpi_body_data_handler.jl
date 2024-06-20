@@ -340,18 +340,18 @@ function recv_htl!(get_field_function::F, dh::MPIBodyDataHandler,
     return nothing
 end
 
-function export_results(dh::MPIBodyDataHandler, options::AbstractOptions, n::Int,
+function export_results(dh::MPIBodyDataHandler, options::AbstractJobOptions, n::Int,
                         t::Float64; prefix="")
-    options.exportflag || return nothing
+    options.export_allowed || return nothing
     if mod(n, options.freq) == 0
         _export_results(options, dh.chunk, mpi_chunk_id(), mpi_nranks(), prefix, n, t)
     end
     return nothing
 end
 
-function export_reference_results(dh::MPIBodyDataHandler, options::AbstractOptions;
+function export_reference_results(dh::MPIBodyDataHandler, options::AbstractJobOptions;
                                   prefix="")
-    options.exportflag || return nothing
+    options.export_allowed || return nothing
     _export_results(options, dh.chunk, mpi_chunk_id(), mpi_nranks(), prefix, 0, 0.0)
     return nothing
 end
@@ -360,7 +360,7 @@ function initialize!(::AbstractMPIBodyDataHandler, ::AbstractTimeSolver)
     return nothing
 end
 
-function log_data_handler(options::AbstractOptions,
+function log_data_handler(options::AbstractJobOptions,
                           dh::AbstractMPIBodyDataHandler{Sys}) where {Sys<:BondSystem}
     msg = "BOND SYSTEM\n"
 

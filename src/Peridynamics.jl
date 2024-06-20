@@ -50,7 +50,7 @@ abstract type AbstractPointParameters <: AbstractParameterSetup end
 abstract type AbstractParamSpec end
 abstract type AbstractTimeSolver end
 abstract type AbstractJob end
-abstract type AbstractOptions end
+abstract type AbstractJobOptions end
 abstract type AbstractSystem end
 abstract type AbstractPredefinedCrack end
 abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end

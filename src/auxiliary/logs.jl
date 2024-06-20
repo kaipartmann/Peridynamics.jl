@@ -21,18 +21,18 @@ function set_progress_bars!()
     return nothing
 end
 
-function init_logs(options::AbstractOptions)
+function init_logs(options::AbstractJobOptions)
     mpi_isroot() || return nothing
     print_log(peridynamics_banner())
     print_log(get_run_info())
     set_progress_bars!()
-    options.exportflag || return nothing
+    options.export_allowed || return nothing
     mkpath(options.vtk)
     init_logfile(options)
     return nothing
 end
 
-function init_logfile(options::AbstractOptions)
+function init_logfile(options::AbstractJobOptions)
     open(options.logfile, "w+") do io
         write(io, get_logfile_head())
         write(io, peridynamics_banner(color=false))
@@ -41,8 +41,8 @@ function init_logfile(options::AbstractOptions)
     return nothing
 end
 
-function add_to_logfile(options::AbstractOptions, msg::AbstractString)
-    options.exportflag || return nothing
+function add_to_logfile(options::AbstractJobOptions, msg::AbstractString)
+    options.export_allowed || return nothing
     mpi_isroot() || return nothing
     open(options.logfile, "a") do io
         write(io, msg)
@@ -140,7 +140,7 @@ end
 
 print_log(msg::AbstractString) = print_log(stdout, msg)
 
-function log_it(options::AbstractOptions, msg::AbstractString)
+function log_it(options::AbstractJobOptions, msg::AbstractString)
     print_log(msg)
     add_to_logfile(options, msg)
     return nothing

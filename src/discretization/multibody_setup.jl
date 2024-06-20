@@ -95,7 +95,7 @@ end
     return storage_type(first(values(ms.bodies)).mat, ts)
 end
 
-function log_spatial_setup(options::AbstractOptions, ms::MultibodySetup)
+function log_spatial_setup(options::AbstractJobOptions, ms::MultibodySetup)
     for body_idx in each_body_idx(ms)
         body = get_body(ms, body_idx)
         name = get_body_name(ms, body_idx)

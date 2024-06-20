@@ -1,7 +1,7 @@
-@testitem "ExportOptions BBVerletStorage" begin
+@testitem "JobOptions BBVerletStorage" begin
     o = Dict{Symbol,Any}(:path => "rootpath", :freq => 10)
     eo = Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
-    @test eo.exportflag == true
+    @test eo.export_allowed == true
     @test eo.root == "rootpath"
     @test eo.vtk == joinpath("rootpath", "vtk")
     @test eo.logfile == joinpath("rootpath", "logfile.log")
@@ -10,7 +10,7 @@
 
     o = Dict{Symbol,Any}(:path => "rootpath")
     eo = Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
-    @test eo.exportflag == true
+    @test eo.export_allowed == true
     @test eo.root == "rootpath"
     @test eo.vtk == joinpath("rootpath", "vtk")
     @test eo.logfile == joinpath("rootpath", "logfile.log")
@@ -25,7 +25,7 @@
 
     o = Dict{Symbol,Any}()
     eo = Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
-    @test eo.exportflag == false
+    @test eo.export_allowed == false
     @test eo.root == ""
     @test eo.vtk == ""
     @test eo.logfile == ""
@@ -40,7 +40,7 @@
 
     o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext))
     eo = Peridynamics.get_export_options(Peridynamics.BBVerletStorage, o)
-    @test eo.exportflag == true
+    @test eo.export_allowed == true
     @test eo.root == "rootpath"
     @test eo.vtk == joinpath("rootpath", "vtk")
     @test eo.logfile == joinpath("rootpath", "logfile.log")

@@ -40,7 +40,7 @@ function dynamic_relaxation_check(dr::DynamicRelaxation)
 end
 
 function solve!(dh::AbstractDataHandler, dr::DynamicRelaxation,
-                options::AbstractOptions)
+                options::AbstractJobOptions)
     export_reference_results(dh, options)
     Δt = dr.Δt
     init_density_matrix!(dh, dr)
@@ -101,7 +101,7 @@ end
     return nothing
 end
 
-function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractOptions,
+function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJobOptions,
                               Δt::Float64, n::Int)
     t = n * Δt
     @threads :static for chunk_id in eachindex(dh.chunks)
@@ -193,7 +193,7 @@ function req_data_fields_timesolver(::Type{DynamicRelaxation})
     return ()
 end
 
-function log_timesolver(options::AbstractOptions, dr::DynamicRelaxation)
+function log_timesolver(options::AbstractJobOptions, dr::DynamicRelaxation)
     msg = "DYNAMIC RELAXATION TIME SOLVER\n"
     msg *= log_qty("number of time steps", dr.n_steps)
     msg *= log_qty("relaxation time step size", dr.Δt)

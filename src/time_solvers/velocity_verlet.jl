@@ -140,7 +140,7 @@ function _calc_timestep(bd::BondSystem, pp::AbstractPointParameters, point_id::I
     return sqrt(2 * pp.rho / dtsum)
 end
 
-function solve!(dh::AbstractDataHandler, vv::VelocityVerlet, options::AbstractOptions)
+function solve!(dh::AbstractDataHandler, vv::VelocityVerlet, options::AbstractJobOptions)
     export_reference_results(dh, options)
     Δt = vv.Δt
     Δt½ = 0.5 * vv.Δt
@@ -156,7 +156,7 @@ function solve!(dh::AbstractDataHandler, vv::VelocityVerlet, options::AbstractOp
     return dh
 end
 
-function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractOptions,
+function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJobOptions,
                           Δt::Float64, Δt½::Float64, n::Int)
     t = n * Δt
     @threads :static for chunk_id in eachindex(dh.chunks)
@@ -179,7 +179,7 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractO
     return nothing
 end
 
-function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler, options::AbstractOptions,
+function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler, options::AbstractJobOptions,
                           Δt::Float64, Δt½::Float64, n::Int)
     t = n * Δt
     for body_idx in each_body_idx(dh)
@@ -211,7 +211,7 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler, options::Abst
     return nothing
 end
 
-function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractOptions,
+function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractJobOptions,
                           Δt::Float64, Δt½::Float64, n::Int)
     t = n * Δt
     chunk = dh.chunk
@@ -311,7 +311,7 @@ function req_data_fields_timesolver(::Type{VelocityVerlet})
     return ()
 end
 
-function log_timesolver(options::AbstractOptions, vv::VelocityVerlet)
+function log_timesolver(options::AbstractJobOptions, vv::VelocityVerlet)
     msg = "VELOCITY VERLET TIME SOLVER\n"
     msg *= log_qty("number of time steps", vv.n_steps)
     msg *= log_qty("time step size", vv.Δt)

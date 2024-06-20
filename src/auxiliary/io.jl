@@ -28,7 +28,7 @@ function check_export_fields(::Type{S}, fields::Vector{Symbol}) where {S}
     return nothing
 end
 
-function _export_results(options::AbstractOptions, b::AbstractBodyChunk, chunk_id::Int,
+function _export_results(options::AbstractJobOptions, b::AbstractBodyChunk, chunk_id::Int,
                          n_chunks::Int, prefix::AbstractString, n::Int, t::Float64)
     filename = joinpath(options.vtk, @sprintf("%s_timestep_%06d", prefix, n))
     position = get_loc_position(b)

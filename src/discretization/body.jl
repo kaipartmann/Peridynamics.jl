@@ -131,7 +131,7 @@ end
 
 @inline storage_type(b::AbstractBody, ts::AbstractTimeSolver) = storage_type(b.mat, ts)
 
-function log_spatial_setup(options::AbstractOptions, body::AbstractBody;
+function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody;
                            bodyname::AbstractString="")
     msg = "BODY"
     isempty(bodyname) || (msg *= " `" * bodyname * "`")
