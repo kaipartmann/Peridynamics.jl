@@ -48,6 +48,16 @@ function update_caches!(dh::ThreadsMultibodyDataHandler)
     return nothing
 end
 
+function initialize!(dh::AbstractThreadsMultibodyDataHandler, ::AbstractTimeSolver)
+    init_contact_nhs!(dh)
+    return nothing
+end
+
+@inline function init_contact_nhs!(dh::AbstractThreadsMultibodyDataHandler)
+    init_srf_contacts_nhs!(dh)
+    return nothing
+end
+
 function calc_contact_force_densities!(dh)
     calc_short_range_force_contacts!(dh)
     return nothing

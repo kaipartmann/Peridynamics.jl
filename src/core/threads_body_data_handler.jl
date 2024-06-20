@@ -174,10 +174,6 @@ function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractO
     return nothing
 end
 
-function initialize!(::AbstractThreadsBodyDataHandler, ::AbstractTimeSolver)
-    return nothing
-end
-
 function log_data_handler(options::AbstractOptions,
                           dh::AbstractThreadsBodyDataHandler{Sys}) where {Sys<:BondSystem}
     msg = "BOND SYSTEM\n"

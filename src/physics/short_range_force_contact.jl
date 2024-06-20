@@ -77,7 +77,18 @@ function contact!(ms::AbstractMultibodySetup, name_body_a::Symbol, name_body_b::
     return nothing
 end
 
-function calc_short_range_force_contacts!(dh)
+function init_srf_contacts_nhs!(dh::AbstractThreadsMultibodyDataHandler)
+    # for contact in dh.srf_contacts
+    #     body_a_idx = dh.body_idxs[contact.body_id_a]
+    #     body_b_idx = dh.body_idxs[contact.body_id_b]
+    #     posc_a = dh.position_caches[body_a_idx]
+    #     posc_b = dh.position_caches[body_b_idx]
+    #     PointNeighbors.initialize!(contact.nhs, posc_a, posc_b)
+    # end
+    return nothing
+end
+
+function calc_short_range_force_contacts!(dh::AbstractThreadsMultibodyDataHandler)
     for contact in dh.srf_contacts
         body_a_idx = dh.body_idxs[contact.body_id_a]
         body_b_idx = dh.body_idxs[contact.body_id_b]
