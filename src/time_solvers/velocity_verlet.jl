@@ -122,6 +122,7 @@ function calc_stable_timestep(dh::MPIBodyDataHandler, safety_factor::Float64)
 end
 
 function calc_timestep(b::AbstractBodyChunk)
+    isempty(each_point_idx(b)) && return Inf
     Δt = fill(Inf, length(each_point_idx(b.ch)))
     for point_id in each_point_idx(b.ch)
         pp = get_params(b, point_id)
