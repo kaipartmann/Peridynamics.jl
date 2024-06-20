@@ -86,18 +86,6 @@ function Job(spatial_setup::S, time_solver::T; kwargs...) where {S,T}
     return Job(spatial_setup, time_solver, options)
 end
 
-function Job(spatial_setup::AbstractMultibodySetup, time_solver::AbstractTimeSolver;
-             kwargs...)
-    if mpi_run()
-        @mpiroot begin
-            @error "Multibody simulations with MPI are not yet implemented!\n"
-            MPI.Abort(mpi_comm(), 1)
-        end
-        MPI.Barrier(mpi_comm())
-    end
-    return Job(spatial_setup, time_solver; kwargs...)
-end
-
 const DEFAULT_EXPORT_FIELDS = (:displacement, :damage)
 
 struct ExportOptions <: AbstractOptions

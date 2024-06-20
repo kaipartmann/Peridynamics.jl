@@ -63,8 +63,6 @@ end
 
 MultibodySetup(body_pairs...) = MultibodySetup(Dict(body_pairs...))
 
-@inline material_type(::MultibodySetup{M}) where {M} = M
-
 function check_if_bodyname_is_defined(ms::AbstractMultibodySetup, name::Symbol)
     if !haskey(ms.body_idxs, name)
         throw(ArgumentError("there is no body with name $(name)!"))
@@ -81,6 +79,14 @@ end
 @inline each_body_name(ms::AbstractMultibodySetup) = ms.body_names
 
 function pre_submission_check(ms::AbstractMultibodySetup)
+    if mpi_run()
+        @mpiroot begin
+            @error "Multibody simulations with MPI are not yet implemented!\n"
+            MPI.Abort(mpi_comm(), 1)
+        end
+        MPI.Barrier(mpi_comm())
+    end
+
     #TODO: check if everything is defined for job submission!
     return nothing
 end

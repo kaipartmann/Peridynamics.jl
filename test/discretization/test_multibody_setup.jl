@@ -1,21 +1,32 @@
 @testitem "MultibodySetup" begin
     b1 = Body(BBMaterial(), rand(3,10), rand(10))
     b2 = Body(BBMaterial(), rand(3,10), rand(10))
-    b3 = Body(CKIMaterial(), rand(3,10), rand(10))
+    b3 = Body(OSBMaterial(), rand(3,10), rand(10))
 
-    ms = MultibodySetup(:body1 => b1, :body2 => b2)
-    @test ms isa MultibodySetup{Peridynamics.BBMaterial{Peridynamics.NoCorrection},Peridynamics.BBPointParameters}
-    @test Peridynamics.material_type(ms) == Peridynamics.BBMaterial{Peridynamics.NoCorrection}
-    @test length(ms.bodies) == 2
+    ms = MultibodySetup(:a => b1, :b => b2)
+    @test ms.bodies == (b1, b2) ||  ms.bodies == (b2, b1)
+    @test ms.body_names == [:a, :b] || ms.body_names == [:b, :a]
+    @test ms.body_idxs == Dict(:a => 1, :b => 2) || ms.body_idxs == Dict(:a => 2, :b => 1)
     @test isempty(ms.srf_contacts)
 
-    ms = MultibodySetup(Dict(:body1 => b1, :body2 => b2))
-    @test ms isa MultibodySetup{Peridynamics.BBMaterial{Peridynamics.NoCorrection},Peridynamics.BBPointParameters}
-    @test Peridynamics.material_type(ms) == Peridynamics.BBMaterial{Peridynamics.NoCorrection}
-    @test length(ms.bodies) == 2
+    ms = MultibodySetup(Dict(:a => b1, :b => b2))
+    @test ms.bodies == (b1, b2) ||  ms.bodies == (b2, b1)
+    @test ms.body_names == [:a, :b] || ms.body_names == [:b, :a]
+    @test ms.body_idxs == Dict(:a => 1, :b => 2) || ms.body_idxs == Dict(:a => 2, :b => 1)
     @test isempty(ms.srf_contacts)
 
-    @test_throws ArgumentError MultibodySetup(:body1 => b1, :body3 => b3)
+    ms = MultibodySetup(:a => b1, :b => b2, :c => b3)
+    @test ms.bodies[ms.body_idxs[:a]] == b1
+    @test ms.bodies[ms.body_idxs[:b]] == b2
+    @test ms.bodies[ms.body_idxs[:c]] == b3
+    for name in (:a, :b, :c)
+        idx = ms.body_idxs[name]
+        @test Peridynamics.get_body(ms, name) == ms.bodies[idx]
+        @test Peridynamics.get_body_name(ms, idx) == string(name)
+    end
+
+    @test_throws ArgumentError MultibodySetup(:a => b1)
+    @test_throws ArgumentError MultibodySetup(Dict(:a => b1))
 end
 
 @testitem "contact!" begin
@@ -50,4 +61,6 @@ end
     @test_throws ArgumentError contact!(ms, :body1, :body2; radius=0)
 
     @test_throws ArgumentError contact!(ms, :body1, :body2; radius=1, penalty_factor=0)
+
+    @test_throws ArgumentError contact!(ms, :body1, :b; radius=1)
 end
