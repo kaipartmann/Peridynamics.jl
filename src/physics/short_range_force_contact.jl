@@ -96,7 +96,7 @@ function calc_short_range_force_contacts!(dh::AbstractThreadsMultibodyDataHandle
         # update neighborhoodsearches
         posc_a = dh.position_caches[body_a_idx]
         posc_b = dh.position_caches[body_b_idx]
-        PointNeighbors.initialize!(contact.nhs, posc_a, posc_b)
+        initialize_grid!(contact.nhs, posc_b)
 
         # calc contact
         body_dh_a = get_body_dh(dh, body_a_idx)
@@ -118,11 +118,10 @@ function calc_contact_force_density!(chunk_a, contact, pos_cache_a, pos_cache_b,
         params_a = get_params(chunk_a, li)
         C = C0 / params_a.δ^4
         foreach_neighbor(pos_cache_a, pos_cache_b, nhs, ii) do i, j, Δxij, L
-            @assert i == ii
-            temp = C * (r - L) / L
-            storage_a.b_int[1, li] += temp * Δxij[1] * vol_cache_b[j]
-            storage_a.b_int[2, li] += temp * Δxij[2] * vol_cache_b[j]
-            storage_a.b_int[3, li] += temp * Δxij[3] * vol_cache_b[j]
+            temp = C * (r - L) / L * vol_cache_b[j]
+            storage_a.b_int[1, li] += temp * Δxij[1]
+            storage_a.b_int[2, li] += temp * Δxij[2]
+            storage_a.b_int[3, li] += temp * Δxij[3]
         end
     end
     return nothing
