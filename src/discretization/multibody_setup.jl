@@ -51,6 +51,9 @@ function MultibodySetup(bodies_dict::Dict{Symbol,B}) where {B<:AbstractBody}
         msg *= "Please specify 2 or more!\n"
         throw(ArgumentError(msg))
     end
+    for (name, body) in bodies_dict
+        change_name!(body, name)
+    end
     bodies = Tuple(body for body in values(bodies_dict))
     body_names = [name for name in keys(bodies_dict)]
     body_idxs = Dict{Symbol,Int}()
@@ -89,10 +92,6 @@ function pre_submission_check(ms::AbstractMultibodySetup)
 
     #TODO: check if everything is defined for job submission!
     return nothing
-end
-
-@inline function storage_type(ms::AbstractMultibodySetup, ts::AbstractTimeSolver)
-    return storage_type(first(values(ms.bodies)).mat, ts)
 end
 
 function log_spatial_setup(options::AbstractJobOptions, ms::MultibodySetup)

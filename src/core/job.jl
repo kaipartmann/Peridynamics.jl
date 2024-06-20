@@ -82,11 +82,9 @@ end
 function Job(spatial_setup::S, time_solver::T; kwargs...) where {S,T}
     o = Dict{Symbol,Any}(kwargs)
     check_kwargs(o, JOB_KWARGS)
-    options = get_export_options(storage_type(spatial_setup, time_solver), o)
+    options = get_job_options(spatial_setup, time_solver, o)
     return Job(spatial_setup, time_solver, options)
 end
-
-const DEFAULT_EXPORT_FIELDS = (:displacement, :damage)
 
 struct JobOptions{F} <: AbstractJobOptions
     export_allowed::Bool
@@ -107,7 +105,21 @@ function JobOptions()
     return JobOptions(false, "", "", "", 0, Vector{Symbol}())
 end
 
-function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractStorage}
+function get_job_options(spatial_setup, solver, o)
+    root, freq = get_root_and_freq(o)
+
+    fields = get_export_fields(spatial_setup, solver, o)
+
+    if isempty(root)
+        options = JobOptions()
+    else
+        options = JobOptions(root, freq, fields)
+    end
+
+    return options
+end
+
+function get_root_and_freq(o::Dict{Symbol,Any})
     local root::String
     local freq::Int
 
@@ -126,13 +138,5 @@ function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractSt
     end
     freq < 0 && throw(ArgumentError("`freq` should be larger than zero!\n"))
 
-    fields = get_export_fields(S, o)
-
-    if isempty(root)
-        eo = JobOptions()
-    else
-        eo = JobOptions(root, freq, fields)
-    end
-
-    return eo
+    return root, freq
 end
