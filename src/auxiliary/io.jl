@@ -16,8 +16,7 @@ function get_export_fields(body::AbstractBody, solver::AbstractTimeSolver,
         fields = default_export_fields()
     end
 
-    S = storage_type(body, solver)
-    check_export_fields(S, fields)
+    check_export_fields(body, solver, fields)
 
     return fields
 end
@@ -30,13 +29,20 @@ function get_export_fields(ms::AbstractMultibodySetup, solver::AbstractTimeSolve
         fields_spec = default_fields_spec(ms)
     end
 
+    check_export_fields(ms, solver, fields_spec)
+
     return fields_spec
 end
 
-@inline extract_export_fields(fields::Symbol) = [fields]
-@inline extract_export_fields(fields::NTuple{N,Symbol}) where {N} = [f for f in fields]
-@inline extract_export_fields(fields::Vector{Symbol}) = fields
-@inline function extract_export_fields(arbitrary_fields::T) where {T}
+@inline function extract_export_fields(o)
+    fields::Vector{Symbol} = _extract_export_fields(o)
+    return fields
+end
+
+@inline _extract_export_fields(fields::Symbol) = [fields]
+@inline _extract_export_fields(fields::NTuple{N,Symbol}) where {N} = [f for f in fields]
+@inline _extract_export_fields(fields::Vector{Symbol}) = fields
+@inline function _extract_export_fields(arbitrary_fields::T) where {T}
     fields::Vector{Symbol} = try
         convert(Vector{Symbol}, arbitrary_fields)
     catch
@@ -47,7 +53,12 @@ end
     return fields
 end
 
-function extract_fields_spec(ms::AbstractMultibodySetup, o::Dict{Symbol,T}) where {T}
+@inline function extract_fields_spec(ms, o)
+    fields_spec::Dict{Symbol,Vector{Symbol}} = _extract_fields_spec(ms, o)
+    return fields_spec
+end
+
+function _extract_fields_spec(ms::AbstractMultibodySetup, o::Dict{Symbol,T}) where {T}
     fields_spec = Dict{Symbol,Vector{Symbol}}()
     for (body_name, fields) in o
         check_if_bodyname_is_defined(ms, body_name)
@@ -56,8 +67,13 @@ function extract_fields_spec(ms::AbstractMultibodySetup, o::Dict{Symbol,T}) wher
     return fields_spec
 end
 
-function extract_fields_spec(ms::AbstractMultibodySetup, o)
-    return extract_export_fields(o)
+function _extract_fields_spec(ms::AbstractMultibodySetup, o)
+    fields = extract_export_fields(o)
+    fields_spec = Dict{Symbol,Vector{Symbol}}()
+    for body_name in each_body_name(ms)
+        fields_spec[body_name] = fields
+    end
+    return fields_spec
 end
 
 function check_export_fields(body::AbstractBody, solver::AbstractTimeSolver,
