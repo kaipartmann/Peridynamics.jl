@@ -57,7 +57,7 @@ function solve!(dh::AbstractDataHandler, dr::DynamicRelaxation,
 end
 
 function init_density_matrix!(dh::AbstractThreadsBodyDataHandler, dr::DynamicRelaxation)
-    @threads :static for chunk in dh.chunks
+    @batch for chunk in dh.chunks
         _init_density_matrix!(chunk, dr, chunk.paramsetup)
     end
     return nothing
@@ -104,16 +104,16 @@ end
 function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJobOptions,
                               Δt::Float64, n::Int)
     t = n * Δt
-    @threads :static for chunk_id in eachindex(dh.chunks)
+    @batch for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
         apply_bcs!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
-    @threads :static for chunk_id in eachindex(dh.chunks)
+    @batch for chunk_id in eachindex(dh.chunks)
         exchange_loc_to_halo!(dh, chunk_id)
         calc_force_density!(dh.chunks[chunk_id])
     end
-    @threads :static for chunk_id in eachindex(dh.chunks)
+    @batch for chunk_id in eachindex(dh.chunks)
         exchange_halo_to_loc!(dh, chunk_id)
         chunk = dh.chunks[chunk_id]
         calc_damage!(chunk)

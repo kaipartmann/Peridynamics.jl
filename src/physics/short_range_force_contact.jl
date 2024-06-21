@@ -67,8 +67,8 @@ function contact!(ms::AbstractMultibodySetup, name_body_a::Symbol, name_body_b::
 
     body_a = get_body(ms, name_body_a)
     body_b = get_body(ms, name_body_b)
-    nhs_a = GridNeighborhoodSearch{3}(radius, body_a.n_points; threaded_nhs_update=false)
-    nhs_b = GridNeighborhoodSearch{3}(radius, body_b.n_points; threaded_nhs_update=false)
+    nhs_a = GridNeighborhoodSearch{3}(radius, body_a.n_points; threaded_nhs_update=true)
+    nhs_b = GridNeighborhoodSearch{3}(radius, body_b.n_points; threaded_nhs_update=true)
 
     srfc_a = ShortRangeForceContact(name_body_a, name_body_b, radius, penalty_factor, nhs_b)
     srfc_b = ShortRangeForceContact(name_body_b, name_body_a, radius, penalty_factor, nhs_a)
@@ -99,7 +99,7 @@ function calc_short_range_force_contacts!(dh::AbstractThreadsMultibodyDataHandle
         # calc contact
         body_dh_a = get_body_dh(dh, body_a_idx)
         volc_b = dh.volume_caches[body_b_idx]
-        @threads :static for chunk_a in body_dh_a.chunks
+        @batch for chunk_a in body_dh_a.chunks
             calc_contact_force_density!(chunk_a, contact, posc_a, posc_b, volc_b)
         end
     end
