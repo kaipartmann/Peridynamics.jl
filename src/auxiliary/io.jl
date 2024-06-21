@@ -53,8 +53,13 @@ end
     return fields
 end
 
-@inline function extract_fields_spec(ms, o)
+@inline function extract_fields_spec(ms::AbstractMultibodySetup, o)
     fields_spec::Dict{Symbol,Vector{Symbol}} = _extract_fields_spec(ms, o)
+    for body_name in each_body_name(ms)
+        if !haskey(fields_spec, body_name)
+            fields_spec[body_name] = default_export_fields()
+        end
+    end
     return fields_spec
 end
 

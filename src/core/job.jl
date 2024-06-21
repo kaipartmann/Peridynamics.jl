@@ -101,8 +101,12 @@ function JobOptions(root::String, freq::Int, fields)
     return JobOptions(true, root, vtk, logfile, freq, fields)
 end
 
-function JobOptions()
+function JobOptions(::AbstractBody)
     return JobOptions(false, "", "", "", 0, Vector{Symbol}())
+end
+
+function JobOptions(::AbstractMultibodySetup)
+    return JobOptions(false, "", "", "", 0, Dict{Symbol,Vector{Symbol}}())
 end
 
 function get_job_options(spatial_setup, solver, o)
@@ -111,7 +115,7 @@ function get_job_options(spatial_setup, solver, o)
     fields = get_export_fields(spatial_setup, solver, o)
 
     if isempty(root)
-        options = JobOptions()
+        options = JobOptions(spatial_setup)
     else
         options = JobOptions(root, freq, fields)
     end

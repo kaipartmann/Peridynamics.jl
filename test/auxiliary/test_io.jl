@@ -1,54 +1,225 @@
-@testitem "JobOptions BBVerletStorage" begin
-    o = Dict{Symbol,Any}(:path => "rootpath", :freq => 10)
-    eo = Peridynamics.get_job_options(Peridynamics.BBVerletStorage, o)
-    @test eo.export_allowed == true
-    @test eo.root == "rootpath"
-    @test eo.vtk == joinpath("rootpath", "vtk")
-    @test eo.logfile == joinpath("rootpath", "logfile.log")
-    @test eo.freq == 10
-    @test eo.fields == [field for field in Peridynamics.DEFAULT_EXPORT_FIELDS]
+@testitem "JobOptions" begin
+    function tests_body_specific(body::Body, solver)
+        default_fields_body = [field for field in Peridynamics.default_export_fields()]
 
-    o = Dict{Symbol,Any}(:path => "rootpath")
-    eo = Peridynamics.get_job_options(Peridynamics.BBVerletStorage, o)
-    @test eo.export_allowed == true
-    @test eo.root == "rootpath"
-    @test eo.vtk == joinpath("rootpath", "vtk")
-    @test eo.logfile == joinpath("rootpath", "logfile.log")
-    @test eo.freq == 10
-    @test eo.fields == [field for field in Peridynamics.DEFAULT_EXPORT_FIELDS]
+        o = Dict{Symbol,Any}(:path => "rootpath", :freq => 10)
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == default_fields_body
 
-    o = Dict{Symbol,Any}(:freq => 10)
-    msg = "if `freq` is specified, the keyword `path` is also needed!\n"
-    @test_throws ArgumentError(msg) begin
-        Peridynamics.get_job_options(Peridynamics.BBVerletStorage, o)
+        o = Dict{Symbol,Any}(:path => "rootpath")
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == default_fields_body
+
+        o = Dict{Symbol,Any}(:freq => 10)
+        msg = "if `freq` is specified, the keyword `path` is also needed!\n"
+        @test_throws ArgumentError(msg) begin
+            Peridynamics.get_job_options(body, solver, o)
+        end
+
+        o = Dict{Symbol,Any}()
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == false
+        @test jo.root == ""
+        @test jo.vtk == ""
+        @test jo.logfile == ""
+        @test jo.freq == 0
+        @test jo.fields == Vector{Symbol}()
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :freq => -10)
+        msg = "`freq` should be larger than zero!\n"
+        @test_throws ArgumentError(msg) begin
+            Peridynamics.get_job_options(body, solver, o)
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext))
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == [:displacement, :b_ext]
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => :damage)
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == [:damage]
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => [:b_ext])
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == [:b_ext]
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext, :abcd))
+        @test_throws ArgumentError begin
+            Peridynamics.get_job_options(body, solver, o)
+        end
+
+        return nothing
     end
 
-    o = Dict{Symbol,Any}()
-    eo = Peridynamics.get_job_options(Peridynamics.BBVerletStorage, o)
-    @test eo.export_allowed == false
-    @test eo.root == ""
-    @test eo.vtk == ""
-    @test eo.logfile == ""
-    @test eo.freq == 0
-    @test eo.fields == Symbol[]
+    function tests_multibody_specific(ms::MultibodySetup, solver)
+        default_fields_body = [field for field in Peridynamics.default_export_fields()]
+        default_fields_multibody = Dict{Symbol,Vector{Symbol}}()
+        for body_name in Peridynamics.each_body_name(ms)
+            default_fields_multibody[body_name] = default_fields_body
+        end
 
-    o = Dict{Symbol,Any}(:path => "rootpath", :freq => -10)
-    msg = "`freq` should be larger than zero!\n"
-    @test_throws ArgumentError(msg) begin
-        Peridynamics.get_job_options(Peridynamics.BBVerletStorage, o)
+        o = Dict{Symbol,Any}(:path => "rootpath", :freq => 10)
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == default_fields_multibody
+
+        o = Dict{Symbol,Any}(:path => "rootpath")
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == default_fields_multibody
+
+        o = Dict{Symbol,Any}(:freq => 10)
+        msg = "if `freq` is specified, the keyword `path` is also needed!\n"
+        @test_throws ArgumentError(msg) begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        o = Dict{Symbol,Any}()
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == false
+        @test jo.root == ""
+        @test jo.vtk == ""
+        @test jo.logfile == ""
+        @test jo.freq == 0
+        @test jo.fields == Dict{Symbol,Vector{Symbol}}()
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :freq => -10)
+        msg = "`freq` should be larger than zero!\n"
+        @test_throws ArgumentError(msg) begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext))
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        fields = [:displacement, :b_ext]
+        fields_spec = Dict{Symbol,Vector{Symbol}}()
+        for body_name in Peridynamics.each_body_name(ms)
+            fields_spec[body_name] = fields
+        end
+        @test jo.fields == fields_spec
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => :damage)
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        fields = [:damage]
+        fields_spec = Dict{Symbol,Vector{Symbol}}()
+        for body_name in Peridynamics.each_body_name(ms)
+            fields_spec[body_name] = fields
+        end
+        @test jo.fields == fields_spec
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => [:b_int])
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        fields = [:b_int]
+        fields_spec = Dict{Symbol,Vector{Symbol}}()
+        for body_name in Peridynamics.each_body_name(ms)
+            fields_spec[body_name] = fields
+        end
+        @test jo.fields == fields_spec
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext, :abcd))
+        @test_throws ArgumentError begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => ":displacement")
+        @test_throws ArgumentError begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (":displacement", ":damage"))
+        @test_throws ArgumentError begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => [":displacement", ":damage"])
+        @test_throws ArgumentError begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        return nothing
     end
 
-    o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext))
-    eo = Peridynamics.get_job_options(Peridynamics.BBVerletStorage, o)
-    @test eo.export_allowed == true
-    @test eo.root == "rootpath"
-    @test eo.vtk == joinpath("rootpath", "vtk")
-    @test eo.logfile == joinpath("rootpath", "logfile.log")
-    @test eo.freq == 10
-    @test eo.fields == [:displacement, :b_ext]
+    # setup
+    bbb = Body(BBMaterial(), rand(3,10), rand(10))
+    bosb = Body(OSBMaterial(), rand(3,10), rand(10))
+    bnosb = Body(NOSBMaterial(), rand(3,10), rand(10))
+    ms = MultibodySetup(:a => bbb, :b => bosb, :c => bnosb)
+    vv = VelocityVerlet(steps=1)
+    dr = DynamicRelaxation(steps=1)
 
-    o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext, :abcd))
+    tests_body_specific(bbb, vv)
+    tests_body_specific(bosb, vv)
+    tests_body_specific(bnosb, vv)
+    tests_body_specific(bbb, dr)
+    tests_body_specific(bosb, dr)
+    tests_body_specific(bnosb, dr)
+
+    tests_multibody_specific(ms, vv)
+
+    default_fields_body = [field for field in Peridynamics.default_export_fields()]
+    default_fields_multibody = Dict(:a => default_fields_body, :b => default_fields_body,
+                                    :c => default_fields_body)
+
+    o = Dict{Symbol,Any}(:path => "rootpath", :fields => Dict(:a => :damage))
+    jo = Peridynamics.get_job_options(ms, vv, o)
+    @test jo.export_allowed == true
+    @test jo.root == "rootpath"
+    @test jo.vtk == joinpath("rootpath", "vtk")
+    @test jo.logfile == joinpath("rootpath", "logfile.log")
+    @test jo.freq == 10
+    @test jo.fields == Dict(:a => [:damage], :b => default_fields_body,
+                            :c => default_fields_body)
+
+    o = Dict{Symbol,Any}(:path => "rootpath", :fields => Dict(:b => ("test", :damage)))
     @test_throws ArgumentError begin
-        Peridynamics.get_job_options(Peridynamics.BBVerletStorage, o)
+        Peridynamics.get_job_options(ms, vv, o)
     end
 end
