@@ -67,8 +67,8 @@ function contact!(ms::AbstractMultibodySetup, name_body_a::Symbol, name_body_b::
 
     body_a = get_body(ms, name_body_a)
     body_b = get_body(ms, name_body_b)
-    nhs_a = GridNeighborhoodSearch{3}(radius, body_a.n_points)
-    nhs_b = GridNeighborhoodSearch{3}(radius, body_b.n_points)
+    nhs_a = GridNeighborhoodSearch{3}(radius, body_a.n_points; threaded_nhs_update=false)
+    nhs_b = GridNeighborhoodSearch{3}(radius, body_b.n_points; threaded_nhs_update=false)
 
     srfc_a = ShortRangeForceContact(name_body_a, name_body_b, radius, penalty_factor, nhs_b)
     srfc_b = ShortRangeForceContact(name_body_b, name_body_a, radius, penalty_factor, nhs_a)
@@ -78,13 +78,11 @@ function contact!(ms::AbstractMultibodySetup, name_body_a::Symbol, name_body_b::
 end
 
 function init_srf_contacts_nhs!(dh::AbstractThreadsMultibodyDataHandler)
-    # for contact in dh.srf_contacts
-    #     body_a_idx = dh.body_idxs[contact.body_id_a]
-    #     body_b_idx = dh.body_idxs[contact.body_id_b]
-    #     posc_a = dh.position_caches[body_a_idx]
-    #     posc_b = dh.position_caches[body_b_idx]
-    #     PointNeighbors.initialize!(contact.nhs, posc_a, posc_b)
-    # end
+    for contact in dh.srf_contacts
+        body_b_idx = dh.body_idxs[contact.body_id_b]
+        posc_b = dh.position_caches[body_b_idx]
+        initialize_grid!(contact.nhs, posc_b)
+    end
     return nothing
 end
 
@@ -96,7 +94,7 @@ function calc_short_range_force_contacts!(dh::AbstractThreadsMultibodyDataHandle
         # update neighborhoodsearches
         posc_a = dh.position_caches[body_a_idx]
         posc_b = dh.position_caches[body_b_idx]
-        initialize_grid!(contact.nhs, posc_b)
+        update_grid!(contact.nhs, posc_b)
 
         # calc contact
         body_dh_a = get_body_dh(dh, body_a_idx)
