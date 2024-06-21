@@ -136,3 +136,18 @@ function log_material_parameters(param::AbstractPointParameters; indentation::In
     msg *= log_qty("bulk modulus", param.K; indentation=indentation)
     return msg
 end
+
+# Inline show function
+function Base.show(io::IO, params::AbstractPointParameters)
+    print(io, typeof(params))
+    print(io, "(")
+    print(io, @sprintf("δ=%g, ", params.δ))
+    print(io, @sprintf("E=%g, ", params.E))
+    print(io, @sprintf("nu=%g, ", params.nu))
+    print(io, @sprintf("rho=%g, ", params.rho))
+    print(io, @sprintf("Gc=%g", params.Gc))
+    print(io, ")")
+    return nothing
+end
+
+function
