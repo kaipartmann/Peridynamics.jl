@@ -54,7 +54,7 @@ function MultibodySetup(bodies_dict::Dict{Symbol,B}) where {B<:AbstractBody}
     for (name, body) in bodies_dict
         change_name!(body, name)
     end
-    bodies = Tuple(body for body in values(bodies_dict))
+    bodies = get_bodies_tuple(bodies_dict, Val(n_bodies))
     body_names = [name for name in keys(bodies_dict)]
     body_idxs = Dict{Symbol,Int}()
     for (i, name) in enumerate(body_names)
@@ -62,6 +62,11 @@ function MultibodySetup(bodies_dict::Dict{Symbol,B}) where {B<:AbstractBody}
     end
     srf_contacts = Vector{ShortRangeForceContact}()
     return MultibodySetup(bodies, body_names, body_idxs, srf_contacts)
+end
+
+function get_bodies_tuple(bodies_dict::Dict{Symbol,B}, ::Val{N}) where {B<:AbstractBody,N}
+    bodies_tuple::Tuple{Vararg{B,N}} = Tuple(body for body in values(bodies_dict))
+    return bodies_tuple
 end
 
 MultibodySetup(body_pairs...) = MultibodySetup(Dict(body_pairs...))
