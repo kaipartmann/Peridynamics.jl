@@ -1,5 +1,6 @@
 module VtkReader
 
+using Polyester: @batch
 using Base64: base64decode
 using CodecZlib: ZlibDecompressor
 using LightXML: LightXML, XMLDocument, XMLElement, parse_string, attribute, child_elements,
@@ -88,7 +89,7 @@ end
 function get_raw_xml_and_data(files::Vector{String})
     vec_raw_xml_str = Vector{String}(undef, length(files))
     vec_raw_data = Vector{Vector{UInt8}}(undef, length(files))
-    Threads.@threads for i in eachindex(files)
+    @batch for i in eachindex(files)
         raw_xml_str, raw_data = get_raw_xml_and_data(files[i])
         vec_raw_xml_str[i] = raw_xml_str
         vec_raw_data[i] = raw_data
@@ -133,7 +134,7 @@ function parse_data_arrays(vec_raw_xml_str::Vector{S}) where {S<:AbstractString}
     vec_n_point_das = zeros(Int, n)
     vec_field_das = Vector{Vector{DataArray}}(undef, n)
     vec_n_field_das = zeros(Int, n)
-    Threads.@threads for i in eachindex(vec_raw_xml_str)
+    @batch for i in eachindex(vec_raw_xml_str)
         position_da, point_das, field_das = parse_data_arrays(vec_raw_xml_str[i])
         vec_position_da[i] = position_da
         vec_point_das[i] = point_das
@@ -146,14 +147,14 @@ function parse_data_arrays(vec_raw_xml_str::Vector{S}) where {S<:AbstractString}
     allequal(vec_n_point_das) || error("corrupted pvtu file!\n")
     n_point_das = first(vec_n_point_das)
     point_pdas = Vector{PDataArray}(undef, n_point_das)
-    Threads.@threads for i in 1:n_point_das
+    @batch for i in 1:n_point_das
         point_pdas[i] = PDataArray([pdas[i] for pdas in vec_point_das])
     end
 
     allequal(vec_n_field_das) || error("corrupted pvtu file!\n")
     n_field_das = first(vec_n_field_das)
     field_pdas = Vector{PDataArray}(undef, n_field_das)
-    Threads.@threads for i in 1:n_field_das
+    @batch for i in 1:n_field_das
         field_pdas[i] = PDataArray([fdas[i] for fdas in vec_field_das])
     end
 
