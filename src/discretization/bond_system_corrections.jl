@@ -47,7 +47,7 @@ end
     return correction.scfactor[bond_id]
 end
 
-function initialize!(dh::AbstractThreadsDataHandler{BondSystem{EnergySurfaceCorrection}},
+function initialize!(dh::AbstractThreadsBodyDataHandler{BondSystem{EnergySurfaceCorrection}},
                      ::AbstractTimeSolver)
     @threads :static for chunk in dh.chunks
         calc_mfactor!(chunk)
@@ -59,7 +59,7 @@ function initialize!(dh::AbstractThreadsDataHandler{BondSystem{EnergySurfaceCorr
     return nothing
 end
 
-function initialize!(dh::AbstractMPIDataHandler{BondSystem{EnergySurfaceCorrection}},
+function initialize!(dh::AbstractMPIBodyDataHandler{BondSystem{EnergySurfaceCorrection}},
                      ::AbstractTimeSolver)
     calc_mfactor!(dh.chunk)
     exchange_loc_to_halo!(get_mfactor, dh)

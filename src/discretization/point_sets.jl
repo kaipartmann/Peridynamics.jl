@@ -56,7 +56,7 @@ function _point_set!(point_sets::Dict{Symbol,Vector{Int}}, name::Symbol,
     return nothing
 end
 
-function find_points(f::F, position::Matrix{Float64}) where {F<:Function}
+function find_points(f::F, position::AbstractMatrix) where {F<:Function}
     func_method = get_method_of_function(f)
     argnames = get_argument_names_of_function(func_method)
     if isempty(argnames)

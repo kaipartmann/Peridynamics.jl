@@ -1,22 +1,17 @@
-struct ThreadsDataHandler{Sys,M,P,S} <: AbstractThreadsDataHandler{Sys,M,P,S}
+struct ThreadsBodyDataHandler{Sys,M,P,S} <: AbstractThreadsBodyDataHandler{Sys,M,P,S}
     n_chunks::Int
     chunks::Vector{BodyChunk{Sys,M,P,S}}
     lth_exs::Vector{Vector{HaloExchange}}
     htl_exs::Vector{Vector{HaloExchange}}
 end
 
-function ThreadsDataHandler(body::AbstractBody, solver::AbstractTimeSolver,
-                            point_decomp::PointDecomposition)
+function threads_data_handler(body::AbstractBody, solver::AbstractTimeSolver, n_chunks::Int)
+    point_decomp = PointDecomposition(body, n_chunks)
     param_spec = get_param_spec(body)
     chunks = chop_body_threads(body, solver, point_decomp, param_spec)
     n_chunks = length(chunks)
     lth_exs, htl_exs = find_halo_exchanges(chunks)
-    return ThreadsDataHandler(n_chunks, chunks, lth_exs, htl_exs)
-end
-
-function ThreadsDataHandler(multibody::AbstractMultibodySetup, solver::AbstractTimeSolver,
-                            point_decomp::PointDecomposition)
-    error("MultibodySetup not yet implemented!\n")
+    return ThreadsBodyDataHandler(n_chunks, chunks, lth_exs, htl_exs)
 end
 
 function chop_body_threads(body::AbstractBody, solver::AbstractTimeSolver,
@@ -76,14 +71,14 @@ end
 
 get_cells(n::Int) = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in 1:n]
 
-function exchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int)
+function exchange_loc_to_halo!(dh::ThreadsBodyDataHandler, chunk_id::Int)
     fields = loc_to_halo_fields(dh.chunks[chunk_id].storage)
     isempty(fields) && return nothing
     exchange_loc_to_halo!(dh, chunk_id, fields)
     return nothing
 end
 
-function exchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int,
+function exchange_loc_to_halo!(dh::ThreadsBodyDataHandler, chunk_id::Int,
                                fields::NTuple{N,Symbol}) where {N}
     for field in fields
         exchange_loc_to_halo!(dh, chunk_id, field)
@@ -91,7 +86,7 @@ function exchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int,
     return nothing
 end
 
-function exchange_loc_to_halo!(dh::ThreadsDataHandler, chunk_id::Int, field::Symbol)
+function exchange_loc_to_halo!(dh::ThreadsBodyDataHandler, chunk_id::Int, field::Symbol)
     for ex in dh.lth_exs[chunk_id]
         dest_chunk = dh.chunks[ex.dest_chunk_id]
         src_chunk = dh.chunks[ex.src_chunk_id]
@@ -108,7 +103,7 @@ function _exchange_loc_to_halo!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
     return nothing
 end
 
-function exchange_loc_to_halo!(get_field_function::F, dh::ThreadsDataHandler,
+function exchange_loc_to_halo!(get_field_function::F, dh::ThreadsBodyDataHandler,
                                chunk_id::Int) where {F<:Function}
     for ex in dh.lth_exs[chunk_id]
         dest_field = get_field_function(dh.chunks[ex.dest_chunk_id])
@@ -118,14 +113,14 @@ function exchange_loc_to_halo!(get_field_function::F, dh::ThreadsDataHandler,
     return nothing
 end
 
-function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int)
+function exchange_halo_to_loc!(dh::ThreadsBodyDataHandler, chunk_id::Int)
     fields = halo_to_loc_fields(dh.chunks[chunk_id].storage)
     isempty(fields) && return nothing
     exchange_halo_to_loc!(dh, chunk_id, fields)
     return nothing
 end
 
-function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int,
+function exchange_halo_to_loc!(dh::ThreadsBodyDataHandler, chunk_id::Int,
                                fields::NTuple{N,Symbol}) where {N}
     for field in fields
         exchange_halo_to_loc!(dh, chunk_id, field)
@@ -133,7 +128,7 @@ function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int,
     return nothing
 end
 
-function exchange_halo_to_loc!(dh::ThreadsDataHandler, chunk_id::Int, field::Symbol)
+function exchange_halo_to_loc!(dh::ThreadsBodyDataHandler, chunk_id::Int, field::Symbol)
     for ex in dh.htl_exs[chunk_id]
         dest_chunk = dh.chunks[ex.dest_chunk_id]
         src_chunk = dh.chunks[ex.src_chunk_id]
@@ -150,7 +145,7 @@ function _exchange_halo_to_loc!(dest_chunk::C, src_chunk::C, ex::HaloExchange,
     return nothing
 end
 
-function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsDataHandler,
+function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsBodyDataHandler,
                                chunk_id::Int) where {F<:Function}
     for ex in dh.htl_exs[chunk_id]
         dest_field = get_field_function(dh.chunks[ex.dest_chunk_id])
@@ -160,29 +155,27 @@ function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsDataHandler,
     return nothing
 end
 
-function export_results(dh::ThreadsDataHandler, options::AbstractOptions, chunk_id::Int,
-                        timestep::Int, time::Float64)
-    options.exportflag || return nothing
+function export_results(dh::ThreadsBodyDataHandler, options::AbstractJobOptions, chunk_id::Int,
+                        timestep::Int, time::Float64; prefix="")
+    options.export_allowed || return nothing
     if mod(timestep, options.freq) == 0
-        _export_results(dh.chunks[chunk_id], chunk_id, dh.n_chunks, options, timestep, time)
+        _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, prefix,
+                        timestep, time)
     end
     return nothing
 end
 
-function export_reference_results(dh::ThreadsDataHandler, options::AbstractOptions)
-    options.exportflag || return nothing
+function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractJobOptions;
+                                  prefix="")
+    options.export_allowed || return nothing
     @threads :static for chunk_id in eachindex(dh.chunks)
-        _export_results(dh.chunks[chunk_id], chunk_id, dh.n_chunks, options, 0, 0.0)
+        _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, prefix, 0, 0.0)
     end
     return nothing
 end
 
-function initialize!(::AbstractThreadsDataHandler, ::AbstractTimeSolver)
-    return nothing
-end
-
-function log_data_handler(options::AbstractOptions,
-                          dh::AbstractThreadsDataHandler{Sys}) where {Sys<:BondSystem}
+function log_data_handler(options::AbstractJobOptions,
+                          dh::AbstractThreadsBodyDataHandler{Sys}) where {Sys<:BondSystem}
     msg = "BOND SYSTEM\n"
     n_bonds = 0
     for chunk in dh.chunks

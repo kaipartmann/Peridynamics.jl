@@ -36,6 +36,6 @@ function req_storage_fields_timesolver(::Type{S}, ::Type{TS}) where {S,TS}
     return nothing
 end
 
-function log_timesolver(::AbstractOptions, ::AbstractTimeSolver)
+function log_timesolver(::AbstractJobOptions, ::AbstractTimeSolver)
     return nothing
 end

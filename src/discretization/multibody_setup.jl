@@ -33,84 +33,77 @@ MultibodySetup{Material,PointParameters}
 # Fields
 
 - `bodies::Dict{Symbol,Body{M,P}}`:
-- `contacts::Vector{Contact}`:
+- `srf_contacts::Vector{ShortRangeForceContact}`:
 
 TODO
 """
-mutable struct MultibodySetup{M<:AbstractMaterial,
-                              P<:AbstractPointParameters} <: AbstractMultibodySetup{M}
-    bodies::Dict{Symbol,Body{M,P}}
-    contacts::Vector{Contact}
-
-    function MultibodySetup(bodies::Dict{Symbol,Body{M,P}}) where {M,P}
-        if length(bodies) < 2
-            msg = "not enough bodies given!\n"
-            msg *= "Please specify 2 or more!\n"
-            throw(ArgumentError(msg))
-        end
-        contacts = Vector{Contact}()
-        return new{M,P}(bodies, contacts)
-    end
+struct MultibodySetup{B} <: AbstractMultibodySetup
+    bodies::B
+    body_names::Vector{Symbol}
+    body_idxs::Dict{Symbol,Int}
+    srf_contacts::Vector{ShortRangeForceContact}
 end
 
-function MultibodySetup(::Dict{Symbol,Body})
-    msg = "bodies have different material types!\n"
-    msg *= "Only bodies with the same material types can be used for MultibodySetup!\n"
-    throw(ArgumentError(msg))
-    return nothing
+function MultibodySetup(bodies_dict::Dict{Symbol,B}) where {B<:AbstractBody}
+    n_bodies = length(keys(bodies_dict))
+    if n_bodies < 2
+        msg = "not enough bodies given!\n"
+        msg *= "Please specify 2 or more!\n"
+        throw(ArgumentError(msg))
+    end
+    for (name, body) in bodies_dict
+        change_name!(body, name)
+    end
+    bodies = get_bodies_tuple(bodies_dict, Val(n_bodies))
+    body_names = [name for name in keys(bodies_dict)]
+    body_idxs = Dict{Symbol,Int}()
+    for (i, name) in enumerate(body_names)
+        body_idxs[name] = i
+    end
+    srf_contacts = Vector{ShortRangeForceContact}()
+    return MultibodySetup(bodies, body_names, body_idxs, srf_contacts)
+end
+
+function get_bodies_tuple(bodies_dict::Dict{Symbol,B}, ::Val{N}) where {B<:AbstractBody,N}
+    bodies_tuple::Tuple{Vararg{B,N}} = Tuple(body for body in values(bodies_dict))
+    return bodies_tuple
 end
 
 MultibodySetup(body_pairs...) = MultibodySetup(Dict(body_pairs...))
 
-@inline material_type(::MultibodySetup{M}) where {M} = M
-
 function check_if_bodyname_is_defined(ms::AbstractMultibodySetup, name::Symbol)
-    if !haskey(ms.bodies, name)
+    if !haskey(ms.body_idxs, name)
         throw(ArgumentError("there is no body with name $(name)!"))
     end
     return nothing
 end
 
-"""
-    contact!(ms, body_a, body_b; kwargs...)
+@inline get_body(ms::AbstractMultibodySetup, name::Symbol) = ms.bodies[ms.body_idxs[name]]
+@inline get_body(ms::AbstractMultibodySetup, idx::Int) = ms.bodies[idx]
+@inline get_body_name(ms::AbstractMultibodySetup, idx::Int) = string(ms.body_names[idx])
 
-Defines contact between multiple bodies
-
-# Arguments
-
-- `ms::AbstractMultibodySetup`: The multibody setup defined to simulate the contact
-- `body_a::Symbol`: First body in contact
-- `body_b::Symbol`: Second body in contact
-
-# Keywords
-
-- `radius::Float64`:
-- `sc::Float64`:
-
-# Throws
-
-- Error if a called body is not defined in the multibody setup
-- Error if keyword is not allowed
-
-TODO kwargs
-"""
-function contact!(ms::AbstractMultibodySetup, body_a::Symbol, body_b::Symbol; kwargs...)
-    check_if_bodyname_is_defined(ms, body_a)
-    check_if_bodyname_is_defined(ms, body_b)
-
-    p = Dict{Symbol,Any}(kwargs)
-    check_kwargs(p, CONTACT_KWARGS)
-    radius, sc = get_contact_params(p)
-
-    push!(ms.contacts, Contact(body_a, body_b, radius, sc))
-    return nothing
-end
+@inline each_body(ms::AbstractMultibodySetup) = ms.bodies
+@inline each_body_idx(ms::AbstractMultibodySetup) = eachindex(ms.bodies)
+@inline each_body_name(ms::AbstractMultibodySetup) = ms.body_names
 
 function pre_submission_check(ms::AbstractMultibodySetup)
+    if mpi_run()
+        @mpiroot begin
+            @error "Multibody simulations with MPI are not yet implemented!\n"
+            MPI.Abort(mpi_comm(), 1)
+        end
+        MPI.Barrier(mpi_comm())
+    end
+
     #TODO: check if everything is defined for job submission!
     return nothing
 end
 
-@inline function storage_type(ms::AbstractMultibodySetup, ts::AbstractTimeSolver)
-    return storage_type(first(ms.bodies).mat, ts)
+function log_spatial_setup(options::AbstractJobOptions, ms::MultibodySetup)
+    for body_idx in each_body_idx(ms)
+        body = get_body(ms, body_idx)
+        name = get_body_name(ms, body_idx)
+        log_spatial_setup(options, body; bodyname=name)
+    end
+    return nothing
 end

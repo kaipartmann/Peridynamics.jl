@@ -48,7 +48,7 @@ end
 function find_bonds(body::AbstractBody, loc_points::UnitRange{Int})
     δmax = maximum_horizon(body)
     nhs = GridNeighborhoodSearch{3}(δmax, body.n_points; threaded_nhs_update=false)
-    PointNeighbors.initialize!(nhs, body.position, body.position)
+    initialize_grid!(nhs, body.position)
     bonds = Vector{Bond}()
     sizehint!(bonds, body.n_points * 300)
     n_neighbors = zeros(Int, length(loc_points))
@@ -62,9 +62,9 @@ end
 
 function find_bonds!(bonds::Vector{Bond}, nhs::PointNeighbors.GridNeighborhoodSearch,
                      position::Matrix{Float64}, fail_permit::Vector{Bool}, δ::Float64,
-                     i::Int)
+                     point_id::Int)
     n_bonds_pre = length(bonds)
-    foreach_neighbor(position, position, nhs, i; search_radius=δ) do i, j, _, L
+    foreach_neighbor(position, position, nhs, point_id; search_radius=δ) do i, j, _, L
         if i != j
             push!(bonds, Bond(j, L, fail_permit[i] & fail_permit[j]))
         end

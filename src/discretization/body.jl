@@ -64,6 +64,7 @@ Body{Material,PointParameters}
 - `point_sets_precracks::Vector{PointSetsPreCrack}`: Vector with defined cracks
 """
 struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
+    name::Ref{Symbol}
     mat::M
     n_points::Int
     position::Matrix{Float64}
@@ -78,10 +79,11 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
     function Body(mat::M, position::AbstractMatrix, volume::AbstractVector) where {M}
+        name = Symbol("")
         n_points = length(volume)
         check_pos_and_vol(n_points, position, volume)
         fail_permit = fill(true, length(volume))
-        point_sets = Dict{Symbol,Vector{Int}}()
+        point_sets = Dict{Symbol,Vector{Int}}(:all_points => 1:length(volume))
 
         P = point_param_type(mat)
         point_params = Vector{P}()
@@ -92,9 +94,9 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
         single_dim_ics = Vector{SingleDimIC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
-        new{M,P}(mat, n_points, position, volume, fail_permit, point_sets, point_params,
-                 params_map, single_dim_bcs, posdep_single_dim_bcs, single_dim_ics,
-                 point_sets_precracks)
+        new{M,P}(name, mat, n_points, position, volume, fail_permit, point_sets,
+                 point_params, params_map, single_dim_bcs, posdep_single_dim_bcs,
+                 single_dim_ics, point_sets_precracks)
     end
 end
 
@@ -131,13 +133,16 @@ end
 
 @inline storage_type(b::AbstractBody, ts::AbstractTimeSolver) = storage_type(b.mat, ts)
 
-function log_spatial_setup(options::AbstractOptions, body::AbstractBody)
-    msg = "BODY\n"
+function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody;
+                           bodyname::AbstractString="")
+    msg = "BODY"
+    isempty(bodyname) || (msg *= " `" * bodyname * "`")
+    msg *= "\n"
     msg *= "  POINT CLOUD\n"
     msg *= log_qty("number of points", body.n_points; indentation=4)
-    @views min_x, max_x = minimum(body.position[1,:]), maximum(body.position[1,:])
-    @views min_y, max_y = minimum(body.position[2,:]), maximum(body.position[2,:])
-    @views min_z, max_z = minimum(body.position[3,:]), maximum(body.position[3,:])
+    @views min_x, max_x = minimum(body.position[1, :]), maximum(body.position[1, :])
+    @views min_y, max_y = minimum(body.position[2, :]), maximum(body.position[2, :])
+    @views min_z, max_z = minimum(body.position[3, :]), maximum(body.position[3, :])
     minmax_x = @sprintf("%.7g, %.7g", min_x, max_x)
     minmax_y = @sprintf("%.7g, %.7g", min_y, max_y)
     minmax_z = @sprintf("%.7g, %.7g", min_z, max_z)
@@ -145,16 +150,15 @@ function log_spatial_setup(options::AbstractOptions, body::AbstractBody)
     msg *= log_qty("min, max values y-direction", minmax_y; indentation=4)
     msg *= log_qty("min, max values z-direction", minmax_z; indentation=4)
     msg *= "  POINT SETS\n"
-    for (key,points) in body.point_sets
+    for (key, points) in body.point_sets
         descr = @sprintf("number of points in set `%s`", string(key))
         msg *= log_qty(descr, length(points); indentation=4)
     end
-    msg *= "  CONDITIONS\n"
     n_bcs = length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
-    n_bcs > 0 && (msg *= log_qty("number of BC's", n_bcs; indentation=4))
     n_ics = length(body.single_dim_ics)
+    n_bcs + n_ics > 0 && (msg *= "  CONDITIONS\n")
+    n_bcs > 0 && (msg *= log_qty("number of BC's", n_bcs; indentation=4))
     n_ics > 0 && (msg *= log_qty("number of IC's", n_ics; indentation=4))
-
     if length(body.point_params) == 1
         msg *= "  MATERIAL\n"
         msg *= log_qty("material type", material_type(body); indentation=4)
@@ -185,3 +189,9 @@ end
 
 @inline get_horizon(param::AbstractPointParameters) = getfield(param, :δ)
 
+@inline get_name(body::AbstractBody) = body.name[]
+
+@inline function change_name!(body::AbstractBody, name::Symbol)
+    body.name[] = name
+    return nothing
+end

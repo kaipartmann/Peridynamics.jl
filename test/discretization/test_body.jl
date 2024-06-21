@@ -13,7 +13,7 @@
     @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
     @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
-    @test body.point_sets == Dict{Symbol,Vector{Int}}()
+    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
     @test body.point_params == Vector{Peridynamics.BBPointParameters}()
     @test body.params_map == zeros(Int, n_points)
 end
@@ -33,7 +33,7 @@ end
     @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
     @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
-    @test body.point_sets == Dict{Symbol,Vector{Int}}()
+    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
     @test body.point_params == Vector{Peridynamics.BBPointParameters}()
     @test body.params_map == zeros(Int, n_points)
 end
@@ -50,21 +50,21 @@ end
     # test body
     @test body.n_points == 4
     @test body.position == position
-    @test body.point_sets == Dict{Symbol,Vector{Int}}()
+    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:4)
 
     # add point set
     point_set!(body, :a, 1:2)
-    @test body.point_sets == Dict(:a => 1:2)
+    @test body.point_sets == Dict(:all_points => 1:4, :a => 1:2)
 
     # add another point set via function definition
     point_set!(x -> x > 0.5, body, :b)
-    @test body.point_sets == Dict(:a => 1:2, :b => [2])
+    @test body.point_sets == Dict(:all_points => 1:4, :a => 1:2, :b => [2])
 
     # add point set with do syntax
     point_set!(body, :c) do p
         p[3] > 0.0
     end
-    @test body.point_sets == Dict(:a => 1:2, :b => [2], :c => [4])
+    @test body.point_sets == Dict(:all_points => 1:4, :a => 1:2, :b => [2], :c => [4])
 
     # point_set!
     @test_throws BoundsError point_set!(body, :d, 1:5)
@@ -81,11 +81,11 @@ end
     @test body.n_points == n_points
     @test body.point_params == Vector{Peridynamics.BBPointParameters}()
     @test body.params_map == zeros(Int, n_points)
-    @test isempty(body.point_sets)
+    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
 
     # add point set
     point_set!(body, :a, 1:2)
-    @test body.point_sets == Dict(:a => 1:2)
+    @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2)
 
     # add material
     material!(body; horizon=1, E=1, rho=1, Gc=1)
@@ -124,12 +124,12 @@ end
     @test body.n_points == n_points
     @test body.position == position
     @test body.volume == volume
-    @test isempty(body.point_sets)
+    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
 
     # add point set
     point_set!(body, :a, 1:2)
     point_set!(body, :b, 3:4)
-    @test body.point_sets == Dict(:a => 1:2, :b => 3:4)
+    @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2, :b => 3:4)
 
     # add material
     material!(body; horizon=1, E=1, rho=1, Gc=1)
@@ -216,12 +216,12 @@ end
     @test body.n_points == n_points
     @test body.position == position
     @test body.volume == volume
-    @test isempty(body.point_sets)
+    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
 
     # add point set
     point_set!(body, :a, 1:2)
     point_set!(body, :b, 3:4)
-    @test body.point_sets == Dict(:a => 1:2, :b => 3:4)
+    @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2, :b => 3:4)
 
     # add material
     material!(body; horizon=1, E=1, rho=1, Gc=1)
@@ -268,12 +268,12 @@ end
     @test body.n_points == n_points
     @test body.position == position
     @test body.volume == volume
-    @test isempty(body.point_sets)
+    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
 
     # add point set
     point_set!(body, :a, 1:2)
     point_set!(body, :b, 3:4)
-    @test body.point_sets == Dict(:a => 1:2, :b => 3:4)
+    @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2, :b => 3:4)
 
     # velocity bc 1
     forcedensity_bc!(t -> 1, body, :a, 1)
@@ -352,12 +352,12 @@ end
     @test body.n_points == n_points
     @test body.position == position
     @test body.volume == volume
-    @test isempty(body.point_sets)
+    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
 
     # add point set
     point_set!(body, :a, 1:2)
     point_set!(body, :b, 3:4)
-    @test body.point_sets == Dict(:a => 1:2, :b => 3:4)
+    @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2, :b => 3:4)
 
     # velocity bc 1
     forcedensity_bc!((p,t) -> 1, body, :a, 1)
