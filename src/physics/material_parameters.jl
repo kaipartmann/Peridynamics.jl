@@ -149,5 +149,3 @@ function Base.show(io::IO, params::AbstractPointParameters)
     print(io, ")")
     return nothing
 end
-
-function
