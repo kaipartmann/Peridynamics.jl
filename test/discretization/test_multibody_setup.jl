@@ -64,3 +64,28 @@ end
 
     @test_throws ArgumentError contact!(ms, :body1, :b; radius=1)
 end
+
+@testitem "show MultibodySetup" begin
+    io = IOBuffer()
+
+    b1 = Body(BBMaterial(), rand(3,10), rand(10))
+    material!(b1, horizon=1, E=1, rho=1, Gc=1)
+    velocity_ic!(b1, :all_points, :x, 1.0)
+    b2 = Body(OSBMaterial(), rand(3,5), rand(5))
+    material!(b2, horizon=1, E=1, nu=0.25, rho=1, Gc=1)
+    ms = MultibodySetup(:a => b1, :b => b2)
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), ms)
+    msg = String(take!(io))
+    @test contains(msg, "15-point MultibodySetup")
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), ms)
+    msg = String(take!(io))
+    @test contains(msg, "15-point MultibodySetup")
+    @test contains(msg, "10-point Body")
+    @test contains(msg, "BBMaterial")
+    @test contains(msg, "with name `a`")
+    @test contains(msg, "5-point Body")
+    @test contains(msg, "OSBMaterial")
+    @test contains(msg, "with name `b`")
+end
