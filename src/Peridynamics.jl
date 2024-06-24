@@ -7,6 +7,7 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, Progres
 end
 
 import LibGit2, Dates
+import Polyester: @batch
 
 # Abstract types
 export AbstractMaterial, AbstractBondSystemMaterial, AbstractSpatialSetup, AbstractBody,

@@ -37,7 +37,7 @@ function update_caches!(dh::ThreadsMultibodyDataHandler)
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
         position_cache = dh.position_caches[body_idx]
-        @threads :static for chunk in body_dh.chunks
+        @batch for chunk in body_dh.chunks
             @inbounds for (li, i) in enumerate(chunk.ch.loc_points)
                 position_cache[1, i] = chunk.storage.position[1, li]
                 position_cache[2, i] = chunk.storage.position[2, li]
