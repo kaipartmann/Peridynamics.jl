@@ -68,7 +68,8 @@ end
                 0.0 0.0]
     fail_permit = [true, true]
     δmax = 1.5
-    nhs = PointNeighbors.GridNeighborhoodSearch{3}(δmax, 2; threaded_nhs_update=false)
+    nhs = PointNeighbors.GridNeighborhoodSearch{3}(search_radius=δmax, n_points=2,
+                                                   threaded_update=false)
     PointNeighbors.initialize!(nhs, position, position)
 
     # find point 2

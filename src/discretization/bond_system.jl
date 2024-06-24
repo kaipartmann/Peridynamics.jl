@@ -21,7 +21,7 @@ function BondSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     localize!(bonds, ch.localizer)
     position, volume = get_pos_and_vol_chunk(body, ch.point_ids)
     correction = get_correction(body.mat, ch.n_loc_points, length(ch.point_ids),
-                                 length(bonds))
+                                length(bonds))
     bs = BondSystem(position, volume, bonds, n_neighbors, bond_ids, correction)
     return bs, ch
 end
@@ -47,7 +47,8 @@ end
 
 function find_bonds(body::AbstractBody, loc_points::UnitRange{Int})
     δmax = maximum_horizon(body)
-    nhs = GridNeighborhoodSearch{3}(δmax, body.n_points; threaded_nhs_update=false)
+    nhs = GridNeighborhoodSearch{3}(search_radius=δmax, n_points=body.n_points,
+                                    threaded_update=false)
     initialize_grid!(nhs, body.position)
     bonds = Vector{Bond}()
     sizehint!(bonds, body.n_points * 300)
