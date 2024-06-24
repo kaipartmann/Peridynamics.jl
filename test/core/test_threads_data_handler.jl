@@ -22,5 +22,15 @@
     @test length(dh.htl_exs[1]) == 1
     @test length(dh.htl_exs[2]) == 1
 
+    io = IOBuffer()
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), dh)
+    msg = String(take!(io))
+    @test contains(msg, "DataHandler()")
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), dh)
+    msg = String(take!(io))
+    @test contains(msg, "DataHandler()")
+
     #TODO
 end
