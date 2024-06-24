@@ -146,26 +146,26 @@ function log_it(options::AbstractJobOptions, msg::AbstractString)
     return nothing
 end
 
-function log_qty(descr_raw::AbstractString, qty_raw::AbstractString; linewidth::Int=82,
-                 indentation::Int=2, filler::Char='.')
+function msg_qty(descr_raw::AbstractString, qty_raw::AbstractString; linewidth::Int=82,
+                 indentation::Int=2, filler::Char='.', separator::AbstractString="")
     descr, qty = strip(descr_raw), strip(qty_raw)
-    len_filling = linewidth - indentation - length(descr) - length(qty)
+    len_filling = linewidth - indentation - length(descr) - length(separator) - length(qty)
     if len_filling > 1
         n_fillers = len_filling - 2
         filling = " " * filler^n_fillers * " "
     else
         filling = " "
     end
-    msg = " "^indentation * descr * filling * qty * "\n"
+    msg = " "^indentation * descr * separator * filling * qty * "\n"
     return msg
 end
 
-function log_qty(descr::AbstractString, qty::Real; kwargs...)
-    return log_qty(descr, @sprintf("%.7g", qty); kwargs...)
+function msg_qty(descr::AbstractString, qty::Real; kwargs...)
+    return msg_qty(descr, @sprintf("%.7g", qty); kwargs...)
 end
 
-function log_qty(descr::AbstractString, qty::Any; kwargs...)
-    return log_qty(descr, string(qty); kwargs...)
+function msg_qty(descr::AbstractString, qty::Any; kwargs...)
+    return msg_qty(descr, string(qty); kwargs...)
 end
 
 function log_create_data_handler_start(io::IO=stdout)

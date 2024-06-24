@@ -313,10 +313,10 @@ end
 
 function log_timesolver(options::AbstractJobOptions, vv::VelocityVerlet)
     msg = "VELOCITY VERLET TIME SOLVER\n"
-    msg *= log_qty("number of time steps", vv.n_steps)
-    msg *= log_qty("time step size", vv.Δt)
-    msg *= log_qty("time step safety factor", vv.safety_factor)
-    msg *= log_qty("simulation time", vv.end_time)
+    msg *= msg_qty("number of time steps", vv.n_steps)
+    msg *= msg_qty("time step size", vv.Δt)
+    msg *= msg_qty("time step safety factor", vv.safety_factor)
+    msg *= msg_qty("simulation time", vv.end_time)
     log_it(options, msg)
     return nothing
 end
