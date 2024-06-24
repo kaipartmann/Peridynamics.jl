@@ -100,6 +100,64 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     end
 end
 
+function Base.show(io::IO, body::AbstractBody)
+    print(io, body.n_points, "-point Body{", material_type(body), "}")
+    if has_name(body)
+        print(io, " with name `", get_name(body), "`")
+    end
+    return nothing
+end
+
+function Base.show(io::IO, ::MIME"text/plain", body::AbstractBody)
+    if get(io, :compact, false)
+        Base.show_default(io, body)
+        return nothing
+    end
+    print(io, body.n_points, "-point Body{", material_type(body), "}")
+    if has_name(body)
+        print(io, " with name `", get_name(body), "`")
+    end
+    if has_point_sets(body) || has_params(body) || has_conditions(body)
+        print(io, ":")
+    end
+    for (name, points) in body.point_sets
+        print(io, "\n  ", length(points), "-point set `", name, "`")
+    end
+    if has_params(body)
+        print(io, "\n  ", n_params(body), " point parameter(s):")
+        for params in body.point_params
+            print(io, "\n    ")
+            show(io, params)
+        end
+    end
+    if has_bcs(body)
+        print(io, "\n  ", n_bcs(body), " boundary condition(s):")
+        for bc in body.single_dim_bcs
+            print(io, "\n    ")
+            show(io, bc)
+        end
+        for bc in body.posdep_single_dim_bcs
+            print(io, "\n    ")
+            show(io, bc)
+        end
+    end
+    if has_ics(body)
+        print(io, "\n  ", n_ics(body), " initial condition(s):")
+        for bc in body.single_dim_ics
+            print(io, "\n    ")
+            show(io, bc)
+        end
+    end
+    if has_precracks(body)
+        print(io, "\n  ", n_precracks(body), " predefined crack(s)")
+    end
+    n_failure_permit_false = body.n_points - sum(body.fail_permit)
+    if n_failure_permit_false > 0
+        print(io, "\n  ", n_failure_permit_false, " points with no failure permission")
+    end
+    return nothing
+end
+
 @inline material_type(::AbstractBody{M}) where {M} = M
 
 function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
@@ -154,16 +212,15 @@ function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody;
         descr = @sprintf("number of points in set `%s`", string(key))
         msg *= msg_qty(descr, length(points); indentation=4)
     end
-    n_bcs = length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
-    n_ics = length(body.single_dim_ics)
-    n_bcs + n_ics > 0 && (msg *= "  CONDITIONS\n")
-    n_bcs > 0 && (msg *= msg_qty("number of BC's", n_bcs; indentation=4))
-    n_ics > 0 && (msg *= msg_qty("number of IC's", n_ics; indentation=4))
+    has_conditions(body) && (msg *= "  CONDITIONS\n")
+    has_bcs(body) && (msg *= msg_qty("number of BC's", n_bcs(body); indentation=4))
+    has_ics(body) && (msg *= msg_qty("number of IC's", n_ics(body); indentation=4))
+    n_point_params = length(body.point_params)
     if length(body.point_params) == 1
         msg *= "  MATERIAL\n"
         msg *= msg_qty("material type", material_type(body); indentation=4)
         msg *= log_material_parameters(first(body.point_params); indentation=4)
-    else
+    elseif n_point_params > 1
         for (i, params) in enumerate(body.point_params)
             msg *= @sprintf("  MATERIAL %d\n", i)
             msg *= log_material_parameters(params; indentation=4)
@@ -195,3 +252,27 @@ end
     body.name[] = name
     return nothing
 end
+
+@inline has_name(body::AbstractBody) = body.name[] !== Symbol("")
+
+@inline has_point_sets(body::AbstractBody) = !isempty(body.point_sets)
+@inline function each_user_point_set(body::AbstractBody)
+    return filter(x -> x !== :all_points, body.point_sets)
+end
+
+@inline n_params(body::AbstractBody) = length(body.point_params)
+@inline has_params(body::AbstractBody) = !isempty(body.point_params)
+
+@inline function n_bcs(body::AbstractBody)
+    return length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
+end
+@inline n_ics(body::AbstractBody) = length(body.single_dim_ics)
+
+@inline has_bcs(body::AbstractBody) = n_bcs(body) > 0 ? true : false
+@inline has_ics(body::AbstractBody) = n_ics(body) > 0 ? true : false
+@inline has_conditions(body::AbstractBody) = has_bcs(body) || has_ics(body)
+
+@inline n_precracks(body::AbstractBody) = length(body.point_sets_precracks)
+@inline has_precracks(body::AbstractBody) = n_precracks(body) > 0 ? true : false
+
+@inline n_points(body::AbstractBody) = body.n_points

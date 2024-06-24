@@ -137,15 +137,18 @@ function log_material_parameters(param::AbstractPointParameters; indentation::In
     return msg
 end
 
-# Inline show function
 function Base.show(io::IO, params::AbstractPointParameters)
     print(io, typeof(params))
-    print(io, "(")
-    print(io, @sprintf("δ=%g, ", params.δ))
-    print(io, @sprintf("E=%g, ", params.E))
-    print(io, @sprintf("nu=%g, ", params.nu))
-    print(io, @sprintf("rho=%g, ", params.rho))
-    print(io, @sprintf("Gc=%g", params.Gc))
-    print(io, ")")
+    print(io, msg_fields_in_brackets(params, (:δ, :E, :nu, :rho, :Gc)))
+    return nothing
+end
+
+function Base.show(io::IO, ::MIME"text/plain", params::AbstractPointParameters)
+    if get(io, :compact, false)
+        Base.show_default(io, params)
+    else
+        println(io, typeof(params), ":")
+        print(io, msg_fields(params))
+    end
     return nothing
 end

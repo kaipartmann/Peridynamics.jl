@@ -31,6 +31,12 @@ Base.@kwdef struct NOSBMaterial <: AbstractBondSystemMaterial{NoCorrection}
     corr::Float64 = 100.0
 end
 
+function Base.show(io::IO, mat::NOSBMaterial)
+    print(io, typeof(mat))
+    print(io, msg_fields_in_brackets(mat))
+    return nothing
+end
+
 struct NOSBPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64

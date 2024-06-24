@@ -146,17 +146,53 @@ function log_it(options::AbstractJobOptions, msg::AbstractString)
     return nothing
 end
 
-function msg_qty(descr_raw::AbstractString, qty_raw::AbstractString; linewidth::Int=82,
-                 indentation::Int=2, filler::Char='.', separator::AbstractString="")
+function msg_qty(descr_raw::AbstractString, qty_raw::AbstractString;
+                 linewidth::Union{Int,Nothing}=nothing,
+                 leftwidth::Union{Int,Nothing}=nothing, indentation::Int=2,
+                 filler::Char='.', separator::AbstractString="",
+                 delimiter::AbstractString=" ", newline::Bool=true)
     descr, qty = strip(descr_raw), strip(qty_raw)
-    len_filling = linewidth - indentation - length(descr) - length(separator) - length(qty)
+    len_filling = get_len_filling(linewidth, leftwidth, indentation, descr, separator, qty)
+    msg = _msg_qty(descr, qty, len_filling, indentation, filler, separator, delimiter,
+                   newline)
+    return msg
+end
+
+@inline default_linewidth() = 82
+
+function get_len_filling(::Nothing, ::Nothing, indentation::Int, descr::AbstractString,
+                         separator::AbstractString, qty::AbstractString)
+    n = default_linewidth() - indentation - length(descr) - length(separator) - length(qty)
+    return n
+end
+
+function get_len_filling(linewidth::Int, ::Nothing, indentation::Int, descr::AbstractString,
+                         separator::AbstractString, qty::AbstractString)
+    return linewidth - indentation - length(descr) - length(separator) - length(qty)
+end
+
+function get_len_filling(::Nothing, leftwidth::Int, indentation::Int, descr::AbstractString,
+                         separator::AbstractString, ::AbstractString)
+    return leftwidth - indentation - length(descr) - length(separator)
+end
+
+function get_len_filling(::Int, ::Int, ::Int, ::AbstractString, ::AbstractString,
+                         ::AbstractString)
+    msg = "insufficient keywords for calculation of filling length!\n"
+    msg *= "Specify either `linewidth` or `leftwidth`, not both!\n"
+    return throw(ArgumentError(msg))
+end
+
+function _msg_qty(descr, qty, len_filling, indentation, filler, separator, delimiter,
+                  newline)
     if len_filling > 1
         n_fillers = len_filling - 2
-        filling = " " * filler^n_fillers * " "
+        filling = delimiter * filler^n_fillers * delimiter
     else
-        filling = " "
+        filling = delimiter
     end
-    msg = " "^indentation * descr * separator * filling * qty * "\n"
+    lineend = newline ? "\n" : ""
+    msg = " "^indentation * descr * separator * filling * qty * lineend
     return msg
 end
 
@@ -164,8 +200,64 @@ function msg_qty(descr::AbstractString, qty::Real; kwargs...)
     return msg_qty(descr, @sprintf("%.7g", qty); kwargs...)
 end
 
-function msg_qty(descr::AbstractString, qty::Any; kwargs...)
-    return msg_qty(descr, string(qty); kwargs...)
+function msg_qty(descr::Any, qty::Any; kwargs...)
+    return msg_qty(string(descr), string(qty); kwargs...)
+end
+
+function msg_fields_in_brackets(obj::T) where {T}
+    fields = fieldnames(T)
+    values = Tuple(getfield(obj, field) for field in fields)
+    return _msg_fields_in_brackets(fields, values)
+end
+
+function msg_fields_in_brackets(obj, fields)
+    values = Tuple(getfield(obj, field) for field in fields)
+    return _msg_fields_in_brackets(fields, values)
+end
+
+function _msg_fields_in_brackets(fields, values)
+    n_fields = length(fields)
+    msg = "("
+    for i in eachindex(fields, values)
+        field, value = fields[i], values[i]
+        msg *= msg_qty(field, value; linewidth=0, indentation=0, separator="=",
+                       delimiter="", newline=false)
+        if i == n_fields
+            msg *= ")"
+        else
+            msg *= ", "
+        end
+    end
+    return msg
+end
+
+function msg_fields(obj::T) where {T}
+    fields = fieldnames(T)
+    values = Tuple(getfield(obj, field) for field in fields)
+    return _msg_fields(fields, values)
+end
+
+function msg_fields(obj, fields)
+    values = Tuple(getfield(obj, field) for field in fields)
+    return _msg_fields(fields, values)
+end
+
+function _msg_fields(fields, values)
+    n_fields = length(fields)
+    fields_str = string.(fields)
+    leftwidth = maximum(x -> length(x), fields_str) + 4
+    msg = ""
+    for i in eachindex(fields, values)
+        descr = fields_str[i]
+        qty = values[i]
+        if i == n_fields
+            newline = false
+        else
+            newline = true
+        end
+        msg *= msg_qty(descr, qty; leftwidth=leftwidth, newline=newline, filler=' ')
+    end
+    return msg
 end
 
 function log_create_data_handler_start(io::IO=stdout)

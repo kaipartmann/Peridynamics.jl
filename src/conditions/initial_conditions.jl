@@ -8,6 +8,12 @@ struct SingleDimIC <: AbstractCondition
     dim::UInt8
 end
 
+function Base.show(io::IO, bc::SingleDimIC)
+    print(io, "SingleDimIC")
+    print(io, msg_fields_in_brackets(bc, (:value, :field, :point_set, :dim)))
+    return nothing
+end
+
 function override_eachother(a::SingleDimIC, b::SingleDimIC)
     same_field = a.field === b.field
     same_point_set = a.point_set === b.point_set

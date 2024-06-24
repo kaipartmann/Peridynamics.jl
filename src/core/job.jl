@@ -86,6 +86,28 @@ function Job(spatial_setup::S, time_solver::T; kwargs...) where {S,T}
     return Job(spatial_setup, time_solver, options)
 end
 
+function Base.show(io::IO, job::Job)
+    n_points = Peridynamics.n_points(job.spatial_setup)
+    if job.spatial_setup isa AbstractMultibodySetup
+        job_descr = "-point multibody Job with "
+    else
+        job_descr = "-point Job with "
+    end
+    solver = typeof(job.time_solver)
+    print(io, n_points, job_descr, solver, " solver")
+    return nothing
+end
+
+function Base.show(io::IO, ::MIME"text/plain", job::Job)
+    if get(io, :compact, false)
+        Base.show_default(io, job)
+    else
+        println(io, "Job:")
+        print(io, msg_fields(job))
+    end
+    return nothing
+end
+
 struct JobOptions{F} <: AbstractJobOptions
     export_allowed::Bool
     root::String
@@ -93,6 +115,22 @@ struct JobOptions{F} <: AbstractJobOptions
     logfile::String
     freq::Int
     fields::F
+end
+
+function Base.show(io::IO, options::JobOptions)
+    print(io, "JobOptions")
+    print(io, msg_fields_in_brackets(options, (:freq,)))
+    return nothing
+end
+
+function Base.show(io::IO, ::MIME"text/plain", options::JobOptions)
+    if get(io, :compact, false)
+        Base.show_default(io, options)
+    else
+        println(io, "JobOptions:")
+        print(io, msg_fields(options, (:export_allowed, :root, :freq, :fields)))
+    end
+    return nothing
 end
 
 function JobOptions(root::String, freq::Int, fields)

@@ -21,6 +21,22 @@ mutable struct DynamicRelaxation <: AbstractTimeSolver
     end
 end
 
+function Base.show(io::IO, dr::DynamicRelaxation)
+    print(io, typeof(dr))
+    print(io, msg_fields_in_brackets(dr))
+    return nothing
+end
+
+function Base.show(io::IO, ::MIME"text/plain", dr::DynamicRelaxation)
+    if get(io, :compact, false)
+        Base.show_default(io, dr)
+    else
+        println(io, typeof(dr), ":")
+        print(io, msg_fields(dr))
+    end
+    return nothing
+end
+
 function init_time_solver!(dr::DynamicRelaxation, dh::AbstractDataHandler)
     dynamic_relaxation_check(dr)
     return nothing

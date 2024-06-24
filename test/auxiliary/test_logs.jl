@@ -87,4 +87,32 @@ end
     @test msg == "  test 1.123457\n"
     msg = Peridynamics.msg_qty("test", 1; separator="=", linewidth=15, indentation=4)
     @test msg == "    test= ... 1\n"
+
+    msg = Peridynamics.msg_qty("test1", "test2"; leftwidth=1)
+    @test msg == "  test1 test2\n"
+    msg = Peridynamics.msg_qty("   test1   ", "   test2   "; leftwidth=1)
+    @test msg == "  test1 test2\n"
+    msg = Peridynamics.msg_qty("test1", "test2"; leftwidth=1, indentation=0)
+    @test msg == "test1 test2\n"
+    msg = Peridynamics.msg_qty("test1", "test2"; leftwidth=1, indentation=5)
+    @test msg == "     test1 test2\n"
+    msg = Peridynamics.msg_qty("test1", "test2"; leftwidth=16, filler='a')
+    @test msg == "  test1 aaaaaaa test2\n"
+    msg = Peridynamics.msg_qty("test1", "test2"; leftwidth=16)
+    @test msg == "  test1 ....... test2\n"
+    msg = Peridynamics.msg_qty("test1", "test2"; leftwidth=13, separator=":")
+    @test msg == "  test1: ... test2\n"
+    msg = Peridynamics.msg_qty("test1", "test2"; leftwidth=11, separator="=")
+    @test msg == "  test1= . test2\n"
+    msg = Peridynamics.msg_qty("test1", "test2"; leftwidth=10, separator="=")
+    @test msg == "  test1=  test2\n"
+    msg = Peridynamics.msg_qty("test1", "test2"; leftwidth=9, separator="=")
+    @test msg == "  test1= test2\n"
+
+    msg = Peridynamics.msg_qty(:a, :b; linewidth=1)
+    @test msg == "  a b\n"
+    msg = Peridynamics.msg_qty(1.2345, 2.3456; linewidth=1)
+    @test msg == "  1.2345 2.3456\n"
+
+    @test_throws ArgumentError Peridynamics.msg_qty("a", "b"; linewidth=10, leftwidth=9)
 end
