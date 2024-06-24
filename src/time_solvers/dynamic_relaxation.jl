@@ -29,7 +29,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", dr::DynamicRelaxation)
     if get(io, :compact, false)
-        Base.show_default(io, dr)
+        show(io, dr)
     else
         println(io, typeof(dr), ":")
         print(io, msg_fields(dr))

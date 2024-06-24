@@ -384,3 +384,64 @@ end
     @test bc2.dim == 0x02
     @test bc2([1,2,3], 1.0) == 7.0
 end
+
+@testitem "show Body" begin
+    # setup
+    n_points = 10
+    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
+    body = Body(mat, position, volume)
+
+    io = IOBuffer()
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test contains(msg, "10-point set `all_points`")
+
+    point_set!(body, :a, 1:2)
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test contains(msg, "2-point set `a`")
+    @test contains(msg, "10-point set `all_points`")
+
+    velocity_ic!(body, :a, :z, 1.0)
+    velocity_bc!(t -> t, body, :a, 1)
+    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
+    msg = String(take!(io))
+    msg_answ = "  2-point set `a`\n" *
+               "  10-point set `all_points`\n" *
+               "  2 boundary condition(s):\n" *
+               "    PosDepSingleDimBC(field=b_ext, point_set=a, dim=2)\n" *
+               "    PosDepSingleDimBC(field=b_ext, point_set=a, dim=2)\n"
+    @test contains(msg, "2-point set `a`")
+    @test contains(msg, "10-point set `all_points`")
+    @test contains(msg, "2 boundary condition(s):")
+    @test contains(msg, "PosDepSingleDimBC(field=b_ext, point_set=a, dim=2)")
+    @test contains(msg, "SingleDimBC(field=velocity_half, point_set=a, dim=1)")
+    @test contains(msg, "1 initial condition(s):")
+    @test contains(msg, "SingleDimIC(value=1.0, field=velocity, point_set=a, dim=3)")
+
+    Peridynamics.change_name!(body, :testbody)
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test msg == "10-point Body{BBMaterial{NoCorrection}} with name `testbody`"
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test contains(msg, "with name `testbody`")
+end

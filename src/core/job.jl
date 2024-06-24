@@ -100,7 +100,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", job::Job)
     if get(io, :compact, false)
-        Base.show_default(io, job)
+        show(io, job)
     else
         println(io, "Job:")
         print(io, msg_fields(job))
@@ -125,7 +125,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", options::JobOptions)
     if get(io, :compact, false)
-        Base.show_default(io, options)
+        show(io, options)
     else
         println(io, "JobOptions:")
         print(io, msg_fields(options, (:export_allowed, :root, :freq, :fields)))

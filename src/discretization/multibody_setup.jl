@@ -78,7 +78,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", ms::MultibodySetup)
     if get(io, :compact, false)
-        Base.show_default(io, ms)
+        show(io, ms)
         return nothing
     end
     print(io, n_points(ms), "-point MultibodySetup:")

@@ -110,7 +110,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", body::AbstractBody)
     if get(io, :compact, false)
-        Base.show_default(io, body)
+        show(io, body)
         return nothing
     end
     print(io, body.n_points, "-point Body{", material_type(body), "}")

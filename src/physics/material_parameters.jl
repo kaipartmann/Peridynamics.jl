@@ -145,7 +145,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", params::AbstractPointParameters)
     if get(io, :compact, false)
-        Base.show_default(io, params)
+        show(io, params)
     else
         println(io, typeof(params), ":")
         print(io, msg_fields(params))

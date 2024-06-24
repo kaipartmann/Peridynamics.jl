@@ -84,7 +84,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", vv::VelocityVerlet)
     if get(io, :compact, false)
-        Base.show_default(io, vv)
+        show(io, vv)
     else
         println(io, typeof(vv), ":")
         fields = Vector{Symbol}()
