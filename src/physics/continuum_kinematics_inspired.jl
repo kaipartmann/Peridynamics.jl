@@ -16,9 +16,7 @@ Material type for continuum-kinematics-inspired peridynamic simulations
 
 TODO struct
 """
-struct CKIMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
-
-CKIMaterial() = CKIMaterial{NoCorrection}()
+struct CKIMaterial <: AbstractInteractionSystemMaterial end
 
 struct CKIPointParameters <: AbstractPointParameters
     δ::Float64
@@ -36,9 +34,7 @@ struct CKIPointParameters <: AbstractPointParameters
     C3::Float64
 end
 
-@inline point_param_type(::CKIMaterial) = CKIPointParameters
-
-function get_point_params(::CKIMaterial, p::Dict{Symbol,Any})
+function CKIPointParameters(::CKIMaterial, p::Dict{Symbol,Any})
     δ = get_horizon(p)
     rho = get_density(p)
     E, nu, G, K, λ, μ = get_elastic_params(p)
@@ -49,4 +45,85 @@ function get_point_params(::CKIMaterial, p::Dict{Symbol,Any})
     return CKIPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, C1, C2, C3)
 end
 
-@inline allowed_material_kwargs(::CKIMaterial) = DEFAULT_POINT_KWARGS
+@params CKIMaterial CKIPointParameters
+
+@inline get_c2(params::CKIPointParameters) = params.C2
+@inline get_c2(params) = 0.0
+@inline get_c3(params::CKIPointParameters) = params.C3
+@inline get_c3(params) = 0.0
+
+struct CKIVerletStorage <: AbstractStorage
+    position::Matrix{Float64}
+    displacement::Matrix{Float64}
+    velocity::Matrix{Float64}
+    velocity_half::Matrix{Float64}
+    acceleration::Matrix{Float64}
+    b_int::Matrix{Float64}
+    b_ext::Matrix{Float64}
+    damage::Vector{Float64}
+    bond_active::Vector{Bool}
+    n_active_bonds::Vector{Int}
+end
+
+function CKIVerletStorage(::CKIMaterial, ::VelocityVerlet, system::InteractionSystem, ch)
+    n_loc_points = length(ch.loc_points)
+    position = copy(system.position)
+    displacement = zeros(3, n_loc_points)
+    velocity = zeros(3, n_loc_points)
+    velocity_half = zeros(3, n_loc_points)
+    acceleration = zeros(3, n_loc_points)
+    b_int = zeros(3, n_loc_points)
+    b_ext = zeros(3, n_loc_points)
+    damage = zeros(n_loc_points)
+    bond_active = ones(Bool, length(system.bonds))
+    n_active_bonds = copy(system.n_neighbors)
+    s = CKIVerletStorage(position, displacement, velocity, velocity_half, acceleration,
+                         b_int, b_ext, damage, bond_active, n_active_bonds)
+    return s
+end
+
+@storage CKIMaterial VelocityVerlet CKIVerletStorage
+
+@loc_to_halo_fields CKIVerletStorage :position
+
+struct CKIRelaxationStorage <: AbstractStorage
+    position::Matrix{Float64}
+    displacement::Matrix{Float64}
+    velocity::Matrix{Float64}
+    velocity_half::Matrix{Float64}
+    velocity_half_old::Matrix{Float64}
+    b_int::Matrix{Float64}
+    b_int_old::Matrix{Float64}
+    b_ext::Matrix{Float64}
+    density_matrix::Matrix{Float64}
+    damage::Vector{Float64}
+    bond_active::Vector{Bool}
+    n_active_bonds::Vector{Int}
+end
+
+function CKIRelaxationStorage(::CKIMaterial, ::DynamicRelaxation, system::InteractionSystem,
+                              ch)
+    n_loc_points = length(ch.loc_points)
+    position = copy(system.position)
+    displacement = zeros(3, n_loc_points)
+    velocity = zeros(3, n_loc_points)
+    velocity_half = zeros(3, n_loc_points)
+    velocity_half_old = zeros(3, n_loc_points)
+    b_int = zeros(3, n_loc_points)
+    b_int_old = zeros(3, n_loc_points)
+    b_ext = zeros(3, n_loc_points)
+    density_matrix = zeros(3, n_loc_points)
+    damage = zeros(n_loc_points)
+    bond_active = ones(Bool, length(system.bonds))
+    n_active_bonds = copy(system.n_neighbors)
+    s = CKIRelaxationStorage(position, displacement, velocity, velocity_half,
+                             velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
+                             damage, bond_active, n_active_bonds)
+    return s
+end
+
+@storage CKIMaterial DynamicRelaxation CKIRelaxationStorage
+
+@loc_to_halo_fields CKIRelaxationStorage :position
+
+const CKIStorage = Union{CKIVerletStorage,CKIRelaxationStorage}

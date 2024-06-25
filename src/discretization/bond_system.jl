@@ -36,7 +36,7 @@ end
 end
 
 function check_bond_system_compat(::M) where {M<:AbstractMaterial}
-    msg = "body with material $(M) incompatible to BondSystem!\n"
+    msg = "body with material `$(M)` incompatible to `BondSystem`!\n"
     msg *= "The material has to be a subtype of `AbstractBondSystemMaterial`!\n"
     return throw(ArgumentError(msg))
 end
