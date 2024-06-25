@@ -136,20 +136,38 @@ macro mpitime(expr)
 end
 
 """
-    @mpiroot expression
+    @mpiroot [option] expression
 
-Run the code if the mpi rank is zero. Lowers to:
+Run the code if the mpi rank is zero. Lowers to something similar as:
 
 ```julia
 if mpi_isroot()
     expression
 end
 ```
+
+# Options
+- **`:wait`**: All MPI ranks will wait until the root rank finishes evaluating `expression`
 """
+macro mpiroot end
+
 macro mpiroot(expr)
     return quote
         if Peridynamics.mpi_isroot()
             $(esc(expr))
         end
+    end
+end
+
+macro mpiroot(option, expr)
+    if !(option isa QuoteNode) || option.value !== :wait
+        msg = "argument `$option` is not a valid option input!\n"
+        throw(ArgumentError(msg))
+    end
+    return quote
+        if Peridynamics.mpi_isroot()
+            $(esc(expr))
+        end
+        Peridynamics.mpi_run() && MPI.Barrier(mpi_comm())
     end
 end
