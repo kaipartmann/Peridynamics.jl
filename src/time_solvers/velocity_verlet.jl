@@ -69,6 +69,36 @@ mutable struct VelocityVerlet <: AbstractTimeSolver
     end
 end
 
+function Base.show(io::IO, vv::VelocityVerlet)
+    print(io, typeof(vv))
+    fields = Vector{Symbol}()
+    for field in fieldnames(typeof(vv))
+        value = getfield(vv, field)
+        if value > 0
+            push!(fields, field)
+        end
+    end
+    print(io, msg_fields_in_brackets(vv, Tuple(fields)))
+    return nothing
+end
+
+function Base.show(io::IO, ::MIME"text/plain", vv::VelocityVerlet)
+    if get(io, :compact, false)
+        show(io, vv)
+    else
+        println(io, typeof(vv), ":")
+        fields = Vector{Symbol}()
+        for field in fieldnames(typeof(vv))
+            value = getfield(vv, field)
+            if value > 0
+                push!(fields, field)
+            end
+        end
+        print(io, msg_fields(vv, Tuple(fields)))
+    end
+    return nothing
+end
+
 function init_time_solver!(vv::VelocityVerlet, dh::AbstractDataHandler)
     if vv.Δt < 0
         vv.Δt = calc_stable_timestep(dh, vv.safety_factor)
@@ -313,10 +343,10 @@ end
 
 function log_timesolver(options::AbstractJobOptions, vv::VelocityVerlet)
     msg = "VELOCITY VERLET TIME SOLVER\n"
-    msg *= log_qty("number of time steps", vv.n_steps)
-    msg *= log_qty("time step size", vv.Δt)
-    msg *= log_qty("time step safety factor", vv.safety_factor)
-    msg *= log_qty("simulation time", vv.end_time)
+    msg *= msg_qty("number of time steps", vv.n_steps)
+    msg *= msg_qty("time step size", vv.Δt)
+    msg *= msg_qty("time step safety factor", vv.safety_factor)
+    msg *= msg_qty("simulation time", vv.end_time)
     log_it(options, msg)
     return nothing
 end

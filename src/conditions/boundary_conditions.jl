@@ -5,6 +5,12 @@ struct SingleDimBC{F<:Function} <: AbstractCondition
     dim::UInt8
 end
 
+function Base.show(io::IO, bc::SingleDimBC)
+    print(io, "SingleDimBC")
+    print(io, msg_fields_in_brackets(bc, (:field, :point_set, :dim)))
+    return nothing
+end
+
 @inline function (b::SingleDimBC{F})(t::Float64) where {F}
     value::Float64 = b.fun(t)
     return value
@@ -50,6 +56,12 @@ struct PosDepSingleDimBC{F<:Function} <: AbstractCondition
     dim::UInt8
 end
 
+function Base.show(io::IO, bc::PosDepSingleDimBC)
+    print(io, "PosDepSingleDimBC")
+    print(io, msg_fields_in_brackets(bc, (:field, :point_set, :dim)))
+    return nothing
+end
+
 @inline function (b::PosDepSingleDimBC{F})(p::AbstractVector, t::Float64) where {F}
     value::Float64 = b.fun(p, t)
     return value
@@ -73,7 +85,7 @@ end
                                bc::PosDepSingleDimBC{F}, point_ids::Vector{Int},
                                t::Float64) where {F}
     @simd for i in point_ids
-        value = bc(SVector{3}(pos[1,i], pos[2,i], pos[3,i]), t)
+        value = bc(SVector{3}(pos[1, i], pos[2, i], pos[3, i]), t)
         if !isnan(value)
             field[bc.dim, i] = value
         end
@@ -139,7 +151,8 @@ julia> b.single_dim_bcs
  Peridynamics.SingleDimBC{var"#17#18"}(var"#17#18"(), :velocity_half, :set_a, 0x01)
 ```
 """
-function velocity_bc!(f::F, b::AbstractBody, name::Symbol, d::Union{Integer,Symbol}) where {F<:Function}
+function velocity_bc!(f::F, b::AbstractBody, name::Symbol,
+                      d::Union{Integer,Symbol}) where {F<:Function}
     check_if_set_is_defined(b.point_sets, name)
     type = check_condition_function(f)
     dim = get_dim(d)
@@ -181,7 +194,8 @@ julia> b.single_dim_bcs
  Peridynamics.SingleDimBC{var"#25#26"}(var"#25#26"(), :b_ext, :set_a, 0x01)
 ```
 """
-function forcedensity_bc!(f::F, b::AbstractBody, name::Symbol, d::Union{Integer,Symbol}) where {F<:Function}
+function forcedensity_bc!(f::F, b::AbstractBody, name::Symbol,
+                          d::Union{Integer,Symbol}) where {F<:Function}
     check_if_set_is_defined(b.point_sets, name)
     type = check_condition_function(f)
     dim = get_dim(d)

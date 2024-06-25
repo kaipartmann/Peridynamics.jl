@@ -13,3 +13,8 @@ end
 function mpi_data_handler(body, solver)
     return nothing
 end
+
+function Base.show(io::IO, @nospecialize(dh::AbstractDataHandler))
+    print(io, "DataHandler()")
+    return nothing
+end

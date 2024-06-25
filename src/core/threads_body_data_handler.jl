@@ -181,7 +181,7 @@ function log_data_handler(options::AbstractJobOptions,
     for chunk in dh.chunks
         n_bonds += length(chunk.system.bonds)
     end
-    msg *= log_qty("number of bonds", n_bonds)
+    msg *= msg_qty("number of bonds", n_bonds)
     log_it(options, msg)
     return nothing
 end

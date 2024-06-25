@@ -16,7 +16,8 @@ export AbstractMaterial, AbstractBondSystemMaterial, AbstractSpatialSetup, Abstr
        AbstractCorrection, AbstractStorage, AbstractCondition
 
 # Material models
-export BBMaterial, CKIMaterial, NOSBMaterial, OSBMaterial
+export BBMaterial, BBPointParameters, OSBMaterial, OSBPointParameters, NOSBMaterial,
+       NOSBPointParameters, CKIMaterial
 
 # Systems related types
 export BondSystem, NoCorrection, EnergySurfaceCorrection

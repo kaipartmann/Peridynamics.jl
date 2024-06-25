@@ -71,6 +71,28 @@ end
 
 MultibodySetup(body_pairs...) = MultibodySetup(Dict(body_pairs...))
 
+function Base.show(io::IO, ms::MultibodySetup)
+    print(io, n_points(ms), "-point MultibodySetup")
+    return nothing
+end
+
+function Base.show(io::IO, ::MIME"text/plain", ms::MultibodySetup)
+    if get(io, :compact, false)
+        show(io, ms)
+        return nothing
+    end
+    print(io, n_points(ms), "-point MultibodySetup:")
+    for body in ms.bodies
+        print(io, "\n  ")
+        show(io, body)
+    end
+    n_contact = length(ms.srf_contacts)
+    if n_contact > 0
+        print(io, "\n  ", n_contact, " short range force contact(s)")
+    end
+    return nothing
+end
+
 function check_if_bodyname_is_defined(ms::AbstractMultibodySetup, name::Symbol)
     if !haskey(ms.body_idxs, name)
         throw(ArgumentError("there is no body with name $(name)!"))
@@ -107,3 +129,5 @@ function log_spatial_setup(options::AbstractJobOptions, ms::MultibodySetup)
     end
     return nothing
 end
+
+@inline n_points(ms::AbstractMultibodySetup) = sum(x -> x.n_points, ms.bodies)

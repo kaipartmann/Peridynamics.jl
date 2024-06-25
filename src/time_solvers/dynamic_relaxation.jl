@@ -21,6 +21,22 @@ mutable struct DynamicRelaxation <: AbstractTimeSolver
     end
 end
 
+function Base.show(io::IO, dr::DynamicRelaxation)
+    print(io, typeof(dr))
+    print(io, msg_fields_in_brackets(dr))
+    return nothing
+end
+
+function Base.show(io::IO, ::MIME"text/plain", dr::DynamicRelaxation)
+    if get(io, :compact, false)
+        show(io, dr)
+    else
+        println(io, typeof(dr), ":")
+        print(io, msg_fields(dr))
+    end
+    return nothing
+end
+
 function init_time_solver!(dr::DynamicRelaxation, dh::AbstractDataHandler)
     dynamic_relaxation_check(dr)
     return nothing
@@ -195,10 +211,10 @@ end
 
 function log_timesolver(options::AbstractJobOptions, dr::DynamicRelaxation)
     msg = "DYNAMIC RELAXATION TIME SOLVER\n"
-    msg *= log_qty("number of time steps", dr.n_steps)
-    msg *= log_qty("relaxation time step size", dr.Δt)
-    msg *= log_qty("damping factor", dr.Λ)
-    msg *= log_qty("relaxation time", dr.n_steps * dr.Δt)
+    msg *= msg_qty("number of time steps", dr.n_steps)
+    msg *= msg_qty("relaxation time step size", dr.Δt)
+    msg *= msg_qty("damping factor", dr.Λ)
+    msg *= msg_qty("relaxation time", dr.n_steps * dr.Δt)
     log_it(options, msg)
     return nothing
 end

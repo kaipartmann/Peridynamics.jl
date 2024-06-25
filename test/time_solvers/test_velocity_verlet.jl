@@ -94,3 +94,17 @@ end
     @test_throws ErrorException(msg) Peridynamics.velocity_verlet_check(vv)
 
 end
+
+@testitem "show VelocityVerlet" begin
+    io = IOBuffer()
+
+    vv = VelocityVerlet(steps=1)
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), vv)
+    msg = String(take!(io))
+    @test contains(msg, "VelocityVerlet(n_steps=1, safety_factor=0.7)")
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), vv)
+    msg = String(take!(io))
+    @test contains(msg, "VelocityVerlet:\n  n_steps        1\n  safety_factor  0.7")
+end
