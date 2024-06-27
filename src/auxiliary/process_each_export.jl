@@ -7,7 +7,7 @@ function process_each_export(f::F, vtk_path::AbstractString; kwargs...) where {F
     serial = get_process_each_export_options(o)
     vtk_files = find_vtk_files(vtk_path)
     if serial
-        process_each_export_serial(f, vtk_files)
+        @mpiroot :wait process_each_export_serial(f, vtk_files)
     elseif mpi_run()
         process_each_export_mpi(f, vtk_files)
     else
@@ -66,7 +66,7 @@ end
 function process_each_export_serial(f::F, vtk_files::Vector{String}) where {F<:Function}
     ref_result = read_vtk(first(vtk_files))
     p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
-                 enabled=progress_enabled())
+                 enabled=progress_bars())
     for (file_id, file) in enumerate(vtk_files)
         process_step(f, ref_result, file, file_id)
         next!(p)
@@ -78,8 +78,8 @@ end
 function process_each_export_threads(f::F, vtk_files::Vector{String}) where {F<:Function}
     ref_result = read_vtk(first(vtk_files))
     p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
-                 enabled=progress_enabled())
-    @threads for file_id in eachindex(vtk_files)
+                 enabled=progress_bars())
+    @batch for file_id in eachindex(vtk_files)
         process_step(f, ref_result, vtk_files[file_id], file_id)
         next!(p)
     end
@@ -93,7 +93,7 @@ function process_each_export_mpi(f::F, vtk_files::Vector{String}) where {F<:Func
     loc_file_ids = file_dist[mpi_chunk_id()]
     if mpi_isroot()
         p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
-                     enabled=progress_enabled())
+                     enabled=progress_bars())
     end
     for file_id in loc_file_ids
         process_step(f, ref_result, vtk_files[file_id], file_id)

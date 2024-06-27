@@ -47,19 +47,19 @@ end
     return correction.scfactor[bond_id]
 end
 
-function initialize!(dh::AbstractThreadsDataHandler{BondSystem{EnergySurfaceCorrection}},
+function initialize!(dh::AbstractThreadsBodyDataHandler{BondSystem{EnergySurfaceCorrection}},
                      ::AbstractTimeSolver)
-    @threads :static for chunk in dh.chunks
+    @batch for chunk in dh.chunks
         calc_mfactor!(chunk)
     end
-    @threads :static for chunk_id in eachindex(dh.chunks)
+    @batch for chunk_id in eachindex(dh.chunks)
         exchange_loc_to_halo!(get_mfactor, dh, chunk_id)
         calc_scfactor!(dh.chunks[chunk_id])
     end
     return nothing
 end
 
-function initialize!(dh::AbstractMPIDataHandler{BondSystem{EnergySurfaceCorrection}},
+function initialize!(dh::AbstractMPIBodyDataHandler{BondSystem{EnergySurfaceCorrection}},
                      ::AbstractTimeSolver)
     calc_mfactor!(dh.chunk)
     exchange_loc_to_halo!(get_mfactor, dh)
@@ -71,16 +71,23 @@ function calc_mfactor!(chunk::AbstractBodyChunk{BondSystem{EnergySurfaceCorrecti
     system = chunk.system
     mfactor = system.correction.mfactor
     stendens = zeros(3, length(chunk.ch.point_ids))
+    ka = 1.001
     for d in 1:3
         defposition = copy(system.position)
-        defposition[d,:] .*= 1.001
+        defposition[d,:] .*= ka
         @views calc_stendens!(stendens[d,:], defposition, chunk)
         for i in each_point_idx(chunk)
             params = get_params(chunk, i)
-            mfactor[d,i] = 0.6 * 1e-6 * params.E / stendens[d,i]
+            mfactor[d,i] = analytical_stendens(params) / stendens[d,i]
         end
     end
     return nothing
+end
+
+@inline function analytical_stendens(params::AbstractPointParameters)
+    E, nu, a = params.E, params.nu, 0.001
+    U = E / (2 * (1 + nu)) * (nu / (1 - 2 * nu) + 1) * a^2
+    return U
 end
 
 function calc_stendens!(stendens, defposition, chunk)

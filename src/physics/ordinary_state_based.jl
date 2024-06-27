@@ -106,7 +106,49 @@ end
 @loc_to_halo_fields OSBVerletStorage :position
 @halo_to_loc_fields OSBVerletStorage :b_int
 
-function force_density_point!(storage::OSBVerletStorage, system::BondSystem, ::OSBMaterial,
+struct OSBRelaxationStorage <: AbstractStorage
+    position::Matrix{Float64}
+    displacement::Matrix{Float64}
+    velocity::Matrix{Float64}
+    velocity_half::Matrix{Float64}
+    velocity_half_old::Matrix{Float64}
+    b_int::Matrix{Float64}
+    b_int_old::Matrix{Float64}
+    b_ext::Matrix{Float64}
+    density_matrix::Matrix{Float64}
+    damage::Vector{Float64}
+    bond_active::Vector{Bool}
+    n_active_bonds::Vector{Int}
+end
+
+function OSBRelaxationStorage(::OSBMaterial, ::DynamicRelaxation, system::BondSystem, ch)
+    n_loc_points = length(ch.loc_points)
+    position = copy(system.position)
+    displacement = zeros(3, n_loc_points)
+    velocity = zeros(3, n_loc_points)
+    velocity_half = zeros(3, n_loc_points)
+    velocity_half_old = zeros(3, n_loc_points)
+    b_int = zeros(3, length(ch.point_ids))
+    b_int_old = zeros(3, n_loc_points)
+    b_ext = zeros(3, n_loc_points)
+    density_matrix = zeros(3, n_loc_points)
+    damage = zeros(n_loc_points)
+    bond_active = ones(Bool, length(system.bonds))
+    n_active_bonds = copy(system.n_neighbors)
+    s = OSBRelaxationStorage(position, displacement, velocity, velocity_half,
+                             velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
+                             damage, bond_active, n_active_bonds)
+    return s
+end
+
+@storage OSBMaterial DynamicRelaxation OSBRelaxationStorage
+
+@loc_to_halo_fields OSBRelaxationStorage :position
+@halo_to_loc_fields OSBRelaxationStorage :b_int
+
+const OSBStorage = Union{OSBVerletStorage,OSBRelaxationStorage}
+
+function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMaterial,
                               params::OSBPointParameters, i::Int)
     # weighted volume
     wvol = calc_weighted_volume(storage, system, params, i)
@@ -145,7 +187,7 @@ function force_density_point!(storage::OSBVerletStorage, system::BondSystem, ::O
     return nothing
 end
 
-function calc_weighted_volume(storage::OSBVerletStorage, system::BondSystem,
+function calc_weighted_volume(storage::OSBStorage, system::BondSystem,
                               params::OSBPointParameters, i::Int)
     wvol = 0.0
     for bond_id in each_bond_idx(system, i)
@@ -162,7 +204,7 @@ function calc_weighted_volume(storage::OSBVerletStorage, system::BondSystem,
     return wvol
 end
 
-function calc_dilatation(storage::OSBVerletStorage, system::BondSystem,
+function calc_dilatation(storage::OSBStorage, system::BondSystem,
                          params::OSBPointParameters, wvol::Float64, i::Int)
     dil = 0.0
     c1 = 3.0 / wvol

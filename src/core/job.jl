@@ -60,15 +60,15 @@ Job{SpatialSetup,TimeSolver,Options}
 
 - `SpatialSetup <: AbstractSpatialSetup`: Type of the spatial setup
 - `TimeSolver <: AbstractTimeSolver`: Type of the time solver
-- `Options <: AbstractOptions`: Type of the export options
+- `Options <: AbstractJobOptions`: Type of the export options
 
 # Fields
 
 - `spatial_setup::AbstractSpatialSetup`: Body or Multibody setup for the simulation
 - `time_solver::AbstractTimeSolver`: Method for calculating discrete time steps
-- `options::AbstractOptions`: Options for simulation data export
+- `options::AbstractJobOptions`: Options for simulation data export
 """
-struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractOptions}
+struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractJobOptions}
     spatial_setup::S
     time_solver::T
     options::O
@@ -82,32 +82,86 @@ end
 function Job(spatial_setup::S, time_solver::T; kwargs...) where {S,T}
     o = Dict{Symbol,Any}(kwargs)
     check_kwargs(o, JOB_KWARGS)
-    options = get_export_options(storage_type(spatial_setup, time_solver), o)
+    options = get_job_options(spatial_setup, time_solver, o)
     return Job(spatial_setup, time_solver, options)
 end
 
-const DEFAULT_EXPORT_FIELDS = (:displacement, :damage)
+function Base.show(io::IO, job::Job)
+    n_points = Peridynamics.n_points(job.spatial_setup)
+    if job.spatial_setup isa AbstractMultibodySetup
+        job_descr = "-point multibody Job with "
+    else
+        job_descr = "-point Job with "
+    end
+    solver = typeof(job.time_solver)
+    print(io, n_points, job_descr, solver, " solver")
+    return nothing
+end
 
-struct ExportOptions <: AbstractOptions
-    exportflag::Bool
+function Base.show(io::IO, ::MIME"text/plain", job::Job)
+    if get(io, :compact, false)
+        show(io, job)
+    else
+        println(io, "Job:")
+        print(io, msg_fields(job))
+    end
+    return nothing
+end
+
+struct JobOptions{F} <: AbstractJobOptions
+    export_allowed::Bool
     root::String
     vtk::String
     logfile::String
     freq::Int
-    fields::Vector{Symbol}
+    fields::F
 end
 
-function ExportOptions(root::String, freq::Int, fields::Vector{Symbol})
+function Base.show(io::IO, options::JobOptions)
+    print(io, "JobOptions")
+    print(io, msg_fields_in_brackets(options, (:freq,)))
+    return nothing
+end
+
+function Base.show(io::IO, ::MIME"text/plain", options::JobOptions)
+    if get(io, :compact, false)
+        show(io, options)
+    else
+        println(io, "JobOptions:")
+        print(io, msg_fields(options, (:export_allowed, :root, :freq, :fields)))
+    end
+    return nothing
+end
+
+function JobOptions(root::String, freq::Int, fields)
     vtk = joinpath(root, "vtk")
     logfile = joinpath(root, "logfile.log")
-    return ExportOptions(true, root, vtk, logfile, freq, fields)
+    return JobOptions(true, root, vtk, logfile, freq, fields)
 end
 
-function ExportOptions()
-    return ExportOptions(false, "", "", "", 0, Vector{Symbol}())
+function JobOptions(::AbstractBody)
+    return JobOptions(false, "", "", "", 0, Vector{Symbol}())
 end
 
-function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractStorage}
+function JobOptions(::AbstractMultibodySetup)
+    return JobOptions(false, "", "", "", 0, Dict{Symbol,Vector{Symbol}}())
+end
+
+function get_job_options(spatial_setup, solver, o)
+    root, freq = get_root_and_freq(o)
+
+    fields = get_export_fields(spatial_setup, solver, o)
+
+    if isempty(root)
+        options = JobOptions(spatial_setup)
+    else
+        options = JobOptions(root, freq, fields)
+    end
+
+    return options
+end
+
+function get_root_and_freq(o::Dict{Symbol,Any})
     local root::String
     local freq::Int
 
@@ -126,13 +180,5 @@ function get_export_options(::Type{S}, o::Dict{Symbol,Any}) where {S<:AbstractSt
     end
     freq < 0 && throw(ArgumentError("`freq` should be larger than zero!\n"))
 
-    fields = get_export_fields(S, o)
-
-    if isempty(root)
-        eo = ExportOptions()
-    else
-        eo = ExportOptions(root, freq, fields)
-    end
-
-    return eo
+    return root, freq
 end

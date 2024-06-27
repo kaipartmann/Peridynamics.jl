@@ -2,6 +2,7 @@ const MPI_INITIALIZED = Ref(false)
 const MPI_RUN = Ref(false)
 const MPI_RUN_FORCED = Ref(false)
 const MPI_ISROOT = Ref(false)
+const MPI_PROGRESS_BARS = Ref(false)
 const TO = TimerOutput()
 
 @inline mpi_comm() = MPI.COMM_WORLD
@@ -10,6 +11,8 @@ const TO = TimerOutput()
 @inline mpi_run() = MPI_RUN[]
 @inline mpi_chunk_id() = mpi_rank() + 1
 @inline mpi_isroot() = MPI_ISROOT[]
+@inline mpi_progress_bars() = MPI_PROGRESS_BARS[]
+@inline set_mpi_progress_bars!(b::Bool) = (MPI_PROGRESS_BARS[] = b; return nothing)
 
 """
     force_mpi_run!()
@@ -66,8 +69,8 @@ function mpi_run_initial_check()
     return false
 end
 
-function log_mpi_timers(options::AbstractOptions)
-    options.exportflag || return nothing
+function log_mpi_timers(options::AbstractJobOptions)
+    options.export_allowed || return nothing
     file = joinpath(options.root, @sprintf("timers_rank_%d.log", mpi_rank()))
     open(file, "w+") do io
         show(IOContext(io, :displaysize => (24,150)), TO)
@@ -83,6 +86,29 @@ end
 
 function disable_mpi_timers!()
     Core.eval(Peridynamics, :(TimerOutputs.disable_debug_timings(Peridynamics)))
+    return nothing
+end
+
+"""
+    enable_mpi_progress_bars!()
+
+After this function is called, progress bars are enabled on MPI simulations.
+"""
+function enable_mpi_progress_bars!()
+    mpi_run() || return nothing
+    set_mpi_progress_bars!(true)
+    return nothing
+end
+
+"""
+    reset_mpi_progress_bars!()
+
+After this function is called, progress bars are again disabled on MPI simulations
+(standard setting).
+"""
+function reset_mpi_progress_bars!()
+    mpi_run() || return nothing
+    set_mpi_progress_bars!(false)
     return nothing
 end
 
@@ -110,20 +136,38 @@ macro mpitime(expr)
 end
 
 """
-    @rootdo expression
+    @mpiroot [option] expression
 
-Run the code if the mpi rank is zero. Lowers to:
+Run the code if the mpi rank is zero. Lowers to something similar as:
 
 ```julia
 if mpi_isroot()
     expression
 end
 ```
+
+# Options
+- **`:wait`**: All MPI ranks will wait until the root rank finishes evaluating `expression`
 """
-macro rootdo(expr)
+macro mpiroot end
+
+macro mpiroot(expr)
     return quote
         if Peridynamics.mpi_isroot()
             $(esc(expr))
         end
+    end
+end
+
+macro mpiroot(option, expr)
+    if !(option isa QuoteNode) || option.value !== :wait
+        msg = "argument `$option` is not a valid option input!\n"
+        throw(ArgumentError(msg))
+    end
+    return quote
+        if Peridynamics.mpi_isroot()
+            $(esc(expr))
+        end
+        Peridynamics.mpi_run() && MPI.Barrier(mpi_comm())
     end
 end

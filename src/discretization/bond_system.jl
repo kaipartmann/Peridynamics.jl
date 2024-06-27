@@ -21,7 +21,7 @@ function BondSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     localize!(bonds, ch.localizer)
     position, volume = get_pos_and_vol_chunk(body, ch.point_ids)
     correction = get_correction(body.mat, ch.n_loc_points, length(ch.point_ids),
-                                 length(bonds))
+                                length(bonds))
     bs = BondSystem(position, volume, bonds, n_neighbors, bond_ids, correction)
     return bs, ch
 end
@@ -46,29 +46,32 @@ function check_bond_system_compat(::AbstractBondSystemMaterial)
 end
 
 function find_bonds(body::AbstractBody, loc_points::UnitRange{Int})
-    balltree = BallTree(body.position)
+    δmax = maximum_horizon(body)
+    nhs = GridNeighborhoodSearch{3}(search_radius=δmax, n_points=body.n_points,
+                                    threaded_update=false)
+    initialize_grid!(nhs, body.position)
     bonds = Vector{Bond}()
     sizehint!(bonds, body.n_points * 300)
     n_neighbors = zeros(Int, length(loc_points))
     for (li, i) in enumerate(loc_points)
-        n_neighbors[li] = find_bonds!(bonds, balltree, body.position, body.fail_permit,
+        n_neighbors[li] = find_bonds!(bonds, nhs, body.position, body.fail_permit,
                                       get_point_param(body, :δ, i), i)
     end
     filter_bonds!(bonds, n_neighbors, loc_points, body)
     return bonds, n_neighbors
 end
 
-function find_bonds!(bonds::Vector{Bond}, balltree::BallTree, position::Matrix{Float64},
-                     fail_permit::Vector{Bool}, δ::Float64, i::Int)
-    neigh_idxs_with_i = inrange(balltree, view(position, :, i), δ)
-    neigh_idxs = filter(x -> x != i, neigh_idxs_with_i)
-    for j in neigh_idxs
-        L = sqrt((position[1, j] - position[1, i])^2 +
-                 (position[2, j] - position[2, i])^2 +
-                 (position[3, j] - position[3, i])^2)
-        push!(bonds, Bond(j, L, fail_permit[i] & fail_permit[j]))
+function find_bonds!(bonds::Vector{Bond}, nhs::PointNeighbors.GridNeighborhoodSearch,
+                     position::Matrix{Float64}, fail_permit::Vector{Bool}, δ::Float64,
+                     point_id::Int)
+    n_bonds_pre = length(bonds)
+    foreach_neighbor(position, position, nhs, point_id; search_radius=δ) do i, j, _, L
+        if i != j
+            push!(bonds, Bond(j, L, fail_permit[i] & fail_permit[j]))
+        end
     end
-    return length(neigh_idxs)
+    n_neighbors = length(bonds) - n_bonds_pre
+    return n_neighbors
 end
 
 function filter_bonds!(bonds::Vector{Bond}, n_neighbors::Vector{Int},

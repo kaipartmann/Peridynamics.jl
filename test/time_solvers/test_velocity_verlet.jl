@@ -37,7 +37,7 @@ end
     @test_throws ArgumentError VelocityVerlet(time=1.0, safety_factor=1)
 end
 
-@testitem "init_time_solver! ThreadsDataHandler" begin
+@testitem "init_time_solver! ThreadsBodyDataHandler" begin
     pos = [0 1; 0 0; 0 0]
     Δx, δ = 1, 1.5
     E, nu, rho = 1, 0.25, 1
@@ -47,9 +47,8 @@ end
 
     vv = VelocityVerlet(steps=10)
 
-    point_decomp = Peridynamics.PointDecomposition(body, 1)
-    tdh = Peridynamics.ThreadsDataHandler(body, vv, point_decomp)
-    Peridynamics.init_time_solver!(vv, tdh)
+    dh = Peridynamics.threads_data_handler(body, vv, 1)
+    Peridynamics.init_time_solver!(vv, dh)
 
     bc = 18 * E / (3 * (1 - 2 * nu)) / (π * δ^4)
     Δt = 0.7 * sqrt(2 * rho / bc)
@@ -60,9 +59,8 @@ end
 
     vv = VelocityVerlet(time=11)
 
-    point_decomp = Peridynamics.PointDecomposition(body, 1)
-    tdh = Peridynamics.ThreadsDataHandler(body, vv, point_decomp)
-    Peridynamics.init_time_solver!(vv, tdh)
+    dh = Peridynamics.threads_data_handler(body, vv, 1)
+    Peridynamics.init_time_solver!(vv, dh)
 
     bc = 18 * E / (3 * (1 - 2 * nu)) / (π * δ^4)
     Δt = 0.7 * sqrt(2 * rho / bc)
@@ -95,4 +93,18 @@ end
     vv.safety_factor = 1
     @test_throws ErrorException(msg) Peridynamics.velocity_verlet_check(vv)
 
+end
+
+@testitem "show VelocityVerlet" begin
+    io = IOBuffer()
+
+    vv = VelocityVerlet(steps=1)
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), vv)
+    msg = String(take!(io))
+    @test contains(msg, "VelocityVerlet(n_steps=1, safety_factor=0.7)")
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), vv)
+    msg = String(take!(io))
+    @test contains(msg, "VelocityVerlet:\n  n_steps        1\n  safety_factor  0.7")
 end

@@ -177,10 +177,9 @@ end
     forcedensity_bc!(t -> t, body, :a, :x)
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
-    point_decomp = Peridynamics.PointDecomposition(body, 2)
-    tdh = Peridynamics.ThreadsDataHandler(body, ts, point_decomp)
+    dh = Peridynamics.threads_data_handler(body, ts, 2)
 
-    b1 = tdh.chunks[1]
+    b1 = dh.chunks[1]
     @test b1 isa Peridynamics.BodyChunk
     @test b1.storage.position == position
     @test b1.storage.displacement == zeros(3, 2)
@@ -192,7 +191,7 @@ end
     @test b1.storage.damage ≈ [2/3, 2/3]
     @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
     @test b1.storage.n_active_bonds == [1, 1]
-    b2 = tdh.chunks[2]
+    b2 = dh.chunks[2]
     @test b2 isa Peridynamics.BodyChunk
     @test b2.storage.position == position[:, [3, 4, 1, 2]]
     @test b2.storage.displacement == zeros(3, 2)
@@ -206,8 +205,8 @@ end
     @test b2.storage.n_active_bonds == [1, 1]
 
     randpos = rand(3, 4)
-    tdh.chunks[2].storage.position .= randpos
-    Peridynamics.exchange_loc_to_halo!(tdh, 1)
+    dh.chunks[2].storage.position .= randpos
+    Peridynamics.exchange_loc_to_halo!(dh, 1)
 
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
     @test b1.storage.position[:,3:4] ≈ randpos[:,1:2]
@@ -235,7 +234,7 @@ end
     randbint = rand(3, 4)
     b2.storage.b_int .= randbint
     b1.storage.b_int .+= 1
-    Peridynamics.exchange_halo_to_loc!(tdh, 1)
+    Peridynamics.exchange_halo_to_loc!(dh, 1)
 
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
     @test b1.storage.position[:,3:4] ≈ randpos[:,1:2]
@@ -261,7 +260,7 @@ end
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    Peridynamics.exchange_halo_to_loc!(tdh, 2)
+    Peridynamics.exchange_halo_to_loc!(dh, 2)
 
     @test b1.storage.position[:,1:2] ≈ [0.0 1.0; 0.0 0.0; 0.0 0.0]
     @test b1.storage.position[:,3:4] ≈ randpos[:,1:2]

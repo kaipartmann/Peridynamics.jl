@@ -113,7 +113,48 @@ end
 
 @loc_to_halo_fields BBVerletStorage :position
 
-function force_density_point!(storage::BBVerletStorage, system::BondSystem, ::BBMaterial,
+struct BBRelaxationStorage <: AbstractStorage
+    position::Matrix{Float64}
+    displacement::Matrix{Float64}
+    velocity::Matrix{Float64}
+    velocity_half::Matrix{Float64}
+    velocity_half_old::Matrix{Float64}
+    b_int::Matrix{Float64}
+    b_int_old::Matrix{Float64}
+    b_ext::Matrix{Float64}
+    density_matrix::Matrix{Float64}
+    damage::Vector{Float64}
+    bond_active::Vector{Bool}
+    n_active_bonds::Vector{Int}
+end
+
+function BBRelaxationStorage(::BBMaterial, ::DynamicRelaxation, system::BondSystem, ch)
+    n_loc_points = length(ch.loc_points)
+    position = copy(system.position)
+    displacement = zeros(3, n_loc_points)
+    velocity = zeros(3, n_loc_points)
+    velocity_half = zeros(3, n_loc_points)
+    velocity_half_old = zeros(3, n_loc_points)
+    b_int = zeros(3, n_loc_points)
+    b_int_old = zeros(3, n_loc_points)
+    b_ext = zeros(3, n_loc_points)
+    density_matrix = zeros(3, n_loc_points)
+    damage = zeros(n_loc_points)
+    bond_active = ones(Bool, length(system.bonds))
+    n_active_bonds = copy(system.n_neighbors)
+    s = BBRelaxationStorage(position, displacement, velocity, velocity_half,
+                            velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
+                            damage, bond_active, n_active_bonds)
+    return s
+end
+
+@storage BBMaterial DynamicRelaxation BBRelaxationStorage
+
+@loc_to_halo_fields BBRelaxationStorage :position
+
+const BBStorage = Union{BBVerletStorage,BBRelaxationStorage}
+
+function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
                               params::BBPointParameters, i::Int)
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
