@@ -40,7 +40,7 @@ function InteractionSystem(body::AbstractBody, pd::PointDecomposition, chunk_id:
         n_two_nis = Vector{Float64}()
         volume_two_nis = Vector{Float64}()
     end
-    if has_two_nis(body)
+    if has_three_nis(body)
         three_nis, n_three_nis = find_three_nis(body, loc_points, bonds, bond_ids)
         volume_three_nis = zeros(length(n_three_nis))
     else
@@ -112,7 +112,7 @@ function find_two_nis(body, loc_points, bonds, bond_ids)
         jk_seen = Set{Tuple{Int,Int}}()
         for oni_j in bond_ids[i], oni_k in bond_ids[i]
             j, k = bonds[oni_j].neighbor, bonds[oni_k].neighbor
-            if k !== j && !in((j, k), ijseen)
+            if k !== j && !in((j, k), jk_seen)
                 Ξijx = position[1, j] - position[1, i]
                 Ξijy = position[2, j] - position[2, i]
                 Ξijz = position[3, j] - position[3, i]
@@ -143,7 +143,7 @@ end
 end
 
 function find_three_nis(body, loc_points, bonds, bond_ids)
-    three_nis = Vector{TwoNeighborInteraction}()
+    three_nis = Vector{ThreeNeighborInteraction}()
     sizehint!(three_nis, n_points(body) * 1000)
     n_three_nis = zeros(length(loc_points))
     position = body.position
@@ -200,13 +200,10 @@ function find_three_nis(body, loc_points, bonds, bond_ids)
 end
 
 function initialize!(chunk::AbstractBodyChunk{InteractionSystem})
+    update_volumes!(chunk.system)
     return nothing
 end
 
-# function neighborhood_volume(body::AbstractBody, bonds::Vector{Bonds}, bond_ids::Vector{UnitRange{Int}}, loc_points::UnitRange{Int})
-#     horizons = zeros(n_points(body))
-#     volume_neighborhood = zeros(n_points(body))
-#     β = incomplete_families_factor()
-#     volume_full_neighborhood = @. 4 / 3 * π * horizons^3
-#     return nv
-# end
+function update_volumes!(system::InteractionSystem)
+    return nothing
+end
