@@ -46,6 +46,9 @@ struct BBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
 
 BBMaterial() = BBMaterial{NoCorrection}()
 
+"""
+TODO
+"""
 struct BBPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64
