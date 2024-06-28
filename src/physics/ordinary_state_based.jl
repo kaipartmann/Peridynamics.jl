@@ -169,6 +169,47 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMate
     return nothing
 end
 
+function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMaterial,
+                              paramhandler::ParameterHandler, i::Int)
+    params_i = get_params(paramhandler, i)
+    # weighted volume
+    wvol = calc_weighted_volume(storage, system, params_i, i)
+    iszero(wvol) && return nothing
+    # dilatation
+    dil = calc_dilatation(storage, system, params_i, wvol, i)
+    # force density
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        Δxijx = storage.position[1, j] - storage.position[1, i]
+        Δxijy = storage.position[2, j] - storage.position[2, i]
+        Δxijz = storage.position[3, j] - storage.position[3, i]
+        l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
+        ε = (l - L) / L
+
+        # failure mechanism
+        if ε > params.εc && bond.fail_permit
+            storage.bond_active[bond_id] = false
+        end
+        storage.n_active_bonds[i] += storage.bond_active[bond_id]
+
+        # update of force density
+        scfactor = surface_correction_factor(system.correction, bond_id)
+        ωij = (1 + params.δ / L) * storage.bond_active[bond_id] * scfactor
+        params_j = get_params(paramhandler, j)
+        c1 = 15.0 * (params_i.G + params_j.G) / (2 * wvol)
+        c2 = dil * (3.0 * (params_i.K + params_j.K) / (2 * wvol) - c1 / 3.0)
+        temp = ωij * (c2 * L + c1 * (l - L)) / l
+        storage.b_int[1, i] += temp * Δxijx * system.volume[j]
+        storage.b_int[2, i] += temp * Δxijy * system.volume[j]
+        storage.b_int[3, i] += temp * Δxijz * system.volume[j]
+        storage.b_int[1, j] -= temp * Δxijx * system.volume[i]
+        storage.b_int[2, j] -= temp * Δxijy * system.volume[i]
+        storage.b_int[3, j] -= temp * Δxijz * system.volume[i]
+    end
+    return nothing
+end
+
 function calc_weighted_volume(storage::OSBStorage, system::BondSystem,
                               params::OSBPointParameters, i::Int)
     wvol = 0.0

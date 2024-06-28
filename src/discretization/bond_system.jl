@@ -190,8 +190,7 @@ function calc_force_density!(chunk::AbstractBodyChunk{S,M}) where {S<:BondSystem
     storage.b_int .= 0
     storage.n_active_bonds .= 0
     for point_id in each_point_idx(chunk)
-        params = get_params(paramsetup, point_id)
-        force_density_point!(storage, system, mat, params, point_id)
+        force_density_point!(storage, system, mat, paramsetup, point_id)
     end
     return nothing
 end

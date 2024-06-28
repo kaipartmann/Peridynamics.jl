@@ -9,7 +9,7 @@ end
 
 function ParameterHandler(body::AbstractBody, ch::AbstractChunkHandler)
     parameters = body.point_params
-    point_mapping = body.params_map[ch.loc_points]
+    point_mapping = body.params_map[ch.point_ids]
     return ParameterHandler(parameters, point_mapping)
 end
 

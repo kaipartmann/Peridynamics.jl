@@ -167,3 +167,40 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
     end
     return nothing
 end
+
+function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
+                              paramhandler::ParameterHandler, i::Int)
+    params_i = get_params(paramhandler, i)
+
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+
+        # current bond length
+        Δxijx = storage.position[1, j] - storage.position[1, i]
+        Δxijy = storage.position[2, j] - storage.position[2, i]
+        Δxijz = storage.position[3, j] - storage.position[3, i]
+        l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
+
+        # bond strain
+        ε = (l - L) / L
+
+        # failure mechanism
+        if ε > params.εc && bond.fail_permit
+            storage.bond_active[bond_id] = false
+        end
+        storage.n_active_bonds[i] += storage.bond_active[bond_id]
+
+        # update of force density
+        scfactor = surface_correction_factor(system.correction, bond_id)
+        bond_fail = storage.bond_active[bond_id]
+        params_j = get_params(paramhandler, j)
+        bc_effective = (params_i.bc + params_j.bc) / 2
+        temp = bond_fail * scfactor * bc_effective * ε / l * system.volume[j]
+        storage.b_int[1, i] += temp * Δxijx
+        storage.b_int[2, i] += temp * Δxijy
+        storage.b_int[3, i] += temp * Δxijz
+    end
+
+    return nothing
+end
