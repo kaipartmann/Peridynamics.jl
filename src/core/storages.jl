@@ -22,7 +22,7 @@ macro storage(material, timesolver, storage)
     end
     local _get_storage = quote
         function Peridynamics.get_storage(mat::$(esc(material)), ts::$(esc(timesolver)),
-                                           system, ch)
+                                          system, ch)
             return $(esc(storage))(mat, ts, system, ch)
         end
     end
@@ -45,14 +45,13 @@ macro loc_to_halo_fields(storage, fields...)
             return $(Expr(:tuple, fields...))
         end
     end
-    local _is_halo_fields = [
-        quote
-            function Peridynamics.is_halo_field(::$(esc(storage)), ::Val{$(esc(_field))})
-                return true
-            end
-        end
-        for _field in fields
-    ]
+    local _is_halo_fields = [quote
+                                 function Peridynamics.is_halo_field(::$(esc(storage)),
+                                                                     ::Val{$(esc(_field))})
+                                     return true
+                                 end
+                             end
+                             for _field in fields]
     return Expr(:block, _checks, _loc_to_halo_fields, _is_halo_fields...)
 end
 
@@ -68,14 +67,13 @@ macro halo_to_loc_fields(storage, fields...)
             return $(Expr(:tuple, fields...))
         end
     end
-    local _is_halo_fields = [
-        quote
-            function Peridynamics.is_halo_field(::$(esc(storage)), ::Val{$(esc(_field))})
-                return true
-            end
-        end
-        for _field in fields
-    ]
+    local _is_halo_fields = [quote
+                                 function Peridynamics.is_halo_field(::$(esc(storage)),
+                                                                     ::Val{$(esc(_field))})
+                                     return true
+                                 end
+                             end
+                             for _field in fields]
     return Expr(:block, _checks, _loc_to_halo_fields, _is_halo_fields...)
 end
 
@@ -86,14 +84,13 @@ macro halo_fields(storage, fields...)
         Peridynamics.typecheck_is_storage($(esc(storage)))
         Peridynamics.typecheck_storage_fields($(esc(storage)), $(Expr(:tuple, fields...)))
     end
-    local _is_halo_fields = [
-        quote
-            function Peridynamics.is_halo_field(::$(esc(storage)), ::Val{$(esc(_field))})
-                return true
-            end
-        end
-        for _field in fields
-    ]
+    local _is_halo_fields = [quote
+                                 function Peridynamics.is_halo_field(::$(esc(storage)),
+                                                                     ::Val{$(esc(_field))})
+                                     return true
+                                 end
+                             end
+                             for _field in fields]
     return Expr(:block, _checks, _loc_to_halo_fields, _is_halo_fields...)
 end
 
@@ -204,4 +201,25 @@ function get_loc_point_data(s::AbstractStorage, ch::AbstractChunkHandler, field:
     val_field = Val(field)
     is_halo_field(s, val_field) || return point_data_field(s, val_field)
     return get_loc_view(point_data_field(s, val_field), ch)
+end
+
+@inline function get_coordinates(s, i)
+    return SVector{3}(s.position[1, i], s.position[2, i], s.position[3, i])
+end
+
+@inline function get_coordinates_diff(s, i, j)
+    return SVector{3}(s.position[1, j] - s.position[1, i],
+                      s.position[2, j] - s.position[2, i],
+                      s.position[3, j] - s.position[3, i])
+end
+
+@inline function update_add_b_int!(storage::AbstractStorage, i::Int, b::SVector{3})
+    storage.b_int[1, i] += b[1]
+    storage.b_int[2, i] += b[2]
+    storage.b_int[3, i] += b[3]
+    return nothing
+end
+
+@inline function bond_failure(storage::AbstractStorage, bond_id::Int)
+    return storage.bond_active[bond_id]
 end

@@ -361,6 +361,16 @@ end
     return nothing
 end
 
+@inline function stretch_based_failure!(storage::AbstractStorage, ::InteractionSystem,
+                                        one_ni::Bond, params::AbstractPointParameters,
+                                        ε::Float64, i::Int, one_ni_id::Int)
+    if ε > params.εc && one_ni.fail_permit
+        storage.one_ni_active[one_ni_id] = false
+    end
+    storage.n_active_one_nis[i] += storage.one_ni_active[one_ni_id]
+    return nothing
+end
+
 function log_msg_interaction_system(n_one_nis::Int, n_two_nis::Int, n_three_nis::Int)
     msg = msg_qty("number of one-neighbor-interactions", n_one_nis)
     msg *= msg_qty("number of two-neighbor-interactions", n_two_nis)

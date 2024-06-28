@@ -141,29 +141,14 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-
-        # current bond length
-        Δxijx = storage.position[1, j] - storage.position[1, i]
-        Δxijy = storage.position[2, j] - storage.position[2, i]
-        Δxijz = storage.position[3, j] - storage.position[3, i]
-        l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
-
-        # bond strain
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
         ε = (l - L) / L
-
-        # failure mechanism
-        if ε > params.εc && bond.fail_permit
-            storage.bond_active[bond_id] = false
-        end
-        storage.n_active_bonds[i] += storage.bond_active[bond_id]
-
-        # update of force density
-        scfactor = surface_correction_factor(system.correction, bond_id)
-        bond_fail = storage.bond_active[bond_id]
-        temp = bond_fail * scfactor * params.bc * ε / l * system.volume[j]
-        storage.b_int[1, i] += temp * Δxijx
-        storage.b_int[2, i] += temp * Δxijy
-        storage.b_int[3, i] += temp * Δxijz
+        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+        b_int = bond_failure(storage, bond_id) *
+                surface_correction_factor(system.correction, bond_id) *
+                params.bc * ε / l * system.volume[j] .* Δxij
+        update_add_b_int!(storage, i, b_int)
     end
     return nothing
 end
@@ -171,36 +156,18 @@ end
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
                               paramhandler::ParameterHandler, i::Int)
     params_i = get_params(paramhandler, i)
-
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-
-        # current bond length
-        Δxijx = storage.position[1, j] - storage.position[1, i]
-        Δxijy = storage.position[2, j] - storage.position[2, i]
-        Δxijz = storage.position[3, j] - storage.position[3, i]
-        l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
-
-        # bond strain
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
         ε = (l - L) / L
-
-        # failure mechanism
-        if ε > params.εc && bond.fail_permit
-            storage.bond_active[bond_id] = false
-        end
-        storage.n_active_bonds[i] += storage.bond_active[bond_id]
-
-        # update of force density
-        scfactor = surface_correction_factor(system.correction, bond_id)
-        bond_fail = storage.bond_active[bond_id]
+        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
         params_j = get_params(paramhandler, j)
-        bc_effective = (params_i.bc + params_j.bc) / 2
-        temp = bond_fail * scfactor * bc_effective * ε / l * system.volume[j]
-        storage.b_int[1, i] += temp * Δxijx
-        storage.b_int[2, i] += temp * Δxijy
-        storage.b_int[3, i] += temp * Δxijz
+        b_int = bond_failure(storage, bond_id) *
+                surface_correction_factor(system.correction, bond_id) *
+                (params_i.bc + params_j.bc) / 2 * ε / l * system.volume[j] .* Δxij
+        update_add_b_int!(storage, i, b_int)
     end
-
     return nothing
 end
