@@ -156,7 +156,7 @@ end
 function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMaterial,
                               paramhandler::ParameterHandler, i::Int)
     params_i = get_params(paramhandler, i)
-    wvol = calc_weighted_volume(storage, system, params, i)
+    wvol = calc_weighted_volume(storage, system, params_i, i)
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, params, wvol, i)
     for bond_id in each_bond_idx(system, i)
@@ -165,7 +165,7 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMate
         Δxij = get_coordinates_diff(storage, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+        stretch_based_failure!(storage, system, bond, params_i, ε, i, bond_id)
         params_j = get_params(paramhandler, j)
         c1 = 15.0 * (params_i.G + params_j.G) / (2 * wvol)
         c2 = dil * (3.0 * (params_i.K + params_j.K) / (2 * wvol) - c1 / 3.0)

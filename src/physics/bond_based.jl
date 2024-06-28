@@ -162,7 +162,7 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
         Δxij = get_coordinates_diff(storage, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+        stretch_based_failure!(storage, system, bond, params_i, ε, i, bond_id)
         params_j = get_params(paramhandler, j)
         b_int = bond_failure(storage, bond_id) *
                 surface_correction_factor(system.correction, bond_id) *
