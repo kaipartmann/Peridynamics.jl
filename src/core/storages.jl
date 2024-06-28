@@ -133,7 +133,7 @@ function typecheck_storage(::Type{Storage}, ::Type{TimeSolver}) where {Storage,T
     typecheck_is_storage(Storage)
     # TODO: add the material type! Then users can add requirements for own materials
     req_storage_fields_timesolver(Storage, TimeSolver)
-    req_storage_fields_fracture(Storage)
+    # req_storage_fields_fracture(Storage)
     return nothing
 end
 

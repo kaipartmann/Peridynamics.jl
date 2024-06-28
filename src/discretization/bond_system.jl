@@ -36,7 +36,7 @@ end
 end
 
 function check_bond_system_compat(::M) where {M<:AbstractMaterial}
-    msg = "body with material $(M) incompatible to BondSystem!\n"
+    msg = "body with material `$(M)` incompatible to `BondSystem`!\n"
     msg *= "The material has to be a subtype of `AbstractBondSystemMaterial`!\n"
     return throw(ArgumentError(msg))
 end
@@ -174,4 +174,55 @@ function break_bonds!(s::AbstractStorage, system::BondSystem, ch::ChunkHandler,
         end
     end
     return nothing
+end
+
+function calc_timestep_point(bd::BondSystem, params::AbstractPointParameters, point_id::Int)
+    dtsum = 0.0
+    for bond_id in each_bond_idx(bd, point_id)
+        bond = bd.bonds[bond_id]
+        dtsum += bd.volume[bond.neighbor] * params.bc / bond.length
+    end
+    return sqrt(2 * params.rho / dtsum)
+end
+
+function calc_force_density!(chunk::AbstractBodyChunk{S,M}) where {S<:BondSystem,M}
+    (; system, mat, paramsetup, storage) = chunk
+    storage.b_int .= 0
+    storage.n_active_bonds .= 0
+    for point_id in each_point_idx(chunk)
+        params = get_params(paramsetup, point_id)
+        force_density_point!(storage, system, mat, params, point_id)
+    end
+    return nothing
+end
+
+@inline function calc_damage!(chunk::AbstractBodyChunk{S,M}) where {S<:BondSystem,M}
+    (; n_neighbors) = chunk.system
+    (; n_active_bonds, damage) = chunk.storage
+    for point_id in each_point_idx(chunk)
+        @inbounds damage[point_id] = 1 - n_active_bonds[point_id] / n_neighbors[point_id]
+    end
+    return nothing
+end
+
+function log_system(::Type{B}, options::AbstractJobOptions,
+                    dh::AbstractDataHandler) where {B<:BondSystem}
+    n_bonds = calc_n_bonds(dh)
+    msg = "BOND SYSTEM\n"
+    msg *= msg_qty("number of bonds", n_bonds)
+    log_it(options, msg)
+    return nothing
+end
+
+function calc_n_bonds(dh::AbstractThreadsBodyDataHandler)
+    n_bonds = 0
+    for chunk in dh.chunks
+        n_bonds += length(chunk.system.bonds)
+    end
+    return n_bonds
+end
+
+function calc_n_bonds(dh::AbstractMPIBodyDataHandler)
+    n_bonds = MPI.Reduce(length(dh.chunk.system.bonds), MPI.SUM, mpi_comm())
+    return n_bonds
 end

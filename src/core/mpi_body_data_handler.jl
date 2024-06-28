@@ -360,14 +360,11 @@ function initialize!(::AbstractMPIBodyDataHandler, ::AbstractTimeSolver)
     return nothing
 end
 
-function log_data_handler(options::AbstractJobOptions,
-                          dh::AbstractMPIBodyDataHandler{Sys}) where {Sys<:BondSystem}
-    msg = "BOND SYSTEM\n"
-
-    n_bonds = MPI.Reduce(length(dh.chunk.system.bonds), MPI.SUM, mpi_comm())
-    if mpi_isroot()
-        msg *= msg_qty("number of bonds", n_bonds)
-    end
-    log_it(options, msg)
+function log_data_handler(options::AbstractJobOptions, dh::AbstractMPIBodyDataHandler)
+    log_system(options, dh)
     return nothing
+end
+
+@inline function system_type(dh::MPIBodyDataHandler{Sys}) where {Sys}
+    return Sys
 end
