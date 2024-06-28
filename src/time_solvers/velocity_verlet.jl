@@ -156,18 +156,9 @@ function calc_timestep(b::AbstractBodyChunk)
     Δt = fill(Inf, length(each_point_idx(b.ch)))
     for point_id in each_point_idx(b.ch)
         pp = get_params(b, point_id)
-        Δt[point_id] = _calc_timestep(b.system, pp, point_id)
+        Δt[point_id] = calc_timestep_point(b.system, pp, point_id)
     end
     return minimum(Δt)
-end
-
-function _calc_timestep(bd::BondSystem, pp::AbstractPointParameters, point_id::Int)
-    dtsum = 0.0
-    for bond_id in each_bond_idx(bd, point_id)
-        bond = bd.bonds[bond_id]
-        dtsum += bd.volume[bond.neighbor] * pp.bc / bond.length
-    end
-    return sqrt(2 * pp.rho / dtsum)
 end
 
 function solve!(dh::AbstractDataHandler, vv::VelocityVerlet, options::AbstractJobOptions)

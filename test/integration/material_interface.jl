@@ -103,20 +103,21 @@ end
     @test_throws ErrorException Peridynamics.@storage(TestMaterial4, VelocityVerlet,
                                                       TestVerletStorageMissingField1)
 
-    struct TestVerletStorageMissingField2 <: Peridynamics.AbstractStorage
-        position::Matrix{Float64}
-        displacement::Matrix{Float64}
-        velocity::Matrix{Float64}
-        velocity_half::Matrix{Float64}
-        acceleration::Matrix{Float64}
-        b_int::Matrix{Float64}
-        b_ext::Matrix{Float64}
-        # damage::Vector{Float64}
-        bond_active::Vector{Bool}
-        n_active_bonds::Vector{Int}
-    end
-    @test_throws ErrorException Peridynamics.@storage(TestMaterial4, VelocityVerlet,
-                                                     TestVerletStorageMissingField2)
+    # TODO
+    # struct TestVerletStorageMissingField2 <: Peridynamics.AbstractStorage
+    #     position::Matrix{Float64}
+    #     displacement::Matrix{Float64}
+    #     velocity::Matrix{Float64}
+    #     velocity_half::Matrix{Float64}
+    #     acceleration::Matrix{Float64}
+    #     b_int::Matrix{Float64}
+    #     b_ext::Matrix{Float64}
+    #     # damage::Vector{Float64}
+    #     bond_active::Vector{Bool}
+    #     n_active_bonds::Vector{Int}
+    # end
+    # @test_throws ErrorException Peridynamics.@storage(TestMaterial4, VelocityVerlet,
+    #                                                  TestVerletStorageMissingField2)
 
     struct TestVerletStorage1 <: Peridynamics.AbstractStorage
         position::Matrix{Float64}

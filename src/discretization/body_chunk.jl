@@ -47,6 +47,6 @@ end
 
 @inline n_loc_points(b::AbstractBodyChunk) = length(b.ch.loc_points)
 
-function initialize!(::BodyChunk)
+function initialize!(::AbstractBodyChunk)
     return nothing
 end

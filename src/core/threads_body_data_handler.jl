@@ -174,14 +174,11 @@ function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractJ
     return nothing
 end
 
-function log_data_handler(options::AbstractJobOptions,
-                          dh::AbstractThreadsBodyDataHandler{Sys}) where {Sys<:BondSystem}
-    msg = "BOND SYSTEM\n"
-    n_bonds = 0
-    for chunk in dh.chunks
-        n_bonds += length(chunk.system.bonds)
-    end
-    msg *= msg_qty("number of bonds", n_bonds)
-    log_it(options, msg)
+function log_data_handler(options::AbstractJobOptions, dh::AbstractThreadsBodyDataHandler)
+    log_system(options, dh)
     return nothing
+end
+
+@inline function system_type(dh::ThreadsBodyDataHandler{Sys}) where {Sys}
+    return Sys
 end
