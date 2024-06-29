@@ -1,23 +1,43 @@
 # # [Kalthoff-Winkler experiment](@id tutorial_kalthoff-winkler)
-
-# Import the package:
-using Peridynamics
-using GLMakie #src
-using LaTeXStrings #src
-
+#
 # This tutorial demonstrates how to set up and run the Kalthoff-Winkler experiment using the Peridynamics.jl package.
-# The Kalthoff-Winkler experiment is a classic dynamic fracture experiment involving a pre-notched sample subjected to an impact loading.
+# The Kalthoff-Winkler experiment is a classic dynamic fracture experiment involving a pre-notched sample subjected 
+# to impact loading.
 
-# The geometrical parameters are defined as:
-# Sample length `l`, width `w`, and thickness `t`, with point spacing `Δx`, horizon size `$ δ $` and crack length `a`.
-l, w, t, Δx, δ, a = 100.0, 100 / 50, 50.0
+# ## Introduction
+#
+# The Kalthoff-Winkler experiment, conducted by John Kalthoff and Benedikt Winkler, is widely used to study fracture 
+# mechanics under high strain rates.
+# This setup provides valuable insights into the behavior of materials under dynamic loading conditions, making it a 
+# crucial experiment in the field of fracture mechanics.
+#
+# In this tutorial, we will simulate the Kalthoff-Winkler experiment using peridynamics, which is particularly suited 
+# for modeling problems involving discontinuities such as cracks.
 
-# Now a cuboid body with the specified dimensions is created using the bond-based material model with surface corrections:
+# ## Import Packages
+using Peridynamics
+using GLMakie # For visualization
+using LaTeXStrings # For LaTeX string formatting
+
+# ## Geometrical Parameters
+#
+# Define the sample length `l`, width `w`, and thickness `t`, with point spacing `Δx`, horizon size `$ δ $` and crack 
+# length `a`.
+l  = 200.0E-3  # Length of the sample (meters)
+w  = 100.0E-3  # Width of the sample (meters)
+t  =   9.0E-3  # Thickness of the sample (meters)
+Δx =   0.1E-3  # Discretization size (meters)
+δ  = 4.015Δx   # Horizon (meters)
+a  = 50.0E-3   # Crack length (meters)
+
+# ## Create the Body
+#
+# Create a cuboid body with the specified dimensions using the bond-based material model with surface corrections:
 pos, vol = uniform_box(l, w, t, Δx)
 body = Body(BBMaterial{EnergySurfaceCorrection}(), pos, vol)
 
-# Some plotting
-
+# ## Material Parameters
+#
 # The following material parameters are set:
 #
 # | material parameter | value |
@@ -29,32 +49,39 @@ body = Body(BBMaterial{EnergySurfaceCorrection}(), pos, vol)
 
 material!(body; horizon=4.015Δx, E=191.0e+9, rho=8000.0, Gc=22120.4)
 
-# Two point sets are defined to insert a crack between them at the left side of the domain (-x):
-point_set!(p -> -a / 2 - δ ≤ p[1] ≤ -a / 2 && 0 ≤ p[2] < wid / 2, body, :set_crack1_a)
-point_set!(p -> -a / 2 ≤ p[1] ≤ -a / 2 + δ && 0 ≤ p[2] < wid / 2, body, :set_crack1_b)
+# ## Define Pre-cracks
+#
+# Define the point sets to insert a crack at the left side of the domain (-x):
+point_set!(p -> -a / 2 - δ ≤ p[1] ≤ -a / 2 && 0 ≤ p[2] < w / 2, body, :set_crack1_a)
+point_set!(p -> -a / 2 ≤ p[1] ≤ -a / 2 + δ && 0 ≤ p[2] < w / 2, body, :set_crack1_b)
 precrack!(body, :set_crack1_a, :set_crack1_b)
 
-# For the second crack, the same points are defined but on the right side of the domain (+x):
-point_set!(p -> a / 2 - δ ≤ p[1] ≤ a / 2 && 0 ≤ p[2] < wid / 2, body, :set_crack2_a)
-point_set!(p -> a / 2 ≤ p[1] ≤ a / 2 + δ && 0 ≤ p[2] < wid / 2, body, :set_crack2_b)
+# Define the point sets to insert a crack at the right side of the domain (+x):
+point_set!(p -> a / 2 - δ ≤ p[1] ≤ a / 2 && 0 ≤ p[2] < w / 2, body, :set_crack2_a)
+point_set!(p -> a / 2 ≤ p[1] ≤ a / 2 + δ && 0 ≤ p[2] < w / 2, body, :set_crack2_b)
 precrack!(body, :set_crack2_a, :set_crack2_b)
 
-# A point sets at the top is created, which is used for the velocity boundary condition:
-point_set!(p -> -a / 2 + 2.015δ ≤ p[1] ≤ a / 2 - 2.015δ && p[2] ≥ wid / 2 - 2.015Δx, body,
-           :set_top)
-
-
-# The specimen is impacted by a projectile moving at a speed of $\pm 32 \, \mathrm{m} \, \mathrm{s}^{-1}$:
+# ## Velocity Boundary Condition
+#
+# Apply velocity boundary condition on the top edge:
+point_set!(p -> -a / 2 + 2.015δ ≤ p[1] ≤ a / 2 - 2.015δ && p[2] ≥ w / 2 - 2.015Δx, body, :set_top)
 velocity_bc!(t -> -32.0, body, :set_top, :y)
 
-# The Velocity Verlet algorithm is used as time integration method and 2000 time steps
-# are calculated:
+# ## Simulation
+#
+# Use the Velocity Verlet algorithm as the time integration method and calculate 2000 time steps:
 vv = VelocityVerlet(steps=2000, safety_factor=0.8)
-# Then the storage path is defined:
-root = joinpath(@__DIR__, "results", "mode_i")
-#  Now the job is defined
+
+# Define the storage path:
+path = joinpath("results", "KW")
+ispath(path) && rm(path; recursive=true)  # Delete existing results if they exist
+
+# Create and submit the job:
 job = Job(body, vv; path=path, freq=100)
-# Finally the job is submitted to start simulations
-#md # ```julia
-#md # submit(job)
-#md # ```
+@mpitime submit(job)
+
+# ## Conclusion
+#
+# This tutorial demonstrated how to set up and run the Kalthoff-Winkler experiment using Peridynamics.jl.
+# By simulating this experiment, we can gain insights into the dynamic fracture behavior of materials 
+# under high strain rates.
