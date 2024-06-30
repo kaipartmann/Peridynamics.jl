@@ -219,7 +219,3 @@ end
     storage.b_int[3, i] += b[3]
     return nothing
 end
-
-@inline function bond_failure(storage::AbstractStorage, bond_id::Int)
-    return storage.bond_active[bond_id]
-end

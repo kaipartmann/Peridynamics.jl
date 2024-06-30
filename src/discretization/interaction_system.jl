@@ -371,6 +371,10 @@ end
     return nothing
 end
 
+@inline function one_ni_failure(storage::AbstractStorage, one_ni_id::Int)
+    return storage.one_ni_active[one_ni_id]
+end
+
 function log_msg_interaction_system(n_one_nis::Int, n_two_nis::Int, n_three_nis::Int)
     msg = msg_qty("number of one-neighbor-interactions", n_one_nis)
     msg *= msg_qty("number of two-neighbor-interactions", n_two_nis)

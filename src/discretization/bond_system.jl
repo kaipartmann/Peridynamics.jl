@@ -214,6 +214,10 @@ end
     return nothing
 end
 
+@inline function bond_failure(storage::AbstractStorage, bond_id::Int)
+    return storage.bond_active[bond_id]
+end
+
 function log_system(::Type{B}, options::AbstractJobOptions,
                     dh::AbstractDataHandler) where {B<:BondSystem}
     n_bonds = calc_n_bonds(dh)

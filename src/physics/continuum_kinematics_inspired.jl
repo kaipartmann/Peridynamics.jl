@@ -163,7 +163,7 @@ end
 const CKIStorage = Union{CKIVerletStorage,CKIRelaxationStorage}
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,
-                              mat::CKIMaterial, params::CKIPointParameters, i::Int)
+                              mat::CKIMaterial, params::AbstractParameterSetup, i::Int)
     force_density_point_one_ni!(storage, system, mat, params, i)
     has_two_nis(params) && force_density_point_two_ni!(storage, system, mat, params, i)
     has_three_nis(params) && force_density_point_three_ni!(storage, system, mat, params, i)
@@ -173,30 +173,15 @@ end
 function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSystem,
                                      ::CKIMaterial, params::CKIPointParameters, i::Int)
     for one_ni_id in each_one_ni_idx(system, i)
-        bond = system.one_nis[one_ni_id]
-        j, L = bond.neighbor, bond.length
-
-        # current bond length
-        Δxijx = storage.position[1, j] - storage.position[1, i]
-        Δxijy = storage.position[2, j] - storage.position[2, i]
-        Δxijz = storage.position[3, j] - storage.position[3, i]
-        l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
-
-        # bond strain
+        one_ni = system.one_nis[one_ni_id]
+        j, L = one_ni.neighbor, one_ni.length
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
         ε = (l - L) / L
-
-        # failure mechanism
-        if ε > params.εc && bond.fail_permit
-            storage.one_ni_active[one_ni_id] = false
-        end
-        storage.n_active_one_nis[i] += storage.one_ni_active[one_ni_id]
-
-        # update of force density
-        one_ni_fail = storage.one_ni_active[one_ni_id]
-        temp = one_ni_fail * params.C1 * (1 / L - 1 / l) * system.volume_one_nis[i]
-        storage.b_int[1, i] += temp * Δxijx
-        storage.b_int[2, i] += temp * Δxijy
-        storage.b_int[3, i] += temp * Δxijz
+        stretch_based_failure!(storage, system, one_ni, params, ε, i, one_ni_id)
+        b_int = one_ni_failure(storage, one_ni_id) * params.C1 * (1 / L - 1 / l) *
+                system.volume_one_nis[i] .* Δxij
+        update_add_b_int!(storage, i, b_int)
     end
     return nothing
 end
@@ -205,32 +190,16 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
                                      ::CKIMaterial, paramhandler::ParameterHandler, i::Int)
     params_i = get_params(paramhandler, i)
     for one_ni_id in each_one_ni_idx(system, i)
-        bond = system.one_nis[one_ni_id]
-        j, L = bond.neighbor, bond.length
-
-        # current bond length
-        Δxijx = storage.position[1, j] - storage.position[1, i]
-        Δxijy = storage.position[2, j] - storage.position[2, i]
-        Δxijz = storage.position[3, j] - storage.position[3, i]
-        l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
-
-        # bond strain
+        one_ni = system.one_nis[one_ni_id]
+        j, L = one_ni.neighbor, one_ni.length
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
         ε = (l - L) / L
-
-        # failure mechanism
-        if ε > params.εc && bond.fail_permit
-            storage.one_ni_active[one_ni_id] = false
-        end
-        storage.n_active_one_nis[i] += storage.one_ni_active[one_ni_id]
-
-        # update of force density
-        one_ni_fail = storage.one_ni_active[one_ni_id]
+        stretch_based_failure!(storage, system, one_ni, params_i, ε, i, one_ni_id)
         params_j = get_params(paramhandler, j)
-        C1_effective = (params_i.C1 + params_j.C1) / 2
-        temp = one_ni_fail * C1_effective * (1 / L - 1 / l) * system.volume_one_nis[i]
-        storage.b_int[1, i] += temp * Δxijx
-        storage.b_int[2, i] += temp * Δxijy
-        storage.b_int[3, i] += temp * Δxijz
+        b_int = one_ni_failure(storage, one_ni_id) * (params_i.C1 + params_j.C1) / 2 *
+                (1 / L - 1 / l) * system.volume_one_nis[i] .* Δxij
+        update_add_b_int!(storage, i, b_int)
     end
     return nothing
 end
