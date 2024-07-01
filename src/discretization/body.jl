@@ -196,7 +196,7 @@ function pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
     # the body should have material properties
     if isempty(body.point_params)
         msg = "no material parameters found!\n"
-        msg *= "Bodies without material parameters are not ready for job submission\n"
+        msg *= "Bodies without material parameters are not ready for job submission!\n"
         error(msg)
     end
     # all points should have a material property defined
@@ -291,9 +291,6 @@ end
 @inline has_name(body::AbstractBody) = body.name[] !== Symbol("")
 
 @inline has_point_sets(body::AbstractBody) = !isempty(body.point_sets)
-@inline function each_user_point_set(body::AbstractBody)
-    return filter(x -> x !== :all_points, body.point_sets)
-end
 
 @inline n_params(body::AbstractBody) = length(body.point_params)
 @inline has_params(body::AbstractBody) = !isempty(body.point_params)
