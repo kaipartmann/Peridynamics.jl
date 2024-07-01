@@ -37,7 +37,7 @@ end
     @test msg_start == "DATA HANDLER CREATION ... ⏳"
     Peridynamics.log_create_data_handler_end(io)
     msg_end = String(take!(io))
-    @test msg_end == "\rDATA HANDLER CREATION COMPLETED ✓\n"
+    @test msg_end == "\rDATA HANDLER CREATION COMPLETED ✔\n"
 
     # reset
     reset_mpi_progress_bars!()
