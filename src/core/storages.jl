@@ -213,6 +213,10 @@ end
                       s.position[3, j] - s.position[3, i])
 end
 
+@inline function get_diff(a, i, j)
+    return SVector{3}(a[1, j] - a[1, i], a[2, j] - a[2, i], a[3, j] - a[3, i])
+end
+
 @inline function update_add_b_int!(storage::AbstractStorage, i::Int, b::SVector{3})
     storage.b_int[1, i] += b[1]
     storage.b_int[2, i] += b[2]
