@@ -108,13 +108,13 @@ function Base.show(io::IO, ::MIME"text/plain", job::Job)
     return nothing
 end
 
-struct JobOptions{F} <: AbstractJobOptions
+struct JobOptions{F,V} <: AbstractJobOptions
     export_allowed::Bool
     root::String
-    vtk::String
     logfile::String
     freq::Int
     fields::F
+    vtk_filebase::V
 end
 
 function Base.show(io::IO, options::JobOptions)
@@ -133,29 +133,30 @@ function Base.show(io::IO, ::MIME"text/plain", options::JobOptions)
     return nothing
 end
 
-function JobOptions(root::String, freq::Int, fields)
-    vtk = joinpath(root, "vtk")
+function JobOptions(root::String, freq::Int, fields, vtk_filebase)
     logfile = joinpath(root, "logfile.log")
-    return JobOptions(true, root, vtk, logfile, freq, fields)
+    return JobOptions(true, root, logfile, freq, fields, vtk_filebase)
 end
 
 function JobOptions(::AbstractBody)
-    return JobOptions(false, "", "", "", 0, Vector{Symbol}())
+    return JobOptions(false, "", "", 0, Vector{Symbol}(), "")
 end
 
 function JobOptions(::AbstractMultibodySetup)
-    return JobOptions(false, "", "", "", 0, Dict{Symbol,Vector{Symbol}}())
+    return JobOptions(false, "", "", 0, Dict{Symbol,Vector{Symbol}}(),
+                      Dict{Symbol,String}())
 end
 
 function get_job_options(spatial_setup, solver, o)
     root, freq = get_root_and_freq(o)
 
     fields = get_export_fields(spatial_setup, solver, o)
+    vtk_filebase = get_vtk_filebase(spatial_setup, root)
 
     if isempty(root)
         options = JobOptions(spatial_setup)
     else
-        options = JobOptions(root, freq, fields)
+        options = JobOptions(root, freq, fields, vtk_filebase)
     end
 
     return options

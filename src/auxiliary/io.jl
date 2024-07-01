@@ -114,15 +114,42 @@ function check_export_fields(::Type{S}, fields::Vector{Symbol}) where {S}
     return nothing
 end
 
-function _export_results(options::AbstractJobOptions, b::AbstractBodyChunk, chunk_id::Int,
-                         n_chunks::Int, prefix::AbstractString, n::Int, t::Float64)
-    filename = joinpath(options.vtk, @sprintf("%s_timestep_%06d", prefix, n))
-    position = get_loc_position(b)
-    pvtk_grid(filename, position, b.cells; part=chunk_id, nparts=n_chunks) do vtk
-        export_fields!(vtk, b, options.fields)
+function get_vtk_filebase(body::AbstractBody, root::AbstractString)
+    body_name = replace(string(get_name(body)), " " => "_")
+    filebase = isempty(body_name) ? "timestep_" : body_name * "_timestep_"
+    vtk_filebase::String = joinpath(root, "vtk", filebase)
+    return vtk_filebase
+end
+
+function get_vtk_filebase(ms::AbstractMultibodySetup, root::AbstractString)
+    vtk_filebase = Dict{Symbol,String}()
+    for body_name in each_body_name(ms)
+        vtk_filebase[body_name] = get_vtk_filebase(get_body(ms, body_name), root)
+    end
+    return vtk_filebase
+end
+
+function _export_results(options::AbstractJobOptions, chunk::AbstractBodyChunk,
+                         chunk_id::Int, n_chunks::Int, n::Int, t::Float64)
+    filename = get_filename(options, n)
+    position = get_loc_position(chunk)
+    pvtk_grid(filename, position, chunk.cells; part=chunk_id, nparts=n_chunks) do vtk
+        export_fields!(vtk, chunk, options.fields)
         vtk["time", VTKFieldData()] = t
     end
     return nothing
+end
+
+@inline function get_filename(options::AbstractJobOptions, n::Int)
+    return _get_filename(options.vtk_filebase, n)
+end
+
+@inline function _get_filename(vtk_filebase::String, n::Int)
+    return @sprintf("%s_%06d", vtk_filebase, n)
+end
+
+@inline function _get_filename(vtk_filebase::Dict{Symbol,String}, n::Int)
+    return @sprintf("%s_%06d", vtk_filebase, n)
 end
 
 function export_fields!(vtk, chunk, fields::Vector{Symbol})
