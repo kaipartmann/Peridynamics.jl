@@ -228,14 +228,14 @@ function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody;
     has_bcs(body) && (msg *= msg_qty("number of BC's", n_bcs(body); indentation=4))
     has_ics(body) && (msg *= msg_qty("number of IC's", n_ics(body); indentation=4))
     n_point_params = length(body.point_params)
+    msg *= "  MATERIAL\n"
+    msg *= msg_qty("material type", material_type(body); indentation=4)
     if length(body.point_params) == 1
-        msg *= "  MATERIAL\n"
-        msg *= msg_qty("material type", material_type(body); indentation=4)
         msg *= log_material_parameters(first(body.point_params); indentation=4)
     elseif n_point_params > 1
         for (i, params) in enumerate(body.point_params)
-            msg *= @sprintf("  MATERIAL %d\n", i)
-            msg *= log_material_parameters(params; indentation=4)
+            msg *= @sprintf("    MATERIAL PROPERTIES #%d\n", i)
+            msg *= log_material_parameters(params; indentation=6)
         end
     end
     log_it(options, msg)
