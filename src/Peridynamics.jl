@@ -47,17 +47,56 @@ function __init__()
     return nothing
 end
 
+"""
+TODO
+"""
 abstract type AbstractMaterial end
+
+"""
+TODO
+"""
 abstract type AbstractSpatialSetup end
+
+"""
+TODO
+"""
 abstract type AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup end
+
+"""
+TODO
+"""
 abstract type AbstractMultibodySetup <: AbstractSpatialSetup end
+
+"""
+TODO
+"""
 abstract type AbstractParameterSetup end
+
+"""
+TODO
+"""
 abstract type AbstractPointParameters <: AbstractParameterSetup end
 abstract type AbstractParamSpec end
+
+"""
+TODO
+"""
 abstract type AbstractTimeSolver end
+
+"""
+TODO
+"""
 abstract type AbstractJob end
 abstract type AbstractJobOptions end
+
+"""
+TODO
+"""
 abstract type AbstractSystem end
+
+"""
+TODO
+"""
 abstract type AbstractPredefinedCrack end
 abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
 abstract type AbstractParameterHandler <: AbstractParameterSetup end
@@ -69,9 +108,25 @@ abstract type AbstractThreadsBodyDataHandler{Sys,M,P,S} <: AbstractThreadsDataHa
 abstract type AbstractThreadsMultibodyDataHandler <: AbstractThreadsDataHandler end
 abstract type AbstractMPIBodyDataHandler{Sys,M,P,S} <: AbstractMPIDataHandler end
 abstract type AbstractMPIMultibodyDataHandler <: AbstractMPIDataHandler end
+
+"""
+TODO
+"""
 abstract type AbstractCorrection end
+
+"""
+TODO
+"""
 abstract type AbstractStorage end
+
+"""
+TODO
+"""
 abstract type AbstractCondition end
+
+"""
+TODO
+"""
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
 

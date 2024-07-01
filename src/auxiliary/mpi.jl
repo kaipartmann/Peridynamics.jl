@@ -10,6 +10,10 @@ const TO = TimerOutput()
 @inline mpi_nranks() = MPI.Comm_size(MPI.COMM_WORLD)
 @inline mpi_run() = MPI_RUN[]
 @inline mpi_chunk_id() = mpi_rank() + 1
+
+"""
+TODO
+"""
 @inline mpi_isroot() = MPI_ISROOT[]
 @inline mpi_progress_bars() = MPI_PROGRESS_BARS[]
 @inline set_mpi_progress_bars!(b::Bool) = (MPI_PROGRESS_BARS[] = b; return nothing)
@@ -79,11 +83,17 @@ function log_mpi_timers(options::AbstractJobOptions)
     return nothing
 end
 
+"""
+TODO
+"""
 function enable_mpi_timers!()
     Core.eval(Peridynamics, :(TimerOutputs.enable_debug_timings(Peridynamics)))
     return nothing
 end
 
+"""
+TODO
+"""
 function disable_mpi_timers!()
     Core.eval(Peridynamics, :(TimerOutputs.disable_debug_timings(Peridynamics)))
     return nothing
