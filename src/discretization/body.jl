@@ -1,5 +1,6 @@
 """
     Body(material, position, volume)
+    Body(material, inp_file)
 
 Creates a body for use in peridynamic calculation
 
@@ -8,6 +9,8 @@ Creates a body for use in peridynamic calculation
 - `material::AbstractMaterial`: Specifies which material model is used
 - `position::AbstractMatrix`: 3×n matrix with position of each point
 - `volume::AbstractVector`: Vector with volume of each point
+- `inp_file::AbstractString`: A Abaqus input file containing meshes, imported with
+    [`read_inp`](@ref)
 
 # Throws
 
@@ -158,6 +161,15 @@ function Base.show(io::IO, ::MIME"text/plain", body::AbstractBody)
     return nothing
 end
 
+function Body(mat::AbstractMaterial, inp_file::AbstractString)
+    position, volume, point_sets = read_inp(inp_file)
+    body = Body(mat, position, volume)
+    for (name, point_ids) in point_sets
+        point_set!(body, Symbol(clean_point_set_name(name)), point_ids)
+    end
+    return body
+end
+
 @inline material_type(::AbstractBody{M}) where {M} = M
 
 function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
@@ -274,5 +286,15 @@ end
 
 @inline n_precracks(body::AbstractBody) = length(body.point_sets_precracks)
 @inline has_precracks(body::AbstractBody) = n_precracks(body) > 0 ? true : false
+
+"""
+    n_points(body)
+    n_points(multibody_setup)
+
+Returns the number of points in a body or the total number of points in a multibody setup.
+
+TODO
+"""
+function n_points end
 
 @inline n_points(body::AbstractBody) = body.n_points

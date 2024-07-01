@@ -73,7 +73,7 @@ end
 
 @testitem "read_inp CubeC3D8" begin
     file = joinpath(@__DIR__, "models", "CubeC3D8.inp")
-    pos, vol, sets = Peridynamics.read_inp(file)
+    pos, vol, sets = read_inp(file)
     @test size(pos) == (3, 125)
     @test length(vol) == 125
     @test vol == fill(4^3, 125)
@@ -89,7 +89,7 @@ end
 
 @testitem "read_inp CubeC3D4" begin
     file = joinpath(@__DIR__, "models", "CubeC3D4.inp")
-    pos, vol, sets = Peridynamics.read_inp(file)
+    pos, vol, sets = read_inp(file)
     @test size(pos) == (3, 1050)
     @test length(vol) == 1050
     @test sum((vol .> 0)) == 1050
@@ -100,8 +100,8 @@ end
 end
 
 @testitem "read_inp wrong input" begin
-    @test_throws AssertionError Peridynamics.read_inp("something.wrong")
+    @test_throws ArgumentError read_inp("something.wrong")
 
     file_with_unknown_type = joinpath(@__DIR__, "models", "CubeC3D10.inp")
-    @test_throws DomainError Peridynamics.read_inp(file_with_unknown_type)
+    @test_throws DomainError read_inp(file_with_unknown_type)
 end

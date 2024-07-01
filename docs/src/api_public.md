@@ -25,6 +25,8 @@ Job
 ## Functions
 ```@docs
 point_set!
+point_sets
+n_points
 failure_permit!
 material!
 velocity_bc!
