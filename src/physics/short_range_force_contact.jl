@@ -67,10 +67,8 @@ function contact!(ms::AbstractMultibodySetup, name_body_a::Symbol, name_body_b::
 
     body_a = get_body(ms, name_body_a)
     body_b = get_body(ms, name_body_b)
-    nhs_a = GridNeighborhoodSearch{3}(search_radius=radius, n_points=body_a.n_points,
-                                      threaded_update=true)
-    nhs_b = GridNeighborhoodSearch{3}(search_radius=radius, n_points=body_b.n_points,
-                                      threaded_update=true)
+    nhs_a = GridNeighborhoodSearch{3}(search_radius=radius, n_points=body_a.n_points)
+    nhs_b = GridNeighborhoodSearch{3}(search_radius=radius, n_points=body_b.n_points)
 
     srfc_a = ShortRangeForceContact(name_body_a, name_body_b, radius, penalty_factor, nhs_b)
     srfc_b = ShortRangeForceContact(name_body_b, name_body_a, radius, penalty_factor, nhs_a)
