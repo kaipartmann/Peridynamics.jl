@@ -111,6 +111,7 @@ end
 struct JobOptions{F,V} <: AbstractJobOptions
     export_allowed::Bool
     root::String
+    vtk::String
     logfile::String
     freq::Int
     fields::F
@@ -134,16 +135,17 @@ function Base.show(io::IO, ::MIME"text/plain", options::JobOptions)
 end
 
 function JobOptions(root::String, freq::Int, fields, vtk_filebase)
+    vtk = joinpath(root, "vtk")
     logfile = joinpath(root, "logfile.log")
-    return JobOptions(true, root, logfile, freq, fields, vtk_filebase)
+    return JobOptions(true, root, vtk, logfile, freq, fields, vtk_filebase)
 end
 
 function JobOptions(::AbstractBody)
-    return JobOptions(false, "", "", 0, Vector{Symbol}(), "")
+    return JobOptions(false, "", "", "", 0, Vector{Symbol}(), "")
 end
 
 function JobOptions(::AbstractMultibodySetup)
-    return JobOptions(false, "", "", 0, Dict{Symbol,Vector{Symbol}}(),
+    return JobOptions(false, "", "", "", 0, Dict{Symbol,Vector{Symbol}}(),
                       Dict{Symbol,String}())
 end
 

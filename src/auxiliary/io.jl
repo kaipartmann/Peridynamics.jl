@@ -116,7 +116,7 @@ end
 
 function get_vtk_filebase(body::AbstractBody, root::AbstractString)
     body_name = replace(string(get_name(body)), " " => "_")
-    filebase = isempty(body_name) ? "timestep_" : body_name * "_timestep_"
+    filebase = isempty(body_name) ? "timestep" : body_name * "_timestep"
     vtk_filebase::String = joinpath(root, "vtk", filebase)
     return vtk_filebase
 end
@@ -131,7 +131,7 @@ end
 
 function _export_results(options::AbstractJobOptions, chunk::AbstractBodyChunk,
                          chunk_id::Int, n_chunks::Int, n::Int, t::Float64)
-    filename = get_filename(options, n)
+    filename = get_filename(options, chunk.body_name, n)
     position = get_loc_position(chunk)
     pvtk_grid(filename, position, chunk.cells; part=chunk_id, nparts=n_chunks) do vtk
         export_fields!(vtk, chunk, options.fields)
@@ -140,16 +140,16 @@ function _export_results(options::AbstractJobOptions, chunk::AbstractBodyChunk,
     return nothing
 end
 
-@inline function get_filename(options::AbstractJobOptions, n::Int)
-    return _get_filename(options.vtk_filebase, n)
+@inline function get_filename(options::AbstractJobOptions, body_name::Symbol, n::Int)
+    return _get_filename(options.vtk_filebase, body_name, n)
 end
 
-@inline function _get_filename(vtk_filebase::String, n::Int)
+@inline function _get_filename(vtk_filebase::String, ::Symbol, n::Int)
     return @sprintf("%s_%06d", vtk_filebase, n)
 end
 
-@inline function _get_filename(vtk_filebase::Dict{Symbol,String}, n::Int)
-    return @sprintf("%s_%06d", vtk_filebase, n)
+@inline function _get_filename(vtk_filebase::Dict{Symbol,String}, body_name::Symbol, n::Int)
+    return @sprintf("%s_%06d", vtk_filebase[body_name], n)
 end
 
 function export_fields!(vtk, chunk, fields::Vector{Symbol})
@@ -166,6 +166,6 @@ function export_fields!(vtk, chunk, fields_spec::Dict{Symbol,Vector{Symbol}})
     return nothing
 end
 
-@inline function get_loc_position(b::AbstractBodyChunk)
-    return @views b.storage.position[:, 1:b.ch.n_loc_points]
+@inline function get_loc_position(chunk::AbstractBodyChunk)
+    return @views chunk.storage.position[:, 1:chunk.ch.n_loc_points]
 end

@@ -22,7 +22,17 @@
     dh = Peridynamics.submit_threads(job, 1)
 
     # check if the correct files were exported
-    @test length(filter(x->endswith(x,".pvtu"), readdir(joinpath(temp_root,"vtk")))) == 11
+    vtk_root = joinpath(temp_root,"vtk")
+    vtk_files = filter(x->endswith(x,".pvtu"), readdir(vtk_root, join=true))
+    @test length(vtk_files) == 11
+    r0 = read_vtk(first(vtk_files))
+    @test size(r0[:position]) == (3, n_points)
+    @test r0[:position] ≈ pos
+    @test size(r0[:displacement]) == (3, n_points)
+    @test r0[:displacement] == zeros(3, n_points)
+    @test length(r0[:damage]) == n_points
+    @test r0[:damage] == zeros(n_points)
+    @test r0[:time] == [0.0]
 
     # find the points that should have symmetrical positions
     xp = findall(pos[1,:] .> 0)
