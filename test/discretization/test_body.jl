@@ -481,3 +481,15 @@ end
     msg = String(take!(io))
     @test contains(msg, "with name `testbody`")
 end
+
+@testitem "Body from inp file" begin
+    file = joinpath(@__DIR__, "..", "AbaqusMeshConverter", "models", "CubeC3D8.inp")
+    body = Body(BBMaterial(), file)
+    @test size(body.position) == (3, 125)
+    @test length(body.volume) == 125
+    @test n_points(body) == 125
+    @test body.volume ≈ fill(4^3, 125)
+    sets = point_sets(body)
+    @test sets[:l] == 101:125
+    @test sets[:r] == 1:25
+end

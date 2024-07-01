@@ -23,11 +23,15 @@ export BBMaterial, BBPointParameters, OSBMaterial, OSBPointParameters, NOSBMater
 export BondSystem, NoCorrection, EnergySurfaceCorrection
 
 # Discretization
-export Body, point_set!, failure_permit!, material!, velocity_bc!, velocity_ic!,
-       forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box, uniform_sphere
+export Body, point_set!, point_sets, failure_permit!, material!, velocity_bc!, velocity_ic!,
+       forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box, uniform_sphere,
+       n_points
 
 # Running simulations
 export VelocityVerlet, DynamicRelaxation, Job, submit
+
+# Pre processing
+export read_inp
 
 # Post processing and helpers
 export read_vtk, process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
