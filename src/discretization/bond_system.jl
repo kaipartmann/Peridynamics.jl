@@ -47,8 +47,7 @@ end
 
 function find_bonds(body::AbstractBody, loc_points::UnitRange{Int})
     δmax = maximum_horizon(body)
-    nhs = GridNeighborhoodSearch{3}(search_radius=δmax, n_points=body.n_points,
-                                    threaded_update=false)
+    nhs = GridNeighborhoodSearch{3}(search_radius=δmax, n_points=body.n_points)
     initialize_grid!(nhs, body.position)
     bonds = Vector{Bond}()
     sizehint!(bonds, body.n_points * 300)
