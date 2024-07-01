@@ -63,14 +63,11 @@ Body{Material,PointParameters}
 - `single_dim_ics::Vector{SingleDimIC}`: Vector with defined initial conditions
 - `point_sets_precracks::Vector{PointSetsPreCrack}`: Vector with defined cracks
 """
-struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
+struct Body{M<:AbstractMaterial,P<:AbstractPointParameters,PC} <: AbstractBody{M}
     name::Ref{Symbol}
     mat::M
-    n_points::Int
-    position::Matrix{Float64}
-    volume::Vector{Float64}
+    point_cloud::PC
     fail_permit::Vector{Bool}
-    point_sets::Dict{Symbol,Vector{Int}}
     point_params::Vector{P}
     params_map::Vector{Int}
     single_dim_bcs::Vector{SingleDimBC}
@@ -78,30 +75,28 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     single_dim_ics::Vector{SingleDimIC}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
-    function Body(mat::M, position::AbstractMatrix, volume::AbstractVector) where {M}
+    function Body(mat::M, point_cloud::PC) where {M,PC}
         name = Symbol("")
-        n_points = length(volume)
-        check_pos_and_vol(n_points, position, volume)
-        fail_permit = fill(true, length(volume))
-        point_sets = Dict{Symbol,Vector{Int}}(:all_points => 1:length(volume))
+
+        fail_permit = fill(true, length(point_cloud.n_points))
 
         P = point_param_type(mat)
         point_params = Vector{P}()
-        params_map = zeros(Int, n_points)
+        params_map = zeros(Int, point_cloud.n_points)
 
         single_dim_bcs = Vector{SingleDimBC}()
         posdep_single_dim_bcs = Vector{PosDepSingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
-        new{M,P}(name, mat, n_points, position, volume, fail_permit, point_sets,
-                 point_params, params_map, single_dim_bcs, posdep_single_dim_bcs,
-                 single_dim_ics, point_sets_precracks)
+        new{M,P,PC}(name, mat, point_cloud, fail_permit, point_params, params_map,
+                    single_dim_bcs, posdep_single_dim_bcs, single_dim_ics,
+                    point_sets_precracks)
     end
 end
 
 function Base.show(io::IO, body::AbstractBody)
-    print(io, body.n_points, "-point Body{", material_type(body), "}")
+    print(io, n_points(body), "-point Body{", material_type(body), "}")
     if has_name(body)
         print(io, " with name `", get_name(body), "`")
     end
@@ -113,14 +108,14 @@ function Base.show(io::IO, ::MIME"text/plain", body::AbstractBody)
         show(io, body)
         return nothing
     end
-    print(io, body.n_points, "-point Body{", material_type(body), "}")
+    print(io, n_points(body), "-point Body{", material_type(body), "}")
     if has_name(body)
         print(io, " with name `", get_name(body), "`")
     end
     if has_point_sets(body) || has_params(body) || has_conditions(body)
         print(io, ":")
     end
-    for (name, points) in body.point_sets
+    for (name, points) in body.point_cloud.point_sets
         print(io, "\n  ", length(points), "-point set `", name, "`")
     end
     if has_params(body)
@@ -160,26 +155,6 @@ end
 
 @inline material_type(::AbstractBody{M}) where {M} = M
 
-function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
-    # check if n_points is greater than zero
-    n_points > 0 || error("number of points `n_points` must be greater than zero!\n")
-
-    # check dimension of position
-    dim_position, n_points_position = size(position)
-    if dim_position != 3 || n_points_position != n_points
-        err_msg = "incorrect dimensions of `position`!\n"
-        err_msg *= @sprintf("  should be: (%d, %d)\n", 3, n_points)
-        err_msg *= @sprintf("  evaluated: (%d, %d)\n", dim_position, n_points_position)
-        throw(DimensionMismatch(err_msg))
-    end
-
-    # check if they contain NaN's
-    sum(isnan.(position)) > 0 && error("matrix `position` contains NaN values!\n")
-    sum(isnan.(volume)) > 0 && error("vector `volume` contains NaN values!\n")
-
-    return nothing
-end
-
 function pre_submission_check(b::Body)
     #TODO: check if everything is defined for job submission!
     return nothing
@@ -193,14 +168,15 @@ end
 
 function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody;
                            bodyname::AbstractString="")
+    (; position, point_sets) = body.point_cloud
     msg = "BODY"
     isempty(bodyname) || (msg *= " `" * bodyname * "`")
     msg *= "\n"
     msg *= "  POINT CLOUD\n"
     msg *= msg_qty("number of points", body.n_points; indentation=4)
-    @views min_x, max_x = minimum(body.position[1, :]), maximum(body.position[1, :])
-    @views min_y, max_y = minimum(body.position[2, :]), maximum(body.position[2, :])
-    @views min_z, max_z = minimum(body.position[3, :]), maximum(body.position[3, :])
+    @views min_x, max_x = minimum(position[1, :]), maximum(position[1, :])
+    @views min_y, max_y = minimum(position[2, :]), maximum(position[2, :])
+    @views min_z, max_z = minimum(position[3, :]), maximum(position[3, :])
     minmax_x = @sprintf("%.7g, %.7g", min_x, max_x)
     minmax_y = @sprintf("%.7g, %.7g", min_y, max_y)
     minmax_z = @sprintf("%.7g, %.7g", min_z, max_z)
@@ -208,7 +184,7 @@ function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody;
     msg *= msg_qty("min, max values y-direction", minmax_y; indentation=4)
     msg *= msg_qty("min, max values z-direction", minmax_z; indentation=4)
     msg *= "  POINT SETS\n"
-    for (key, points) in body.point_sets
+    for (key, points) in point_sets
         descr = @sprintf("number of points in set `%s`", string(key))
         msg *= msg_qty(descr, length(points); indentation=4)
     end
@@ -235,7 +211,7 @@ function maximum_horizon(b::AbstractBody)
     n_params == 1 && return get_horizon(first(b.point_params))
     n_params == 0 && error("body has no material parameters!\n")
     δmax = 0.0
-    for point_id in eachindex(b.volume)
+    for point_id in eachindex(b.point_cloud.volume)
         δ::Float64 = get_horizon(b.point_params[b.params_map[point_id]])
         if δ > δmax
             δmax = δ
@@ -255,10 +231,10 @@ end
 
 @inline has_name(body::AbstractBody) = body.name[] !== Symbol("")
 
-@inline has_point_sets(body::AbstractBody) = !isempty(body.point_sets)
-@inline function each_user_point_set(body::AbstractBody)
-    return filter(x -> x !== :all_points, body.point_sets)
-end
+@inline n_points(body::AbstractBody) = n_points(body.point_cloud)
+
+@inline has_point_sets(body::AbstractBody) = has_point_sets(body.point_cloud)
+@inline each_user_point_set(body::AbstractBody) = each_user_point_set(body.point_cloud)
 
 @inline n_params(body::AbstractBody) = length(body.point_params)
 @inline has_params(body::AbstractBody) = !isempty(body.point_params)
@@ -274,5 +250,3 @@ end
 
 @inline n_precracks(body::AbstractBody) = length(body.point_sets_precracks)
 @inline has_precracks(body::AbstractBody) = n_precracks(body) > 0 ? true : false
-
-@inline n_points(body::AbstractBody) = body.n_points

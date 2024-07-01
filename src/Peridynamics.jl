@@ -43,6 +43,7 @@ function __init__()
     return nothing
 end
 
+abstract type AbstractPointCloud end
 abstract type AbstractMaterial end
 abstract type AbstractSpatialSetup end
 abstract type AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup end
@@ -84,6 +85,7 @@ include("physics/material_parameters.jl")
 include("physics/fracture.jl")
 include("physics/short_range_force_contact.jl")
 
+include("discretization/point_cloud.jl")
 include("discretization/point_generators.jl")
 include("discretization/predefined_cracks.jl")
 include("discretization/point_sets.jl")

@@ -60,7 +60,7 @@ function uniform_box(lx::Real, ly::Real, lz::Real, ΔX0::Real;
     isapprox(center_x, 0; atol=eps()) || (position[1, :] .+= center_x)
     isapprox(center_y, 0; atol=eps()) || (position[2, :] .+= center_y)
     isapprox(center_z, 0; atol=eps()) || (position[3, :] .+= center_z)
-    return position, volume
+    return PointCloud(position, volume)
 end
 
 """
@@ -98,5 +98,5 @@ function uniform_sphere(diameter::Real, ΔX0::Real; center_x::Real=0, center_y::
     isapprox(center_x, 0; atol=eps()) || (position[1, :] .+= center_x)
     isapprox(center_y, 0; atol=eps()) || (position[2, :] .+= center_y)
     isapprox(center_z, 0; atol=eps()) || (position[3, :] .+= center_z)
-    return position, volume
+    return PointCloud(position, volume)
 end
