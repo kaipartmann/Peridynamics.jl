@@ -190,8 +190,7 @@ function calc_force_density!(chunk::AbstractBodyChunk{S,M}) where {S<:BondSystem
     storage.b_int .= 0
     storage.n_active_bonds .= 0
     for point_id in each_point_idx(chunk)
-        params = get_params(paramsetup, point_id)
-        force_density_point!(storage, system, mat, params, point_id)
+        force_density_point!(storage, system, mat, paramsetup, point_id)
     end
     return nothing
 end
@@ -203,6 +202,20 @@ end
         @inbounds damage[point_id] = 1 - n_active_bonds[point_id] / n_neighbors[point_id]
     end
     return nothing
+end
+
+@inline function stretch_based_failure!(storage::AbstractStorage, ::BondSystem,
+                                        bond::Bond, params::AbstractPointParameters,
+                                        ε::Float64, i::Int, bond_id::Int)
+    if ε > params.εc && bond.fail_permit
+        storage.bond_active[bond_id] = false
+    end
+    storage.n_active_bonds[i] += storage.bond_active[bond_id]
+    return nothing
+end
+
+@inline function bond_failure(storage::AbstractStorage, bond_id::Int)
+    return storage.bond_active[bond_id]
 end
 
 function log_system(::Type{B}, options::AbstractJobOptions,

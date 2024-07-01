@@ -163,7 +163,7 @@ end
 const CKIStorage = Union{CKIVerletStorage,CKIRelaxationStorage}
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,
-                              mat::CKIMaterial, params::CKIPointParameters, i::Int)
+                              mat::CKIMaterial, params::AbstractParameterSetup, i::Int)
     force_density_point_one_ni!(storage, system, mat, params, i)
     has_two_nis(params) && force_density_point_two_ni!(storage, system, mat, params, i)
     has_three_nis(params) && force_density_point_three_ni!(storage, system, mat, params, i)
@@ -173,30 +173,33 @@ end
 function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSystem,
                                      ::CKIMaterial, params::CKIPointParameters, i::Int)
     for one_ni_id in each_one_ni_idx(system, i)
-        bond = system.one_nis[one_ni_id]
-        j, L = bond.neighbor, bond.length
-
-        # current bond length
-        Δxijx = storage.position[1, j] - storage.position[1, i]
-        Δxijy = storage.position[2, j] - storage.position[2, i]
-        Δxijz = storage.position[3, j] - storage.position[3, i]
-        l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
-
-        # bond strain
+        one_ni = system.one_nis[one_ni_id]
+        j, L = one_ni.neighbor, one_ni.length
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
         ε = (l - L) / L
+        stretch_based_failure!(storage, system, one_ni, params, ε, i, one_ni_id)
+        b_int = one_ni_failure(storage, one_ni_id) * params.C1 * (1 / L - 1 / l) *
+                system.volume_one_nis[i] .* Δxij
+        update_add_b_int!(storage, i, b_int)
+    end
+    return nothing
+end
 
-        # failure mechanism
-        if ε > params.εc && bond.fail_permit
-            storage.one_ni_active[one_ni_id] = false
-        end
-        storage.n_active_one_nis[i] += storage.one_ni_active[one_ni_id]
-
-        # update of force density
-        one_ni_fail = storage.one_ni_active[one_ni_id]
-        temp = one_ni_fail * params.C1 * (1 / L - 1 / l) * system.volume_one_nis[i]
-        storage.b_int[1, i] += temp * Δxijx
-        storage.b_int[2, i] += temp * Δxijy
-        storage.b_int[3, i] += temp * Δxijz
+function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSystem,
+                                     ::CKIMaterial, paramhandler::ParameterHandler, i::Int)
+    params_i = get_params(paramhandler, i)
+    for one_ni_id in each_one_ni_idx(system, i)
+        one_ni = system.one_nis[one_ni_id]
+        j, L = one_ni.neighbor, one_ni.length
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
+        ε = (l - L) / L
+        stretch_based_failure!(storage, system, one_ni, params_i, ε, i, one_ni_id)
+        params_j = get_params(paramhandler, j)
+        b_int = one_ni_failure(storage, one_ni_id) * (params_i.C1 + params_j.C1) / 2 *
+                (1 / L - 1 / l) * system.volume_one_nis[i] .* Δxij
+        update_add_b_int!(storage, i, b_int)
     end
     return nothing
 end
@@ -229,11 +232,52 @@ function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSys
         storage.b_int[3, i] += temp * (Δxikx * aijky - Δxiky * aijkx)
         # variable switch: i,j = j,i
         storage.b_int[1, i] += temp * (Δxijy * (Δxikx * Δxijy - Δxiky * Δxijx) -
-                                       Δxijz * (Δxikz * Δxijx - Δxikx * Δxijz))
+                                Δxijz * (Δxikz * Δxijx - Δxikx * Δxijz))
         storage.b_int[2, i] += temp * (Δxijz * (Δxiky * Δxijz - Δxikz * Δxijy) -
-                                       Δxijx * (Δxikx * Δxijy - Δxiky * Δxijx))
+                                Δxijx * (Δxikx * Δxijy - Δxiky * Δxijx))
         storage.b_int[3, i] += temp * (Δxijx * (Δxikz * Δxijx - Δxikx * Δxijz) -
-                                       Δxijy * (Δxiky * Δxijz - Δxikz * Δxijy))
+                                Δxijy * (Δxiky * Δxijz - Δxikz * Δxijy))
+    end
+    return nothing
+end
+
+function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSystem,
+                                     ::CKIMaterial, paramhandler::ParameterHandler, i::Int)
+    params_i = get_params(paramhandler, i)
+    for two_ni_id in each_two_ni_idx(system, i)
+        two_ni = system.two_nis[two_ni_id]
+        oni_j_id, oni_k_id, surface_ref = two_ni.oni_j, two_ni.oni_k, two_ni.surface
+        j = system.one_nis[oni_j_id].neighbor
+        k = system.one_nis[oni_k_id].neighbor
+        Δxijx = storage.position[1, j] - storage.position[1, i]
+        Δxijy = storage.position[2, j] - storage.position[2, i]
+        Δxijz = storage.position[3, j] - storage.position[3, i]
+        Δxikx = storage.position[1, k] - storage.position[1, i]
+        Δxiky = storage.position[2, k] - storage.position[2, i]
+        Δxikz = storage.position[3, k] - storage.position[3, i]
+        aijkx = Δxijy * Δxikz - Δxijz * Δxiky
+        aijky = Δxijz * Δxikx - Δxijx * Δxikz
+        aijkz = Δxijx * Δxiky - Δxijy * Δxikx
+        surface = sqrt(aijkx * aijkx + aijky * aijky + aijkz * aijkz)
+        if surface == 0 # to avoid divide by zero error for failed interactions
+            surface = 1e-40
+        end
+        failure = storage.one_ni_active[oni_j_id] * storage.one_ni_active[oni_k_id]
+        params_j = get_params(paramhandler, j)
+        params_k = get_params(paramhandler, k)
+        C2_effective = (params_i.C2 + params_j.C2 + params_k.C2) / 3
+        _temp = failure * 2 * C2_effective * (1 / surface_ref - 1 / surface)
+        temp = _temp * system.volume_two_nis[i]
+        storage.b_int[1, i] += temp * (Δxiky * aijkz - Δxikz * aijky)
+        storage.b_int[2, i] += temp * (Δxikz * aijkx - Δxikx * aijkz)
+        storage.b_int[3, i] += temp * (Δxikx * aijky - Δxiky * aijkx)
+        # variable switch: i,j = j,i
+        storage.b_int[1, i] += temp * (Δxijy * (Δxikx * Δxijy - Δxiky * Δxijx) -
+                                Δxijz * (Δxikz * Δxijx - Δxikx * Δxijz))
+        storage.b_int[2, i] += temp * (Δxijz * (Δxiky * Δxijz - Δxikz * Δxijy) -
+                                Δxijx * (Δxikx * Δxijy - Δxiky * Δxijx))
+        storage.b_int[3, i] += temp * (Δxijx * (Δxikz * Δxijx - Δxikx * Δxijz) -
+                                Δxijy * (Δxiky * Δxijz - Δxikz * Δxijy))
     end
     return nothing
 end
@@ -270,6 +314,72 @@ function force_density_point_three_ni!(storage::CKIStorage, system::InteractionS
         failure = storage.one_ni_active[oni_j_id] * storage.one_ni_active[oni_k_id] *
                   storage.one_ni_active[oni_l_id]
         _temp = failure * 3 * params.C3 * (1 / volume_ref - 1 / abs_volume) * volume
+        temp = _temp * system.volume_three_nis[i]
+        storage.b_int[1, i] += temp * (Δxiky * Δxilz - Δxikz * Δxily)
+        storage.b_int[2, i] += temp * (Δxikz * Δxilx - Δxikx * Δxilz)
+        storage.b_int[3, i] += temp * (Δxikx * Δxily - Δxiky * Δxilx)
+        # kij  |  i->k, j->i, k->j  |  vkij == v
+        storage.b_int[1, i] += temp * (Δxijy * Δxikz - Δxijz * Δxiky)
+        storage.b_int[2, i] += temp * (Δxijz * Δxikx - Δxijx * Δxikz)
+        storage.b_int[3, i] += temp * (Δxijx * Δxiky - Δxijy * Δxikx)
+        # jki  |  i->j, j->k, k->i  |  vjki == v
+        storage.b_int[1, i] += temp * (Δxily * Δxijz - Δxilz * Δxijy)
+        storage.b_int[2, i] += temp * (Δxilz * Δxijx - Δxilx * Δxijz)
+        storage.b_int[3, i] += temp * (Δxilx * Δxijy - Δxily * Δxijx)
+        # ikj  |  i->i, j->k, k->j  |  vikj == -v
+        storage.b_int[1, i] += temp * (Δxily * Δxikz - Δxilz * Δxiky)
+        storage.b_int[2, i] += temp * (Δxilz * Δxikx - Δxilx * Δxikz)
+        storage.b_int[3, i] += temp * (Δxilx * Δxiky - Δxily * Δxikx)
+        # kji  |  i->k, j->j, k->i  |  vkji == -v
+        storage.b_int[1, i] += temp * (Δxiky * Δxijz - Δxikz * Δxijy)
+        storage.b_int[2, i] += temp * (Δxikz * Δxijx - Δxikx * Δxijz)
+        storage.b_int[3, i] += temp * (Δxikx * Δxijy - Δxiky * Δxijx)
+        # jik  |  i->j, j->i, k->k  |  vjik == -v
+        storage.b_int[1, i] += temp * (Δxijy * Δxilz - Δxijz * Δxily)
+        storage.b_int[2, i] += temp * (Δxijz * Δxilx - Δxijx * Δxilz)
+        storage.b_int[3, i] += temp * (Δxijx * Δxily - Δxijy * Δxilx)
+    end
+    return nothing
+end
+
+function force_density_point_three_ni!(storage::CKIStorage, system::InteractionSystem,
+                                       ::CKIMaterial, paramhandler::ParameterHandler,
+                                       i::Int)
+    params_i = get_params(paramhandler, i)
+    for three_ni_id in each_three_ni_idx(system, i)
+        three_ni = system.three_nis[three_ni_id]
+        oni_j_id = three_ni.oni_j
+        oni_k_id = three_ni.oni_k
+        oni_l_id = three_ni.oni_l
+        volume_ref = three_ni.volume
+        j = system.one_nis[oni_j_id].neighbor
+        k = system.one_nis[oni_k_id].neighbor
+        l = system.one_nis[oni_l_id].neighbor
+        Δxijx = storage.position[1, j] - storage.position[1, i]
+        Δxijy = storage.position[2, j] - storage.position[2, i]
+        Δxijz = storage.position[3, j] - storage.position[3, i]
+        Δxikx = storage.position[1, k] - storage.position[1, i]
+        Δxiky = storage.position[2, k] - storage.position[2, i]
+        Δxikz = storage.position[3, k] - storage.position[3, i]
+        Δxilx = storage.position[1, l] - storage.position[1, i]
+        Δxily = storage.position[2, l] - storage.position[2, i]
+        Δxilz = storage.position[3, l] - storage.position[3, i]
+        # ijk
+        aijkx = Δxijy * Δxikz - Δxijz * Δxiky
+        aijky = Δxijz * Δxikx - Δxijx * Δxikz
+        aijkz = Δxijx * Δxiky - Δxijy * Δxikx
+        volume = aijkx * Δxilx + aijky * Δxily + aijkz * Δxilz
+        if volume == 0 # avoid to divide by zero error for failed interactions
+            volume = 1e-40
+        end
+        abs_volume = abs(volume)
+        failure = storage.one_ni_active[oni_j_id] * storage.one_ni_active[oni_k_id] *
+                  storage.one_ni_active[oni_l_id]
+        params_j = get_params(paramhandler, j)
+        params_k = get_params(paramhandler, k)
+        params_l = get_params(paramhandler, l)
+        C3_effective = (params_i.C3 + params_j.C3 + params_k.C3 + params_l.C3) / 4
+        _temp = failure * 3 * C3_effective * (1 / volume_ref - 1 / abs_volume) * volume
         temp = _temp * system.volume_three_nis[i]
         storage.b_int[1, i] += temp * (Δxiky * Δxilz - Δxikz * Δxily)
         storage.b_int[2, i] += temp * (Δxikz * Δxilx - Δxikx * Δxilz)
