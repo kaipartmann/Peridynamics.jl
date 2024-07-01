@@ -174,7 +174,7 @@ end
 
 function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
     # check if n_points is greater than zero
-    n_points > 0 || error("number of points `n_points` must be greater than zero!\n")
+    n_points > 0 || error("the number of points must be greater than zero!\n")
 
     # check dimension of position
     dim_position, n_points_position = size(position)
@@ -192,8 +192,31 @@ function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::Abst
     return nothing
 end
 
-function pre_submission_check(b::Body)
-    #TODO: check if everything is defined for job submission!
+function pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
+    # the body should have material properties
+    if isempty(body.point_params)
+        msg = "no material parameters found!\n"
+        msg *= "Bodies without material parameters are not ready for job submission\n"
+        error(msg)
+    end
+    # all points should have a material property defined
+    points_without_material = findfirst(x -> x == 0, body.params_map)
+    if points_without_material !== nothing
+        msg = "not all points have material parameters!\n"
+        msg *= "You probably just used the `material!(body, set; kwargs...)` function\n"
+        msg *= "on a set that does not include all material points.\n"
+        error(msg)
+    end
+    # if the body is not part of a multibody setup, then there has to be any condition
+    if !body_in_multibody_setup
+        if n_bcs(body) + n_ics(body) == 0
+            msg = "no initial or boundary condition specified!\n"
+            msg *= "Bodies that are not part of a `MultibodySetup` need at least one\n"
+            msg *= "initial or boundary condition! Otherwise nothing will happen during\n"
+            msg *= "the simulation!\n"
+            error(msg)
+        end
+    end
     return nothing
 end
 

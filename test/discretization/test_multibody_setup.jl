@@ -4,12 +4,7 @@
     b3 = Body(OSBMaterial(), rand(3,10), rand(10))
 
     ms = MultibodySetup(:a => b1, :b => b2)
-    @test ms.bodies == (b1, b2) ||  ms.bodies == (b2, b1)
-    @test ms.body_names == [:a, :b] || ms.body_names == [:b, :a]
-    @test ms.body_idxs == Dict(:a => 1, :b => 2) || ms.body_idxs == Dict(:a => 2, :b => 1)
-    @test isempty(ms.srf_contacts)
 
-    ms = MultibodySetup(Dict(:a => b1, :b => b2))
     @test ms.bodies == (b1, b2) ||  ms.bodies == (b2, b1)
     @test ms.body_names == [:a, :b] || ms.body_names == [:b, :a]
     @test ms.body_idxs == Dict(:a => 1, :b => 2) || ms.body_idxs == Dict(:a => 2, :b => 1)
@@ -26,7 +21,6 @@
     end
 
     @test_throws ArgumentError MultibodySetup(:a => b1)
-    @test_throws ArgumentError MultibodySetup(Dict(:a => b1))
 end
 
 @testitem "contact!" begin

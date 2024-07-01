@@ -1,16 +1,15 @@
 """
-    MultibodySetup(bodies)
+    MultibodySetup(body_pairs...)
 
-Setup for a peridynamic simulation with multiple bodies
+Setup for a peridynamic simulation with multiple bodies.
 
 # Arguments
 
-- `bodies::Dict{Symbol,Body{M,P}}`:
+- `body_pairs::Vararg{Pair{Symbol,<:AbstractBody},N}) where {N}`:
 
 # Throws
 
 - Error if less than 2 bodies are defined
-- Error if defined bodies have different material types
 
 # Example
 
@@ -22,17 +21,18 @@ Setup for a peridynamic simulation with multiple bodies
     without it being considered a breaking change.
 
 ```julia
-MultibodySetup{Material,PointParameters}
+MultibodySetup{Bodies}
 ```
 
 # Type Parameters
 
-- `Material <: AbstractMaterial`: Type of the specified material model
-- `PointParameters <: AbstractPointParameters`: Type of the point parameters
+- `Bodies <: Tuple`: Tuple containing all the types of the bodies
 
 # Fields
 
-- `bodies::Dict{Symbol,Body{M,P}}`:
+- `bodies::Bodies`:
+- `body_names::Vector{Symbol}`:
+- `body_idxs::Dict{Symbol,Int}`:
 - `srf_contacts::Vector{ShortRangeForceContact}`:
 
 TODO
@@ -44,18 +44,17 @@ struct MultibodySetup{B} <: AbstractMultibodySetup
     srf_contacts::Vector{ShortRangeForceContact}
 end
 
-function MultibodySetup(bodies_dict::Dict{Symbol,B}) where {B<:AbstractBody}
-    n_bodies = length(keys(bodies_dict))
-    if n_bodies < 2
-        msg = "not enough bodies given!\n"
-        msg *= "Please specify 2 or more!\n"
+function MultibodySetup(body_pairs::Vararg{Pair{Symbol,<:AbstractBody},N}) where {N}
+    if N < 2
+        msg = "not enough bodies specified!\n"
+        msg *= "Specify at least 2 bodies for a `MultibodySetup`!\n"
         throw(ArgumentError(msg))
     end
-    for (name, body) in bodies_dict
-        change_name!(body, name)
+    bodies = Tuple(body.second for body in body_pairs)
+    body_names = [body_pair.first for body_pair in body_pairs]
+    for (body_id, body) in enumerate(bodies)
+        change_name!(body, body_names[body_id])
     end
-    bodies = get_bodies_tuple(bodies_dict, Val(n_bodies))
-    body_names = [name for name in keys(bodies_dict)]
     body_idxs = Dict{Symbol,Int}()
     for (i, name) in enumerate(body_names)
         body_idxs[name] = i
@@ -63,13 +62,6 @@ function MultibodySetup(bodies_dict::Dict{Symbol,B}) where {B<:AbstractBody}
     srf_contacts = Vector{ShortRangeForceContact}()
     return MultibodySetup(bodies, body_names, body_idxs, srf_contacts)
 end
-
-function get_bodies_tuple(bodies_dict::Dict{Symbol,B}, ::Val{N}) where {B<:AbstractBody,N}
-    bodies_tuple::Tuple{Vararg{B,N}} = Tuple(body for body in values(bodies_dict))
-    return bodies_tuple
-end
-
-MultibodySetup(body_pairs...) = MultibodySetup(Dict(body_pairs...))
 
 function Base.show(io::IO, ms::MultibodySetup)
     print(io, n_points(ms), "-point MultibodySetup")
@@ -82,7 +74,7 @@ function Base.show(io::IO, ::MIME"text/plain", ms::MultibodySetup)
         return nothing
     end
     print(io, n_points(ms), "-point MultibodySetup:")
-    for body in ms.bodies
+    for body in each_body(ms)
         print(io, "\n  ")
         show(io, body)
     end
@@ -117,7 +109,22 @@ function pre_submission_check(ms::AbstractMultibodySetup)
         MPI.Barrier(mpi_comm())
     end
 
-    #TODO: check if everything is defined for job submission!
+    # check all bodies separately
+    n_all_bcs, n_all_ics = 0, 0
+    for body in each_body(ms)
+        pre_submission_check(body; body_in_multibody_setup=true)
+        n_all_bcs += n_bcs(body)
+        n_all_ics += n_ics(body)
+    end
+
+    # there has to be any condition in one of the bodies
+    if n_all_bcs + n_all_ics == 0
+        msg = "no initial or boundary condition specified!\n"
+        msg *= "At least one initial or boundary condition is needed in one of "
+        msg *= "the bodies!\nOtherwise nothing will happen during the simulation!\n"
+        error(msg)
+    end
+
     return nothing
 end
 
@@ -130,4 +137,4 @@ function log_spatial_setup(options::AbstractJobOptions, ms::MultibodySetup)
     return nothing
 end
 
-@inline n_points(ms::AbstractMultibodySetup) = sum(x -> x.n_points, ms.bodies)
+@inline n_points(ms::AbstractMultibodySetup) = sum(x -> n_points(x), each_body(ms))
