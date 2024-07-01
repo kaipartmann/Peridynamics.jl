@@ -471,6 +471,16 @@ end
     msg = String(take!(io))
     @test contains(msg, "1 predefined crack(s)")
 
+    failure_permit!(body, :a, false)
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test contains(msg, "2 points with no failure permission")
+
     Peridynamics.change_name!(body, :testbody)
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
