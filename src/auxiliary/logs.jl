@@ -272,6 +272,12 @@ function log_create_data_handler_end(io::IO=stdout)
     mpi_isroot() || return nothing
     quiet() && return nothing
     progress_bars() || return nothing
-    println(io, "\rDATA HANDLER CREATION COMPLETED ✓")
+    println(io, "\rDATA HANDLER CREATION COMPLETED ✔")
+    return nothing
+end
+
+function log_simulation_duration(options::AbstractJobOptions, duration::Float64)
+    msg = @sprintf("SIMULATION COMPLETED AFTER %g SECONDS ✔\n", duration)
+    log_it(options, msg)
     return nothing
 end
