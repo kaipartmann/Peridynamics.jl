@@ -319,8 +319,7 @@ end
     chunk_a.storage.displacement .= u_rand_a
     chunk_b.storage.displacement .= u_rand_b
 
-    Peridynamics.export_reference_results(dh_a, options)
-    Peridynamics.export_reference_results(dh_b, options)
+    Peridynamics.export_reference_results(dh, options)
     n = 1
     t = 0.0001
     chunk_id = 1
