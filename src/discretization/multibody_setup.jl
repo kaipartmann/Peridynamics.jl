@@ -129,10 +129,8 @@ function pre_submission_check(ms::AbstractMultibodySetup)
 end
 
 function log_spatial_setup(options::AbstractJobOptions, ms::MultibodySetup)
-    for body_idx in each_body_idx(ms)
-        body = get_body(ms, body_idx)
-        name = get_body_name(ms, body_idx)
-        log_spatial_setup(options, body; bodyname=name)
+    for body in each_body(ms)
+        log_spatial_setup(options, body)
     end
     return nothing
 end

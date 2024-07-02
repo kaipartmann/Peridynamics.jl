@@ -63,12 +63,12 @@ function calc_contact_force_densities!(dh)
     return nothing
 end
 
-function export_reference_results(dh::ThreadsMultibodyDataHandler, options::AbstractJobOptions)
+function export_reference_results(dh::ThreadsMultibodyDataHandler,
+                                  options::AbstractJobOptions)
     options.export_allowed || return nothing
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
-        name = get_body_name(dh, body_idx)
-        export_reference_results(body_dh, options; prefix=name)
+        export_reference_results(body_dh, options)
     end
     return nothing
 end

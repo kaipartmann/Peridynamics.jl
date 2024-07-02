@@ -226,10 +226,10 @@ end
 
 @inline storage_type(b::AbstractBody, ts::AbstractTimeSolver) = storage_type(b.mat, ts)
 
-function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody;
-                           bodyname::AbstractString="")
+function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody)
     msg = "BODY"
-    isempty(bodyname) || (msg *= " `" * bodyname * "`")
+    body_name = string(get_name(body))
+    isempty(body_name) || (msg *= " `" * body_name * "`")
     msg *= "\n"
     msg *= "  POINT CLOUD\n"
     msg *= msg_qty("number of points", body.n_points; indentation=4)

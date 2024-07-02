@@ -200,8 +200,8 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJ
     return nothing
 end
 
-function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler, options::AbstractJobOptions,
-                          Δt::Float64, Δt½::Float64, n::Int)
+function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
+                          options::AbstractJobOptions, Δt::Float64, Δt½::Float64, n::Int)
     t = n * Δt
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
@@ -226,7 +226,7 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler, options::Abst
             chunk = body_dh.chunks[chunk_id]
             calc_damage!(chunk)
             update_acc_and_vel!(chunk, Δt½)
-            export_results(body_dh, options, chunk_id, n, t; prefix=body_name)
+            export_results(body_dh, options, chunk_id, n, t)
         end
     end
     return nothing
