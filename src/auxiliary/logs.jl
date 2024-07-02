@@ -54,9 +54,18 @@ function get_logfile_head()
     msg = "LOGFILE CREATED ON "
     msg *= Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
     msg *= "\n"
+    msg *= get_version_info()
+    msg *= "\n"
     msg *= get_git_info()
     msg *= "\n"
     return msg
+end
+
+function get_version_info()
+    version_info = "VERSION: "
+    version_info *= string(pkgversion(@__MODULE__))
+    version_info *= "\n"
+    return version_info
 end
 
 function get_git_info()
