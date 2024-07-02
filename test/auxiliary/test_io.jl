@@ -260,17 +260,25 @@ end
     u_rand = rand(3, 8)
     chunk.storage.displacement .= u_rand
 
+    Peridynamics.export_reference_results(dh, options)
     n = 1
     t = 0.0001
     chunk_id = 1
     n_chunks = 1
-
     Peridynamics.export_results(dh, options, chunk_id, n, t)
 
-    pvtu_file = joinpath(temp_root, "vtk", "timestep_000001.pvtu")
-    @test isfile(pvtu_file)
+    pvtu_file_ref = joinpath(temp_root, "vtk", "timestep_000000.pvtu")
+    @test isfile(pvtu_file_ref)
+    pvtu_file_n = joinpath(temp_root, "vtk", "timestep_000001.pvtu")
+    @test isfile(pvtu_file_n)
 
-    r = read_vtk(pvtu_file)
+    r0 = read_vtk(pvtu_file_ref)
+    @test r0[:position] ≈ pos
+    @test r0[:displacement] ≈ u_rand
+    @test r0[:damage] == zeros(8)
+    @test r0[:time] == [0.0]
+
+    r = read_vtk(pvtu_file_n)
     @test r[:position] ≈ pos
     @test r[:displacement] ≈ u_rand
     @test r[:damage] == zeros(8)
@@ -311,26 +319,43 @@ end
     chunk_a.storage.displacement .= u_rand_a
     chunk_b.storage.displacement .= u_rand_b
 
+    Peridynamics.export_reference_results(dh_a, options)
+    Peridynamics.export_reference_results(dh_b, options)
     n = 1
     t = 0.0001
     chunk_id = 1
     n_chunks = 1
-
     Peridynamics.export_results(dh_a, options, chunk_id, n, t)
     Peridynamics.export_results(dh_b, options, chunk_id, n, t)
 
-    pvtu_file_a = joinpath(temp_root, "vtk", "a_timestep_000001.pvtu")
-    @test isfile(pvtu_file_a)
-    pvtu_file_b = joinpath(temp_root, "vtk", "b_timestep_000001.pvtu")
-    @test isfile(pvtu_file_b)
+    pvtu_file_a_ref = joinpath(temp_root, "vtk", "a_timestep_000000.pvtu")
+    @test isfile(pvtu_file_a_ref)
+    pvtu_file_a_n = joinpath(temp_root, "vtk", "a_timestep_000001.pvtu")
+    @test isfile(pvtu_file_a_n)
+    pvtu_file_b_ref = joinpath(temp_root, "vtk", "b_timestep_000000.pvtu")
+    @test isfile(pvtu_file_b_ref)
+    pvtu_file_b_n = joinpath(temp_root, "vtk", "b_timestep_000001.pvtu")
+    @test isfile(pvtu_file_b_n)
 
-    r_a = read_vtk(pvtu_file_a)
+    r_a = read_vtk(pvtu_file_a_ref)
+    @test r_a[:position] ≈ pos_a
+    @test r_a[:displacement] ≈ u_rand_a
+    @test r_a[:damage] == zeros(8)
+    @test r_a[:time] == [0.0]
+
+    r_b = read_vtk(pvtu_file_b_ref)
+    @test r_b[:position] ≈ pos_b
+    @test r_b[:displacement] ≈ u_rand_b
+    @test r_b[:damage] == zeros(8)
+    @test r_b[:time] == [0.0]
+
+    r_a = read_vtk(pvtu_file_a_n)
     @test r_a[:position] ≈ pos_a
     @test r_a[:displacement] ≈ u_rand_a
     @test r_a[:damage] == zeros(8)
     @test r_a[:time] == [t]
 
-    r_b = read_vtk(pvtu_file_b)
+    r_b = read_vtk(pvtu_file_b_n)
     @test r_b[:position] ≈ pos_b
     @test r_b[:displacement] ≈ u_rand_b
     @test r_b[:damage] == zeros(8)
