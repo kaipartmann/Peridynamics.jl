@@ -494,6 +494,61 @@ end
     @test contains(msg, "with name `testbody`")
 end
 
+@testitem "log_msg_body" begin
+    # setup
+    n_points = 10
+    position, volume = uniform_box(1, 1, 1, 0.5)
+    body = Body(BBMaterial(), position, volume)
+    point_set!(body, :a, 1:2)
+    material!(body, horizon=1, rho=1, E=1, Gc=1)
+    material!(body, :a, horizon=2, rho=2, E=2, Gc=2)
+    velocity_ic!(body, :a, :z, 1.0)
+    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
+    velocity_bc!(t -> t, body, :a, 1)
+    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
+    point_set!(body, :b, 3:4)
+    precrack!(body, :a, :b)
+    failure_permit!(body, :a, false)
+    Peridynamics.change_name!(body, :testbody)
+
+    msg = Peridynamics.log_msg_body(body)
+
+    @test msg == """
+        BODY `testbody`
+          POINT CLOUD
+            number of points ........................................................... 8
+            min, max values x-direction ...................................... -0.25, 0.25
+            min, max values y-direction ...................................... -0.25, 0.25
+            min, max values z-direction ...................................... -0.25, 0.25
+          POINT SETS
+            number of points in set `a` ................................................ 2
+            number of points in set `all_points` ....................................... 8
+            number of points in set `b` ................................................ 2
+          INITIAL CONDITIONS
+            field `velocity` ............................................ `a`, dimension 3
+            field `velocity` ............................................ `a`, dimension 2
+          BOUNDARY CONDITIONS
+            field `velocity_half` ....................................... `a`, dimension 1
+            field `b_ext` ............................................... `a`, dimension 2
+          MATERIAL
+            material type ............. Peridynamics.BBMaterial{Peridynamics.NoCorrection}
+            MATERIAL PROPERTIES #1
+              horizon .................................................................. 1
+              density .................................................................. 1
+              Young's modulus .......................................................... 1
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.4
+              bulk modulus ..................................................... 0.6666667
+            MATERIAL PROPERTIES #2
+              horizon .................................................................. 2
+              density .................................................................. 2
+              Young's modulus .......................................................... 2
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.8
+              bulk modulus ...................................................... 1.333333
+        """
+end
+
 @testitem "Body from inp file" begin
     file = joinpath(@__DIR__, "..", "AbaqusMeshConverter", "models", "CubeC3D8.inp")
     body = Body(BBMaterial(), file)

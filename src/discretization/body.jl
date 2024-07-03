@@ -235,7 +235,7 @@ end
 
 @inline storage_type(b::AbstractBody, ts::AbstractTimeSolver) = storage_type(b.mat, ts)
 
-function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody)
+function log_msg_body(body::AbstractBody)
     msg = "BODY"
     body_name = string(get_name(body))
     isempty(body_name) || (msg *= " `" * body_name * "`")
@@ -256,13 +256,32 @@ function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody)
         descr = @sprintf("number of points in set `%s`", string(key))
         msg *= msg_qty(descr, length(points); indentation=4)
     end
-    has_conditions(body) && (msg *= "  CONDITIONS\n")
-    has_bcs(body) && (msg *= msg_qty("number of BC's", n_bcs(body); indentation=4))
-    has_ics(body) && (msg *= msg_qty("number of IC's", n_ics(body); indentation=4))
-    n_point_params = length(body.point_params)
+    has_ics(body) && (msg *= "  INITIAL CONDITIONS\n")
+    for ic in body.single_dim_ics
+        descr = @sprintf("field `%s`", ic.field)
+        settings = @sprintf("`%s`, dimension %d", ic.point_set, ic.dim)
+        msg *= msg_qty(descr, settings; indentation=4)
+    end
+    for ic in body.posdep_single_dim_ics
+        descr = @sprintf("field `%s`", ic.field)
+        settings = @sprintf("`%s`, dimension %d", ic.point_set, ic.dim)
+        msg *= msg_qty(descr, settings; indentation=4)
+    end
+    has_bcs(body) && (msg *= "  BOUNDARY CONDITIONS\n")
+    for bc in body.single_dim_bcs
+        descr = @sprintf("field `%s`", bc.field)
+        settings = @sprintf("`%s`, dimension %d", bc.point_set, bc.dim)
+        msg *= msg_qty(descr, settings; indentation=4)
+    end
+    for bc in body.posdep_single_dim_bcs
+        descr = @sprintf("field `%s`", bc.field)
+        settings = @sprintf("`%s`, dimension %d", bc.point_set, bc.dim)
+        msg *= msg_qty(descr, settings; indentation=4)
+    end
     msg *= "  MATERIAL\n"
     msg *= msg_qty("material type", material_type(body); indentation=4)
-    if length(body.point_params) == 1
+    n_point_params = length(body.point_params)
+    if n_point_params == 1
         msg *= log_material_parameters(first(body.point_params); indentation=4)
     elseif n_point_params > 1
         for (i, params) in enumerate(body.point_params)
@@ -270,6 +289,11 @@ function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody)
             msg *= log_material_parameters(params; indentation=6)
         end
     end
+    return msg
+end
+
+function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody)
+    msg = log_msg_body(body)
     log_it(options, msg)
     return nothing
 end
