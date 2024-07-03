@@ -127,15 +127,20 @@ end
 function check_boundary_condition_function(f::F) where {F<:Function}
     func_method = get_method_of_function(f)
     args = get_argument_names_of_function(func_method)
-    if length(args) == 1
-        return :sdbc
+    if length(args) == 1 && args[1] === :t
+        type = :sdbc
     elseif length(args) == 2 && args[1] === :p && args[2] === :t
-        return :pdsdbc
+        type = :pdsdbc
     else
-        msg = "wrong arguments for position dependent condition function!\n"
+        msg = "wrong arguments or argument names for condition function!\n"
+        msg *= "Boundary conditions support only two type of functions:\n"
+        msg *= "  `f(p, t)`\n"
+        msg *= "  `f(t)`\n"
+        msg *= "with `t` beeing the current time and `p` a the position vector [x, y, z] "
+        msg *= "of each point in the point set!\n"
         throw(ArgumentError(msg))
     end
-    return nothing
+    return type
 end
 
 """

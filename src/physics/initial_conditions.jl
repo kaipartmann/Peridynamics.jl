@@ -63,8 +63,8 @@ function check_initial_condition_function(f::F) where {F<:Function}
     args = get_argument_names_of_function(func_method)
     if length(args) != 1 || args[1] !== :p
         msg = "wrong arguments for position dependent initial condition function!\n"
-        msg *= "Initial condition functions support only `p` as argument name for the\n"
-        msg *= "position of a point in the point set.\n"
+        msg *= "Initial conditions support only functions of type `f(p)`, where "
+        msg *= "`p` is the position vector [x, y, z] of each point in the point set!\n"
         throw(ArgumentError(msg))
     end
     return nothing
