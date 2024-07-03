@@ -183,7 +183,7 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJ
     @batch for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
         update_vel_half!(chunk, Δt½)
-        apply_bcs!(chunk, t)
+        apply_boundary_conditions!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
     @batch for chunk_id in eachindex(dh.chunks)
@@ -208,7 +208,7 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
         @batch for chunk_id in eachindex(body_dh.chunks)
             chunk = body_dh.chunks[chunk_id]
             update_vel_half!(chunk, Δt½)
-            apply_bcs!(chunk, t)
+            apply_boundary_conditions!(chunk, t)
             update_disp_and_pos!(chunk, Δt)
         end
         @batch for chunk_id in eachindex(body_dh.chunks)
@@ -237,7 +237,7 @@ function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractJobOp
     t = n * Δt
     chunk = dh.chunk
     @timeit_debug TO "update_vel_half!" update_vel_half!(chunk, Δt½)
-    @timeit_debug TO "apply_bcs!" apply_bcs!(chunk, t)
+    @timeit_debug TO "apply_boundary_conditions!" apply_boundary_conditions!(chunk, t)
     @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
     @timeit_debug TO "exchange_loc_to_halo!" exchange_loc_to_halo!(dh)
     @timeit_debug TO "calc_force_density!" calc_force_density!(chunk)

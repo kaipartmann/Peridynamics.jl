@@ -1,6 +1,3 @@
-"""
-
-"""
 struct SingleDimIC <: AbstractCondition
     value::Float64
     field::Symbol
@@ -8,32 +5,15 @@ struct SingleDimIC <: AbstractCondition
     dim::UInt8
 end
 
-function Base.show(io::IO, bc::SingleDimIC)
+function Base.show(io::IO, ic::SingleDimIC)
     print(io, "SingleDimIC")
-    print(io, msg_fields_in_brackets(bc, (:value, :field, :point_set, :dim)))
+    print(io, msg_fields_in_brackets(ic, (:value, :field, :point_set, :dim)))
     return nothing
 end
 
-function override_eachother(a::SingleDimIC, b::SingleDimIC)
-    same_field = a.field === b.field
-    same_point_set = a.point_set === b.point_set
-    same_dim = a.dim == b.dim
-    return same_field && same_point_set && same_dim
-end
-
-function apply_initial_conditions!(b::AbstractBodyChunk, body::AbstractBody)
-    for ic in body.single_dim_ics
-        apply_ic!(b, ic)
-    end
-    for ic in body.posdep_single_dim_ics
-        apply_ic!(b, ic)
-    end
-    return nothing
-end
-
-function apply_ic!(b::AbstractBodyChunk, ic::SingleDimIC)
-    for point_id in b.psets[ic.point_set]
-        setindex!(get_point_data(b.storage, ic.field), ic.value, ic.dim, point_id)
+function apply_ic!(chunk::AbstractBodyChunk, ic::SingleDimIC)
+    for point_id in chunk.psets[ic.point_set]
+        setindex!(get_point_data(chunk.storage, ic.field), ic.value, ic.dim, point_id)
     end
     return nothing
 end
@@ -45,22 +25,15 @@ struct PosDepSingleDimIC{F<:Function} <: AbstractCondition
     dim::UInt8
 end
 
-function Base.show(io::IO, bc::PosDepSingleDimIC)
+function Base.show(io::IO, ic::PosDepSingleDimIC)
     print(io, "PosDepSingleDimIC")
-    print(io, msg_fields_in_brackets(bc, (:field, :point_set, :dim)))
+    print(io, msg_fields_in_brackets(ic, (:field, :point_set, :dim)))
     return nothing
 end
 
-@inline function (b::PosDepSingleDimIC{F})(p::AbstractVector) where {F}
-    value::Float64 = b.fun(p)
+@inline function (ic::PosDepSingleDimIC{F})(p::AbstractVector) where {F}
+    value::Float64 = ic.fun(p)
     return value
-end
-
-function override_eachother(a::PosDepSingleDimIC, b::PosDepSingleDimIC)
-    same_field = a.field === b.field
-    same_point_set = a.point_set === b.point_set
-    same_dim = a.dim == b.dim
-    return same_field && same_point_set && same_dim
 end
 
 function apply_ic!(chunk::AbstractBodyChunk, ic::PosDepSingleDimIC)
@@ -73,6 +46,53 @@ function apply_ic!(chunk::AbstractBodyChunk, ic::PosDepSingleDimIC)
         end
     end
     return nothing
+end
+
+function apply_initial_conditions!(chunk::AbstractBodyChunk, body::AbstractBody)
+    for ic in body.single_dim_ics
+        apply_ic!(chunk, ic)
+    end
+    for ic in body.posdep_single_dim_ics
+        apply_ic!(chunk, ic)
+    end
+    return nothing
+end
+
+function check_initial_condition_function(f::F) where {F<:Function}
+    func_method = get_method_of_function(f)
+    args = get_argument_names_of_function(func_method)
+    if length(args) != 1 || args[1] !== :p
+        msg = "wrong arguments for position dependent initial condition function!\n"
+        msg *= "Initial condition functions support only `p` as argument name for the\n"
+        msg *= "position of a point in the point set.\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
+end
+
+function add_initial_condition!(body::AbstractBody, conditions::Vector{BC},
+                                condition::BC) where {BC<:AbstractCondition}
+    check_initial_condition_conflicts(body, condition)
+    push!(conditions, condition)
+    return nothing
+end
+
+function check_initial_condition_conflicts(body::AbstractBody, condition::BC) where {BC}
+    if has_initial_condition_conflict(body, condition)
+        msg = "the specified condition conflicts with already existing conditions!\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
+end
+
+function has_initial_condition_conflict(body::AbstractBody, condition::BC) where {BC}
+    for existing_condition in body.single_dim_ics
+        conditions_conflict(body, existing_condition, condition) && return true
+    end
+    for existing_condition in body.posdep_single_dim_ics
+        conditions_conflict(body, existing_condition, condition) && return true
+    end
+    return false
 end
 
 """
@@ -110,7 +130,7 @@ function velocity_ic!(body::AbstractBody, point_set::Symbol,
                       dimension::Union{Integer,Symbol}, value::Real)
     check_if_set_is_defined(body.point_sets, point_set)
     sdic = SingleDimIC(convert(Float64, value), :velocity, point_set, get_dim(dimension))
-    add_condition!(body.single_dim_ics, sdic)
+    add_initial_condition!(body, body.single_dim_ics, sdic)
     return nothing
 end
 
@@ -118,19 +138,7 @@ function velocity_ic!(f::F, body::AbstractBody, point_set::Symbol,
                       dimension::Union{Integer,Symbol}) where {F<:Function}
     check_if_set_is_defined(body.point_sets, point_set)
     check_initial_condition_function(f)
-    sdic = PosDepSingleDimIC(f, :velocity, point_set, get_dim(dimension))
-    add_condition!(body.posdep_single_dim_ics, sdic)
-    return nothing
-end
-
-function check_initial_condition_function(f::F) where {F<:Function}
-    func_method = get_method_of_function(f)
-    args = get_argument_names_of_function(func_method)
-    if length(args) != 1 || args[1] !== :p
-        msg = "wrong arguments for position dependent initial condition function!\n"
-        msg *= "Initial condition functions support only `p` as argument name for the\n"
-        msg *= "position of a point in the point set.\n"
-        throw(ArgumentError(msg))
-    end
+    pdsdic = PosDepSingleDimIC(f, :velocity, point_set, get_dim(dimension))
+    add_initial_condition!(body, body.posdep_single_dim_ics, pdsdic)
     return nothing
 end

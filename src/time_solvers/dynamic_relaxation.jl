@@ -136,7 +136,7 @@ function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
     t = n * Δt
     @batch for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
-        apply_bcs!(chunk, t)
+        apply_boundary_conditions!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
     @batch for chunk_id in eachindex(dh.chunks)

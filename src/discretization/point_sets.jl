@@ -119,3 +119,9 @@ end
     name_str_cleaned = replace(name_str, " " => "_")
     return name_str_cleaned
 end
+
+function point_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Symbol,
+                              key_b::Symbol)
+    isempty(point_sets[key_a] ∩ point_sets[key_b]) && return false
+    return true
+end
