@@ -79,15 +79,25 @@ function apply_boundary_conditions!(b::AbstractBodyChunk, time::Float64)
     return nothing
 end
 
+function wrong_dim_err_msg(dim)
+    msg = "unknown dimension `$(dim)`!\n"
+    msg *= "The dimension should either be a Symbol or Integer indicating the direction "
+    msg *= "of the condition!\n"
+    msg *= "  x-direction: `:x` or `1`\n"
+    msg *= "  y-direction: `:y` or `2`\n"
+    msg *= "  z-direction: `:z` or `3`\n"
+    return msg
+end
+
 function get_dim(dim::I) where {I<:Integer}
-    in(dim, 1:3) || error("specified dimension should be 1=x, 2=y, or 3=z!\n")
+    in(dim, 1:3) || throw(ArgumentError(wrong_dim_err_msg(dim)))
     I <: UInt8 && return dim
     return convert(UInt8, dim)
 end
 
 function get_dim(dim::Symbol)
     if !haskey(SYMBOL_TO_DIM, dim)
-        error("unknown dimension symbol $(dim)! Should be :x, :y, or :z!\n")
+        throw(ArgumentError(wrong_dim_err_msg(dim)))
     end
     return SYMBOL_TO_DIM[dim]
 end

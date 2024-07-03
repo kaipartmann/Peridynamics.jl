@@ -437,6 +437,7 @@ end
     @test contains(msg, "BBPointParameters(δ=2.0, E=2.0, nu=0.25, rho=2.0, Gc=2.0)")
 
     velocity_ic!(body, :a, :z, 1.0)
+    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
     velocity_bc!(t -> t, body, :a, 1)
     forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
 

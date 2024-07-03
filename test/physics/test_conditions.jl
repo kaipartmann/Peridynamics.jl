@@ -69,4 +69,8 @@ end
     @test_throws ArgumentError forcedensity_bc!((k, t, u) -> k * t * u, body, :a, :z)
     @test_throws ArgumentError velocity_ic!(k -> 3.456, body, :a, :z)
     @test_throws ArgumentError velocity_ic!((a, b) -> 3.456, body, :a, :z)
+
+    # unknown symbols
+    @test_throws ArgumentError velocity_bc!(t -> 1, body, :a, :k)
+    @test_throws ArgumentError velocity_bc!(t -> 1, body, :a, 4)
 end
