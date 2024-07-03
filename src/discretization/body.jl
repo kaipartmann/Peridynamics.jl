@@ -79,6 +79,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     single_dim_bcs::Vector{SingleDimBC}
     posdep_single_dim_bcs::Vector{PosDepSingleDimBC}
     single_dim_ics::Vector{SingleDimIC}
+    posdep_single_dim_ics::Vector{PosDepSingleDimIC}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
     function Body(mat::M, position::AbstractMatrix, volume::AbstractVector) where {M}
@@ -95,11 +96,12 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
         single_dim_bcs = Vector{SingleDimBC}()
         posdep_single_dim_bcs = Vector{PosDepSingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
+        posdep_single_dim_ics = Vector{PosDepSingleDimIC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
         new{M,P}(name, mat, n_points, position, volume, fail_permit, point_sets,
                  point_params, params_map, single_dim_bcs, posdep_single_dim_bcs,
-                 single_dim_ics, point_sets_precracks)
+                 single_dim_ics, posdep_single_dim_ics, point_sets_precracks)
     end
 end
 

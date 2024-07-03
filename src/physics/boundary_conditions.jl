@@ -95,7 +95,7 @@ end
 
 function get_dim(dim::I) where {I<:Integer}
     in(dim, 1:3) || error("specified dimension should be 1=x, 2=y, or 3=z!\n")
-    isa(UInt8, I) && return dim
+    I <: UInt8 && return dim
     return convert(UInt8, dim)
 end
 
@@ -106,12 +106,32 @@ function get_dim(dim::Symbol)
     return SYMBOL_TO_DIM[dim]
 end
 
-function _condition!(conditions::Vector{B}, condition::B) where {B<:AbstractCondition}
-    # check if conditions override each other!
+function add_condition!(conditions::Vector{B}, condition::B) where {B<:AbstractCondition}
     if is_duplicate(condition, conditions)
         error("duplicate conditions for point set $(condition.point_set)!\n")
     end
     push!(conditions, condition)
+    return nothing
+end
+
+function is_duplicate(condition::C, conditions::Vector{C}) where {C<:AbstractCondition}
+    for existing_condition in conditions
+        override_eachother(existing_condition, condition) && return true
+    end
+    return false
+end
+
+function check_boundary_condition_function(f::F) where {F<:Function}
+    func_method = get_method_of_function(f)
+    args = get_argument_names_of_function(func_method)
+    if length(args) == 1
+        return :sdbc
+    elseif length(args) == 2 && args[1] === :p && args[2] === :t
+        return :pdsdbc
+    else
+        msg = "wrong arguments for position dependent condition function!\n"
+        throw(ArgumentError(msg))
+    end
     return nothing
 end
 
@@ -151,17 +171,17 @@ julia> b.single_dim_bcs
  Peridynamics.SingleDimBC{var"#17#18"}(var"#17#18"(), :velocity_half, :set_a, 0x01)
 ```
 """
-function velocity_bc!(f::F, b::AbstractBody, name::Symbol,
-                      d::Union{Integer,Symbol}) where {F<:Function}
-    check_if_set_is_defined(b.point_sets, name)
-    type = check_condition_function(f)
-    dim = get_dim(d)
+function velocity_bc!(f::F, body::AbstractBody, point_set::Symbol,
+                      dimension::Union{Integer,Symbol}) where {F<:Function}
+    check_if_set_is_defined(body.point_sets, point_set)
+    type = check_boundary_condition_function(f)
+    dim = get_dim(dimension)
     if type === :sdbc
-        sdbc = SingleDimBC(f, :velocity_half, name, dim)
-        _condition!(b.single_dim_bcs, sdbc)
+        sdbc = SingleDimBC(f, :velocity_half, point_set, dim)
+        add_condition!(body.single_dim_bcs, sdbc)
     elseif type === :pdsdbc
-        pdsdbc = PosDepSingleDimBC(f, :velocity_half, name, dim)
-        _condition!(b.posdep_single_dim_bcs, pdsdbc)
+        pdsdbc = PosDepSingleDimBC(f, :velocity_half, point_set, dim)
+        add_condition!(body.posdep_single_dim_bcs, pdsdbc)
     end
     return nothing
 end
@@ -194,17 +214,17 @@ julia> b.single_dim_bcs
  Peridynamics.SingleDimBC{var"#25#26"}(var"#25#26"(), :b_ext, :set_a, 0x01)
 ```
 """
-function forcedensity_bc!(f::F, b::AbstractBody, name::Symbol,
-                          d::Union{Integer,Symbol}) where {F<:Function}
-    check_if_set_is_defined(b.point_sets, name)
-    type = check_condition_function(f)
-    dim = get_dim(d)
+function forcedensity_bc!(f::F, body::AbstractBody, point_set::Symbol,
+                          dimension::Union{Integer,Symbol}) where {F<:Function}
+    check_if_set_is_defined(body.point_sets, point_set)
+    type = check_boundary_condition_function(f)
+    dim = get_dim(dimension)
     if type === :sdbc
-        sdbc = SingleDimBC(f, :b_ext, name, dim)
-        _condition!(b.single_dim_bcs, sdbc)
+        sdbc = SingleDimBC(f, :b_ext, point_set, dim)
+        add_condition!(body.single_dim_bcs, sdbc)
     elseif type === :pdsdbc
-        pdsdbc = PosDepSingleDimBC(f, :b_ext, name, dim)
-        _condition!(b.posdep_single_dim_bcs, pdsdbc)
+        pdsdbc = PosDepSingleDimBC(f, :b_ext, point_set, dim)
+        add_condition!(body.posdep_single_dim_bcs, pdsdbc)
     end
     return nothing
 end
