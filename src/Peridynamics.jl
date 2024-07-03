@@ -80,10 +80,8 @@ include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
 include("auxiliary/mpi.jl")
 
-include("conditions/boundary_conditions.jl")
-include("conditions/initial_conditions.jl")
-include("conditions/condition_checks.jl")
-
+include("physics/boundary_conditions.jl")
+include("physics/initial_conditions.jl")
 include("physics/material_parameters.jl")
 include("physics/fracture.jl")
 include("physics/short_range_force_contact.jl")
