@@ -125,8 +125,11 @@ function Base.show(io::IO, ::MIME"text/plain", body::AbstractBody)
     if has_point_sets(body) || has_params(body) || has_conditions(body)
         print(io, ":")
     end
-    for (name, points) in body.point_sets
-        print(io, "\n  ", length(points), "-point set `", name, "`")
+    if has_point_sets(body)
+        print(io, "\n  ", length(keys(body.point_sets)), " point set(s):")
+        for (name, points) in body.point_sets
+            print(io, "\n    ", length(points), "-point set `", name, "`")
+        end
     end
     if has_params(body)
         print(io, "\n  ", n_params(body), " point parameter(s):")
@@ -149,6 +152,10 @@ function Base.show(io::IO, ::MIME"text/plain", body::AbstractBody)
     if has_ics(body)
         print(io, "\n  ", n_ics(body), " initial condition(s):")
         for bc in body.single_dim_ics
+            print(io, "\n    ")
+            show(io, bc)
+        end
+        for bc in body.posdep_single_dim_ics
             print(io, "\n    ")
             show(io, bc)
         end
@@ -300,7 +307,9 @@ end
 @inline function n_bcs(body::AbstractBody)
     return length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
 end
-@inline n_ics(body::AbstractBody) = length(body.single_dim_ics)
+@inline function n_ics(body::AbstractBody)
+    return length(body.single_dim_ics) + length(body.posdep_single_dim_ics)
+end
 
 @inline has_bcs(body::AbstractBody) = n_bcs(body) > 0 ? true : false
 @inline has_ics(body::AbstractBody) = n_ics(body) > 0 ? true : false

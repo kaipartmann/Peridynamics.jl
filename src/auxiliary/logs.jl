@@ -55,7 +55,6 @@ function get_logfile_head()
     msg *= Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
     msg *= "\n"
     msg *= get_version_info()
-    msg *= "\n"
     msg *= get_git_info()
     msg *= "\n"
     return msg

@@ -11,7 +11,9 @@
     @test body.volume == volume
     @test body.fail_permit == fill(true, n_points)
     @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
+    @test body.posdep_single_dim_bcs == Vector{Peridynamics.PosDepSingleDimBC}()
     @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
+    @test body.posdep_single_dim_ics == Vector{Peridynamics.PosDepSingleDimIC}()
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
     @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
     @test body.point_params == Vector{Peridynamics.BBPointParameters}()
@@ -399,6 +401,7 @@ end
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
+    @test contains(msg, "1 point set(s):")
     @test contains(msg, "10-point set `all_points`")
 
     point_set!(body, :a, 1:2)
@@ -409,6 +412,7 @@ end
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
+    @test contains(msg, "2 point set(s):")
     @test contains(msg, "2-point set `a`")
     @test contains(msg, "10-point set `all_points`")
 
@@ -447,18 +451,15 @@ end
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
-    msg_answ = "  2-point set `a`\n" *
-               "  10-point set `all_points`\n" *
-               "  2 boundary condition(s):\n" *
-               "    PosDepSingleDimBC(field=b_ext, point_set=a, dim=2)\n" *
-               "    PosDepSingleDimBC(field=b_ext, point_set=a, dim=2)\n"
+    @test contains(msg, "2 point set(s):")
     @test contains(msg, "2-point set `a`")
     @test contains(msg, "10-point set `all_points`")
     @test contains(msg, "2 boundary condition(s):")
     @test contains(msg, "PosDepSingleDimBC(field=b_ext, point_set=a, dim=2)")
     @test contains(msg, "SingleDimBC(field=velocity_half, point_set=a, dim=1)")
-    @test contains(msg, "1 initial condition(s):")
+    @test contains(msg, "2 initial condition(s):")
     @test contains(msg, "SingleDimIC(value=1.0, field=velocity, point_set=a, dim=3)")
+    @test contains(msg, "PosDepSingleDimIC(field=velocity, point_set=a, dim=2)")
 
     point_set!(body, :b, 3:4)
 
