@@ -1,7 +1,14 @@
 """
-    CKIMaterial <: AbstractMaterial
+    CKIMaterial{Correction} <: AbstractMaterial
 
 Material type for continuum-kinematics-inspired peridynamic simulations
+
+# Type Parameters
+
+- `Correction`: Applied surface correction method
+    Available methods: - `NoCorrection`: No surface corrections are applied (default)
+                       - `EnergySurfaceCorrection`: Surface correction factors are applied
+                           based on the strain energy density
 
 # Allowed material parameters
 
@@ -13,6 +20,18 @@ Material type for continuum-kinematics-inspired peridynamic simulations
 - `epsilon_c::Float64`: Critical strain
 
 # Allowed export fields
+
+
+
+# Examples
+
+```julia-repl
+julia> mat = CKIMaterial()
+CKIMaterial{NoCorrection}()
+
+julia> mat = CKIMaterial{EnergySurfaceCorrection}()
+CKIMaterial{EnergySurfaceCorrection}()
+```
 
 TODO struct
 """

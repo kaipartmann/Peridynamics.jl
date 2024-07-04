@@ -55,3 +55,5 @@ We recommend looking at the [how-to guides](https://kaipartmann.github.io/Peridy
 <img src=https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/0d14a65b-4e05-4408-8107-59ac9c1477d2 width=500>
 
 The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) under the project WE2525-14/1.
+
+The authors gratefully acknowledge the support and the supercomputing resources of the [Paderborn Center for Parallel Computing](https://pc2.uni-paderborn.de) and the [University of Siegen](https://cluster.uni-siegen.de).
