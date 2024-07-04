@@ -1,11 +1,52 @@
-#TODO: remove @kwdef and do it manually with value warnings / errors.
 """
-    NOSBMaterial <: AbstractMaterial
+    NOSBMaterial(; maxdmg, maxjacobi, corr)
 
-Material type for non-ordinary state-based peridynamic simulations
+Construct the type `NOSBMaterial` used to specify the material of a [`Body`](@ref).
+
+# Keywords
+- `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
+    exceeded, all bonds of that point are broken because the deformation gradient would then
+    possibly contain `NaN` values.
+    (default: `0.95`)
+- `maxjacobi::Float64`: Maximum value of the Jacobi determinant. If this value is exceeded,
+    all bonds of that point are broken.
+    (default: `1.03`)
+- `corr::Float64`: Correction factor used for zero-energy mode stabilization. The
+    stabilization algorithm of Silling (2017) is used.
+    (default: `100.0`)
+
+!!! note "Stability of fracture simulations"
+    This formulation is known to be not suitable for fracture simultations without
+    stabilization of the zero-energy modes. Therefore be careful when doing fracture
+    simulations and try out different paremeters for `maxdmg`, `maxjacobi`, and `corr`.
+
+# Examples
+
+```julia-repl
+julia> mat = NOSBMaterial()
+NOSBMaterial(maxdmg=0.95, maxjacobi=1.03, corr=100.0)
+```
+
+---
+
+```julia
+NOSBMaterial <: AbstractBondSystemMaterial{NoCorrection}
+```
+
+Material type for the local continuum consistent (correspondence) formulation of
+non-ordinary state-based peridynamics.
+
+# Fields
+- `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
+    constructor docs for more informations.
+- `maxjacobi::Float64`: Maximum value of the Jacobi determinant. See the constructor docs
+    for more informations.
+- `corr::Float64`: Correction factor used for zero-energy mode stabilization. See the
+    constructor docs for more informations.
 
 # Allowed material parameters
-
+When using [`material!`](@ref) on a [`Body`](@ref) with `NOSBMaterial`, then the following
+parameters are allowed:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
 - `E::Float64`: Young's modulus
@@ -14,7 +55,8 @@ Material type for non-ordinary state-based peridynamic simulations
 - `epsilon_c::Float64`: Critical strain
 
 # Allowed export fields
-
+When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
+`NOSBMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point
 - `displacement::Matrix{Float64}`: Displacement of each point
 - `velocity::Matrix{Float64}`: Velocity of each point
@@ -23,7 +65,7 @@ Material type for non-ordinary state-based peridynamic simulations
 - `b_int::Matrix{Float64}`: Internal force density of each point
 - `b_ext::Matrix{Float64}`: External force density of each point
 - `damage::Vector{Float64}`: Damage of each point
-- `n_active_bonds::Vector{Int}`: Number of intact bonds for each point
+- `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
 Base.@kwdef struct NOSBMaterial <: AbstractBondSystemMaterial{NoCorrection}
     maxdmg::Float64 = 0.95
