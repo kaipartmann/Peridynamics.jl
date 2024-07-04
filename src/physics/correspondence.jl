@@ -148,7 +148,7 @@ end
 
 function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
                               params::NOSBPointParameters, i::Int)
-    F, Kinv, ω0 = calc_deformation_gradient(storage, system, params, i)
+    F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         kill_point!(storage, system, i)
         return nothing
@@ -169,7 +169,7 @@ function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOS
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
+        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
         Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
 
         # update of force density
@@ -183,8 +183,12 @@ function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOS
     return nothing
 end
 
+@inline function influence_function(::NOSBMaterial, params::NOSBPointParameters, L::Float64)
+    return params.δ / L
+end
+
 function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
-                                   params::NOSBPointParameters, i::Int)
+                                   mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
     ω0 = 0.0
@@ -194,7 +198,7 @@ function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
         ΔXij = get_coordinates_diff(system, i, j)
         Δxij = get_coordinates_diff(storage, i, j)
         Vj = system.volume[j]
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
+        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
         ω0 += ωij
         temp = ωij * Vj
         K += temp * ΔXij * ΔXij'
