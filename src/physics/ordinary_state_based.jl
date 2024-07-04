@@ -58,9 +58,6 @@ struct OSBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
 
 OSBMaterial() = OSBMaterial{NoCorrection}()
 
-"""
-TODO
-"""
 struct OSBPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64

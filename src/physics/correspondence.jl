@@ -79,9 +79,6 @@ function Base.show(io::IO, mat::NOSBMaterial)
     return nothing
 end
 
-"""
-TODO
-"""
 struct NOSBPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64
