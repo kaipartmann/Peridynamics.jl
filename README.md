@@ -56,4 +56,4 @@ We recommend looking at the [how-to guides](https://kaipartmann.github.io/Peridy
 
 The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) under the project WE2525-14/1.
 
-The authors gratefully acknowledge the support and the supercomputing resources of the [Paderborn Center for Parallel Computing](https://pc2.uni-paderborn.de) and the [University of Siegen](https://cluster.uni-siegen.de).
+The authors gratefully acknowledge the computing time provided to them on the high-performance computer Noctua 2 at the NHR Center PC2. These are funded by the Federal Ministry of Education and Research and the state governments participating on the basis of the resolutions of the GWK for the national highperformance computing at universities (www.nhr-verein.de/unsere-partner).
