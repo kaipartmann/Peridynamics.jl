@@ -82,7 +82,7 @@ Currently supported mesh elements: $SUPPORTED_ELEMENT_TYPES
 function read_inp(file::String)
     if !endswith(file, ".inp")
         _, extension = splitext(basename(file))
-        throw(AssertionError("cannot read file with extension $extension"))
+        throw(ArgumentError("cannot read file with extension $(extension)!\n"))
     end
     am = abaqus_read_mesh(file)
     position, volume = get_points(am["nodes"], am["elements"], am["element_types"])

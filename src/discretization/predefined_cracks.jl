@@ -73,9 +73,8 @@ end
 
 function check_if_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Symbol,
                                  key_b::Symbol)
-    set_a, set_b = point_sets[key_a], point_sets[key_b]
-    if !isempty(set_a ∩ set_b)
-        msg = "set :$key_a and :$key_b intersect!\n"
+    if point_sets_intersect(point_sets, key_a, key_b)
+        msg = "point set `:$key_a` and `:$key_b` intersect!\n"
         msg *= "No point of the first set is allowed in the second!\n"
         throw(ArgumentError(msg))
     end

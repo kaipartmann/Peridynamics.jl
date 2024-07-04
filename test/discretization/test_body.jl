@@ -11,7 +11,9 @@
     @test body.volume == volume
     @test body.fail_permit == fill(true, n_points)
     @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
+    @test body.posdep_single_dim_bcs == Vector{Peridynamics.PosDepSingleDimBC}()
     @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
+    @test body.posdep_single_dim_ics == Vector{Peridynamics.PosDepSingleDimIC}()
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
     @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
     @test body.point_params == Vector{Peridynamics.BBPointParameters}()
@@ -399,6 +401,7 @@ end
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
+    @test contains(msg, "1 point set(s):")
     @test contains(msg, "10-point set `all_points`")
 
     point_set!(body, :a, 1:2)
@@ -409,6 +412,7 @@ end
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
+    @test contains(msg, "2 point set(s):")
     @test contains(msg, "2-point set `a`")
     @test contains(msg, "10-point set `all_points`")
 
@@ -437,6 +441,7 @@ end
     @test contains(msg, "BBPointParameters(δ=2.0, E=2.0, nu=0.25, rho=2.0, Gc=2.0)")
 
     velocity_ic!(body, :a, :z, 1.0)
+    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
     velocity_bc!(t -> t, body, :a, 1)
     forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
 
@@ -446,18 +451,15 @@ end
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
-    msg_answ = "  2-point set `a`\n" *
-               "  10-point set `all_points`\n" *
-               "  2 boundary condition(s):\n" *
-               "    PosDepSingleDimBC(field=b_ext, point_set=a, dim=2)\n" *
-               "    PosDepSingleDimBC(field=b_ext, point_set=a, dim=2)\n"
+    @test contains(msg, "2 point set(s):")
     @test contains(msg, "2-point set `a`")
     @test contains(msg, "10-point set `all_points`")
     @test contains(msg, "2 boundary condition(s):")
     @test contains(msg, "PosDepSingleDimBC(field=b_ext, point_set=a, dim=2)")
     @test contains(msg, "SingleDimBC(field=velocity_half, point_set=a, dim=1)")
-    @test contains(msg, "1 initial condition(s):")
+    @test contains(msg, "2 initial condition(s):")
     @test contains(msg, "SingleDimIC(value=1.0, field=velocity, point_set=a, dim=3)")
+    @test contains(msg, "PosDepSingleDimIC(field=velocity, point_set=a, dim=2)")
 
     point_set!(body, :b, 3:4)
 
@@ -471,6 +473,16 @@ end
     msg = String(take!(io))
     @test contains(msg, "1 predefined crack(s)")
 
+    failure_permit!(body, :a, false)
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test contains(msg, "2 points with no failure permission")
+
     Peridynamics.change_name!(body, :testbody)
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
@@ -480,4 +492,71 @@ end
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
     @test contains(msg, "with name `testbody`")
+end
+
+@testitem "log_msg_body" begin
+    # setup
+    n_points = 10
+    position, volume = uniform_box(1, 1, 1, 0.5)
+    body = Body(BBMaterial(), position, volume)
+    point_set!(body, :a, 1:2)
+    material!(body, horizon=1, rho=1, E=1, Gc=1)
+    material!(body, :a, horizon=2, rho=2, E=2, Gc=2)
+    velocity_ic!(body, :a, :z, 1.0)
+    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
+    velocity_bc!(t -> t, body, :a, 1)
+    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
+    point_set!(body, :b, 3:4)
+    precrack!(body, :a, :b)
+    failure_permit!(body, :a, false)
+    Peridynamics.change_name!(body, :testbody)
+
+    msg = Peridynamics.log_msg_body(body)
+
+    @test msg == """
+        BODY `testbody`
+          POINT CLOUD
+            number of points ........................................................... 8
+            min, max values x-direction ...................................... -0.25, 0.25
+            min, max values y-direction ...................................... -0.25, 0.25
+            min, max values z-direction ...................................... -0.25, 0.25
+          POINT SETS
+            number of points in set `a` ................................................ 2
+            number of points in set `all_points` ....................................... 8
+            number of points in set `b` ................................................ 2
+          INITIAL CONDITIONS
+            field `velocity` ............................................ `a`, dimension 3
+            field `velocity` ............................................ `a`, dimension 2
+          BOUNDARY CONDITIONS
+            field `velocity_half` ....................................... `a`, dimension 1
+            field `b_ext` ............................................... `a`, dimension 2
+          MATERIAL
+            material type ............. Peridynamics.BBMaterial{Peridynamics.NoCorrection}
+            MATERIAL PROPERTIES #1
+              horizon .................................................................. 1
+              density .................................................................. 1
+              Young's modulus .......................................................... 1
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.4
+              bulk modulus ..................................................... 0.6666667
+            MATERIAL PROPERTIES #2
+              horizon .................................................................. 2
+              density .................................................................. 2
+              Young's modulus .......................................................... 2
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.8
+              bulk modulus ...................................................... 1.333333
+        """
+end
+
+@testitem "Body from inp file" begin
+    file = joinpath(@__DIR__, "..", "AbaqusMeshConverter", "models", "CubeC3D8.inp")
+    body = Body(BBMaterial(), file)
+    @test size(body.position) == (3, 125)
+    @test length(body.volume) == 125
+    @test n_points(body) == 125
+    @test body.volume ≈ fill(4^3, 125)
+    sets = point_sets(body)
+    @test sets[:l] == 101:125
+    @test sets[:r] == 1:25
 end

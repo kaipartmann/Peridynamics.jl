@@ -69,13 +69,6 @@ function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     return Gc, εc
 end
 
-@inline function calc_damage!(b::AbstractBodyChunk)
-    for point_id in each_point_idx(b)
-        dmg = 1 - b.storage.n_active_bonds[point_id] / b.system.n_neighbors[point_id]
-        b.storage.damage[point_id] = dmg
-    end
-    return nothing
-end
 
 function required_fields_fracture()
     return (req_point_data_fields_fracture()..., req_data_fields_fracture()...)

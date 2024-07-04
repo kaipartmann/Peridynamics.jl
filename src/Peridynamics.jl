@@ -17,17 +17,21 @@ export AbstractMaterial, AbstractBondSystemMaterial, AbstractSpatialSetup, Abstr
 
 # Material models
 export BBMaterial, BBPointParameters, OSBMaterial, OSBPointParameters, NOSBMaterial,
-       NOSBPointParameters, CKIMaterial
+       NOSBPointParameters, CKIMaterial, CKIPointParameters
 
 # Systems related types
 export BondSystem, NoCorrection, EnergySurfaceCorrection
 
 # Discretization
-export Body, point_set!, failure_permit!, material!, velocity_bc!, velocity_ic!,
-       forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box, uniform_sphere
+export Body, point_set!, point_sets, failure_permit!, material!, velocity_bc!, velocity_ic!,
+       forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box, uniform_sphere,
+       n_points
 
 # Running simulations
 export VelocityVerlet, DynamicRelaxation, Job, submit
+
+# Pre processing
+export read_inp
 
 # Post processing and helpers
 export read_vtk, process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
@@ -124,17 +128,15 @@ abstract type AbstractCondition end
 TODO
 """
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
+abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
 
 include("auxiliary/function_arguments.jl")
 include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
 include("auxiliary/mpi.jl")
 
-include("conditions/boundary_conditions.jl")
-include("conditions/initial_conditions.jl")
-include("conditions/condition_checks.jl")
-
-include("physics/force_density.jl")
+include("physics/boundary_conditions.jl")
+include("physics/initial_conditions.jl")
 include("physics/material_parameters.jl")
 include("physics/fracture.jl")
 include("physics/short_range_force_contact.jl")
@@ -148,6 +150,7 @@ include("discretization/decomposition.jl")
 include("discretization/chunk_handler.jl")
 include("discretization/bond_system.jl")
 include("discretization/bond_system_corrections.jl")
+include("discretization/interaction_system.jl")
 include("discretization/body_chunk.jl")
 
 include("core/job.jl")

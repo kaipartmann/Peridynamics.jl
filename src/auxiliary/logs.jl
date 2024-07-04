@@ -54,9 +54,17 @@ function get_logfile_head()
     msg = "LOGFILE CREATED ON "
     msg *= Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
     msg *= "\n"
+    msg *= get_version_info()
     msg *= get_git_info()
     msg *= "\n"
     return msg
+end
+
+function get_version_info()
+    version_info = "VERSION: "
+    version_info *= string(pkgversion(@__MODULE__))
+    version_info *= "\n"
+    return version_info
 end
 
 function get_git_info()
@@ -272,6 +280,12 @@ function log_create_data_handler_end(io::IO=stdout)
     mpi_isroot() || return nothing
     quiet() && return nothing
     progress_bars() || return nothing
-    println(io, "\rDATA HANDLER CREATION COMPLETED ✓")
+    println(io, "\rDATA HANDLER CREATION COMPLETED ✔")
+    return nothing
+end
+
+function log_simulation_duration(options::AbstractJobOptions, duration::Float64)
+    msg = @sprintf("SIMULATION COMPLETED AFTER %g SECONDS ✔\n", duration)
+    log_it(options, msg)
     return nothing
 end

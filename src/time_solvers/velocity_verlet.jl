@@ -156,18 +156,9 @@ function calc_timestep(b::AbstractBodyChunk)
     Δt = fill(Inf, length(each_point_idx(b.ch)))
     for point_id in each_point_idx(b.ch)
         pp = get_params(b, point_id)
-        Δt[point_id] = _calc_timestep(b.system, pp, point_id)
+        Δt[point_id] = calc_timestep_point(b.system, pp, point_id)
     end
     return minimum(Δt)
-end
-
-function _calc_timestep(bd::BondSystem, pp::AbstractPointParameters, point_id::Int)
-    dtsum = 0.0
-    for bond_id in each_bond_idx(bd, point_id)
-        bond = bd.bonds[bond_id]
-        dtsum += bd.volume[bond.neighbor] * pp.bc / bond.length
-    end
-    return sqrt(2 * pp.rho / dtsum)
 end
 
 function solve!(dh::AbstractDataHandler, vv::VelocityVerlet, options::AbstractJobOptions)
@@ -192,7 +183,7 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJ
     @batch for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
         update_vel_half!(chunk, Δt½)
-        apply_bcs!(chunk, t)
+        apply_boundary_conditions!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
     @batch for chunk_id in eachindex(dh.chunks)
@@ -209,15 +200,15 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJ
     return nothing
 end
 
-function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler, options::AbstractJobOptions,
-                          Δt::Float64, Δt½::Float64, n::Int)
+function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
+                          options::AbstractJobOptions, Δt::Float64, Δt½::Float64, n::Int)
     t = n * Δt
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
         @batch for chunk_id in eachindex(body_dh.chunks)
             chunk = body_dh.chunks[chunk_id]
             update_vel_half!(chunk, Δt½)
-            apply_bcs!(chunk, t)
+            apply_boundary_conditions!(chunk, t)
             update_disp_and_pos!(chunk, Δt)
         end
         @batch for chunk_id in eachindex(body_dh.chunks)
@@ -235,7 +226,7 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler, options::Abst
             chunk = body_dh.chunks[chunk_id]
             calc_damage!(chunk)
             update_acc_and_vel!(chunk, Δt½)
-            export_results(body_dh, options, chunk_id, n, t; prefix=body_name)
+            export_results(body_dh, options, chunk_id, n, t)
         end
     end
     return nothing
@@ -246,7 +237,7 @@ function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractJobOp
     t = n * Δt
     chunk = dh.chunk
     @timeit_debug TO "update_vel_half!" update_vel_half!(chunk, Δt½)
-    @timeit_debug TO "apply_bcs!" apply_bcs!(chunk, t)
+    @timeit_debug TO "apply_boundary_conditions!" apply_boundary_conditions!(chunk, t)
     @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
     @timeit_debug TO "exchange_loc_to_halo!" exchange_loc_to_halo!(dh)
     @timeit_debug TO "calc_force_density!" calc_force_density!(chunk)

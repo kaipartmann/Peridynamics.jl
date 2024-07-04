@@ -142,9 +142,16 @@ end
 
 const NOSBStorage = Union{NOSBVerletStorage,NOSBRelaxationStorage}
 
-function force_density_point!(storage::NOSBStorage, system::BondSystem,
-                              mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
-    F, Kinv, ω0 = calc_deformation_gradient(storage, system, params, i)
+function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
+                              paramhandler::AbstractParameterHandler, i::Int)
+    params = get_params(paramhandler, i)
+    force_density_point!(storage, system, mat, params, i)
+    return nothing
+end
+
+function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
+                              params::NOSBPointParameters, i::Int)
+    F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         kill_point!(storage, system, i)
         return nothing
@@ -158,58 +165,43 @@ function force_density_point!(storage::NOSBStorage, system::BondSystem,
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-
-        ΔXij = SVector{3}(system.position[1, j] - system.position[1, i],
-                          system.position[2, j] - system.position[2, i],
-                          system.position[3, j] - system.position[3, i])
-        Δxij = SVector{3}(storage.position[1, j] - storage.position[1, i],
-                          storage.position[2, j] - storage.position[2, i],
-                          storage.position[3, j] - storage.position[3, i])
-        l = sqrt(Δxij.x * Δxij.x + Δxij.y * Δxij.y + Δxij.z * Δxij.z)
+        ΔXij = get_coordinates_diff(system, i, j)
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
         ε = (l - L) / L
-
-        # failure mechanism
-        if ε > params.εc && bond.fail_permit
-            storage.bond_active[bond_id] = false
-        end
+        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
+        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
         Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
 
         # update of force density
         tij = ωij * PKinv * ΔXij + Tij
         if containsnan(tij)
             tij = zero(SMatrix{3,3})
-            storage.bond_active[bond_id] = false
         end
-        storage.n_active_bonds[i] += storage.bond_active[bond_id]
-        storage.b_int[1, i] += tij.x * system.volume[j]
-        storage.b_int[2, i] += tij.y * system.volume[j]
-        storage.b_int[3, i] += tij.z * system.volume[j]
-        storage.b_int[1, j] -= tij.x * system.volume[i]
-        storage.b_int[2, j] -= tij.y * system.volume[i]
-        storage.b_int[3, j] -= tij.z * system.volume[i]
+        update_add_b_int!(storage, i, tij .* system.volume[j])
+        update_add_b_int!(storage, j, -tij .* system.volume[i])
     end
     return nothing
 end
 
+@inline function influence_function(::NOSBMaterial, params::NOSBPointParameters, L::Float64)
+    return params.δ / L
+end
+
 function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
-                                   params::NOSBPointParameters, i::Int)
+                                   mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
     ω0 = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        ΔXij = SVector{3}(system.position[1, j] - system.position[1, i],
-                          system.position[2, j] - system.position[2, i],
-                          system.position[3, j] - system.position[3, i])
-        Δxij = SVector{3}(storage.position[1, j] - storage.position[1, i],
-                          storage.position[2, j] - storage.position[2, i],
-                          storage.position[3, j] - storage.position[3, i])
+        ΔXij = get_coordinates_diff(system, i, j)
+        Δxij = get_coordinates_diff(storage, i, j)
         Vj = system.volume[j]
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
+        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
         ω0 += ωij
         temp = ωij * Vj
         K += temp * ΔXij * ΔXij'

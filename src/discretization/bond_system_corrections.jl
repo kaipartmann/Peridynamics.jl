@@ -19,7 +19,6 @@ end
     return 1
 end
 
-
 #===========================================================================================
     ENERGY BASED SURFACE CORRECTION
 ===========================================================================================#
@@ -68,26 +67,63 @@ function initialize!(dh::AbstractMPIBodyDataHandler{BondSystem{EnergySurfaceCorr
 end
 
 function calc_mfactor!(chunk::AbstractBodyChunk{BondSystem{EnergySurfaceCorrection}})
-    system = chunk.system
-    mfactor = system.correction.mfactor
-    stendens = zeros(3, length(chunk.ch.point_ids))
-    ka = 1.001
+    (; system, storage, paramsetup) = chunk
+    (; mfactor) = system.correction
+    ka, a = 1.001, 0.001
     for d in 1:3
         defposition = copy(system.position)
-        defposition[d,:] .*= ka
-        @views calc_stendens!(stendens[d,:], defposition, chunk)
+        defposition[d, :] .*= ka
         for i in each_point_idx(chunk)
-            params = get_params(chunk, i)
-            mfactor[d,i] = analytical_stendens(params) / stendens[d,i]
+            stendens, E_mean, nu_mean = stendens_point(system, paramsetup, storage,
+                                                       defposition, i)
+            mfactor[d, i] = analytical_stendens(E_mean, nu_mean, a) / stendens
         end
     end
     return nothing
 end
 
-@inline function analytical_stendens(params::AbstractPointParameters)
-    E, nu, a = params.E, params.nu, 0.001
-    U = E / (2 * (1 + nu)) * (nu / (1 - 2 * nu) + 1) * a^2
-    return U
+function stendens_point(system::BondSystem{C}, params::AbstractPointParameters,
+                        storage::AbstractStorage, defposition::AbstractMatrix{Float64},
+                        i::Int) where {C<:EnergySurfaceCorrection}
+    stendens = 0.0
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        Δxij = get_diff(defposition, i, j)
+        l = norm(Δxij)
+        ε = (l - L) / L
+        failure = bond_failure(storage, bond_id)
+        stendens += failure * 0.25 * params.bc * ε * ε * L * system.volume[j]
+    end
+    return stendens, params.E, params.nu
+end
+
+function stendens_point(system::BondSystem{C}, paramhandler::AbstractParameterHandler,
+                        storage::AbstractStorage, defposition::AbstractMatrix{Float64},
+                        i::Int) where {C<:EnergySurfaceCorrection}
+    stendens = 0.0
+    params_i = get_params(paramhandler, i)
+    E_mean, nu_mean = 0.0, 0.0
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        Δxij = get_diff(defposition, i, j)
+        l = norm(Δxij)
+        ε = (l - L) / L
+        params_j = get_params(paramhandler, j)
+        bc_mean = (params_i.bc + params_j.bc) / 2
+        failure = bond_failure(storage, bond_id)
+        stendens += failure * 0.25 * bc_mean * ε * ε * L * system.volume[j]
+        E_mean += failure * (params_i.E + params_j.E) / 2
+        nu_mean += failure * (params_i.nu + params_j.nu) / 2
+    end
+    E_mean /= storage.n_active_bonds[i]
+    nu_mean /= storage.n_active_bonds[i]
+    return stendens, E_mean, nu_mean
+end
+
+@inline function analytical_stendens(E, nu, a)
+    return E / (2 * (1 + nu)) * (nu / (1 - 2 * nu) + 1) * a^2
 end
 
 function calc_stendens!(stendens, defposition, chunk)
@@ -127,35 +163,27 @@ function calc_scfactor!(chunk::AbstractBodyChunk)
                 elseif abs(Δxijx) <= 1e-10
                     θ = 90 * π / 180
                 else
-                    θ = atan(abs(Δxijy)/abs(Δxijx))
+                    θ = atan(abs(Δxijy) / abs(Δxijx))
                 end
                 ϕ = 90 * π / 180
-                scx = (mfactor[1,i] + mfactor[1,j]) / 2
-                scy = (mfactor[2,i] + mfactor[2,j]) / 2
-                scz = (mfactor[3,i] + mfactor[3,j]) / 2
-                scr = sqrt(
-                    1/(
-                        (cos(θ) * sin(ϕ))^2 / scx^2 +
-                        (sin(θ) * sin(ϕ))^2 / scy^2 +
-                        cos(ϕ)^2 / scz^2
-                    )
-                )
+                scx = (mfactor[1, i] + mfactor[1, j]) / 2
+                scy = (mfactor[2, i] + mfactor[2, j]) / 2
+                scz = (mfactor[3, i] + mfactor[3, j]) / 2
+                scr = sqrt(1 / ((cos(θ) * sin(ϕ))^2 / scx^2 +
+                            (sin(θ) * sin(ϕ))^2 / scy^2 +
+                            cos(ϕ)^2 / scz^2))
             elseif abs(Δxijx) <= 1e-10 && abs(Δxijy) <= 1e-10
-                scz = (mfactor[3,i] + mfactor[3,j]) / 2
+                scz = (mfactor[3, i] + mfactor[3, j]) / 2
                 scr = scz
             else
-                θ = atan(abs(Δxijy)/abs(Δxijx))
-                ϕ = acos(abs(Δxijz)/L)
-                scx = (mfactor[1,i] + mfactor[1,j]) / 2
-                scy = (mfactor[2,i] + mfactor[2,j]) / 2
-                scz = (mfactor[3,i] + mfactor[3,j]) / 2
-                scr = sqrt(
-                    1/(
-                        (cos(θ) * sin(ϕ))^2 / scx^2 +
-                        (sin(θ) * sin(ϕ))^2 / scy^2 +
-                        cos(ϕ)^2 / scz^2
-                    )
-                )
+                θ = atan(abs(Δxijy) / abs(Δxijx))
+                ϕ = acos(abs(Δxijz) / L)
+                scx = (mfactor[1, i] + mfactor[1, j]) / 2
+                scy = (mfactor[2, i] + mfactor[2, j]) / 2
+                scz = (mfactor[3, i] + mfactor[3, j]) / 2
+                scr = sqrt(1 / ((cos(θ) * sin(ϕ))^2 / scx^2 +
+                            (sin(θ) * sin(ϕ))^2 / scy^2 +
+                            cos(ϕ)^2 / scz^2))
             end
             scfactor[bond_id] = scr
         end

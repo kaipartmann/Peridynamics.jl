@@ -45,6 +45,8 @@ end
 @inline each_point_idx(b::AbstractBodyChunk) = each_point_idx(b.ch)
 @inline each_point_idx_pair(b::AbstractBodyChunk) = each_point_idx_pair(b.ch)
 
-function initialize!(::BodyChunk)
+@inline n_loc_points(b::AbstractBodyChunk) = length(b.ch.loc_points)
+
+function initialize!(::AbstractBodyChunk)
     return nothing
 end

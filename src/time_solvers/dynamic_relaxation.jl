@@ -120,12 +120,26 @@ end
     return nothing
 end
 
-function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJobOptions,
+@inline function calc_density_matrix!(density_matrix::Matrix{Float64},
+                                      system::InteractionSystem,
+                                      params::AbstractPointParameters,
+                                      dr::DynamicRelaxation, i::Int)
+    n_one_nis = system.n_one_nis[i]
+    k = 5π * params.δ^2 * params.C1
+    Λ = dr.Λ * 1 / 4 * dr.Δt^2 * n_one_nis * k
+    density_matrix[1, i] = Λ
+    density_matrix[2, i] = Λ
+    density_matrix[3, i] = Λ
+    return nothing
+end
+
+function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
+                              options::AbstractJobOptions,
                               Δt::Float64, n::Int)
     t = n * Δt
     @batch for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
-        apply_bcs!(chunk, t)
+        apply_boundary_conditions!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
     @batch for chunk_id in eachindex(dh.chunks)

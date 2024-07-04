@@ -17,6 +17,11 @@ function get_system(::AbstractBody{M}, ::PointDecomposition, ::Int) where {M}
     return error(msg)
 end
 
+function log_system(options::AbstractJobOptions, dh::AbstractDataHandler)
+    log_system(system_type(dh), options, dh)
+    return nothing
+end
+
 # macro system(material, system)
 #     macrocheck_input_material(material)
 #     macrocheck_input_system(system)

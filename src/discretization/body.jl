@@ -1,5 +1,6 @@
 """
     Body(material, position, volume)
+    Body(material, inp_file)
 
 Creates a body for use in peridynamic calculation
 
@@ -8,6 +9,8 @@ Creates a body for use in peridynamic calculation
 - `material::AbstractMaterial`: Specifies which material model is used
 - `position::AbstractMatrix`: 3×n matrix with position of each point
 - `volume::AbstractVector`: Vector with volume of each point
+- `inp_file::AbstractString`: A Abaqus input file containing meshes, imported with
+    [`read_inp`](@ref)
 
 # Throws
 
@@ -76,6 +79,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     single_dim_bcs::Vector{SingleDimBC}
     posdep_single_dim_bcs::Vector{PosDepSingleDimBC}
     single_dim_ics::Vector{SingleDimIC}
+    posdep_single_dim_ics::Vector{PosDepSingleDimIC}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
     function Body(mat::M, position::AbstractMatrix, volume::AbstractVector) where {M}
@@ -92,11 +96,12 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
         single_dim_bcs = Vector{SingleDimBC}()
         posdep_single_dim_bcs = Vector{PosDepSingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
+        posdep_single_dim_ics = Vector{PosDepSingleDimIC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
         new{M,P}(name, mat, n_points, position, volume, fail_permit, point_sets,
                  point_params, params_map, single_dim_bcs, posdep_single_dim_bcs,
-                 single_dim_ics, point_sets_precracks)
+                 single_dim_ics, posdep_single_dim_ics, point_sets_precracks)
     end
 end
 
@@ -120,8 +125,11 @@ function Base.show(io::IO, ::MIME"text/plain", body::AbstractBody)
     if has_point_sets(body) || has_params(body) || has_conditions(body)
         print(io, ":")
     end
-    for (name, points) in body.point_sets
-        print(io, "\n  ", length(points), "-point set `", name, "`")
+    if has_point_sets(body)
+        print(io, "\n  ", length(keys(body.point_sets)), " point set(s):")
+        for (name, points) in body.point_sets
+            print(io, "\n    ", length(points), "-point set `", name, "`")
+        end
     end
     if has_params(body)
         print(io, "\n  ", n_params(body), " point parameter(s):")
@@ -147,6 +155,10 @@ function Base.show(io::IO, ::MIME"text/plain", body::AbstractBody)
             print(io, "\n    ")
             show(io, bc)
         end
+        for bc in body.posdep_single_dim_ics
+            print(io, "\n    ")
+            show(io, bc)
+        end
     end
     if has_precracks(body)
         print(io, "\n  ", n_precracks(body), " predefined crack(s)")
@@ -158,11 +170,20 @@ function Base.show(io::IO, ::MIME"text/plain", body::AbstractBody)
     return nothing
 end
 
+function Body(mat::AbstractMaterial, inp_file::AbstractString)
+    position, volume, point_sets = read_inp(inp_file)
+    body = Body(mat, position, volume)
+    for (name, point_ids) in point_sets
+        point_set!(body, Symbol(clean_point_set_name(name)), point_ids)
+    end
+    return body
+end
+
 @inline material_type(::AbstractBody{M}) where {M} = M
 
 function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
     # check if n_points is greater than zero
-    n_points > 0 || error("number of points `n_points` must be greater than zero!\n")
+    n_points > 0 || error("the number of points must be greater than zero!\n")
 
     # check dimension of position
     dim_position, n_points_position = size(position)
@@ -180,8 +201,31 @@ function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::Abst
     return nothing
 end
 
-function pre_submission_check(b::Body)
-    #TODO: check if everything is defined for job submission!
+function pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
+    # the body should have material properties
+    if isempty(body.point_params)
+        msg = "no material parameters found!\n"
+        msg *= "Bodies without material parameters are not ready for job submission!\n"
+        error(msg)
+    end
+    # all points should have a material property defined
+    points_without_material = findfirst(x -> x == 0, body.params_map)
+    if points_without_material !== nothing
+        msg = "not all points have material parameters!\n"
+        msg *= "You probably just used the `material!(body, set; kwargs...)` function\n"
+        msg *= "on a set that does not include all material points.\n"
+        error(msg)
+    end
+    # if the body is not part of a multibody setup, then there has to be any condition
+    if !body_in_multibody_setup
+        if n_bcs(body) + n_ics(body) == 0
+            msg = "no initial or boundary condition specified!\n"
+            msg *= "Bodies that are not part of a `MultibodySetup` need at least one\n"
+            msg *= "initial or boundary condition! Otherwise nothing will happen during\n"
+            msg *= "the simulation!\n"
+            error(msg)
+        end
+    end
     return nothing
 end
 
@@ -191,10 +235,10 @@ end
 
 @inline storage_type(b::AbstractBody, ts::AbstractTimeSolver) = storage_type(b.mat, ts)
 
-function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody;
-                           bodyname::AbstractString="")
+function log_msg_body(body::AbstractBody)
     msg = "BODY"
-    isempty(bodyname) || (msg *= " `" * bodyname * "`")
+    body_name = string(get_name(body))
+    isempty(body_name) || (msg *= " `" * body_name * "`")
     msg *= "\n"
     msg *= "  POINT CLOUD\n"
     msg *= msg_qty("number of points", body.n_points; indentation=4)
@@ -212,20 +256,44 @@ function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody;
         descr = @sprintf("number of points in set `%s`", string(key))
         msg *= msg_qty(descr, length(points); indentation=4)
     end
-    has_conditions(body) && (msg *= "  CONDITIONS\n")
-    has_bcs(body) && (msg *= msg_qty("number of BC's", n_bcs(body); indentation=4))
-    has_ics(body) && (msg *= msg_qty("number of IC's", n_ics(body); indentation=4))
+    has_ics(body) && (msg *= "  INITIAL CONDITIONS\n")
+    for ic in body.single_dim_ics
+        descr = @sprintf("field `%s`", ic.field)
+        settings = @sprintf("`%s`, dimension %d", ic.point_set, ic.dim)
+        msg *= msg_qty(descr, settings; indentation=4)
+    end
+    for ic in body.posdep_single_dim_ics
+        descr = @sprintf("field `%s`", ic.field)
+        settings = @sprintf("`%s`, dimension %d", ic.point_set, ic.dim)
+        msg *= msg_qty(descr, settings; indentation=4)
+    end
+    has_bcs(body) && (msg *= "  BOUNDARY CONDITIONS\n")
+    for bc in body.single_dim_bcs
+        descr = @sprintf("field `%s`", bc.field)
+        settings = @sprintf("`%s`, dimension %d", bc.point_set, bc.dim)
+        msg *= msg_qty(descr, settings; indentation=4)
+    end
+    for bc in body.posdep_single_dim_bcs
+        descr = @sprintf("field `%s`", bc.field)
+        settings = @sprintf("`%s`, dimension %d", bc.point_set, bc.dim)
+        msg *= msg_qty(descr, settings; indentation=4)
+    end
+    msg *= "  MATERIAL\n"
+    msg *= msg_qty("material type", material_type(body); indentation=4)
     n_point_params = length(body.point_params)
-    if length(body.point_params) == 1
-        msg *= "  MATERIAL\n"
-        msg *= msg_qty("material type", material_type(body); indentation=4)
+    if n_point_params == 1
         msg *= log_material_parameters(first(body.point_params); indentation=4)
     elseif n_point_params > 1
         for (i, params) in enumerate(body.point_params)
-            msg *= @sprintf("  MATERIAL %d\n", i)
-            msg *= log_material_parameters(params; indentation=4)
+            msg *= @sprintf("    MATERIAL PROPERTIES #%d\n", i)
+            msg *= log_material_parameters(params; indentation=6)
         end
     end
+    return msg
+end
+
+function log_spatial_setup(options::AbstractJobOptions, body::AbstractBody)
+    msg = log_msg_body(body)
     log_it(options, msg)
     return nothing
 end
@@ -256,9 +324,6 @@ end
 @inline has_name(body::AbstractBody) = body.name[] !== Symbol("")
 
 @inline has_point_sets(body::AbstractBody) = !isempty(body.point_sets)
-@inline function each_user_point_set(body::AbstractBody)
-    return filter(x -> x !== :all_points, body.point_sets)
-end
 
 @inline n_params(body::AbstractBody) = length(body.point_params)
 @inline has_params(body::AbstractBody) = !isempty(body.point_params)
@@ -266,7 +331,9 @@ end
 @inline function n_bcs(body::AbstractBody)
     return length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
 end
-@inline n_ics(body::AbstractBody) = length(body.single_dim_ics)
+@inline function n_ics(body::AbstractBody)
+    return length(body.single_dim_ics) + length(body.posdep_single_dim_ics)
+end
 
 @inline has_bcs(body::AbstractBody) = n_bcs(body) > 0 ? true : false
 @inline has_ics(body::AbstractBody) = n_ics(body) > 0 ? true : false
@@ -274,5 +341,15 @@ end
 
 @inline n_precracks(body::AbstractBody) = length(body.point_sets_precracks)
 @inline has_precracks(body::AbstractBody) = n_precracks(body) > 0 ? true : false
+
+"""
+    n_points(body)
+    n_points(multibody_setup)
+
+Returns the number of points in a body or the total number of points in a multibody setup.
+
+TODO
+"""
+function n_points end
 
 @inline n_points(body::AbstractBody) = body.n_points

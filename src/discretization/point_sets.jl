@@ -86,3 +86,42 @@ function check_if_set_is_defined(point_sets::Dict{Symbol,V}, name::Symbol) where
     end
     return nothing
 end
+
+"""
+    point_sets(body)
+
+Returns all point sets of the body.
+
+# Arguments
+
+- `body::AbstractBody`: Peridynamic body
+
+# Example
+
+```julia-repl
+julia> body = Body(BBMaterial(), rand(3,100), rand(100))
+100-point Body{BBMaterial{NoCorrection}}:
+  100-point set `all_points`
+
+julia> point_set!(body, :set_a, 1:10) # first ten points
+
+julia> Peridynamics.point_sets(body)
+Dict{Symbol, Vector{Int64}} with 2 entries:
+  :all_points => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10  …  91, 92, 93, 94, 95, 96, 97, 98, 9…
+  :set_a      => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+```
+"""
+function point_sets(body::AbstractBody)
+    return body.point_sets
+end
+
+@inline function clean_point_set_name(name_str::AbstractString)
+    name_str_cleaned = replace(name_str, " " => "_")
+    return name_str_cleaned
+end
+
+function point_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Symbol,
+                              key_b::Symbol)
+    isempty(point_sets[key_a] ∩ point_sets[key_b]) && return false
+    return true
+end

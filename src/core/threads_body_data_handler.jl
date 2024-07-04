@@ -155,33 +155,28 @@ function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsBodyDataHandler
     return nothing
 end
 
-function export_results(dh::ThreadsBodyDataHandler, options::AbstractJobOptions, chunk_id::Int,
-                        timestep::Int, time::Float64; prefix="")
+function export_results(dh::ThreadsBodyDataHandler, options::AbstractJobOptions,
+                        chunk_id::Int, timestep::Int, time::Float64)
     options.export_allowed || return nothing
     if mod(timestep, options.freq) == 0
-        _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, prefix,
-                        timestep, time)
+        _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, timestep, time)
     end
     return nothing
 end
 
-function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractJobOptions;
-                                  prefix="")
+function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractJobOptions)
     options.export_allowed || return nothing
     @batch for chunk_id in eachindex(dh.chunks)
-        _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, prefix, 0, 0.0)
+        _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, 0, 0.0)
     end
     return nothing
 end
 
-function log_data_handler(options::AbstractJobOptions,
-                          dh::AbstractThreadsBodyDataHandler{Sys}) where {Sys<:BondSystem}
-    msg = "BOND SYSTEM\n"
-    n_bonds = 0
-    for chunk in dh.chunks
-        n_bonds += length(chunk.system.bonds)
-    end
-    msg *= msg_qty("number of bonds", n_bonds)
-    log_it(options, msg)
+function log_data_handler(options::AbstractJobOptions, dh::AbstractThreadsBodyDataHandler)
+    log_system(options, dh)
     return nothing
+end
+
+@inline function system_type(dh::ThreadsBodyDataHandler{Sys}) where {Sys}
+    return Sys
 end
