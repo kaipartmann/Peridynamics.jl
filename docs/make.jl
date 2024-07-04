@@ -78,10 +78,7 @@ makedocs(;
             joinpath("generated", "tutorial_wave_in_bar.md"),
             # "tutorial_logo.md",
         ],
-        "API" => [
-            "api_public.md",
-            # "api_private.md", #TODO
-        ]
+        "API Reference" => "api_reference.md",
     ],
 
     # ONLY DURING EARLY DEVELOPMENT:
