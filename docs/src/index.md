@@ -41,25 +41,25 @@ To install `Peridynamics.jl`, follow these steps:
 ## Tutorials
 
 ```@raw html
-<div class="tutorial-grid"> 
+<div class="tutorial-grid">
 ```
 
 ```@raw html
-<div class="tutorial-element"> 
+<div class="tutorial-element">
 ```
 
-### [Mode I tension quasi-static](@ref tutorial_tension_static)
+[Tensile test quasi-static](@ref tutorial_tension_static)  
 [![](assets/tension_static.gif)](@ref tutorial_tension_static)
 
 ```@raw html
-</div> 
+</div>
 ```
 
 ```@raw html
-<div class="tutorial-element"> 
+<div class="tutorial-element">
 ```
 
-### [Mode I tension dynamic](@ref tutorial_tension_dynfrac)
+[Tensile test dynamic](@ref tutorial_tension_dynfrac)  
 [![](assets/tension_dynfrac.gif)](@ref tutorial_tension_dynfrac)
 
 ```@raw html
@@ -67,29 +67,31 @@ To install `Peridynamics.jl`, follow these steps:
 ```
 
 ```@raw html
-<div class="tutorial-element"> 
+<div class="tutorial-element">
 ```
 
-### [Mode I tension dynamic with predefined crack](@ref tutorial_tension_precrack)
+[Tension with predefined crack](@ref tutorial_tension_precrack)  
 [![](assets/tension_precrack_damage.gif)](@ref tutorial_tension_precrack)
 
 ```@raw html
-</div> 
+</div>
 ```
 
 ```@raw html
-<div class="tutorial-element"> 
+<div class="tutorial-element">
 ```
 
-### [Peridynamics.jl logo](@ref tutorial_logo)
+[Peridynamics.jl logo](@ref tutorial_logo)  
 [![](assets/logo.gif)](@ref tutorial_logo)
 
 ```@raw html
 </div>
 ```
+
 ```@raw html
 </div>
 ```
+
 
 ## Authors
 
