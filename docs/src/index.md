@@ -26,16 +26,6 @@ To install `Peridynamics.jl`, follow these steps:
 5. Press `Backspace` or `Ctrl + C` to exit the package manager.
 
 ## How-to guides
-#### How to perform a
-- [Single body analysis](@ref howto_single_body_analysis)
-- [Contact analysis](@ref howto_contact_analysis)
-
-#### How to define
-- [Point clouds](@ref howto_pointclouds)
-- [Predefined cracks](@ref howto_precracks)
-- [Material formulations](@ref howto_matformulations)
-
-#### How to
 - [Visualize results with ParaView](@ref visualization)
 
 ## Tutorials
