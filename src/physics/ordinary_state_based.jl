@@ -130,11 +130,11 @@ end
 
 const OSBStorage = Union{OSBVerletStorage,OSBRelaxationStorage}
 
-function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMaterial,
+function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
                               params::OSBPointParameters, i::Int)
-    wvol = calc_weighted_volume(storage, system, params, i)
+    wvol = calc_weighted_volume(storage, system, mat, params, i)
     iszero(wvol) && return nothing
-    dil = calc_dilatation(storage, system, params, wvol, i)
+    dil = calc_dilatation(storage, system, mat, params, wvol, i)
     c1 = 15.0 * params.G / wvol
     c2 = dil * (3.0 * params.K / wvol - c1 / 3.0)
     for bond_id in each_bond_idx(system, i)
@@ -144,7 +144,7 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMate
         l = norm(Δxij)
         ε = (l - L) / L
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
-        p_int = (1 + params.δ / L) * bond_failure(storage, bond_id) *
+        p_int = influence_function(mat, params, L) * bond_failure(storage, bond_id) *
                 surface_correction_factor(system.correction, bond_id) *
                 (c2 * L + c1 * (l - L)) / l .* Δxij
         update_add_b_int!(storage, i, p_int .* system.volume[j])
@@ -153,12 +153,12 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMate
     return nothing
 end
 
-function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMaterial,
+function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
                               paramhandler::ParameterHandler, i::Int)
     params_i = get_params(paramhandler, i)
-    wvol = calc_weighted_volume(storage, system, params_i, i)
+    wvol = calc_weighted_volume(storage, system, mat, params_i, i)
     iszero(wvol) && return nothing
-    dil = calc_dilatation(storage, system, params_i, wvol, i)
+    dil = calc_dilatation(storage, system, mat, params_i, wvol, i)
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
@@ -169,7 +169,7 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMate
         params_j = get_params(paramhandler, j)
         c1 = 15.0 * (params_i.G + params_j.G) / (2 * wvol)
         c2 = dil * (3.0 * (params_i.K + params_j.K) / (2 * wvol) - c1 / 3.0)
-        p_int = (1 + params_i.δ / L) * bond_failure(storage, bond_id) *
+        p_int = influence_function(mat, params_i, L) * bond_failure(storage, bond_id) *
                 surface_correction_factor(system.correction, bond_id) *
                 (c2 * L + c1 * (l - L)) / l .* Δxij
         update_add_b_int!(storage, i, p_int .* system.volume[j])
@@ -178,7 +178,11 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, ::OSBMate
     return nothing
 end
 
-function calc_weighted_volume(storage::OSBStorage, system::BondSystem,
+@inline function influence_function(::OSBMaterial, params::OSBPointParameters, L::Float64)
+    return params.δ / L
+end
+
+function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
                               params::OSBPointParameters, i::Int)
     wvol = 0.0
     for bond_id in each_bond_idx(system, i)
@@ -187,13 +191,13 @@ function calc_weighted_volume(storage::OSBStorage, system::BondSystem,
         ΔXij = get_coordinates_diff(system, i, j)
         ΔXij_sq = dot(ΔXij, ΔXij)
         scfactor = surface_correction_factor(system.correction, bond_id)
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id] * scfactor
+        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id] * scfactor
         wvol += ωij * ΔXij_sq * system.volume[j]
     end
     return wvol
 end
 
-function calc_dilatation(storage::OSBStorage, system::BondSystem,
+function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
                          params::OSBPointParameters, wvol::Float64, i::Int)
     dil = 0.0
     c1 = 3.0 / wvol
@@ -203,7 +207,7 @@ function calc_dilatation(storage::OSBStorage, system::BondSystem,
         Δxij = get_coordinates_diff(storage, i, j)
         l = norm(Δxij)
         scfactor = surface_correction_factor(system.correction, bond_id)
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id] * scfactor
+        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id] * scfactor
         dil += ωij * c1 * L * (l - L) * system.volume[j]
     end
     return dil
