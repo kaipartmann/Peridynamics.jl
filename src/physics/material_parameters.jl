@@ -138,8 +138,8 @@ function log_material_parameters(param::AbstractPointParameters; indentation::In
 end
 
 function Base.show(io::IO, params::AbstractPointParameters)
-    print(io, typeof(params))
-    print(io, msg_fields_in_brackets(params, (:δ, :E, :nu, :rho, :Gc)))
+    print(io, "Parameters ", material_type(params), ": ")
+    print(io, msg_fields_inline(params, (:δ, :E, :nu, :rho, :Gc)))
     return nothing
 end
 

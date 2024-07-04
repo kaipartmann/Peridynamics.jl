@@ -6,8 +6,8 @@ struct SingleDimBC{F<:Function} <: AbstractCondition
 end
 
 function Base.show(io::IO, bc::SingleDimBC)
-    print(io, "SingleDimBC")
-    print(io, msg_fields_in_brackets(bc, (:field, :point_set, :dim)))
+    print(io, "BC on ", field_to_name(bc.field), ": ")
+    print(io, msg_fields_inline(bc, (:point_set, :dim)))
     return nothing
 end
 
@@ -40,8 +40,8 @@ struct PosDepSingleDimBC{F<:Function} <: AbstractCondition
 end
 
 function Base.show(io::IO, bc::PosDepSingleDimBC)
-    print(io, "PosDepSingleDimBC")
-    print(io, msg_fields_in_brackets(bc, (:field, :point_set, :dim)))
+    print(io, "Pos.-dep. BC on ", field_to_name(bc.field), ": ")
+    print(io, msg_fields_inline(bc, (:point_set, :dim)))
     return nothing
 end
 
@@ -151,6 +151,17 @@ function check_boundary_condition_function(f::F) where {F<:Function}
         throw(ArgumentError(msg))
     end
     return type
+end
+
+function field_to_name(field::Symbol)
+    if field === :velocity || field === :velocity_half
+        name = "velocity"
+    elseif field === :b_ext
+        name = "force density"
+    else
+        name = string(field)
+    end
+    return name
 end
 
 """

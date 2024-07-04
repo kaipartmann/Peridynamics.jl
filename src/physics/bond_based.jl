@@ -6,9 +6,9 @@
 Construct the type `BBMaterial` used to specify the material of a [`Body`](@ref).
 
 Possible correction methods are:
-- [`NoCorrection`](@ref): No correction is applied (default)
+- [`NoCorrection`](@ref): No correction is applied. (default)
 - [`EnergySurfaceCorrection`](@ref): The energy based surface correction method of
-    Le and Bobaru (2018) is applied
+    Le and Bobaru (2018) is applied.
 
 # Examples
 
@@ -18,18 +18,17 @@ BBMaterial{NoCorrection}()
 
 julia> mat = BBMaterial{EnergySurfaceCorrection}()
 BBMaterial{EnergySurfaceCorrection}()
-
+```
 ---
 
 ```julia
-BBMaterial{Correction} <: AbstractBondSystemMaterial{Correction}
+BBMaterial{Correction}
 ```
 
 Material type for the bond-based peridynamics formulation.
 
 # Type Parameters
-
-- `Correction`: A correction algorithm of type [`AbstractCorrection`](@ref).
+- `Correction`: A correction algorithm type. See the constructor docs for more informations.
 
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `BBMaterial`, then the following
@@ -52,16 +51,11 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `b_ext::Matrix{Float64}`: External force density of each point
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
-```
-
 """
 struct BBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
 
 BBMaterial() = BBMaterial{NoCorrection}()
 
-"""
-TODO
-"""
 struct BBPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64

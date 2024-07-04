@@ -14,7 +14,7 @@ CKIMaterial()
 ---
 
 ```julia
-CKIMaterial <: AbstractInteractionSystemMaterial
+CKIMaterial
 ```
 
 Material type for the continuum-kinematics-inspired peridynamics framework.

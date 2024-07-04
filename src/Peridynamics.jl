@@ -9,18 +9,11 @@ end
 import LibGit2, Dates
 import Polyester: @batch
 
-# Abstract types
-export AbstractMaterial, AbstractBondSystemMaterial, AbstractSpatialSetup, AbstractBody,
-       AbstractMultibodySetup, AbstractParameterSetup, AbstractPointParameters,
-       AbstractTimeSolver, AbstractJob, AbstractSystem, AbstractPredefinedCrack,
-       AbstractCorrection, AbstractStorage, AbstractCondition
-
 # Material models
-export BBMaterial, BBPointParameters, OSBMaterial, OSBPointParameters, NOSBMaterial,
-       NOSBPointParameters, CKIMaterial, CKIPointParameters
+export BBMaterial, OSBMaterial, NOSBMaterial, CKIMaterial
 
 # Systems related types
-export BondSystem, NoCorrection, EnergySurfaceCorrection
+export NoCorrection, EnergySurfaceCorrection
 
 # Discretization
 export Body, point_set!, point_sets, failure_permit!, material!, velocity_bc!, velocity_ic!,
@@ -47,76 +40,76 @@ function __init__()
     return nothing
 end
 
-"""
-    AbstractMaterial
+# """
+#     AbstractMaterial
 
-Base for types which define materials.
-"""
+# Base for types which define materials.
+# """
 abstract type AbstractMaterial end
 
-"""
-    AbstractSpatialSetup
+# """
+#     AbstractSpatialSetup
 
-Base for types which define the spatial setup.
-"""
+# Base for types which define the spatial setup.
+# """
 abstract type AbstractSpatialSetup end
 
-"""
-    AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup
+# """
+#     AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup
 
-Base for types which define a body.
-"""
+# Base for types which define a body.
+# """
 abstract type AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup end
 
-"""
-    AbstractMultibodySetup <: AbstractSpatialSetup
+# """
+#     AbstractMultibodySetup <: AbstractSpatialSetup
 
-Base for types which define a multibody setup.
-"""
+# Base for types which define a multibody setup.
+# """
 abstract type AbstractMultibodySetup <: AbstractSpatialSetup end
 
-"""
-    AbstractParameterSetup
+# """
+#     AbstractParameterSetup
 
-Base for types which define a parameter setup.
-"""
+# Base for types which define a parameter setup.
+# """
 abstract type AbstractParameterSetup end
 
-"""
-    AbstractPointParameters <: AbstractParameterSetup
+# """
+#     AbstractPointParameters <: AbstractParameterSetup
 
-Base for types which define point parameters for specific materials.
-"""
+# Base for types which define point parameters for specific materials.
+# """
 abstract type AbstractPointParameters <: AbstractParameterSetup end
 abstract type AbstractParamSpec end
 
-"""
-    AbstractTimeSolver
+# """
+#     AbstractTimeSolver
 
-Base for types which define a time solver.
-"""
+# Base for types which define a time solver.
+# """
 abstract type AbstractTimeSolver end
 
-"""
-    AbstractJob
+# """
+#     AbstractJob
 
-Base for types which define a job.
-"""
+# Base for types which define a job.
+# """
 abstract type AbstractJob end
 abstract type AbstractJobOptions end
 
-"""
-    AbstractSystem
+# """
+#     AbstractSystem
 
-Base for types which define a system.
-"""
+# Base for types which define a system.
+# """
 abstract type AbstractSystem end
 
-"""
-    AbstractPredefinedCrack
+# """
+#     AbstractPredefinedCrack
 
-Base for types which define a predefined crack.
-"""
+# Base for types which define a predefined crack.
+# """
 abstract type AbstractPredefinedCrack end
 abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
 abstract type AbstractParameterHandler <: AbstractParameterSetup end
@@ -129,40 +122,40 @@ abstract type AbstractThreadsMultibodyDataHandler <: AbstractThreadsDataHandler 
 abstract type AbstractMPIBodyDataHandler{Sys,M,P,S} <: AbstractMPIDataHandler end
 abstract type AbstractMPIMultibodyDataHandler <: AbstractMPIDataHandler end
 
-"""
-    AbstractCorrection
+# """
+#     AbstractCorrection
 
-Base for types which define a correction algorithm suitable for materials that are a
-subtype of [`AbstractBondSystemMaterial`](@ref) and use the [`BondSystem`](@ref).
-"""
+# Base for types which define a correction algorithm suitable for materials that are a
+# subtype of [`AbstractBondSystemMaterial`](@ref) and use the [`BondSystem`](@ref).
+# """
 abstract type AbstractCorrection end
 
-"""
-    AbstractStorage
+# """
+#     AbstractStorage
 
-Base for types which define a storage.
-"""
+# Base for types which define a storage.
+# """
 abstract type AbstractStorage end
 
-"""
-    AbstractStorage
+# """
+#     AbstractStorage
 
-Base for types which define a condition.
-"""
+# Base for types which define a condition.
+# """
 abstract type AbstractCondition end
 
-"""
-    AbstractBondSystemMaterial{Correction} <: AbstractMaterial
+# """
+#     AbstractBondSystemMaterial{Correction} <: AbstractMaterial
 
-Base for types which define a material that uses the [`BondSystem`](@ref).
-"""
+# Base for types which define a material that uses the [`BondSystem`](@ref).
+# """
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 
-"""
-    AbstractInteractionSystemMaterial <: AbstractMaterial
+# """
+#     AbstractInteractionSystemMaterial <: AbstractMaterial
 
-Base for types which define a material that uses the [`InteractionSystem`](@ref).
-"""
+# Base for types which define a material that uses the [`InteractionSystem`](@ref).
+# """
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
 
 include("auxiliary/function_arguments.jl")

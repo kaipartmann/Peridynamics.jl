@@ -30,7 +30,7 @@ NOSBMaterial(maxdmg=0.95, maxjacobi=1.03, corr=100.0)
 ---
 
 ```julia
-NOSBMaterial <: AbstractBondSystemMaterial{NoCorrection}
+NOSBMaterial
 ```
 
 Material type for the local continuum consistent (correspondence) formulation of

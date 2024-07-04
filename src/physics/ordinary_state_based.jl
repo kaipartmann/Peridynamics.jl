@@ -23,14 +23,13 @@ OSBMaterial{EnergySurfaceCorrection}()
 ---
 
 ```julia
-OSBMaterial{Correction} <: AbstractBondSystemMaterial{Correction}
+OSBMaterial{Correction}
 ```
 
 Material type for the ordinary state-based peridynamics formulation.
 
 # Type Parameters
-
-- `Correction`: A correction algorithm of type [`AbstractCorrection`](@ref).
+- `Correction`: A correction algorithm type. See the constructor docs for more informations.
 
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `OSBMaterial`, then the following

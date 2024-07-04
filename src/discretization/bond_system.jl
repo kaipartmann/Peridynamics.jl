@@ -4,9 +4,6 @@ struct Bond
     fail_permit::Bool
 end
 
-"""
-TODO
-"""
 struct BondSystem{Correction<:AbstractCorrection} <: AbstractSystem
     position::Matrix{Float64}
     volume::Vector{Float64}
