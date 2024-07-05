@@ -10,7 +10,7 @@ using Documenter
 using Literate
 using DocumenterCitations
 
-bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
+bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"), style=:alpha)
 
 LIT_MD_OUT = joinpath(@__DIR__, "src", "generated")
 # LIT_NB_OUT = joinpath(@__DIR__, "..", "notebooks") #TODO
@@ -62,7 +62,6 @@ makedocs(;
             "osbased.md",
             "nosbased.md",
             "continuumbased.md",
-            "references.md"
         ],
         "How-to guides" => [
             # joinpath("generated", "howto_single_body_analysis.md"),

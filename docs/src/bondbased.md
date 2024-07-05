@@ -36,3 +36,9 @@ To get the resulting body forces, now the force function is integrated over the 
 ```math
 \boldsymbol{b}^{\mathrm{int},i} = \boldsymbol{b}^{\mathrm{int}} (\boldsymbol{X} ^ {i} , t) = \int_{\mathcal{H}_i} \boldsymbol{f} \; \mathrm{d}V^j \; .
 ```
+
+## References
+```@bibliography
+Pages = ["bondbased.md"]
+Canonical = false
+```
