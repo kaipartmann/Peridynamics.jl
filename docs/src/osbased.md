@@ -22,9 +22,3 @@ With the previously determined variables, the force vector state $\boldsymbol{t}
 ```math
 \boldsymbol{t}^i \left( \boldsymbol{\Delta X}^{ij} \right) = \frac{\kappa \cdot \theta_i}{m_i} \cdot \omega \cdot | \boldsymbol{\Delta X}^{ij} | + \frac{15 \cdot G}{m_i} \cdot \omega \cdot \left( |\boldsymbol{\Delta x}^{ij}|-|\boldsymbol{\Delta X}^{ij}| - \frac{\theta_i \cdot |\boldsymbol{\Delta X}^{ij}|}{3} \right) \; .
 ```
-
-## References
-```@bibliography
-Pages = ["osbased.md"]
-Canonical = false
-```

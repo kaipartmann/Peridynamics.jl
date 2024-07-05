@@ -118,9 +118,3 @@ with the material constant $C_3$ is used.
 | effective three-neighbor volume |  $V_3^i = \frac{ \left(V_\mathcal{H}^i\right)^3}{N_3^i}$ | $[\mathrm{m}^9]$ |
 | number of three-neighbor interactions |      $N_3^i$      | $[-]$ |
 
-
-## References
-```@bibliography
-Pages = ["continuumbased.md"]
-Canonical = false
-```

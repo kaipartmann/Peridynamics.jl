@@ -22,9 +22,3 @@ Using the calculated variables, the force vector state can now be determined by 
 ```math
 \boldsymbol{t}^i = \omega \boldsymbol{P}^i  \left(\boldsymbol{K}^i\right)^{-1} \boldsymbol{\Delta X}^{ij} \; .
 ```
-
-## References
-```@bibliography
-Pages = ["nosbased.md"]
-Canonical = false
-```

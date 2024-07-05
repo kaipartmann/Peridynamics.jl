@@ -56,19 +56,15 @@ makedocs(;
     draft = LIVE_MODE,
     pages = [
         "Home" => "index.md",
-        "Theory" => [
+        "Explanations" => [
             "general_pd.md",
             "bondbased.md",
             "osbased.md",
             "nosbased.md",
             "continuumbased.md",
+            "references.md",
         ],
         "How-to guides" => [
-            # joinpath("generated", "howto_single_body_analysis.md"),
-            # joinpath("generated", "howto_contact_analysis.md"),
-            # joinpath("generated", "howto_pointclouds.md"),
-            # joinpath("generated", "howto_precracks.md"),
-            # joinpath("generated", "howto_matformulations.md"),
             "howto_visualization.md",
         ],
         "Tutorials" => [
@@ -77,7 +73,6 @@ makedocs(;
             joinpath("generated", "tutorial_tension_precrack.md"),
             joinpath("generated", "tutorial_wave_in_bar.md"),
             joinpath("generated", "tutorial_logo.md"),
-            # "tutorial_logo.md",
         ],
         "API Reference" => "api_reference.md",
     ],
