@@ -1,6 +1,6 @@
-# [Ordinary State-based](@id statebased)
+# [Ordinary state-based peridynamics](@id expl_osb)
 
-The state-based peridynamics formulation considers not only the deformation of the bonds of one material point as the [bond-based model](@ref bondbased) does, but also the states of all neighbors to calculate the internal force density $\boldsymbol{b}^{\mathrm{int},i}$ [Silling2007](@cite):
+The state-based peridynamics formulation considers not only the deformation of the bonds of one material point as the [bond-based model](@ref expl_bb) does, but also the states of all neighbors to calculate the internal force density $\boldsymbol{b}^{\mathrm{int},i}$ [Silling2007](@cite):
 
 ```math
 \boldsymbol{b}^{\mathrm{int},i} = \boldsymbol{b}^{\mathrm{int}} (\boldsymbol{X}^i,t) = \int_{\mathcal{H}_i} \boldsymbol{t}^i - \boldsymbol{t}^j \; \mathrm{d}V^j \; .

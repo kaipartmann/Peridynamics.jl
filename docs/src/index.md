@@ -1,12 +1,6 @@
 # Peridynamics
 
-A high-level Julia package for multithreaded peridynamics simulations
-
-## What is peridynamics?
-Peridynamics is a non-local formulation of continuum mechanics where material points represent the continuum, and the relative displacements and forces are governed by an integro-differential equation that allows discontinuities. As a result, peridynamics is particularly well-suited for dynamic fracture simulations involving numerous cracks.
-
-## Who can benefit from this package?
-This package is designed for anyone interested in performing peridynamics simulations. While the current feature set provides a solid foundation, we are continuously working to enhance and expand the capabilities of `Peridynamics.jl`. We encourage you to open an issue or submit a pull request to share your feedback or contribute to making this package even more valuable to the community!
+A high-level Julia package for parallel peridynamics simulations
 
 ## Installation
 
@@ -93,7 +87,7 @@ To install `Peridynamics.jl`, follow these steps:
 </ul>
 ```
 
-## Acknowledgement
+## Acknowledgements
 ```@raw html
 <img src=https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/0d14a65b-4e05-4408-8107-59ac9c1477d2 width=500>
 ```

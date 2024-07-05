@@ -1,4 +1,4 @@
-# [Continuum-kinematics-inspired](@id continuumbased)
+# [Continuum-kinematics-inspired peridynamics](@id expl_cki)
 
 Continuum-kinematics-inspired peridynamics (CPD) is a formulation that is supposed to deliver more freedom in specifying material parameters.
 The internal force density is calculated as the sum of three types of point interactions which are one-, two- and three-neighbor interactions [Javili2019](@cite):
@@ -13,7 +13,7 @@ The internal force density is calculated as the sum of three types of point inte
 <img src="../assets/PD_OneNI_1.png" width="250"/>
 ```
 
-One-neighbor interactions in CPD correspond to the bonds in [bond-based](@ref bondbased) peridynamics, but there is a slightly different way to calculate the internal forces.
+One-neighbor interactions in CPD correspond to the bonds in [bond-based](@ref expl_bb) peridynamics, but there is a slightly different way to calculate the internal forces.
 
 First, the neighborhood volume is determined:
 ```math

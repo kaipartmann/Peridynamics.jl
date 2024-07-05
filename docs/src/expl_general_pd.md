@@ -1,4 +1,4 @@
-# Basics
+# [Basics of peridynamics theory](@id expl_pd_basics)
 
 Peridynamics is a nonlocal formulation of continuum mechanics whereby in the discrete version a body is represented by a group of interconnected material points.
 The basic idea is that each point interacts with any other point within the distance of the horizon $\delta$. 
@@ -25,4 +25,4 @@ The peridynamic equation of motion is established for each material point $i$ an
     \qquad \forall \; \boldsymbol{X} ^ {i} \in \mathcal{B}_0 \; , \; t \geq 0 \; .
 ```
 
-Assuming the external forces $\boldsymbol{b}^{\mathrm{ext}}$ are known, there are different peridynamic approaches to calculate the internal forces $\boldsymbol{b}^{\mathrm{int}}$, for example the [bond-based formulation](@ref bondbased) or the [continuum-kinematics-inspired formulation](@ref continuumbased).
+Assuming the external forces $\boldsymbol{b}^{\mathrm{ext}}$ are known, there are different peridynamic approaches to calculate the internal forces $\boldsymbol{b}^{\mathrm{int}}$, for example the [bond-based formulation](@ref expl_bb) or the [continuum-kinematics-inspired formulation](@ref expl_cki).

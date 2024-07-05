@@ -1,4 +1,4 @@
-# [Bond-based](@id bondbased)
+# [Bond-based peridynamics](@id expl_bb)
 
 The initial version of peridynamics is the bond-based (BB) formulation. [Silling2000](@cite)
 
