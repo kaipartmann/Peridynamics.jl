@@ -1,7 +1,8 @@
 """
     NOSBMaterial(; maxdmg, maxjacobi, corr)
 
-Construct the type `NOSBMaterial` used to specify the material of a [`Body`](@ref).
+A material type used to assign the material of a [`Body`](@ref) with the local continuum
+consistent (correspondence) formulation of non-ordinary state-based peridynamics.
 
 # Keywords
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is

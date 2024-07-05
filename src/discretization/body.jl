@@ -45,7 +45,7 @@ Body{Material,PointParameters}
 
 - `mat::Material`: The material formulation.
 - `n_points::Int`: The number of points that in the body.
-- `position::Matrix{Float64}`: A `3×n_points` matrix with the point position of the points.
+- `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
 - `volume::Vector{Float64}`: A vector with the volume of each point.
 - `fail_permit::Vector{Bool}`: A vector that describes if failure is allowed for each point.
 - `point_sets::Dict{Symbol,Vector{Int}}`: A dictionary containing point sets.
@@ -339,12 +339,50 @@ end
 @inline has_precracks(body::AbstractBody) = n_precracks(body) > 0 ? true : false
 
 """
-    n_points(spatial_setup)
+    n_points(body)
 
-Returns the number of points in a body or the total number of points in a multibody setup.
+Returns the total number of points in a body.
 
 # Arguments
-- `spatial_setup::AbstractSpatialSetup`: A body or a multibody setup.
+- `body::Body`: [`Body`](@ref).
+
+# Returns
+- `n_points::Int`: The number of points in the body.
+
+# Examples
+```julia-repl
+julia> body = Body(BBMaterial(), pos, vol)
+1000-point Body{BBMaterial{NoCorrection}}:
+  1 point set(s):
+    1000-point set `all_points`
+
+julia> n_points(body)
+1000
+```
+
+---
+
+    n_points(multibody_setup)
+
+Returns the total number of points in a multibody setup.
+
+# Arguments
+- `multibody_setup::MultibodySetup`: [`MultibodySetup`](@ref).
+
+# Returns
+- `n_points::Int`: The sum of all points from all bodies in the multibody setup.
+
+# Examples
+```julia-repl
+julia> ms = MultibodySetup(:a => body_a, :b => body_b)
+2000-point MultibodySetup:
+  1000-point Body{BBMaterial{NoCorrection}} with name `a`
+  1000-point Body{BBMaterial{NoCorrection}} with name `b`
+
+julia> n_points(ms)
+2000
+```
+
 """
 function n_points end
 

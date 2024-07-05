@@ -1,37 +1,34 @@
 """
-    uniform_box(lx, ly, lz, ΔX0; center_x=0, center_y=0, center_z=0)
+    uniform_box(lx, ly, lz, ΔX0; kwargs...)
 
-Creates a grid of points in a cuboid form with lengths `lx`, `ly` and `lz` and the distance
-`ΔX0` between the points.
+Creates a grid of uniformly distributed points in a cuboid with lengths `lx`, `ly` and `lz`
+and point spacing `ΔX0`.
 
 # Arguments
-
-- `lx::Real`: Length in x-dimension
-- `ly::Real`: Length in y-dimension
-- `lz::Real`: Length in z-dimension
-- `ΔX0::Real`: Distance between neighboring points
+- `lx::Real`: Length in x-dimension.
+- `ly::Real`: Length in y-dimension.
+- `lz::Real`: Length in z-dimension.
+- `ΔX0::Real`: The point spacing of the points.
 
 # Keywords
-
-- `center_x::Real=0`: Center of the cuboid in x-dimension
-- `center_y::Real=0`: Center of the cuboid in y-dimension
-- `center_z::Real=0`: Center of the cuboid in z-dimension
+- `center_x::Real`: Center of the cuboid in x-direction. (default: `0`)
+- `center_y::Real`: Center of the cuboid in y-direction. (default: `0`)
+- `center_z::Real`: Center of the cuboid in z-direction. (default: `0`)
 
 # Returns
+- `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
+- `volume::Vector{Float64}`: A vector with the volume of each point.
 
-- `position::Matrix`: 3×n matrix with position of each point
-- `volume::Vector`: Vector with volume of each point
-
-# Example
+# Examples
 
 ```julia-repl
 julia> position, volume = uniform_box(10, 10, 10, 2);
 
 julia> position
 3×125 Matrix{Float64}:
- -4.0  -2.0   0.0   2.0   4.0  -4.0  -2.0   0.0  …  0.0  2.0  4.0  -4.0  -2.0  0.0  2.0  4.0
- -4.0  -4.0  -4.0  -4.0  -4.0  -2.0  -2.0  -2.0     2.0  2.0  2.0   4.0   4.0  4.0  4.0  4.0
- -4.0  -4.0  -4.0  -4.0  -4.0  -4.0  -4.0  -4.0     4.0  4.0  4.0   4.0   4.0  4.0  4.0  4.0
+ -4.0  -2.0   0.0   2.0   4.0  -4.0  -2.0  …  0.0  2.0  4.0  -4.0  -2.0  0.0  2.0  4.0
+ -4.0  -4.0  -4.0  -4.0  -4.0  -2.0  -2.0     2.0  2.0  2.0   4.0   4.0  4.0  4.0  4.0
+ -4.0  -4.0  -4.0  -4.0  -4.0  -4.0  -4.0     4.0  4.0  4.0   4.0   4.0  4.0  4.0  4.0
 
 julia> volume
 125-element Vector{Int64}:
@@ -64,26 +61,49 @@ function uniform_box(lx::Real, ly::Real, lz::Real, ΔX0::Real;
 end
 
 """
-    uniform_sphere(diameter, ΔX0; center_x=0, center_y=0, center_z=0)
+    uniform_sphere(diameter, ΔX0; kwargs...)
 
-Creates a uniform grid of points in a sphere with a specific `diameter` and the
-point spacing `ΔX0`.
+Creates a grid of uniformly distributed points in a sphere with a specific `diameter` and
+the point spacing `ΔX0`.
 
 # Arguments
-
-- `diameter::Real`: Diameter of the sphere
-- `ΔX0::Real`: Distance between neighboring points
+- `diameter::Real`: Diameter of the sphere.
+- `ΔX0::Real`: The point spacing of the points.
 
 # Keywords
-
-- `center_x::Real=0`: Center of the sphere in x-dimension
-- `center_y::Real=0`: Center of the sphere in y-dimension
-- `center_z::Real=0`: Center of the sphere in z-dimension
+- `center_x::Real`: Center of the cuboid in x-direction. (default: `0`)
+- `center_y::Real`: Center of the cuboid in y-direction. (default: `0`)
+- `center_z::Real`: Center of the cuboid in z-direction. (default: `0`)
 
 # Returns
+- `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
+- `volume::Vector{Float64}`: A vector with the volume of each point.
 
-- `position::Matrix`: 3×n matrix with position of each point
-- `volume::Vector`: Vector with volume of each point
+# Examples
+
+```julia-repl
+julia> position, volume = uniform_sphere(10, 2);
+
+julia> position
+3×81 Matrix{Float64}:
+ -2.0   0.0   2.0  -2.0   0.0   2.0  -2.0  …   0.0   2.0  -2.0  0.0  2.0  -2.0  0.0  2.0
+ -2.0  -2.0  -2.0   0.0   0.0   0.0   2.0     -2.0  -2.0   0.0  0.0  0.0   2.0  2.0  2.0
+ -4.0  -4.0  -4.0  -4.0  -4.0  -4.0  -4.0      4.0   4.0   4.0  4.0  4.0   4.0  4.0  4.0
+
+julia> volume
+81-element Vector{Int64}:
+ 8
+ 8
+ 8
+ 8
+ 8
+ ⋮
+ 8
+ 8
+ 8
+ 8
+ 8
+```
 """
 function uniform_sphere(diameter::Real, ΔX0::Real; center_x::Real=0, center_y::Real=0,
                         center_z::Real=0)

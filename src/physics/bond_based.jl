@@ -3,7 +3,8 @@
     BBMaterial()
     BBMaterial{Correction}()
 
-Construct the type `BBMaterial` used to specify the material of a [`Body`](@ref).
+A material type used to assign the material of a [`Body`](@ref) with the standard bond-based
+formulation of peridynamics.
 
 Possible correction methods are:
 - [`NoCorrection`](@ref): No correction is applied. (default)
@@ -38,6 +39,11 @@ parameters are allowed:
 - `E::Float64`: Young's modulus
 - `Gc::Float64`: Critical energy release rate
 - `epsilon_c::Float64`: Critical strain
+
+!!! note "Poisson's ratio and bond-based peridynamics"
+    In bond-based peridynamics, the Poisson's ratio is limited to 1/4 for 3D simulations.
+    Therefore the specification of this keyword is not allowed when using `material!`, as it
+    is hardcoded to `nu = 1/4`.
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with

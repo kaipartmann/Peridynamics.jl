@@ -1,8 +1,8 @@
 """
     CKIMaterial()
 
-Construct the type `CKIMaterial` used to specify the material of a
-[`Body`](@ref).
+A material type used to assign the material of a [`Body`](@ref) with the
+continuum-kinematics-inspired peridynamics fomulation.
 
 # Examples
 

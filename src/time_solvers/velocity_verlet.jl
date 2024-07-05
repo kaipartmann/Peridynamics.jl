@@ -1,47 +1,48 @@
 """
-    VelocityVerlet(; time=-1, steps=-1, stepsize=-1, safety_factor=0.7)
+    VelocityVerlet(; kwargs...)
 
-Procedure for calculating discrete time steps
+Time integration solver for the Velocity Verlet algorithm. Specify either the number of
+steps or the time the simulation should cover.
 
 # Keywords
+- `time::Real`: The total time the simulation will cover. If this keyword is specified, the
+    keyword `steps` is no longer allowed. (optional)
+- `steps::Int`: Number of calculated time steps. If this keyword is specified, the keyword
+    `time` is no longer allowed. (optional)
+- `stepsize::Real`: Manually specify the size of the time step. (optional)
+- `safety_factor::Real`: Safety factor for step size to ensure stability. (default: `0.7`)
 
-- `time::Real=-1`: Time covered by the simulation
-- `steps::Int=-1`: Number of calculated time steps
-- `stepsize::Real=-1`: Size of discrete time steps
-- `safety_factor::Real=0.7`: Safety factor for step size to ensure stability
+!!! warning "Specification of the time step"
+    Keep in mind that manually specifying the critical time step is dangerous! If the
+    specified time step is too high and the CFL condition no longer holds, the simulation
+    will give wrong results and maybe crash!
 
 # Throws
-
-- Error if time and number of steps are specified
-- Error if no time or number of steps are specified
-- Error if safety factor is not between 0 and 1
+- Errors if both `time` and `steps` are specified as keywords.
+- Errors if neither `time` nor `steps` are specified as keywords.
+- Errors if `safety_factor < 0` or `safety_factor > 1`.
 
 # Example
 
 ```julia-repl
-julia> vv = VelocityVerlet(steps=2000)
+julia> VelocityVerlet(steps=2000)
+VelocityVerlet:
+  n_steps        2000
+  safety_factor  0.7
+
+julia> VelocityVerlet(time=0.001)
+VelocityVerlet:
+  end_time       0.001
+  safety_factor  0.7
+
+julia> VelocityVerlet(steps=2000, stepsize=0.0001)
+┌ Warning: stepsize specified! Please be sure that the CFD-condition holds!
+└ @ Peridynamics ~/Code/Peridynamics.jl/src/time_solvers/velocity_verlet.jl:66
+VelocityVerlet:
+  n_steps        2000
+  Δt             0.0001
+  safety_factor  0.7
 ```
-
----
-
-!!! warning "Internal use only"
-    Please note that the fields are intended for internal use only. They are *not* part of
-    the public API of Peridynamics.jl, and thus can be altered (or removed) at any time
-    without it being considered a breaking change.
-
-```julia
-VelocityVerlet <: AbstractTimeSolver
-```
-
-# Type Parameter
--`AbstractTimeSolver`: Type of the time solver
-
-# Fields
-
-- `end_time::Float64`: Time covered by the simulation
-- `n_steps::Int`: Number of calculated time steps
-- `Δt::Float64`: Size of discrete time steps
-- `safety_factor::Float64`: Safety factor for step size to ensure stability
 """
 mutable struct VelocityVerlet <: AbstractTimeSolver
     end_time::Float64

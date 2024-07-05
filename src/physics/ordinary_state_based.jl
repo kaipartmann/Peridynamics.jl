@@ -2,8 +2,8 @@
     OSBMaterial()
     OSBMaterial{Correction}()
 
-Construct the field-less type `OSBMaterial` used to specify the material of a
-[`Body`](@ref).
+A material type used to assign the material of a [`Body`](@ref) with the ordinary
+state-based formulation of peridynamics.
 
 Possible correction methods are:
 - [`NoCorrection`](@ref): No correction is applied (default)
