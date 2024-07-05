@@ -10,7 +10,7 @@ using Documenter
 using Literate
 using DocumenterCitations
 
-bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"), style=:alpha)
+bib = CitationBibliography(joinpath(@__DIR__, "src", "references.bib"), style=:alpha)
 
 LIT_MD_OUT = joinpath(@__DIR__, "src", "generated")
 # LIT_NB_OUT = joinpath(@__DIR__, "..", "notebooks") #TODO
@@ -57,12 +57,12 @@ makedocs(;
     pages = [
         "Home" => "index.md",
         "Explanations" => [
-            "general_pd.md",
-            "bondbased.md",
-            "osbased.md",
-            "nosbased.md",
-            "continuumbased.md",
-            "references.md",
+            "expl_general_pd.md",
+            "expl_bondbased.md",
+            "expl_osbased.md",
+            "expl_nosbased.md",
+            "expl_continuumbased.md",
+            "expl_references.md",
         ],
         "How-to guides" => [
             "howto_visualization.md",
