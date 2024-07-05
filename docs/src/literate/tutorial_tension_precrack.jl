@@ -46,8 +46,8 @@ fig #src
 # | Young's modulus $E$ | $ 210000 \, \mathrm{MPa}$ |
 # | Density $ρ$ | $ 8 \cdot 10^{-6}\,\mathrm{kg}\,\mathrm{mm}^{-3}$ |
 # | Griffith's parameter $G_c$ | $2.7 \, \mathrm{N} \, \mathrm{mm}^{-1}$ |
-
-material!(b; horizon=3.015Δx, E=2.1e5, rho=8e-6, Gc=2.7)
+δ = 3.015Δx
+material!(b; horizon=δ, E=2.1e5, rho=8e-6, Gc=2.7)
 
 # Two point sets are defined to insert a crack between them:
 point_set!(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, b, :set_a)
