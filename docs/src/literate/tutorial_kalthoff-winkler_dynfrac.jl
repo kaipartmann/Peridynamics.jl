@@ -31,7 +31,7 @@ a  = 50.0E-3   # Crack length (meters)
 
 # ## Create the Body
 #
-# Create a cuboid body with the specified dimensions using the bond-based material model with surface corrections:
+# Create a body with the specified dimensions using the bond-based material model with surface corrections:
 pos, vol = uniform_box(l, w, t, Δx)
 body = Body(BBMaterial{EnergySurfaceCorrection}(), pos, vol)
 
@@ -44,7 +44,7 @@ body = Body(BBMaterial{EnergySurfaceCorrection}(), pos, vol)
 # | Horizon $ δ $ | $4.015 \cdot Δx$ |
 # | Young's modulus $E$ | $ 191\cdot 10^{9} \, \mathrm{Pa}$ |
 # | Density $ρ$ | $ 8000 ,\mathrm{kg}\,\mathrm{m}^{-3}$ |
-# | Griffith's parameter $G_c$ | $22120.4 \, \mathrm{N} \, \mathrm{m}^{-1}$ |
+# | Griffith's parameter $G_c$ | $22,170 \, \mathrm{J} \, \mathrm{m}^{-2}$ |
 
 material!(body; horizon=4.015Δx, E=191.0e+9, rho=8000.0, Gc=22120.4)
 
@@ -78,6 +78,15 @@ ispath(path) && rm(path; recursive=true)  # Delete existing results if they exis
 # Create and submit the job:
 job = Job(body, vv; path=path, freq=100)
 @mpitime submit(job)
+
+# ## Visualization
+#
+# Plot the initial configuration and results (if any).
+# Example code to visualize the body and cracks (customize as needed):
+fig = Figure(resolution = (800, 600))
+ax = Axis3(fig[1, 1], aspect = :data)
+scatter!(ax, pos[:, 1], pos[:, 2], pos[:, 3], markersize = 3, color = :blue)
+fig
 
 # ## Conclusion
 #
