@@ -31,7 +31,7 @@ To install `Peridynamics.jl`, follow these steps:
 ```@raw html
 <div class="tutorial-element">
    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_static/">
-      <figcaption>Tensile test quasi-static</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/ac69d8aa-526d-436a-aa0c-820a1f42bcca" style="width: 80% !important;"/><br>
+      <figcaption>Tensile test quasi-static</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/ac69d8aa-526d-436a-aa0c-820a1f42bcca" style="width: 90% !important;"/><br>
    </a>
 </div>
 ```
@@ -39,7 +39,7 @@ To install `Peridynamics.jl`, follow these steps:
 ```@raw html
 <div class="tutorial-element">
    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/">
-      <figcaption>Tensile test dynamic</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/dda2b7b3-d44b-41a9-b133-6d1b548df1c1" style="width: 80% !important;"/><br>
+      <figcaption>Tensile test dynamic</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/dda2b7b3-d44b-41a9-b133-6d1b548df1c1" style="width: 90% !important;"/><br>
    </a>
 </div>
 ```
@@ -47,23 +47,17 @@ To install `Peridynamics.jl`, follow these steps:
 
 ```@raw html
 <div class="tutorial-element">
-```
-
-[Tension with predefined crack](@ref tutorial_tension_precrack)  
-[![](assets/tension_precrack_damage.gif)](@ref tutorial_tension_precrack)
-
-```@raw html
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_precrack/">
+      <figcaption>Tension with predefined crack</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/9f627d2d-44b5-43a3-94cd-9d34894fd142" style="width: 90% !important;"/><br>
+   </a>
 </div>
 ```
 
 ```@raw html
 <div class="tutorial-element">
-```
-
-[Peridynamics.jl logo](@ref tutorial_logo)  
-[![](assets/logo.gif)](@ref tutorial_logo)
-
-```@raw html
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_logo/">
+      <figcaption>Peridynamics.jl logo</figcaption><img src="assets/logo.png" style="width: 90% !important;"/><br>
+   </a>
 </div>
 ```
 
