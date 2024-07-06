@@ -1,6 +1,6 @@
 <img src="docs/src/assets/logo.png" width="450" />
+<img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/56648a2d-9d5a-4b99-94bf-10570affa113" width="450"/>
 
-# Peridynamics.jl
 A high-level Julia package for parallel peridynamics simulations
 
 **Documentation:**\
