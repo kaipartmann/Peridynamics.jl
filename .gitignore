@@ -27,3 +27,4 @@ Manifest.toml
 ._*
 .Spotlight-V100
 .Trashes
+.vscode/settings.json
