@@ -6,13 +6,12 @@
 
 # ## Introduction
 #
-# The Kalthoff-Winkler experiment, conducted by John Kalthoff and Benedikt Winkler, is widely used to study fracture 
-# mechanics under high strain rates.
-# This setup provides valuable insights into the behavior of materials under dynamic loading conditions, making it a 
-# crucial experiment in the field of fracture mechanics.
+# The Kalthoff-Winkler experiment is widely used to study fracture mechanics under high strain rates.
+# This setup provides valuable insights into the behavior of materials under dynamic loading conditions, making it an
+# interesting experiment in the field of fracture mechanics.
 #
-# In this tutorial, we will simulate the Kalthoff-Winkler experiment using peridynamics, which is particularly suited 
-# for modeling problems involving discontinuities such as cracks.
+# In this tutorial, we will simulate the Kalthoff-Winkler experiment using peridynamics without the impactor. To do so,
+# first we would import the packages.
 
 # ## Import Packages
 using Peridynamics
