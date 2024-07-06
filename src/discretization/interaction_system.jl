@@ -347,8 +347,7 @@ function calc_force_density!(chunk::AbstractBodyChunk{S,M}) where {S<:Interactio
     storage.b_int .= 0
     storage.n_active_one_nis .= 0
     for point_id in each_point_idx(chunk)
-        params = get_params(paramsetup, point_id)
-        force_density_point!(storage, system, mat, params, point_id)
+        force_density_point!(storage, system, mat, paramsetup, point_id)
     end
     return nothing
 end
@@ -360,6 +359,20 @@ end
         @inbounds damage[point_id] = 1 - n_active_one_nis[point_id] / n_one_nis[point_id]
     end
     return nothing
+end
+
+@inline function stretch_based_failure!(storage::AbstractStorage, ::InteractionSystem,
+                                        one_ni::Bond, params::AbstractPointParameters,
+                                        ε::Float64, i::Int, one_ni_id::Int)
+    if ε > params.εc && one_ni.fail_permit
+        storage.one_ni_active[one_ni_id] = false
+    end
+    storage.n_active_one_nis[i] += storage.one_ni_active[one_ni_id]
+    return nothing
+end
+
+@inline function one_ni_failure(storage::AbstractStorage, one_ni_id::Int)
+    return storage.one_ni_active[one_ni_id]
 end
 
 function log_msg_interaction_system(n_one_nis::Int, n_two_nis::Int, n_three_nis::Int)

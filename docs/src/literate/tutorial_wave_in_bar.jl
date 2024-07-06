@@ -1,4 +1,4 @@
-# # Pressure wave in bar
+# # Wave propagation in a thin bar
 
 # In this tutorial, a cuboid bar is created.
 # A velocity pulse in the form of one period of a sine wave is applied to create
@@ -48,14 +48,12 @@ point_set!(x -> x < -lx / 2 + 1.2Δx, body, :left)
 # length `T` and amplitude `vmax`.
 T, vmax = 1.0e-5, 2.0
 velocity_bc!(t -> t < T ? vmax * sin(2π / T * t) : 0.0, body, :left, :x)
-# ![](../assets/impact_velocity.png)
+
 # The Velocity Verlet algorithm is used as time integration method and 2000 time steps
 # are calculated:
 vv = VelocityVerlet(steps=2000)
-# Then the storage path is defined:
-path = joinpath(@__DIR__, "results", "xwave", "xwave_osb")
 # The job is now defined with the specified settings and parameters.
-job = Job(body, vv; path=path)
+job = Job(body, vv; path="results/xwave")
 
 # The last step is submitting the job to start the simulation.
 #md # ```julia

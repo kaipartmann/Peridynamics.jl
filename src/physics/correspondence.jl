@@ -1,11 +1,53 @@
-#TODO: remove @kwdef and do it manually with value warnings / errors.
 """
-    NOSBMaterial <: AbstractMaterial
+    NOSBMaterial(; maxdmg, maxjacobi, corr)
 
-Material type for non-ordinary state-based peridynamic simulations
+A material type used to assign the material of a [`Body`](@ref) with the local continuum
+consistent (correspondence) formulation of non-ordinary state-based peridynamics.
+
+# Keywords
+- `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
+    exceeded, all bonds of that point are broken because the deformation gradient would then
+    possibly contain `NaN` values.
+    (default: `0.95`)
+- `maxjacobi::Float64`: Maximum value of the Jacobi determinant. If this value is exceeded,
+    all bonds of that point are broken.
+    (default: `1.03`)
+- `corr::Float64`: Correction factor used for zero-energy mode stabilization. The
+    stabilization algorithm of Silling (2017) is used.
+    (default: `100.0`)
+
+!!! note "Stability of fracture simulations"
+    This formulation is known to be not suitable for fracture simultations without
+    stabilization of the zero-energy modes. Therefore be careful when doing fracture
+    simulations and try out different paremeters for `maxdmg`, `maxjacobi`, and `corr`.
+
+# Examples
+
+```julia-repl
+julia> mat = NOSBMaterial()
+NOSBMaterial(maxdmg=0.95, maxjacobi=1.03, corr=100.0)
+```
+
+---
+
+```julia
+NOSBMaterial
+```
+
+Material type for the local continuum consistent (correspondence) formulation of
+non-ordinary state-based peridynamics.
+
+# Fields
+- `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
+    constructor docs for more informations.
+- `maxjacobi::Float64`: Maximum value of the Jacobi determinant. See the constructor docs
+    for more informations.
+- `corr::Float64`: Correction factor used for zero-energy mode stabilization. See the
+    constructor docs for more informations.
 
 # Allowed material parameters
-
+When using [`material!`](@ref) on a [`Body`](@ref) with `NOSBMaterial`, then the following
+parameters are allowed:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
 - `E::Float64`: Young's modulus
@@ -14,7 +56,8 @@ Material type for non-ordinary state-based peridynamic simulations
 - `epsilon_c::Float64`: Critical strain
 
 # Allowed export fields
-
+When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
+`NOSBMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point
 - `displacement::Matrix{Float64}`: Displacement of each point
 - `velocity::Matrix{Float64}`: Velocity of each point
@@ -23,7 +66,7 @@ Material type for non-ordinary state-based peridynamic simulations
 - `b_int::Matrix{Float64}`: Internal force density of each point
 - `b_ext::Matrix{Float64}`: External force density of each point
 - `damage::Vector{Float64}`: Damage of each point
-- `n_active_bonds::Vector{Int}`: Number of intact bonds for each point
+- `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
 Base.@kwdef struct NOSBMaterial <: AbstractBondSystemMaterial{NoCorrection}
     maxdmg::Float64 = 0.95
@@ -139,9 +182,16 @@ end
 
 const NOSBStorage = Union{NOSBVerletStorage,NOSBRelaxationStorage}
 
-function force_density_point!(storage::NOSBStorage, system::BondSystem,
-                              mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
-    F, Kinv, ω0 = calc_deformation_gradient(storage, system, params, i)
+function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
+                              paramhandler::AbstractParameterHandler, i::Int)
+    params = get_params(paramhandler, i)
+    force_density_point!(storage, system, mat, params, i)
+    return nothing
+end
+
+function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
+                              params::NOSBPointParameters, i::Int)
+    F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         kill_point!(storage, system, i)
         return nothing
@@ -155,58 +205,43 @@ function force_density_point!(storage::NOSBStorage, system::BondSystem,
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-
-        ΔXij = SVector{3}(system.position[1, j] - system.position[1, i],
-                          system.position[2, j] - system.position[2, i],
-                          system.position[3, j] - system.position[3, i])
-        Δxij = SVector{3}(storage.position[1, j] - storage.position[1, i],
-                          storage.position[2, j] - storage.position[2, i],
-                          storage.position[3, j] - storage.position[3, i])
-        l = sqrt(Δxij.x * Δxij.x + Δxij.y * Δxij.y + Δxij.z * Δxij.z)
+        ΔXij = get_coordinates_diff(system, i, j)
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
         ε = (l - L) / L
-
-        # failure mechanism
-        if ε > params.εc && bond.fail_permit
-            storage.bond_active[bond_id] = false
-        end
+        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
+        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
         Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
 
         # update of force density
         tij = ωij * PKinv * ΔXij + Tij
         if containsnan(tij)
             tij = zero(SMatrix{3,3})
-            storage.bond_active[bond_id] = false
         end
-        storage.n_active_bonds[i] += storage.bond_active[bond_id]
-        storage.b_int[1, i] += tij.x * system.volume[j]
-        storage.b_int[2, i] += tij.y * system.volume[j]
-        storage.b_int[3, i] += tij.z * system.volume[j]
-        storage.b_int[1, j] -= tij.x * system.volume[i]
-        storage.b_int[2, j] -= tij.y * system.volume[i]
-        storage.b_int[3, j] -= tij.z * system.volume[i]
+        update_add_b_int!(storage, i, tij .* system.volume[j])
+        update_add_b_int!(storage, j, -tij .* system.volume[i])
     end
     return nothing
 end
 
+@inline function influence_function(::NOSBMaterial, params::NOSBPointParameters, L::Float64)
+    return params.δ / L
+end
+
 function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
-                                   params::NOSBPointParameters, i::Int)
+                                   mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
     ω0 = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        ΔXij = SVector{3}(system.position[1, j] - system.position[1, i],
-                          system.position[2, j] - system.position[2, i],
-                          system.position[3, j] - system.position[3, i])
-        Δxij = SVector{3}(storage.position[1, j] - storage.position[1, i],
-                          storage.position[2, j] - storage.position[2, i],
-                          storage.position[3, j] - storage.position[3, i])
+        ΔXij = get_coordinates_diff(system, i, j)
+        Δxij = get_coordinates_diff(storage, i, j)
         Vj = system.volume[j]
-        ωij = (1 + params.δ / L) * storage.bond_active[bond_id]
+        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
         ω0 += ωij
         temp = ωij * Vj
         K += temp * ΔXij * ΔXij'

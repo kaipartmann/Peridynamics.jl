@@ -9,11 +9,8 @@ struct ShortRangeForceContact{N}
 end
 
 function get_contact_params(p::Dict{Symbol,Any})
-    local radius::Float64
-    local sc::Float64
-
     if haskey(p, :radius)
-        radius = float(p[:radius])
+        radius::Float64 = float(p[:radius])
     else
         throw(UndefKeywordError(:radius))
     end
@@ -22,7 +19,7 @@ function get_contact_params(p::Dict{Symbol,Any})
     end
 
     if haskey(p, :penalty_factor)
-        penalty_factor = float(p[:penalty_factor])
+        penalty_factor::Float64 = float(p[:penalty_factor])
     else
         penalty_factor = 1e12
     end
@@ -34,47 +31,67 @@ function get_contact_params(p::Dict{Symbol,Any})
 end
 
 """
-    contact!(ms, body_a, body_b; kwargs...)
+    contact!(multibody_setup, name_body_a, name_body_b; kwargs...)
 
-Defines contact between multiple bodies
+Defines a short range force contact between body `name_body_a` and `name_body_b` in the
+[`MultibodySetup`](@ref) `multibody_setup`.
 
 # Arguments
 
-- `ms::AbstractMultibodySetup`: The multibody setup defined to simulate the contact
-- `body_a::Symbol`: First body in contact
-- `body_b::Symbol`: Second body in contact
+- `multibody_setup::MultibodySetup`: [`MultibodySetup`](@ref).
+- `name_body_a::Symbol`: The name of a body in this multibody setup.
+- `name_body_b::Symbol`: The name of a body in this multibody setup.
 
 # Keywords
 
-- `radius::Float64`:
-- `sc::Float64`:
+- `radius::Float64`: Contact search radius. If a the distance of a point in body
+    `name_body_a` and a point in body `name_body_b` is lower than this radius, a contact
+    force is calculated. This radius should be in the order of the point spacing of a
+    point cloud.
+- `penalty_factor::Float64`: Penalty factor for the short range force contact algorithm.
+    (default: `1e12`)
 
 # Throws
+- Errors if `multibody_setup` does not contain bodies with name `name_body_a` and
+    `name_body_b`.
+- Errors if the keyword `radius` is not specified or `radius ≤ 0`.
+- Errors if `penalty_factor ≤ 0`.
 
-- Error if a called body is not defined in the multibody setup
-- Error if keyword is not allowed
+# Examples
+```julia-repl
+julia> ms = MultibodySetup(:a => body_a, :b => body_b)
+2000-point MultibodySetup:
+  1000-point Body{BBMaterial{NoCorrection}} with name `b`
+  1000-point Body{BBMaterial{NoCorrection}} with name `b`
 
-TODO kwargs
+julia> contact!(ms, :a, :b; radius=0.001)
+
+julia> ms
+2000-point MultibodySetup:
+  1000-point Body{BBMaterial{NoCorrection}} with name `b`
+  1000-point Body{BBMaterial{NoCorrection}} with name `b`
+  2 short range force contact(s)
+```
 """
-function contact!(ms::AbstractMultibodySetup, name_body_a::Symbol, name_body_b::Symbol;
-                  kwargs...)
-    check_if_bodyname_is_defined(ms, name_body_a)
-    check_if_bodyname_is_defined(ms, name_body_b)
+function contact!(multibody_setup::AbstractMultibodySetup, name_body_a::Symbol,
+                  name_body_b::Symbol; kwargs...)
+    check_if_bodyname_is_defined(multibody_setup, name_body_a)
+    check_if_bodyname_is_defined(multibody_setup, name_body_b)
 
     p = Dict{Symbol,Any}(kwargs)
     check_kwargs(p, CONTACT_KWARGS)
     radius, penalty_factor = get_contact_params(p)
 
-    body_a = get_body(ms, name_body_a)
-    body_b = get_body(ms, name_body_b)
+    body_a = get_body(multibody_setup, name_body_a)
+    body_b = get_body(multibody_setup, name_body_b)
     nhs_a = GridNeighborhoodSearch{3}(search_radius=radius, n_points=body_a.n_points,
-                                      threaded_update=true)
+                                      update_strategy=SemiParallelUpdate())
     nhs_b = GridNeighborhoodSearch{3}(search_radius=radius, n_points=body_b.n_points,
-                                      threaded_update=true)
+                                      update_strategy=SemiParallelUpdate())
 
     srfc_a = ShortRangeForceContact(name_body_a, name_body_b, radius, penalty_factor, nhs_b)
     srfc_b = ShortRangeForceContact(name_body_b, name_body_a, radius, penalty_factor, nhs_a)
-    push!(ms.srf_contacts, srfc_a, srfc_b)
+    push!(multibody_setup.srf_contacts, srfc_a, srfc_b)
 
     return nothing
 end
