@@ -65,6 +65,7 @@ makedocs(;
             "expl_references.md",
         ],
         "How-to guides" => [
+            "howto_mpi.md",
             "howto_visualization.md",
         ],
         "Tutorials" => [

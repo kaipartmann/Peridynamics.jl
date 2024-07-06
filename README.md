@@ -23,7 +23,7 @@ A high-level Julia package for parallel peridynamics simulations
 - 🪨 Multiple peridynamics formulations and material models
 - 🎳 Multibody contact simulations
 - 🤓 User friendly API that captures many errors before submitting simulations
-- 🚀 Enhanced HPC capabilities with MPI and multiple threads
+- 🚀 Enhanced HPC capabilities with MPI or multithreading
 
 ## Installation
 
