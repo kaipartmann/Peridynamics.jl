@@ -3,70 +3,43 @@ const JOB_KWARGS = (:path, :freq, :fields)
 """
     Job(spatial_setup, time_solver; kwargs...)
 
-Job that contains all the information required for a peridynamic simulation
+Job that contains all the information necessary for a peridynamic simulation.
 
 # Arguments
-
-- `spatial_setup::AbstractSpatialSetup`: Body or Multibody setup for the simulation
-- `time_solver::AbstractTimeSolver`: Method for calculating discrete time steps
+- `spatial_setup`: A [`Body`](@ref) or [`MultibodySetup`](@ref).
+- `time_solver`: [`VelocityVerlet`](@ref) or [`DynamicRelaxation`](@ref).
 
 # Keywords
+- `path::String`: Path to store results. If it does not exist yet it will be created during
+    the simulation. (optional)
+- `freq::Int`: Output frequency of result files. A output file will be written every
+    `freq`-th time step. (optional)
+- `fields`: Fields that should be exported to output files. Allowed keywords depend on the
+    selected material model. Please look at the documentation of the material you specified
+    when creating the body. (optional)
 
-- `path::String`: Storage path for results
-- `freq::Int`: Frequency of time steps that are exported
-- `fields::NTuple{N,Symbol}`: Exported fields
-             Possible export fields depend on the selected material model.
-             See material type documentation.
-             Default export fields: `(:displacement, :damage)`
+    If `spatial_setup` is a **`Body`**, the `fields` keyword can be of the form:
+    - `fields::Symbol`: A symbol specifying a single output field.
+    - `fields::NTuple{N,Symbol} where N`: A Tuple specifying multiple output fields.
+    - `fields::Vector{Symbol}`: A Vector specifying multiple output fields.
 
-# Throws
+    If `spatial_setup` is a **`MultibodySetup`**, the `fields` keyword can also be specified
+    for every body separately:
+    - `fields::Dict{Symbol,T}`: A Dictionary containing the fields separately for every
+        body. `T` is here every possible type of the `fields` keyword that can be used for a
+        single body.
 
-- Error if keyword is not allowed
+!!! note "No file export"
+    If no keyword is specified when creating a `Job`, then no files will be exported.
 
 # Example
-
 ```julia-repl
-julia> b = Body(BBMaterial(), pos, vol)
-
-julia> vv = VelocityVerlet(steps=2000)
-
-julia> job = Job(b, vv;
-           path=joinpath(@__DIR__, "results", "mode_I"),
-           fields=(:displacement, :velocity, :acceleration, :damage))
-Job{Body{BBMaterial, Peridynamics.BBPointParameters}, VelocityVerlet}(Body{BBMaterial,
-Peridynamics.BBPointParameters}(BBMaterial(), 12500, [-0.49 -0.47 …
+julia> job = Job(multibody_setup, verlet_solver; path="my_results/sim1")
+Job:
+  spatial_setup  25880-point MultibodySetup
+  time_solver    VelocityVerlet(n_steps=2000, safety_factor=0.7)
+  options        export_allowed=true, freq=10
 ```
-
-Note that for the keyword `fields` a NTuple is expected! If you want to export only one
-field, insert `,` after the field:
-```julia-repl
-julia> job = Job(b, vv;
-           path=joinpath(@__DIR__, "results", "mode_I"),
-           fields=(:displacement,))
-```
-
----
-
-!!! warning "Internal use only"
-    Please note that the fields are intended for internal use only. They are *not* part of
-    the public API of Peridynamics.jl, and thus can be altered (or removed) at any time
-    without it being considered a breaking change.
-
-```julia
-Job{SpatialSetup,TimeSolver,Options}
-```
-
-# Type Parameters
-
-- `SpatialSetup <: AbstractSpatialSetup`: Type of the spatial setup
-- `TimeSolver <: AbstractTimeSolver`: Type of the time solver
-- `Options <: AbstractJobOptions`: Type of the export options
-
-# Fields
-
-- `spatial_setup::AbstractSpatialSetup`: Body or Multibody setup for the simulation
-- `time_solver::AbstractTimeSolver`: Method for calculating discrete time steps
-- `options::AbstractJobOptions`: Options for simulation data export
 """
 struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractJobOptions}
     spatial_setup::S
@@ -108,18 +81,18 @@ function Base.show(io::IO, ::MIME"text/plain", job::Job)
     return nothing
 end
 
-struct JobOptions{F} <: AbstractJobOptions
+struct JobOptions{F,V} <: AbstractJobOptions
     export_allowed::Bool
     root::String
     vtk::String
     logfile::String
     freq::Int
     fields::F
+    vtk_filebase::V
 end
 
 function Base.show(io::IO, options::JobOptions)
-    print(io, "JobOptions")
-    print(io, msg_fields_in_brackets(options, (:freq,)))
+    print(io, msg_fields_inline(options, (:export_allowed, :freq,)))
     return nothing
 end
 
@@ -127,35 +100,37 @@ function Base.show(io::IO, ::MIME"text/plain", options::JobOptions)
     if get(io, :compact, false)
         show(io, options)
     else
-        println(io, "JobOptions:")
+        println(io, "Job options:")
         print(io, msg_fields(options, (:export_allowed, :root, :freq, :fields)))
     end
     return nothing
 end
 
-function JobOptions(root::String, freq::Int, fields)
+function JobOptions(root::String, freq::Int, fields, vtk_filebase)
     vtk = joinpath(root, "vtk")
     logfile = joinpath(root, "logfile.log")
-    return JobOptions(true, root, vtk, logfile, freq, fields)
+    return JobOptions(true, root, vtk, logfile, freq, fields, vtk_filebase)
 end
 
 function JobOptions(::AbstractBody)
-    return JobOptions(false, "", "", "", 0, Vector{Symbol}())
+    return JobOptions(false, "", "", "", 0, Vector{Symbol}(), "")
 end
 
 function JobOptions(::AbstractMultibodySetup)
-    return JobOptions(false, "", "", "", 0, Dict{Symbol,Vector{Symbol}}())
+    return JobOptions(false, "", "", "", 0, Dict{Symbol,Vector{Symbol}}(),
+                      Dict{Symbol,String}())
 end
 
 function get_job_options(spatial_setup, solver, o)
     root, freq = get_root_and_freq(o)
 
     fields = get_export_fields(spatial_setup, solver, o)
+    vtk_filebase = get_vtk_filebase(spatial_setup, root)
 
     if isempty(root)
         options = JobOptions(spatial_setup)
     else
-        options = JobOptions(root, freq, fields)
+        options = JobOptions(root, freq, fields, vtk_filebase)
     end
 
     return options

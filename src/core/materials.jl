@@ -2,6 +2,10 @@ function point_param_type(mat::AbstractMaterial)
     throw(MethodError(point_param_type, mat))
 end
 
+function material_type(params::AbstractPointParameters)
+    throw(MethodError(material_type, params))
+end
+
 function get_point_params(mat::AbstractMaterial, ::Dict{Symbol,Any})
     throw(MethodError(get_point_params, mat))
 end
@@ -17,12 +21,15 @@ macro params(material, params)
     local _pointparam_type = quote
         Peridynamics.point_param_type(::$(esc(material))) = $(esc(params))
     end
+    local _material_type = quote
+        Peridynamics.material_type(::$(esc(params))) = $(esc(material))
+    end
     local _get_pointparams = quote
         function Peridynamics.get_point_params(m::$(esc(material)), p::Dict{Symbol,Any})
             return $(esc(params))(m, p)
         end
     end
-    return Expr(:block, _checks, _pointparam_type, _get_pointparams)
+    return Expr(:block, _checks, _pointparam_type, _material_type, _get_pointparams)
 end
 
 function macrocheck_input_material(material)

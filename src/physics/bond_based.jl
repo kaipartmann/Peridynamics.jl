@@ -1,19 +1,53 @@
 
 """
-    BBMaterial <: AbstractMaterial
+    BBMaterial()
+    BBMaterial{Correction}()
 
-Material type for bond-based peridynamic simulations
+A material type used to assign the material of a [`Body`](@ref) with the standard bond-based
+formulation of peridynamics.
+
+Possible correction methods are:
+- [`NoCorrection`](@ref): No correction is applied. (default)
+- [`EnergySurfaceCorrection`](@ref): The energy based surface correction method of
+    Le and Bobaru (2018) is applied.
+
+# Examples
+
+```julia-repl
+julia> mat = BBMaterial()
+BBMaterial{NoCorrection}()
+
+julia> mat = BBMaterial{EnergySurfaceCorrection}()
+BBMaterial{EnergySurfaceCorrection}()
+```
+---
+
+```julia
+BBMaterial{Correction}
+```
+
+Material type for the bond-based peridynamics formulation.
+
+# Type Parameters
+- `Correction`: A correction algorithm type. See the constructor docs for more informations.
 
 # Allowed material parameters
-
+When using [`material!`](@ref) on a [`Body`](@ref) with `BBMaterial`, then the following
+parameters are allowed:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
 - `E::Float64`: Young's modulus
 - `Gc::Float64`: Critical energy release rate
 - `epsilon_c::Float64`: Critical strain
 
-# Allowed export fields
+!!! note "Poisson's ratio and bond-based peridynamics"
+    In bond-based peridynamics, the Poisson's ratio is limited to 1/4 for 3D simulations.
+    Therefore the specification of this keyword is not allowed when using `material!`, as it
+    is hardcoded to `nu = 1/4`.
 
+# Allowed export fields
+When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
+`BBMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point
 - `displacement::Matrix{Float64}`: Displacement of each point
 - `velocity::Matrix{Float64}`: Velocity of each point
@@ -22,7 +56,7 @@ Material type for bond-based peridynamic simulations
 - `b_int::Matrix{Float64}`: Internal force density of each point
 - `b_ext::Matrix{Float64}`: External force density of each point
 - `damage::Vector{Float64}`: Damage of each point
-- `n_active_bonds::Vector{Int}`: Number of intact bonds for each point
+- `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
 struct BBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
 
@@ -141,29 +175,33 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-
-        # current bond length
-        Δxijx = storage.position[1, j] - storage.position[1, i]
-        Δxijy = storage.position[2, j] - storage.position[2, i]
-        Δxijz = storage.position[3, j] - storage.position[3, i]
-        l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
-
-        # bond strain
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
         ε = (l - L) / L
+        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+        b_int = bond_failure(storage, bond_id) *
+                surface_correction_factor(system.correction, bond_id) *
+                params.bc * ε / l * system.volume[j] .* Δxij
+        update_add_b_int!(storage, i, b_int)
+    end
+    return nothing
+end
 
-        # failure mechanism
-        if ε > params.εc && bond.fail_permit
-            storage.bond_active[bond_id] = false
-        end
-        storage.n_active_bonds[i] += storage.bond_active[bond_id]
-
-        # update of force density
-        scfactor = surface_correction_factor(system.correction, bond_id)
-        bond_fail = storage.bond_active[bond_id]
-        temp = bond_fail * scfactor * params.bc * ε / l * system.volume[j]
-        storage.b_int[1, i] += temp * Δxijx
-        storage.b_int[2, i] += temp * Δxijy
-        storage.b_int[3, i] += temp * Δxijz
+function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
+                              paramhandler::ParameterHandler, i::Int)
+    params_i = get_params(paramhandler, i)
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
+        ε = (l - L) / L
+        stretch_based_failure!(storage, system, bond, params_i, ε, i, bond_id)
+        params_j = get_params(paramhandler, j)
+        b_int = bond_failure(storage, bond_id) *
+                surface_correction_factor(system.correction, bond_id) *
+                (params_i.bc + params_j.bc) / 2 * ε / l * system.volume[j] .* Δxij
+        update_add_b_int!(storage, i, b_int)
     end
     return nothing
 end

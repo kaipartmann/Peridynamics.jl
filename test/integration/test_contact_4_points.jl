@@ -17,6 +17,7 @@
     vol = fill(point_spacing^3, n_points)
     body1 = Body(BBMaterial(), pos1, vol)
     material!(body1, horizon=δ, rho=rho, E=E, Gc=1.0)
+    velocity_ic!(body1, :all_points, 1, 0.0)
     body2 = Body(BBMaterial(), pos2, vol)
     material!(body2, horizon=δ, rho=rho, E=E, Gc=1.0)
     ms = MultibodySetup(:body1 => body1, :body2 => body2)

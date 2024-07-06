@@ -32,35 +32,43 @@ end
     precrack!(body, set_a, set_b; update_dmg=true)
 
 Creates a crack between two point sets by prohibiting interaction between points of
-different point sets.
+different point sets. The points in `set_a` are not allowed to interact with points in
+`set_b`.
 
 # Arguments
 
-- `body::AbstractBody`: Peridynamic body
-- `set_a::Symbol`: First point set on `body`
-- `set_b::Symbol`: Second point set on `body`
+- `body::AbstractBody`: [`Body`](@ref).
+- `set_a::Symbol`: The name of a point set of this body.
+- `set_b::Symbol`: The name of a point set of this body.
 
 # Keywords
 
-- `update_dmg::Bool`: If `update_dmg=true`, the material points involved in the predefined
-                      are initially damaged. If `update_dmg=false`, the bonds involved are
-                      deleted and the material points involved with the predefined crack
-                      are not damaged.
-                      (default=`true`)
+- `update_dmg::Bool`: If `true`, the material points involved in the predefined crack are
+    initially damaged. If `false`, the bonds involved are deleted and the material points
+    involved with the predefined crack are not damaged in the reference results.
+    (default: `true`)
 
 # Throws
 
-- Error if point set `set_a` or `set_b` does not exist
-- Error if point sets contain common points
+- Errors if the body does not contain sets with name `set_a` and `set_b`.
+- Errors if the point sets intersect and a point is included in both sets.
 
 # Example
 
 ```julia-repl
-julia> precrack!(b, :set_a, :set_b)
+julia> point_set!(body, :a, 1:2)
 
-julia> b.point_sets_precracks
-1-element Vector{Peridynamics.PointSetsPreCrack}:
- Peridynamics.PointSetsPreCrack(:set_a, :set_b)
+julia> point_set!(body, :b, 3:4)
+
+julia> precrack!(body, :a, :b)
+
+julia> body
+1000-point Body{BBMaterial{NoCorrection}}:
+  3 point set(s):
+    1000-point set `all_points`
+    2-point set `a`
+    2-point set `b`
+  1 predefined crack(s)
 ```
 """
 function precrack!(b::AbstractBody, set_a::Symbol, set_b::Symbol; update_dmg::Bool=true)
@@ -73,9 +81,8 @@ end
 
 function check_if_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Symbol,
                                  key_b::Symbol)
-    set_a, set_b = point_sets[key_a], point_sets[key_b]
-    if !isempty(set_a ∩ set_b)
-        msg = "set :$key_a and :$key_b intersect!\n"
+    if point_sets_intersect(point_sets, key_a, key_b)
+        msg = "point set `:$key_a` and `:$key_b` intersect!\n"
         msg *= "No point of the first set is allowed in the second!\n"
         throw(ArgumentError(msg))
     end

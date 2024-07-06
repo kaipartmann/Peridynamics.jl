@@ -1,3 +1,37 @@
+"""
+    DynamicRelaxation(; kwargs...)
+
+Time integration solver for the adaptive dynamic relaxation algorithm used for quasi-static
+simulations.
+
+# Keywords
+- `steps::Int`: Number of calculated time steps. If this keyword is specified, the keyword
+    `time` is no longer allowed.
+- `stepsize::Real`: Manually specify the size of the time step. (default: `1.0`)
+- `damping_factor::Real`: Damping factor to increase the value in the mass matrix.
+    (default: `1.0`)
+
+# Throws
+- Errors if `steps < 0`.
+- Errors if `stepsize < 0`.
+- Errors if `damping_factor < 0`.
+
+# Example
+
+```julia-repl
+julia> DynamicRelaxation(steps=1000)
+DynamicRelaxation:
+  n_steps  1000
+  Δt       1
+  Λ        1
+
+julia> DynamicRelaxation(steps=1000, damping_factor=2)
+DynamicRelaxation:
+  n_steps  1000
+  Δt       1
+  Λ        2
+```
+"""
 mutable struct DynamicRelaxation <: AbstractTimeSolver
     n_steps::Int
     Δt::Float64
@@ -136,7 +170,7 @@ function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
     t = n * Δt
     @batch for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
-        apply_bcs!(chunk, t)
+        apply_boundary_conditions!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
     @batch for chunk_id in eachindex(dh.chunks)

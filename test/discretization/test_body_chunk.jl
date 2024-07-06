@@ -269,8 +269,33 @@ end
     @test pp2.εc ≈ 0.6454972243679028
     @test pp2.bc ≈ 0.238732414637843
 
-    @test_throws BoundsError Peridynamics.get_params(b1, 3)
-    @test_throws BoundsError Peridynamics.get_params(b1, 4)
+    pp3 = Peridynamics.get_params(b1, 3)
+    @test pp3 isa Peridynamics.BBPointParameters
+    @test pp3.δ ≈ 3.0
+    @test pp3.rho ≈ 2.0
+    @test pp3.E ≈ 2.0
+    @test pp3.nu ≈ 0.25
+    @test pp3.G ≈ 0.8
+    @test pp3.K ≈ 4/3
+    @test pp3.λ ≈ 0.8
+    @test pp3.μ ≈ 0.8
+    @test pp3.Gc ≈ 2.0
+    @test pp3.εc ≈ 0.5270462766947299
+    @test pp3.bc ≈ 0.0943140403507528
+
+    pp4= Peridynamics.get_params(b1, 4)
+    @test pp4 isa Peridynamics.BBPointParameters
+    @test pp4.δ ≈ 3.0
+    @test pp4.rho ≈ 2.0
+    @test pp4.E ≈ 2.0
+    @test pp4.nu ≈ 0.25
+    @test pp4.G ≈ 0.8
+    @test pp4.K ≈ 4/3
+    @test pp4.λ ≈ 0.8
+    @test pp4.μ ≈ 0.8
+    @test pp4.Gc ≈ 2.0
+    @test pp4.εc ≈ 0.5270462766947299
+    @test pp4.bc ≈ 0.0943140403507528
 
     @test b1.psets[:a] == [1, 2]
     @test b1.psets[:b] == []
@@ -334,7 +359,7 @@ end
     @test pp3.εc ≈ 0.5270462766947299
     @test pp3.bc ≈ 0.0943140403507528
 
-    pp4= Peridynamics.get_params(b2, 2)
+    pp4 = Peridynamics.get_params(b2, 2)
     @test pp4 isa Peridynamics.BBPointParameters
     @test pp4.δ ≈ 3.0
     @test pp4.rho ≈ 2.0
@@ -348,8 +373,33 @@ end
     @test pp4.εc ≈ 0.5270462766947299
     @test pp4.bc ≈ 0.0943140403507528
 
-    @test_throws BoundsError Peridynamics.get_params(b1, 3)
-    @test_throws BoundsError Peridynamics.get_params(b1, 4)
+    pp1 = Peridynamics.get_params(b2, 3)
+    @test pp1 isa Peridynamics.BBPointParameters
+    @test pp1.δ ≈ 2.0
+    @test pp1.rho ≈ 1.0
+    @test pp1.E ≈ 1.0
+    @test pp1.nu ≈ 0.25
+    @test pp1.G ≈ 0.4
+    @test pp1.K ≈ 2/3
+    @test pp1.λ ≈ 0.4
+    @test pp1.μ ≈ 0.4
+    @test pp1.Gc ≈ 1.0
+    @test pp1.εc ≈ 0.6454972243679028
+    @test pp1.bc ≈ 0.238732414637843
+
+    pp2 = Peridynamics.get_params(b2, 4)
+    @test pp2 isa Peridynamics.BBPointParameters
+    @test pp2.δ ≈ 2.0
+    @test pp2.rho ≈ 1.0
+    @test pp2.E ≈ 1.0
+    @test pp2.nu ≈ 0.25
+    @test pp2.G ≈ 0.4
+    @test pp2.K ≈ 2/3
+    @test pp2.λ ≈ 0.4
+    @test pp2.μ ≈ 0.4
+    @test pp2.Gc ≈ 1.0
+    @test pp2.εc ≈ 0.6454972243679028
+    @test pp2.bc ≈ 0.238732414637843
 
     @test b2.psets[:a] == []
     @test b2.psets[:b] == [1, 2]

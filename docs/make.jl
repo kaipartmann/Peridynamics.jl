@@ -10,7 +10,7 @@ using Documenter
 using Literate
 using DocumenterCitations
 
-bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
+bib = CitationBibliography(joinpath(@__DIR__, "src", "references.bib"), style=:alpha)
 
 LIT_MD_OUT = joinpath(@__DIR__, "src", "generated")
 # LIT_NB_OUT = joinpath(@__DIR__, "..", "notebooks") #TODO
@@ -32,6 +32,7 @@ LIT_TUTORIALS_IN = [
     "tutorial_tension_dynfrac.jl",
     "tutorial_tension_precrack.jl",
     "tutorial_wave_in_bar.jl",
+    "tutorial_logo.jl",
 ]
 LIT_TUTORIALS_IN .= joinpath.(@__DIR__, "src", "literate", LIT_TUTORIALS_IN)
 Literate.markdown.(LIT_TUTORIALS_IN, LIT_MD_OUT; credit=false)
@@ -55,20 +56,16 @@ makedocs(;
     draft = LIVE_MODE,
     pages = [
         "Home" => "index.md",
-        "Theory" => [
-            "general_pd.md",
-            "bondbased.md",
-            "osbased.md",
-            "nosbased.md",
-            "continuumbased.md",
-            "references.md"
+        "Explanations" => [
+            "expl_general_pd.md",
+            "expl_bondbased.md",
+            "expl_osbased.md",
+            "expl_nosbased.md",
+            "expl_continuumbased.md",
+            "expl_references.md",
         ],
         "How-to guides" => [
-            # joinpath("generated", "howto_single_body_analysis.md"),
-            # joinpath("generated", "howto_contact_analysis.md"),
-            # joinpath("generated", "howto_pointclouds.md"),
-            # joinpath("generated", "howto_precracks.md"),
-            # joinpath("generated", "howto_matformulations.md"),
+            "howto_mpi.md",
             "howto_visualization.md",
         ],
         "Tutorials" => [
@@ -76,18 +73,15 @@ makedocs(;
             joinpath("generated", "tutorial_tension_dynfrac.md"),
             joinpath("generated", "tutorial_tension_precrack.md"),
             joinpath("generated", "tutorial_wave_in_bar.md"),
-            # "tutorial_logo.md",
+            joinpath("generated", "tutorial_logo.md"),
         ],
-        "API" => [
-            "api_public.md",
-            # "api_private.md", #TODO
-        ]
+        "API Reference" => "api_reference.md",
     ],
 
     # ONLY DURING EARLY DEVELOPMENT:
     # MISSING DOCSTRINGS DUE TO API CHANGES DO NOT RESULT IN ERRORS
     # THAT STOP THE DOCUMENTATION BUILD PROCESS!
-    warnonly = true,
+    # warnonly = true,
 )
 
 if !LIVE_MODE

@@ -47,8 +47,7 @@ end
 
 function find_bonds(body::AbstractBody, loc_points::UnitRange{Int})
     δmax = maximum_horizon(body)
-    nhs = GridNeighborhoodSearch{3}(search_radius=δmax, n_points=body.n_points,
-                                    threaded_update=false)
+    nhs = GridNeighborhoodSearch{3}(search_radius=δmax, n_points=body.n_points)
     initialize_grid!(nhs, body.position)
     bonds = Vector{Bond}()
     sizehint!(bonds, body.n_points * 300)
@@ -67,11 +66,21 @@ function find_bonds!(bonds::Vector{Bond}, nhs::PointNeighbors.GridNeighborhoodSe
     n_bonds_pre = length(bonds)
     foreach_neighbor(position, position, nhs, point_id; search_radius=δ) do i, j, _, L
         if i != j
+            check_point_duplicates(L, i, j)
             push!(bonds, Bond(j, L, fail_permit[i] & fail_permit[j]))
         end
     end
     n_neighbors = length(bonds) - n_bonds_pre
     return n_neighbors
+end
+
+@inline function check_point_duplicates(L::Float64, i::Int, j::Int)
+    if L == 0
+        msg = "point duplicate found!\n"
+        msg *= "Point #$(i) has a duplicate #$(j) which will lead to `NaN`s!\n"
+        error(msg)
+    end
+    return nothing
 end
 
 function filter_bonds!(bonds::Vector{Bond}, n_neighbors::Vector{Int},
@@ -190,8 +199,7 @@ function calc_force_density!(chunk::AbstractBodyChunk{S,M}) where {S<:BondSystem
     storage.b_int .= 0
     storage.n_active_bonds .= 0
     for point_id in each_point_idx(chunk)
-        params = get_params(paramsetup, point_id)
-        force_density_point!(storage, system, mat, params, point_id)
+        force_density_point!(storage, system, mat, paramsetup, point_id)
     end
     return nothing
 end
@@ -203,6 +211,20 @@ end
         @inbounds damage[point_id] = 1 - n_active_bonds[point_id] / n_neighbors[point_id]
     end
     return nothing
+end
+
+@inline function stretch_based_failure!(storage::AbstractStorage, ::BondSystem,
+                                        bond::Bond, params::AbstractPointParameters,
+                                        ε::Float64, i::Int, bond_id::Int)
+    if ε > params.εc && bond.fail_permit
+        storage.bond_active[bond_id] = false
+    end
+    storage.n_active_bonds[i] += storage.bond_active[bond_id]
+    return nothing
+end
+
+@inline function bond_failure(storage::AbstractStorage, bond_id::Int)
+    return storage.bond_active[bond_id]
 end
 
 function log_system(::Type{B}, options::AbstractJobOptions,

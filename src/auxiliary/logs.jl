@@ -54,9 +54,17 @@ function get_logfile_head()
     msg = "LOGFILE CREATED ON "
     msg *= Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
     msg *= "\n"
+    msg *= get_version_info()
     msg *= get_git_info()
     msg *= "\n"
     return msg
+end
+
+function get_version_info()
+    version_info = "VERSION: "
+    version_info *= string(pkgversion(@__MODULE__))
+    version_info *= "\n"
+    return version_info
 end
 
 function get_git_info()
@@ -204,6 +212,31 @@ function msg_qty(descr::Any, qty::Any; kwargs...)
     return msg_qty(string(descr), string(qty); kwargs...)
 end
 
+function msg_fields_inline(obj::T) where {T}
+    fields = fieldnames(T)
+    values = Tuple(getfield(obj, field) for field in fields)
+    return _msg_fields_inline(fields, values)
+end
+
+function msg_fields_inline(obj, fields)
+    values = Tuple(getfield(obj, field) for field in fields)
+    return _msg_fields_inline(fields, values)
+end
+
+function _msg_fields_inline(fields, values)
+    n_fields = length(fields)
+    msg = ""
+    for i in eachindex(fields, values)
+        field, value = fields[i], values[i]
+        msg *= msg_qty(field, value; linewidth=0, indentation=0, separator="=",
+                       delimiter="", newline=false)
+        if i != n_fields
+            msg *= ", "
+        end
+    end
+    return msg
+end
+
 function msg_fields_in_brackets(obj::T) where {T}
     fields = fieldnames(T)
     values = Tuple(getfield(obj, field) for field in fields)
@@ -272,6 +305,12 @@ function log_create_data_handler_end(io::IO=stdout)
     mpi_isroot() || return nothing
     quiet() && return nothing
     progress_bars() || return nothing
-    println(io, "\rDATA HANDLER CREATION COMPLETED ✓")
+    println(io, "\rDATA HANDLER CREATION COMPLETED ✔")
+    return nothing
+end
+
+function log_simulation_duration(options::AbstractJobOptions, duration::Float64)
+    msg = @sprintf("SIMULATION COMPLETED AFTER %g SECONDS ✔\n", duration)
+    log_it(options, msg)
     return nothing
 end
