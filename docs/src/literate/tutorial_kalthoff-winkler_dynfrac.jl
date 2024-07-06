@@ -83,10 +83,6 @@ job = Job(body, vv; path=path, freq=100)
 #
 # Plot the initial configuration and results (if any).
 # Example code to visualize the body and cracks (customize as needed):
-fig = Figure(resolution = (800, 600))
-ax = Axis3(fig[1, 1], aspect = :data)
-scatter!(ax, pos[:, 1], pos[:, 2], pos[:, 3], markersize = 3, color = :blue)
-fig
 
 # ## Conclusion
 #
