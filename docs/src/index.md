@@ -30,25 +30,20 @@ To install `Peridynamics.jl`, follow these steps:
 
 ```@raw html
 <div class="tutorial-element">
-```
-
-[Tensile test quasi-static](@ref tutorial_tension_static)  
-[![](assets/tension_static.gif)](@ref tutorial_tension_static)
-
-```@raw html
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_static/">
+      <figcaption>Tensile test quasi-static</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/ac69d8aa-526d-436a-aa0c-820a1f42bcca" style="width: 80% !important;"/><br>
+   </a>
 </div>
 ```
 
 ```@raw html
 <div class="tutorial-element">
-```
-
-[Tensile test dynamic](@ref tutorial_tension_dynfrac)  
-[![](assets/tension_dynfrac.gif)](@ref tutorial_tension_dynfrac)
-
-```@raw html
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/">
+      <figcaption>Tensile test dynamic</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/dda2b7b3-d44b-41a9-b133-6d1b548df1c1" style="width: 80% !important;"/><br>
+   </a>
 </div>
 ```
+
 
 ```@raw html
 <div class="tutorial-element">
