@@ -1,6 +1,6 @@
-# Non-Ordinary State-based
+# [Non-ordinary state-based peridynamics](@id expl_nosb)
 
-Non-ordinary state based-formulations have been developed to extend [state-based peridynamics](@ref statebased).
+Non-ordinary state based-formulations have been developed to extend [state-based peridynamics](@ref expl_osb).
 Hereafter, the correspondence formulation of non-ordinary state based peridynamics is considered, which uses an elastic model from the classical theory. [Silling2007](@cite)
 
 First, the symmetric shape tensor is calculated:
@@ -22,4 +22,3 @@ Using the calculated variables, the force vector state can now be determined by 
 ```math
 \boldsymbol{t}^i = \omega \boldsymbol{P}^i  \left(\boldsymbol{K}^i\right)^{-1} \boldsymbol{\Delta X}^{ij} \; .
 ```
-

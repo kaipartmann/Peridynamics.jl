@@ -12,7 +12,11 @@ const TO = TimerOutput()
 @inline mpi_chunk_id() = mpi_rank() + 1
 
 """
-TODO
+    mpi_isroot()
+
+Helper function that returns a bool indicating if a process is the MPI root process.
+It can be safely used even for multithreading simulations, as it is always `true` if the
+package is started in a normal Julia environment which is not started by MPI.
 """
 @inline mpi_isroot() = MPI_ISROOT[]
 @inline mpi_progress_bars() = MPI_PROGRESS_BARS[]
@@ -21,6 +25,7 @@ TODO
 """
     force_mpi_run!()
 
+Helper function to force the usage of the MPI backend.
 After this function is called, all following simulations will use MPI.
 """
 @inline function force_mpi_run!()
@@ -32,6 +37,7 @@ end
 """
     force_threads_run!()
 
+Helper function to force the usage of the multithreading backend.
 After this function is called, all following simulations will use multithreading.
 """
 @inline function force_threads_run!()
@@ -84,7 +90,12 @@ function log_mpi_timers(options::AbstractJobOptions)
 end
 
 """
-TODO
+    enable_mpi_timers!()
+
+Helper function to enable timers defined with the `TimerOutputs` for simulations with the
+MPI backend. The results of the timers then will be exported into the specified path of a
+[`Job`](@ref). By default, not timers will be used with MPI simulations. It can be safely
+used with multithreading.
 """
 function enable_mpi_timers!()
     Core.eval(Peridynamics, :(TimerOutputs.enable_debug_timings(Peridynamics)))
@@ -92,7 +103,11 @@ function enable_mpi_timers!()
 end
 
 """
-TODO
+    disable_mpi_timers!()
+
+Helper function to disable timers defined with the `TimerOutputs` for simulations with the
+MPI backend. It is mainly used to reset the behaviour after a call of
+[`enable_mpi_timers!`](@ref). It can be safely used with multithreading.
 """
 function disable_mpi_timers!()
     Core.eval(Peridynamics, :(TimerOutputs.disable_debug_timings(Peridynamics)))
@@ -102,7 +117,16 @@ end
 """
     enable_mpi_progress_bars!()
 
-After this function is called, progress bars are enabled on MPI simulations.
+Helper function to enable progress bars with MPI simulations on a personal computer.
+After this function is called, progress bars are beeing shown with MPI simulations like with
+multithreading simulations. This behavior can be reset to default with
+[`reset_mpi_progress_bars!`](@ref).
+
+!!! warning "Progress bars and output files"
+    Progress bars are by default disabled with MPI simulations, because they can really mess
+    up with the output files produced by a HPC system.
+    Therefore, a warning is shown as a reminder to reset this behaviour before
+    submitting a job to a cluster!
 """
 function enable_mpi_progress_bars!()
     mpi_run() || return nothing
@@ -114,7 +138,8 @@ end
     reset_mpi_progress_bars!()
 
 After this function is called, progress bars are again disabled on MPI simulations
-(standard setting).
+(standard setting). This will reset the behavior after a call of
+[`enable_mpi_progress_bars!`](@ref).
 """
 function reset_mpi_progress_bars!()
     mpi_run() || return nothing
@@ -126,7 +151,6 @@ end
     @mpitime expression
 
 Time the `expression` if the mpi rank is zero. Lowers to:
-
 ```julia
 if mpi_isroot()
     @time expression
@@ -134,6 +158,8 @@ else
     expression
 end
 ```
+
+See also: [`mpi_isroot`](@ref)
 """
 macro mpitime(expr)
     return quote
@@ -149,7 +175,6 @@ end
     @mpiroot [option] expression
 
 Run the code if the mpi rank is zero. Lowers to something similar as:
-
 ```julia
 if mpi_isroot()
     expression
@@ -157,7 +182,9 @@ end
 ```
 
 # Options
-- **`:wait`**: All MPI ranks will wait until the root rank finishes evaluating `expression`
+- `:wait`: All MPI ranks will wait until the root rank finishes evaluating `expression`
+
+See also: [`mpi_isroot`](@ref)
 """
 macro mpiroot end
 

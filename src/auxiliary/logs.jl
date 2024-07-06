@@ -212,6 +212,31 @@ function msg_qty(descr::Any, qty::Any; kwargs...)
     return msg_qty(string(descr), string(qty); kwargs...)
 end
 
+function msg_fields_inline(obj::T) where {T}
+    fields = fieldnames(T)
+    values = Tuple(getfield(obj, field) for field in fields)
+    return _msg_fields_inline(fields, values)
+end
+
+function msg_fields_inline(obj, fields)
+    values = Tuple(getfield(obj, field) for field in fields)
+    return _msg_fields_inline(fields, values)
+end
+
+function _msg_fields_inline(fields, values)
+    n_fields = length(fields)
+    msg = ""
+    for i in eachindex(fields, values)
+        field, value = fields[i], values[i]
+        msg *= msg_qty(field, value; linewidth=0, indentation=0, separator="=",
+                       delimiter="", newline=false)
+        if i != n_fields
+            msg *= ", "
+        end
+    end
+    return msg
+end
+
 function msg_fields_in_brackets(obj::T) where {T}
     fields = fieldnames(T)
     values = Tuple(getfield(obj, field) for field in fields)

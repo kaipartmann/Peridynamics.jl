@@ -5,13 +5,31 @@ Setup for a peridynamic simulation with multiple bodies.
 
 # Arguments
 
-- `body_pairs::Vararg{Pair{Symbol,<:AbstractBody},N}) where {N}`:
+- `body_pairs::Pair{Symbol,<:AbstractBody}`: Pairs of `:body_name => body_object`.
+    The name of the body has to be specified as a Symbol.
 
 # Throws
 
-- Error if less than 2 bodies are defined
+- Errors if less than 2 bodies are defined
 
-# Example
+# Examples
+
+```julia-repl
+julia> sphere = Body(BBMaterial(), pos_sphere, vol_sphere)
+280-point Body{BBMaterial{NoCorrection}}:
+  1 point set(s):
+    280-point set `all_points`
+
+julia> plate = Body(BBMaterial(), pos_plate, vol_plate)
+25600-point Body{BBMaterial{NoCorrection}}:
+  1 point set(s):
+    25600-point set `all_points`
+
+julia> ms = MultibodySetup(:sphere => sphere, :plate => plate)
+25880-point MultibodySetup:
+  280-point Body{BBMaterial{NoCorrection}} with name `sphere`
+  25600-point Body{BBMaterial{NoCorrection}} with name `plate`
+```
 
 ---
 
@@ -26,16 +44,14 @@ MultibodySetup{Bodies}
 
 # Type Parameters
 
-- `Bodies <: Tuple`: Tuple containing all the types of the bodies
+- `Bodies <: Tuple`: All types of the different bodies in the multibody setup.
 
 # Fields
 
-- `bodies::Bodies`:
-- `body_names::Vector{Symbol}`:
-- `body_idxs::Dict{Symbol,Int}`:
-- `srf_contacts::Vector{ShortRangeForceContact}`:
-
-TODO
+- `bodies::Bodies`: A Tuple containing all the bodies.
+- `body_names::Vector{Symbol}`: All body names.
+- `body_idxs::Dict{Symbol,Int}`: A Dict to get the body index with the body name.
+- `srf_contacts::Vector{ShortRangeForceContact}`: All short range force contacts.
 """
 struct MultibodySetup{B} <: AbstractMultibodySetup
     bodies::B

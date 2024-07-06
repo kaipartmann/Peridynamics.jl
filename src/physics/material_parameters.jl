@@ -7,20 +7,22 @@ function allowed_material_kwargs(::AbstractMaterial)
 end
 
 """
-    material!(body, set; kwargs...)
+    material!(body, set_name; kwargs...)
     material!(body; kwargs...)
 
-Specifies material parameters used for `body` or point set `set`
+Assign material point parameters to points of `body`. If no `set_name` is specified, then
+the parameters will be set for all points of the body.
 
 # Arguments
 
-- `body::AbstractBody`: Peridynamic body
-- `set::Symbol`: Point set on `body`
+- `body::AbstractBody`: [`Body`](@ref)
+- `set_name::Symbol`: The name of a point set of this body.
 
 # Keywords
 
-Allowed keywords depend on the selected material model. See material type documentation.
-Default material parameter keywords:
+Allowed keywords depend on the selected material model. Please look at the documentation
+of the material you specified when creating the body.
+The default material keywords are:
 
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
@@ -31,17 +33,19 @@ Default material parameter keywords:
 
 # Throws
 
-- Error if parameter is not eligible for specification in selected material model
+- Errors if a kwarg is not eligible for specification with the body material.
 
 # Example
 
 ```julia-repl
-julia> material!(b; horizon=δ, E=2.1e5, rho=8e-6, Gc=2.7)
+julia> material!(body; horizon=3.0, E=2.1e5, rho=8e-6, Gc=2.7)
 
-julia> b.point_params
-1-element Vector{Peridynamics.BBPointParameters}:
- Peridynamics.BBPointParameters(0.0603, 8.0e-6, 210000.0, 0.25, 84000.0, 140000.0, 84000.0,
-84000.0, 2.7, 0.013329779199368195, 6.0671037207022026e10)
+julia> body
+1000-point Body{BBMaterial{NoCorrection}}:
+  1 point set(s):
+    1000-point set `all_points`
+  1 point parameter(s):
+    Parameters BBMaterial: δ=3.0, E=210000.0, nu=0.25, rho=8.0e-6, Gc=2.7
 ```
 """
 function material! end
@@ -138,8 +142,8 @@ function log_material_parameters(param::AbstractPointParameters; indentation::In
 end
 
 function Base.show(io::IO, params::AbstractPointParameters)
-    print(io, typeof(params))
-    print(io, msg_fields_in_brackets(params, (:δ, :E, :nu, :rho, :Gc)))
+    print(io, "Parameters ", material_type(params), ": ")
+    print(io, msg_fields_inline(params, (:δ, :E, :nu, :rho, :Gc)))
     return nothing
 end
 

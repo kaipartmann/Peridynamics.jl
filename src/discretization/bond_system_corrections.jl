@@ -1,9 +1,12 @@
 
 """
-    NoCorrection <: AbstractCorrection
+    NoCorrection
 
-A correction handler for `AbstractBondSystemMaterial`s that does nothing. No correction
-methods will apply and if someone tries to calculate a correction factor, they will be 1.
+A correction handler for materials that use the bond system. If `NoCorrection` is used,
+then no correction will be applied.
+
+See also [`BBMaterial`](@ref), [`OSBMaterial`](@ref) for further information on how to use
+the correction type.
 """
 struct NoCorrection <: AbstractCorrection end
 
@@ -24,10 +27,13 @@ end
 ===========================================================================================#
 
 """
-    EnergySurfaceCorrection <: AbstractCorrection
+    EnergySurfaceCorrection
 
-A correction handler for `AbstractBondSystemMaterial`s that uses the strain energy density
-to calculate surface correction factors.
+A correction handler for materials that use the bond system. If `EnergySurfaceCorrection`
+is used, then the energy based surface correction method of Le and Bobaru (2018) is used.
+
+See also [`BBMaterial`](@ref), [`OSBMaterial`](@ref) for further information on how to use
+the correction type.
 """
 struct EnergySurfaceCorrection <: AbstractCorrection
     mfactor::Matrix{Float64} # multiplication factor mfactor[ndims, npoints]

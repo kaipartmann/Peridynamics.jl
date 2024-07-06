@@ -6,8 +6,8 @@ struct SingleDimIC <: AbstractCondition
 end
 
 function Base.show(io::IO, ic::SingleDimIC)
-    print(io, "SingleDimIC")
-    print(io, msg_fields_in_brackets(ic, (:value, :field, :point_set, :dim)))
+    print(io, "IC on ", field_to_name(ic.field), ": ")
+    print(io, msg_fields_inline(ic, (:point_set, :dim)))
     return nothing
 end
 
@@ -26,8 +26,8 @@ struct PosDepSingleDimIC{F<:Function} <: AbstractCondition
 end
 
 function Base.show(io::IO, ic::PosDepSingleDimIC)
-    print(io, "PosDepSingleDimIC")
-    print(io, msg_fields_in_brackets(ic, (:field, :point_set, :dim)))
+    print(io, "Pos.-dep. IC on ", field_to_name(ic.field), ": ")
+    print(io, msg_fields_inline(ic, (:point_set, :dim)))
     return nothing
 end
 
@@ -96,32 +96,48 @@ function has_initial_condition_conflict(body::AbstractBody, condition::BC) where
 end
 
 """
-    velocity_ic!(body, set, dim, value)
-    velocity_ic!(fun, body, set, dim)
+    velocity_ic!(body, set_name, dim, value)
+    velocity_ic!(fun, body, set_name, dim)
 
-Specifies initital conditions for the velocity of points in point set `set` on `body`
+Specifies velocity initial conditions for points of the set `set_name` in `body`.
+The `value` of the initial condition is specified before time integration.
+If a function `fun` is specified, then the value is with that function.
 
 # Arguments
 
-- `body::AbstractBody`: Peridynamic body
-- `set::Symbol`: Point set on `body`
-- `dim::Union{Integer,Symbol}`: Direction of velocity
-- `value::Real`: Initial velocity value
-- `fun::Function`: Velocity condition function #TODO
+- `body::AbstractBody`: [`Body`](@ref) the condition is specified on.
+- `set_name::Symbol`: The name of a point set of this body.
+- `dim::Union{Integer,Symbol}`: Direction of the condition, either specified as Symbol or
+    integer.
+    -  x-direction: `:x` or `1`
+    -  y-direction: `:y` or `2`
+    -  z-direction: `:z` or `3`
+- `value::Real`: Value that is specified before time integration.
+- `fun::Function`: Condition function for the calculation of a value, should return a
+    `Float64`. If the condition function returns a `NaN`, then this value is ignored, which
+    can be used to turn off the condition for a specified position. This function
+    accepts one ore two positional arguments and is aware of the argument names.
+    Possible arguments and names:
+    - `fun(p)`: The function will receive the reference position `p` of a point as
+        `SVector{3}`.
 
 # Throws
 
-- Error if no point set called `set` exists
-- Error if dimension is not correctly specified
+- Errors if the body does not contain a set with `set_name`.
+- Errors if the direction is not correctly specified.
+- Errors if function is not suitable as condition function and has the wrong arguments.
 
 # Example
 
 ```julia-repl
-julia> velocity_ic!(b, :set_b, :y, 20)
+julia> velocity_ic!(body, :all_points, :x, -100.0)
 
-julia> b.single_dim_ics
-1-element Vector{Peridynamics.SingleDimIC}:
- Peridynamics.SingleDimIC(20.0, :velocity, :set_b, 0x02)
+julia> body
+1000-point Body{BBMaterial{NoCorrection}}:
+  1 point set(s):
+    1000-point set `all_points`
+  1 initial condition(s):
+    IC on velocity: point_set=all_points, dim=1
 ```
 """
 function velocity_ic! end

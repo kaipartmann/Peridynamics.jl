@@ -2,38 +2,27 @@
     Body(material, position, volume)
     Body(material, inp_file)
 
-Creates a body for use in peridynamic calculation
+Constructs a `Body` for a peridynamics simulation.
 
 # Arguments
-
-- `material::AbstractMaterial`: Specifies which material model is used
-- `position::AbstractMatrix`: 3×n matrix with position of each point
-- `volume::AbstractVector`: Vector with volume of each point
-- `inp_file::AbstractString`: A Abaqus input file containing meshes, imported with
-    [`read_inp`](@ref)
+- `material::AbstractMaterial`: The material which is defined for the whole body.
+- `position::AbstractMatrix`: A `3×n` matrix with the point position of the `n` points.
+- `volume::AbstractVector`: A vector with the volume of each point.
+- `inp_file::AbstractString`: An Abaqus input file containing meshes, imported with
+    [`read_inp`](@ref).
 
 # Throws
-
-- Error if n_points = 0
-- `DimensionMismatch`: Error if dimension of position != 3
+- Errors if the number of points is not larger than zero
+- Errors if `position` is not a `3×n` matrix and has the same length as `volume`
+- Errors if `position` or `volume` contain `NaN` values
 
 # Example
 
 ```julia-repl
-julia> l, Δx, = 1.0, 1/50;
-
-julia> pos, vol = uniform_box(l, l, 0.1l, Δx);
-
-julia> b = Body(BBMaterial(), pos, vol);
-
-julia> b
-Body{BBMaterial, Peridynamics.BBPointParameters}(BBMaterial(), 12500,
-[-0.49 -0.47 … 0.47 0.49; -0.49 -0.49 … 0.49 0.49; -0.04 -0.04 … 0.04 0.04],
-[8.000000000000001e-6, 8.000000000000001e-6,  …  8.000000000000001e-6],
-Bool[1, 1, 1, 1, 1, 1, 1, 1, 1, 1  …  1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-Dict{Symbol, Vector{Int64}}(), Peridynamics.BBPointParameters[],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0  …  0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-Peridynamics.SingleDimBC[], Peridynamics.SingleDimIC[], Peridynamics.PointSetsPreCrack[])
+julia> Body(BBMaterial(), rand(3, 10), rand(10))
+10-point Body{BBMaterial{NoCorrection}}:
+  1 point set(s):
+    10-point set `all_points`
 ```
 
 ---
@@ -54,17 +43,24 @@ Body{Material,PointParameters}
 
 # Fields
 
-- `mat::Material`: Specified material model
-- `n_points::Int`: Number of material points that represent the body
-- `position::Matrix{Float64}`: 3×n_points matrix with position for each point
-- `volume::Vector{Float64}`: Vector with volume for each point
-- `fail_permit::Vector{Bool}`: Vector that describes if failure is allowed for each point
-- `point_sets::Dict{Symbol,Vector{Int}}`: Dictionary containing the defined point sets
-- `point_params::Vector{PointParameters}`: Vector with material parameter sets
-- `params_map::Vector{Int}`: Vector that assigns a material parameter set to each point
-- `single_dim_bcs::Vector{SingleDimBC}`: Vector with defined boundary conditions
-- `single_dim_ics::Vector{SingleDimIC}`: Vector with defined initial conditions
-- `point_sets_precracks::Vector{PointSetsPreCrack}`: Vector with defined cracks
+- `mat::Material`: The material formulation.
+- `n_points::Int`: The number of points that in the body.
+- `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
+- `volume::Vector{Float64}`: A vector with the volume of each point.
+- `fail_permit::Vector{Bool}`: A vector that describes if failure is allowed for each point.
+- `point_sets::Dict{Symbol,Vector{Int}}`: A dictionary containing point sets.
+- `point_params::Vector{PointParameters}`: A vector containing all point parameters.
+- `params_map::Vector{Int}`: A vector that maps parameters in `point_params` to each point.
+- `single_dim_bcs::Vector{SingleDimBC}`: A vector with boundary conditions on a single
+    dimension.
+- `posdep_single_dim_bcs::Vector{PosDepSingleDimBC}`: A vector with position dependent
+    boundary conditions on a single dimension.
+- `single_dim_ics::Vector{SingleDimIC}`: A vector with initial conditions on a single
+    dimension.
+- `posdep_single_dim_ics::Vector{PosDepSingleDimIC}`: A vector with position dependent
+    initial conditions on a single dimension.
+- `point_sets_precracks::Vector{PointSetsPreCrack}`: A vector with predefined point set
+    cracks.
 """
 struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     name::Ref{Symbol}
@@ -258,24 +254,24 @@ function log_msg_body(body::AbstractBody)
     end
     has_ics(body) && (msg *= "  INITIAL CONDITIONS\n")
     for ic in body.single_dim_ics
-        descr = @sprintf("field `%s`", ic.field)
-        settings = @sprintf("`%s`, dimension %d", ic.point_set, ic.dim)
+        descr = @sprintf("%s condition", field_to_name(ic.field))
+        settings = @sprintf("set `%s`, dimension %d", ic.point_set, ic.dim)
         msg *= msg_qty(descr, settings; indentation=4)
     end
     for ic in body.posdep_single_dim_ics
-        descr = @sprintf("field `%s`", ic.field)
-        settings = @sprintf("`%s`, dimension %d", ic.point_set, ic.dim)
+        descr = @sprintf("%s condition", field_to_name(ic.field))
+        settings = @sprintf("set `%s`, dimension %d", ic.point_set, ic.dim)
         msg *= msg_qty(descr, settings; indentation=4)
     end
     has_bcs(body) && (msg *= "  BOUNDARY CONDITIONS\n")
     for bc in body.single_dim_bcs
-        descr = @sprintf("field `%s`", bc.field)
-        settings = @sprintf("`%s`, dimension %d", bc.point_set, bc.dim)
+        descr = @sprintf("%s condition", field_to_name(bc.field))
+        settings = @sprintf("set `%s`, dimension %d", bc.point_set, bc.dim)
         msg *= msg_qty(descr, settings; indentation=4)
     end
     for bc in body.posdep_single_dim_bcs
-        descr = @sprintf("field `%s`", bc.field)
-        settings = @sprintf("`%s`, dimension %d", bc.point_set, bc.dim)
+        descr = @sprintf("%s condition", field_to_name(bc.field))
+        settings = @sprintf("set `%s`, dimension %d", bc.point_set, bc.dim)
         msg *= msg_qty(descr, settings; indentation=4)
     end
     msg *= "  MATERIAL\n"
@@ -344,11 +340,49 @@ end
 
 """
     n_points(body)
+
+Returns the total number of points in a body.
+
+# Arguments
+- `body::Body`: [`Body`](@ref).
+
+# Returns
+- `n_points::Int`: The number of points in the body.
+
+# Examples
+```julia-repl
+julia> body = Body(BBMaterial(), pos, vol)
+1000-point Body{BBMaterial{NoCorrection}}:
+  1 point set(s):
+    1000-point set `all_points`
+
+julia> n_points(body)
+1000
+```
+
+---
+
     n_points(multibody_setup)
 
-Returns the number of points in a body or the total number of points in a multibody setup.
+Returns the total number of points in a multibody setup.
 
-TODO
+# Arguments
+- `multibody_setup::MultibodySetup`: [`MultibodySetup`](@ref).
+
+# Returns
+- `n_points::Int`: The sum of all points from all bodies in the multibody setup.
+
+# Examples
+```julia-repl
+julia> ms = MultibodySetup(:a => body_a, :b => body_b)
+2000-point MultibodySetup:
+  1000-point Body{BBMaterial{NoCorrection}} with name `a`
+  1000-point Body{BBMaterial{NoCorrection}} with name `b`
+
+julia> n_points(ms)
+2000
+```
+
 """
 function n_points end
 

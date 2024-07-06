@@ -1,47 +1,44 @@
-
-
 """
     failure_permit!(body, fail_permit)
-    failure_permit!(body, set, fail_permit)
+    failure_permit!(body, set_name, fail_permit)
 
-Determines whether failure is permitted `fail_permit = true` or prohibited
-`fail_permit = false` in the `body` or the point set `set` of the `body`.
+Set the failure permission for points of a `body`. By default, failure is allowed for
+all points. If no `set_name` is specified, then the permission `fail_permit` is set for all
+points of the body.
 
 # Arguments
 
-- `body::AbstractBody`: Peridynamic body
-- `set::Symbol`: Point set on `body`
-- `fail_permit::Bool`: Decides if failure is allowed on considered body or point set.
+- `body::AbstractBody`: [`Body`](@ref) where the failure permission will be set.
+- `set_name::Symbol`: The name of a point set of this body.
+- `fail_permit::Bool`: If `true`, failure is allowed, and if `false` then no bonds of this
+    point are allowed to break during the simulation.
 
 # Throws
 
-- Error if no point set called `set` exists
+- Errors if the body does not contain a set with `set_name`.
 
-# Example
+# Examples
 
 ```julia-repl
-julia> failure_permit!(b, :set_bottom, false)
+julia> failure_permit!(body, false)
 
-julia> b.fail_permit
-12500-element Vector{Bool}:
- 0
- 0
- 0
- ⋮
- 1
- 1
+julia> body
+1000-point Body{BBMaterial{NoCorrection}}:
+  1 point set(s):
+    1000-point set `all_points`
+  1000 points with no failure permission
 ```
 """
 function failure_permit! end
 
-function failure_permit!(b::AbstractBody, fail_permit::Bool)
-    b.fail_permit .= fail_permit
+function failure_permit!(body::AbstractBody, fail_permit::Bool)
+    body.fail_permit .= fail_permit
     return nothing
 end
 
-function failure_permit!(b::AbstractBody, name::Symbol, fail_permit::Bool)
-    check_if_set_is_defined(b.point_sets, name)
-    b.fail_permit[b.point_sets[name]] .= fail_permit
+function failure_permit!(body::AbstractBody, set_name::Symbol, fail_permit::Bool)
+    check_if_set_is_defined(body.point_sets, set_name)
+    body.fail_permit[body.point_sets[set_name]] .= fail_permit
     return nothing
 end
 

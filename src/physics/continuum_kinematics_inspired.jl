@@ -1,39 +1,58 @@
 """
-    CKIMaterial{Correction} <: AbstractMaterial
+    CKIMaterial()
 
-Material type for continuum-kinematics-inspired peridynamic simulations
+A material type used to assign the material of a [`Body`](@ref) with the
+continuum-kinematics-inspired peridynamics fomulation.
 
-# Type Parameters
+# Examples
 
-- `Correction`: Applied surface correction method
-    Available methods: - `NoCorrection`: No surface corrections are applied (default)
-                       - `EnergySurfaceCorrection`: Surface correction factors are applied
-                           based on the strain energy density
+```julia-repl
+julia> mat = CKIMaterial()
+CKIMaterial()
+```
+
+---
+
+```julia
+CKIMaterial
+```
+
+Material type for the continuum-kinematics-inspired peridynamics framework.
 
 # Allowed material parameters
-
+When using [`material!`](@ref) on a [`Body`](@ref) with `CKIMaterial`, then the following
+parameters are allowed:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
 - `E::Float64`: Young's modulus
 - `nu::Float64`: Poisson's ratio
 - `Gc::Float64`: Critical energy release rate
 - `epsilon_c::Float64`: Critical strain
+- `C1::Float64`: One-neighbor interaction parameter (default: `0.0`)
+- `C2::Float64`: Two-neighbor interaction parameter (default: `0.0`)
+- `C3::Float64`: Two-neighbor interaction parameter (default: `0.0`)
+
+!!! warning "Specification of interaction parameters"
+    If any of the interaction parameters is used with [`material!`](@ref), the the Young's
+    modulus and Poisson's ratio are ignored and only the specified interaction parameters
+    will influence the force density calculated from that interaction.
+
+    If no interaction parameter is specified, then the Young's modulus and Poisson's ratio
+    are used to calculate these parameters accordingly to Ekiz, Steinmann, and Javili
+    (2022).
 
 # Allowed export fields
-
-
-
-# Examples
-
-```julia-repl
-julia> mat = CKIMaterial()
-CKIMaterial{NoCorrection}()
-
-julia> mat = CKIMaterial{EnergySurfaceCorrection}()
-CKIMaterial{EnergySurfaceCorrection}()
-```
-
-TODO struct
+When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
+`CKIMaterial`, the following fields are allowed:
+- `position::Matrix{Float64}`: Position of each point
+- `displacement::Matrix{Float64}`: Displacement of each point
+- `velocity::Matrix{Float64}`: Velocity of each point
+- `velocity_half::Matrix{Float64}`: Velocity parameter for Verlet time solver
+- `acceleration::Matrix{Float64}`: Acceleration of each point
+- `b_int::Matrix{Float64}`: Internal force density of each point
+- `b_ext::Matrix{Float64}`: External force density of each point
+- `damage::Vector{Float64}`: Damage of each point
+- `n_active_one_nis::Vector{Int}`: Number of intact one-neighbor interactions of each point
 """
 struct CKIMaterial <: AbstractInteractionSystemMaterial end
 

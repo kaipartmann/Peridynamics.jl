@@ -425,7 +425,7 @@ end
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
     @test contains(msg, "1 point parameter(s):")
-    @test contains(msg, "BBPointParameters(δ=1.0, E=1.0, nu=0.25, rho=1.0, Gc=1.0)")
+    @test contains(msg, "δ=1.0, E=1.0, nu=0.25, rho=1.0, Gc=1.0")
 
     material!(body, :a, horizon=2, rho=2, E=2, Gc=2)
 
@@ -437,8 +437,8 @@ end
     msg = String(take!(io))
     @test !contains(msg, "1 point parameter(s):")
     @test contains(msg, "2 point parameter(s):")
-    @test contains(msg, "BBPointParameters(δ=1.0, E=1.0, nu=0.25, rho=1.0, Gc=1.0)")
-    @test contains(msg, "BBPointParameters(δ=2.0, E=2.0, nu=0.25, rho=2.0, Gc=2.0)")
+    @test contains(msg, "δ=1.0, E=1.0, nu=0.25, rho=1.0, Gc=1.0")
+    @test contains(msg, "δ=2.0, E=2.0, nu=0.25, rho=2.0, Gc=2.0")
 
     velocity_ic!(body, :a, :z, 1.0)
     velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
@@ -455,11 +455,11 @@ end
     @test contains(msg, "2-point set `a`")
     @test contains(msg, "10-point set `all_points`")
     @test contains(msg, "2 boundary condition(s):")
-    @test contains(msg, "PosDepSingleDimBC(field=b_ext, point_set=a, dim=2)")
-    @test contains(msg, "SingleDimBC(field=velocity_half, point_set=a, dim=1)")
+    @test contains(msg, "BC on velocity: point_set=a, dim=1")
+    @test contains(msg, "Pos.-dep. BC on force density: point_set=a, dim=2")
     @test contains(msg, "2 initial condition(s):")
-    @test contains(msg, "SingleDimIC(value=1.0, field=velocity, point_set=a, dim=3)")
-    @test contains(msg, "PosDepSingleDimIC(field=velocity, point_set=a, dim=2)")
+    @test contains(msg, "IC on velocity: point_set=a, dim=3")
+    @test contains(msg, "Pos.-dep. IC on velocity: point_set=a, dim=2")
 
     point_set!(body, :b, 3:4)
 
@@ -525,11 +525,11 @@ end
             number of points in set `all_points` ....................................... 8
             number of points in set `b` ................................................ 2
           INITIAL CONDITIONS
-            field `velocity` ............................................ `a`, dimension 3
-            field `velocity` ............................................ `a`, dimension 2
+            velocity condition ...................................... set `a`, dimension 3
+            velocity condition ...................................... set `a`, dimension 2
           BOUNDARY CONDITIONS
-            field `velocity_half` ....................................... `a`, dimension 1
-            field `b_ext` ............................................... `a`, dimension 2
+            velocity condition ...................................... set `a`, dimension 1
+            force density condition ................................. set `a`, dimension 2
           MATERIAL
             material type ............. Peridynamics.BBMaterial{Peridynamics.NoCorrection}
             MATERIAL PROPERTIES #1

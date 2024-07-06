@@ -1,12 +1,6 @@
 # Peridynamics
 
-A high-level Julia package for multithreaded peridynamics simulations
-
-## What is peridynamics?
-Peridynamics is a non-local formulation of continuum mechanics where material points represent the continuum, and the relative displacements and forces are governed by an integro-differential equation that allows discontinuities. As a result, peridynamics is particularly well-suited for dynamic fracture simulations involving numerous cracks.
-
-## Who can benefit from this package?
-This package is designed for anyone interested in performing peridynamics simulations. While the current feature set provides a solid foundation, we are continuously working to enhance and expand the capabilities of `Peridynamics.jl`. We encourage you to open an issue or submit a pull request to share your feedback or contribute to making this package even more valuable to the community!
+A high-level Julia package for parallel peridynamics simulations
 
 ## Installation
 
@@ -26,70 +20,51 @@ To install `Peridynamics.jl`, follow these steps:
 5. Press `Backspace` or `Ctrl + C` to exit the package manager.
 
 ## How-to guides
-#### How to perform a
-- [Single body analysis](@ref howto_single_body_analysis)
-- [Contact analysis](@ref howto_contact_analysis)
-
-#### How to define
-- [Point clouds](@ref howto_pointclouds)
-- [Predefined cracks](@ref howto_precracks)
-- [Material formulations](@ref howto_matformulations)
-
-#### How to
 - [Visualize results with ParaView](@ref visualization)
 
 ## Tutorials
 
 ```@raw html
-<div class="tutorial-grid"> 
+<div class="tutorial-grid">
 ```
 
 ```@raw html
-<div class="tutorial-element"> 
-```
-
-### [Mode I tension quasi-static](@ref tutorial_tension_static)
-[![](assets/tension_static.gif)](@ref tutorial_tension_static)
-
-```@raw html
-</div> 
+<div class="tutorial-element">
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_static/">
+      <figcaption>Tensile test quasi-static</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/ac69d8aa-526d-436a-aa0c-820a1f42bcca" style="width: 90% !important;"/><br>
+   </a>
+</div>
 ```
 
 ```@raw html
-<div class="tutorial-element"> 
+<div class="tutorial-element">
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/">
+      <figcaption>Tensile test dynamic</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/dda2b7b3-d44b-41a9-b133-6d1b548df1c1" style="width: 90% !important;"/><br>
+   </a>
+</div>
 ```
 
-### [Mode I tension dynamic](@ref tutorial_tension_dynfrac)
-[![](assets/tension_dynfrac.gif)](@ref tutorial_tension_dynfrac)
+
+```@raw html
+<div class="tutorial-element">
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_precrack/">
+      <figcaption>Tension with predefined crack</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/9f627d2d-44b5-43a3-94cd-9d34894fd142" style="width: 90% !important;"/><br>
+   </a>
+</div>
+```
+
+```@raw html
+<div class="tutorial-element">
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_logo/">
+      <figcaption>Peridynamics.jl logo</figcaption><img src="assets/logo.png" style="width: 90% !important;"/><br>
+   </a>
+</div>
+```
 
 ```@raw html
 </div>
 ```
 
-```@raw html
-<div class="tutorial-element"> 
-```
-
-### [Mode I tension dynamic with predefined crack](@ref tutorial_tension_precrack)
-[![](assets/tension_precrack_damage.gif)](@ref tutorial_tension_precrack)
-
-```@raw html
-</div> 
-```
-
-```@raw html
-<div class="tutorial-element"> 
-```
-
-### [Peridynamics.jl logo](@ref tutorial_logo)
-[![](assets/logo.gif)](@ref tutorial_logo)
-
-```@raw html
-</div>
-```
-```@raw html
-</div>
-```
 
 ## Authors
 
@@ -101,10 +76,10 @@ To install `Peridynamics.jl`, follow these steps:
 </ul>
 ```
 
-## Acknowledgement
+## Acknowledgements
 ```@raw html
 <img src=https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/0d14a65b-4e05-4408-8107-59ac9c1477d2 width=500>
 ```
 The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) under the project WE2525-14/1.
 
-The authors gratefully acknowledge the support and the supercomputing resources of the [Paderborn Center for Parallel Computing](https://pc2.uni-paderborn.de) and the [University of Siegen](https://cluster.uni-siegen.de).
+The authors gratefully acknowledge the computing time provided to them on the high-performance computer Noctua 2 at the NHR Center PC2. These are funded by the Federal Ministry of Education and Research and the state governments participating on the basis of the resolutions of the GWK for the national highperformance computing at universities (www.nhr-verein.de/unsere-partner).

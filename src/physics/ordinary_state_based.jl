@@ -1,35 +1,14 @@
 """
-    OSBMaterial{Correction} <: AbstractMaterial
+    OSBMaterial()
+    OSBMaterial{Correction}()
 
-Material type for ordinary state-based peridynamic simulations
+A material type used to assign the material of a [`Body`](@ref) with the ordinary
+state-based formulation of peridynamics.
 
-# Type Parameters
-
-- `Correction`: Applied surface correction method
-    Available methods: - `NoCorrection`: No surface corrections are applied (default)
-                       - `EnergySurfaceCorrection`: Surface correction factors are applied
-                           based on the strain energy density
-
-# Allowed material parameters
-
-- `horizon::Float64`: Radius of point interactions
-- `rho::Float64`: Density
-- `E::Float64`: Young's modulus
-- `nu::Float64`: Poisson's ratio
-- `Gc::Float64`: Critical energy release rate
-- `epsilon_c::Float64`: Critical strain
-
-# Allowed export fields
-
-- `position::Matrix{Float64}`: Position of each point
-- `displacement::Matrix{Float64}`: Displacement of each point
-- `velocity::Matrix{Float64}`: Velocity of each point
-- `velocity_half::Matrix{Float64}`: Velocity parameter for Verlet time solver
-- `acceleration::Matrix{Float64}`: Acceleration of each point
-- `b_int::Matrix{Float64}`: Internal force density of each point
-- `b_ext::Matrix{Float64}`: External force density of each point
-- `damage::Vector{Float64}`: Damage of each point
-- `n_active_bonds::Vector{Int}`: Number of intact bonds for each point
+Possible correction methods are:
+- [`NoCorrection`](@ref): No correction is applied (default)
+- [`EnergySurfaceCorrection`](@ref): The energy based surface correction method of
+    Le and Bobaru (2018) is applied
 
 # Examples
 
@@ -41,14 +20,44 @@ julia> mat = OSBMaterial{EnergySurfaceCorrection}()
 OSBMaterial{EnergySurfaceCorrection}()
 ```
 
+---
+
+```julia
+OSBMaterial{Correction}
+```
+
+Material type for the ordinary state-based peridynamics formulation.
+
+# Type Parameters
+- `Correction`: A correction algorithm type. See the constructor docs for more informations.
+
+# Allowed material parameters
+When using [`material!`](@ref) on a [`Body`](@ref) with `OSBMaterial`, then the following
+parameters are allowed:
+- `horizon::Float64`: Radius of point interactions
+- `rho::Float64`: Density
+- `E::Float64`: Young's modulus
+- `nu::Float64`: Poisson's ratio
+- `Gc::Float64`: Critical energy release rate
+- `epsilon_c::Float64`: Critical strain
+
+# Allowed export fields
+When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
+`OSBMaterial`, the following fields are allowed:
+- `position::Matrix{Float64}`: Position of each point
+- `displacement::Matrix{Float64}`: Displacement of each point
+- `velocity::Matrix{Float64}`: Velocity of each point
+- `velocity_half::Matrix{Float64}`: Velocity parameter for Verlet time solver
+- `acceleration::Matrix{Float64}`: Acceleration of each point
+- `b_int::Matrix{Float64}`: Internal force density of each point
+- `b_ext::Matrix{Float64}`: External force density of each point
+- `damage::Vector{Float64}`: Damage of each point
+- `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
 struct OSBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
 
 OSBMaterial() = OSBMaterial{NoCorrection}()
 
-"""
-TODO
-"""
 struct OSBPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64

@@ -70,12 +70,11 @@ contact!(ms, :plate, :sphere3; radius=ΔX₀ₚ)
 vv = VelocityVerlet(steps=3000)
 
 # Now we create a directory for the results and create a Job.
-path = "results/logo"
-job = Job(ms, vv; path=path)
+job = Job(ms, vv; path="results/logo")
 
 rm(path; recursive=true, force=true) #src
 
 # To complete everything, the Job is submitted for simulation.
 #md # ```julia
-#md # submit(job);
+#md # submit(job)
 #md # ```
