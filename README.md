@@ -1,5 +1,12 @@
-<img src="docs/src/assets/logo.png" width="450" />
-<img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/56648a2d-9d5a-4b99-94bf-10570affa113" width="450"/>
+<p align="center">
+  <img src="docs/src/assets/logo.png" width="450" />
+  <br>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/817c7bd4-9c02-4cc4-ac66-998c0f5e95e2">
+    <source media="(prefers-color-scheme: light)" srcset="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/70c24007-5aa9-460f-9a97-c67b1df32750">
+    <img alt="The Peridynamics.jl logo" src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/70c24007-5aa9-460f-9a97-c67b1df32750" width="400">
+  </picture>
+</p>
 
 A high-level Julia package for parallel peridynamics simulations
 
