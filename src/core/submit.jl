@@ -3,13 +3,12 @@ const SUBMIT_KWARGS = (:quiet,)
 """
     submit(job::Job; kwargs...)
 
-Submits the job to start calculations
+Run the simulation by submitting the job.
 
 # Arguments
 - `job::Job`: Job that contains all defined parameters and conditions.
 
 # Keywords
-
 - `quiet::Bool`: If `true`, no outputs are printed in the terminal.
 """
 function submit(job::Job; kwargs...)
