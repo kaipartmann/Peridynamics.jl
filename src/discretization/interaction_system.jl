@@ -385,7 +385,10 @@ end
 function log_system(::Type{I}, options::AbstractJobOptions,
                     dh::AbstractDataHandler) where {I<:InteractionSystem}
     n_one_nis, n_two_nis, n_three_nis = calc_n_interactions(dh)
-    msg = "INTERACTION SYSTEM\n"
+    msg = "INTERACTION SYSTEM"
+    body_name = string(get_body_name(dh))
+    isempty(body_name) || (msg *= " `" * body_name * "`")
+    msg *= "\n"
     msg *= msg_qty("number of one-neighbor-interactions", n_one_nis)
     msg *= msg_qty("number of two-neighbor-interactions", n_two_nis)
     msg *= msg_qty("number of three-neighbor-interactions", n_three_nis)

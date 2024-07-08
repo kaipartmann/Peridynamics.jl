@@ -367,3 +367,7 @@ end
 @inline function system_type(dh::MPIBodyDataHandler{Sys}) where {Sys}
     return Sys
 end
+
+@inline function get_body_name(dh::AbstractMPIBodyDataHandler)
+    return dh.chunk.body_name
+end
