@@ -95,6 +95,13 @@ submit(job)
 ```
 Take a look at the [tutorial of the tensile test](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/) for more details on this example.
 
+If you want to run this example with multithreading, just start Julia with more than 1 thread.
+To use MPI, you can create a script containing the **same code without changes** and run it with:
+```bash
+mpiexecjl -n <n_ranks> julia --project path/to/script.jl
+```
+Please take a look at the [how-to guide on MPI](https://kaipartmann.github.io/Peridynamics.jl/dev/howto_mpi/) for more details.
+
 ## Authors
 
 - <a href="https://orcid.org/0000-0002-5238-4355">Kai Partmann (University of Siegen) <img alt="ORCID logo" src="https://info.orcid.org/wp-content/uploads/2019/11/orcid_16x16.png" width="16" height="16" /></a>
