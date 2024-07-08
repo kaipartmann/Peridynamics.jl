@@ -72,3 +72,11 @@ function export_reference_results(dh::ThreadsMultibodyDataHandler,
     end
     return nothing
 end
+
+function log_data_handler(options::AbstractJobOptions,
+                          dh::AbstractThreadsMultibodyDataHandler)
+    for body_dh in each_body_dh(dh)
+        log_system(options, body_dh)
+    end
+    return nothing
+end
