@@ -5,7 +5,7 @@
         msg *= "Trigger package precompilation manually and then restart the mpirun!\n"
         error(msg)
     end
-    l, Δx, δ, a = 1.0, 1 / 4, 3.015 / 4, 0.5
+    l, Δx, δ, a = 1.0, 1 / 4, 2.01 / 4, 0.5
     root = joinpath(@__DIR__, "temp_precompilation")
     pos, vol = uniform_box(l, l, l, Δx)
     path_bb = joinpath(root, "BB")

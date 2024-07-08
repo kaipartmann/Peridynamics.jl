@@ -70,7 +70,7 @@ mutable struct VelocityVerlet <: AbstractTimeSolver
     end
 end
 
-function Base.show(io::IO, vv::VelocityVerlet)
+function Base.show(io::IO, @nospecialize(vv::VelocityVerlet))
     print(io, typeof(vv))
     fields = Vector{Symbol}()
     for field in fieldnames(typeof(vv))
@@ -83,7 +83,7 @@ function Base.show(io::IO, vv::VelocityVerlet)
     return nothing
 end
 
-function Base.show(io::IO, ::MIME"text/plain", vv::VelocityVerlet)
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(vv::VelocityVerlet))
     if get(io, :compact, false)
         show(io, vv)
     else

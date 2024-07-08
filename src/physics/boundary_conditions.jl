@@ -5,7 +5,7 @@ struct SingleDimBC{F<:Function} <: AbstractCondition
     dim::UInt8
 end
 
-function Base.show(io::IO, bc::SingleDimBC)
+function Base.show(io::IO, @nospecialize(bc::SingleDimBC))
     print(io, "BC on ", field_to_name(bc.field), ": ")
     print(io, msg_fields_inline(bc, (:point_set, :dim)))
     return nothing
@@ -39,7 +39,7 @@ struct PosDepSingleDimBC{F<:Function} <: AbstractCondition
     dim::UInt8
 end
 
-function Base.show(io::IO, bc::PosDepSingleDimBC)
+function Base.show(io::IO, @nospecialize(bc::PosDepSingleDimBC))
     print(io, "Pos.-dep. BC on ", field_to_name(bc.field), ": ")
     print(io, msg_fields_inline(bc, (:point_set, :dim)))
     return nothing

@@ -79,12 +79,12 @@ function MultibodySetup(body_pairs::Vararg{Pair{Symbol,<:AbstractBody},N}) where
     return MultibodySetup(bodies, body_names, body_idxs, srf_contacts)
 end
 
-function Base.show(io::IO, ms::MultibodySetup)
+function Base.show(io::IO, @nospecialize(ms::MultibodySetup))
     print(io, n_points(ms), "-point MultibodySetup")
     return nothing
 end
 
-function Base.show(io::IO, ::MIME"text/plain", ms::MultibodySetup)
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(ms::MultibodySetup))
     if get(io, :compact, false)
         show(io, ms)
         return nothing
