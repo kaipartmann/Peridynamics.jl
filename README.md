@@ -82,6 +82,19 @@ To install `Peridynamics.jl`, follow these steps:
   </tr>
 </table>
 
+## Usage
+To run the dynamic tensile test simulation shown above, just 7 lines of code are needed:
+```julia
+body = Body(BBMaterial(), "TensileTestMesh.inp")
+material!(body; horizon=0.01, rho=2700, E=70e9, Gc=100)
+velocity_bc!(t -> -0.6, body, :bottom, 1)
+velocity_bc!(t -> 0.6, body, :top, 1)
+vv = VelocityVerlet(steps=500)
+job = Job(body, vv; path="results/tension_dynamic")
+submit(job)
+```
+Take a look at the [tutorial of the tensile test](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/) for more details on this example.
+
 ## Authors
 
 - <a href="https://orcid.org/0000-0002-5238-4355">Kai Partmann (University of Siegen) <img alt="ORCID logo" src="https://info.orcid.org/wp-content/uploads/2019/11/orcid_16x16.png" width="16" height="16" /></a>
