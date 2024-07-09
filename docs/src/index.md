@@ -56,7 +56,7 @@ To install `Peridynamics.jl`, follow these steps:
 ```@raw html
 <div class="tutorial-element">
    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_logo/">
-      <figcaption>Peridynamics.jl logo</figcaption><br><img src="assets/logo.png" style="width: 90% !important;"/>
+      <figcaption>The old logo</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/5439e112-9088-49a3-bb01-aff541adc0f8" style="width: 90% !important;"/>
    </a>
 </div>
 ```

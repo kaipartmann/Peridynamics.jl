@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/src/assets/logo.png" width="450" />
+  <img src="docs/src/assets/logo.png" width="300" />
   <br>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/817c7bd4-9c02-4cc4-ac66-998c0f5e95e2">
@@ -67,7 +67,7 @@ in the julia package manager. Please take a look at the [documentation](https://
     </td>
     <td align="center">
       <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_logo/">
-        <figcaption>Peridynamics.jl logo</figcaption><br><img src="docs/src/assets/logo.png" width="240"/>
+        <figcaption>The old logo</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/5439e112-9088-49a3-bb01-aff541adc0f8" width="240"/>
       </a>
     </td>
   </tr>
