@@ -71,6 +71,14 @@ in the julia package manager. Please take a look at the [documentation](https://
       </a>
     </td>
   </tr>
+  <tr>
+    <td align="center">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_kalthoff-winkler_dynfrac/">
+        <figcaption>Kalthoff Winkler</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/6dc362ef-4997-4327-9bc1-41350fac2dc1" width="300"/><br>
+      </a>
+    </td>
+    <td></td>
+  </tr>
 </table>
 
 ## Usage
