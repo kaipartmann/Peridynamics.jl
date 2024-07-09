@@ -96,6 +96,8 @@ Helper function to enable timers defined with the `TimerOutputs` for simulations
 MPI backend. The results of the timers then will be exported into the specified path of a
 [`Job`](@ref). By default, not timers will be used with MPI simulations. It can be safely
 used with multithreading.
+
+See also [`disable_mpi_timers!`](@ref).
 """
 function enable_mpi_timers!()
     Core.eval(Peridynamics, :(TimerOutputs.enable_debug_timings(Peridynamics)))
@@ -159,7 +161,7 @@ else
 end
 ```
 
-See also: [`mpi_isroot`](@ref)
+See also: [`mpi_isroot`](@ref).
 """
 macro mpitime(expr)
     return quote
@@ -182,9 +184,9 @@ end
 ```
 
 # Options
-- `:wait`: All MPI ranks will wait until the root rank finishes evaluating `expression`
+- `:wait`: All MPI ranks will wait until the root rank finishes evaluating `expression`.
 
-See also: [`mpi_isroot`](@ref)
+See also: [`mpi_isroot`](@ref).
 """
 macro mpiroot end
 
