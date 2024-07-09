@@ -40,76 +40,17 @@ function __init__()
     return nothing
 end
 
-# """
-#     AbstractMaterial
-
-# Base for types which define materials.
-# """
 abstract type AbstractMaterial end
-
-# """
-#     AbstractSpatialSetup
-
-# Base for types which define the spatial setup.
-# """
 abstract type AbstractSpatialSetup end
-
-# """
-#     AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup
-
-# Base for types which define a body.
-# """
 abstract type AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup end
-
-# """
-#     AbstractMultibodySetup <: AbstractSpatialSetup
-
-# Base for types which define a multibody setup.
-# """
 abstract type AbstractMultibodySetup <: AbstractSpatialSetup end
-
-# """
-#     AbstractParameterSetup
-
-# Base for types which define a parameter setup.
-# """
 abstract type AbstractParameterSetup end
-
-# """
-#     AbstractPointParameters <: AbstractParameterSetup
-
-# Base for types which define point parameters for specific materials.
-# """
 abstract type AbstractPointParameters <: AbstractParameterSetup end
 abstract type AbstractParamSpec end
-
-# """
-#     AbstractTimeSolver
-
-# Base for types which define a time solver.
-# """
 abstract type AbstractTimeSolver end
-
-# """
-#     AbstractJob
-
-# Base for types which define a job.
-# """
 abstract type AbstractJob end
 abstract type AbstractJobOptions end
-
-# """
-#     AbstractSystem
-
-# Base for types which define a system.
-# """
 abstract type AbstractSystem end
-
-# """
-#     AbstractPredefinedCrack
-
-# Base for types which define a predefined crack.
-# """
 abstract type AbstractPredefinedCrack end
 abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
 abstract type AbstractParameterHandler <: AbstractParameterSetup end
@@ -121,41 +62,10 @@ abstract type AbstractThreadsBodyDataHandler{Sys,M,P,S} <: AbstractThreadsDataHa
 abstract type AbstractThreadsMultibodyDataHandler <: AbstractThreadsDataHandler end
 abstract type AbstractMPIBodyDataHandler{Sys,M,P,S} <: AbstractMPIDataHandler end
 abstract type AbstractMPIMultibodyDataHandler <: AbstractMPIDataHandler end
-
-# """
-#     AbstractCorrection
-
-# Base for types which define a correction algorithm suitable for materials that are a
-# subtype of [`AbstractBondSystemMaterial`](@ref) and use the [`BondSystem`](@ref).
-# """
 abstract type AbstractCorrection end
-
-# """
-#     AbstractStorage
-
-# Base for types which define a storage.
-# """
 abstract type AbstractStorage end
-
-# """
-#     AbstractStorage
-
-# Base for types which define a condition.
-# """
 abstract type AbstractCondition end
-
-# """
-#     AbstractBondSystemMaterial{Correction} <: AbstractMaterial
-
-# Base for types which define a material that uses the [`BondSystem`](@ref).
-# """
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
-
-# """
-#     AbstractInteractionSystemMaterial <: AbstractMaterial
-
-# Base for types which define a material that uses the [`InteractionSystem`](@ref).
-# """
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
 
 include("auxiliary/function_arguments.jl")
