@@ -34,20 +34,11 @@ A high-level Julia package for parallel peridynamics simulations
 
 ## Installation
 
-To install `Peridynamics.jl`, follow these steps:
-
-1. Install Julia from the [official Julia website](https://julialang.org/) if you haven't already.
-
-2. Launch Julia and open the Julia REPL.
-
-3. Enter the package manager by pressing `]` in the REPL.
-
-4. In the package manager, type:
-   ```
-   add Peridynamics
-   ```
-
-5. Press `Backspace` or `Ctrl + C` to exit the package manager.
+`Peridynamics.jl` is a registered Julia package, so you can install it by just typing
+```
+add Peridynamics
+```
+in the julia package manager. Please take a look at the [documentation](https://kaipartmann.github.io/Peridynamics.jl/stable/index#Installation) for more details on the installation.
 
 ## Tutorials
 
@@ -98,7 +89,7 @@ Take a look at the [tutorial of the tensile test](https://kaipartmann.github.io/
 If you want to run this example with multithreading, just start Julia with more than 1 thread.
 To use MPI, you can create a script containing the **same code without changes** and run it with:
 ```bash
-mpiexecjl -n <n_ranks> julia --project path/to/script.jl
+mpiexec -n 6 julia --project path/to/script.jl
 ```
 Please take a look at the [how-to guide on MPI](https://kaipartmann.github.io/Peridynamics.jl/dev/howto_mpi/) for more details.
 
