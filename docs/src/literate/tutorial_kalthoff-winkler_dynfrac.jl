@@ -15,8 +15,6 @@
 
 # ## Import Packages
 using Peridynamics
-using GLMakie # For visualization
-using LaTeXStrings # For LaTeX string formatting
 
 # ## Geometrical Parameters
 #
@@ -25,7 +23,7 @@ using LaTeXStrings # For LaTeX string formatting
 l  = 200.0E-3  # Length of the sample (meters)
 w  = 100.0E-3  # Width of the sample (meters)
 t  =   9.0E-3  # Thickness of the sample (meters)
-Δx =   0.1E-3  # Discretization size (meters)
+Δx =   1.0E-3  # Discretization size (meters)
 δ  = 4.015Δx   # Horizon (meters)
 a  = 50.0E-3   # Crack length (meters)
 
@@ -77,7 +75,9 @@ ispath(path) && rm(path; recursive=true)  # Delete existing results if they exis
 
 # Create and submit the job:
 job = Job(body, vv; path=path, freq=100)
-@mpitime submit(job)
+#md # ```julia
+#md # @mpitime submit(job)
+#md # ```
 
 # ## Visualization
 #
