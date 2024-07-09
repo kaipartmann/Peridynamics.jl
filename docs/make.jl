@@ -32,6 +32,7 @@ LIT_TUTORIALS_IN = [
     "tutorial_tension_dynfrac.jl",
     "tutorial_tension_precrack.jl",
     "tutorial_wave_in_bar.jl",
+    "tutorial_kalthoff-winkler_dynfrac.jl",
     "tutorial_logo.jl",
 ]
 LIT_TUTORIALS_IN .= joinpath.(@__DIR__, "src", "literate", LIT_TUTORIALS_IN)
@@ -73,6 +74,7 @@ makedocs(;
             joinpath("generated", "tutorial_tension_dynfrac.md"),
             joinpath("generated", "tutorial_tension_precrack.md"),
             joinpath("generated", "tutorial_wave_in_bar.md"),
+            joinpath("generated", "tutorial_kalthoff-winkler_dynfrac.md"),
             joinpath("generated", "tutorial_logo.md"),
         ],
         "API Reference" => "api_reference.md",
