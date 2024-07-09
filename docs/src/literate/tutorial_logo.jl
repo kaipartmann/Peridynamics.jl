@@ -1,4 +1,4 @@
-# # [Peridynamics.jl Logo](@id tutorial_logo)
+# # [The old Peridynamics.jl logo](@id tutorial_logo)
 
 # ![](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/b79fd475-67fc-4097-9f05-791833f29fa9)
 

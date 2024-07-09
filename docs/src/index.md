@@ -1,4 +1,14 @@
-# Peridynamics
+```@raw html
+<p align="center">
+  <img src="../assets/logo.png" width="300" />
+  <br>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/817c7bd4-9c02-4cc4-ac66-998c0f5e95e2">
+    <source media="(prefers-color-scheme: light)" srcset="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/70c24007-5aa9-460f-9a97-c67b1df32750">
+    <img alt="The Peridynamics.jl logo" src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/70c24007-5aa9-460f-9a97-c67b1df32750" width="400">
+  </picture>
+</p>
+```
 
 A high-level Julia package for parallel peridynamics simulations
 
@@ -20,6 +30,7 @@ To install `Peridynamics.jl`, follow these steps:
 5. Press `Backspace` or `Ctrl + C` to exit the package manager.
 
 ## How-to guides
+- [Simulations with MPI](@ref)
 - [Visualize results with ParaView](@ref visualization)
 
 ## Tutorials
@@ -89,5 +100,7 @@ To install `Peridynamics.jl`, follow these steps:
 <img src=https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/0d14a65b-4e05-4408-8107-59ac9c1477d2 width=500>
 ```
 The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) under the project WE2525-14/1.
+
+The support of Carsten Bauer and Xin Wu from PC2 with the design of the internal structure regarding parallel performance is gratefully acknowledged.
 
 The authors gratefully acknowledge the computing time provided to them on the high-performance computer Noctua 2 at the NHR Center PC2. These are funded by the Federal Ministry of Education and Research and the state governments participating on the basis of the resolutions of the GWK for the national highperformance computing at universities (www.nhr-verein.de/unsere-partner).

@@ -3,7 +3,8 @@ const JOB_KWARGS = (:path, :freq, :fields)
 """
     Job(spatial_setup, time_solver; kwargs...)
 
-Job that contains all the information necessary for a peridynamic simulation.
+A type that contains all the information necessary for a peridynamic simulation. You can
+[`submit`](@ref) a `Job` to start the simulation.
 
 # Arguments
 - `spatial_setup`: A [`Body`](@ref) or [`MultibodySetup`](@ref).
@@ -13,10 +14,10 @@ Job that contains all the information necessary for a peridynamic simulation.
 - `path::String`: Path to store results. If it does not exist yet it will be created during
     the simulation. (optional)
 - `freq::Int`: Output frequency of result files. A output file will be written every
-    `freq`-th time step. (optional)
+    `freq`-th time step. (default: `10`)
 - `fields`: Fields that should be exported to output files. Allowed keywords depend on the
     selected material model. Please look at the documentation of the material you specified
-    when creating the body. (optional)
+    when creating the body. (default: `(:displacement, :damage)`)
 
     If `spatial_setup` is a **`Body`**, the `fields` keyword can be of the form:
     - `fields::Symbol`: A symbol specifying a single output field.

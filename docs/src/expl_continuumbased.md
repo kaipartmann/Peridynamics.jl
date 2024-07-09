@@ -17,7 +17,7 @@ One-neighbor interactions in CPD correspond to the bonds in [bond-based](@ref ex
 
 First, the neighborhood volume is determined:
 ```math
-V_\mathcal{H}^i = \beta^i \cdot \frac {4} {3} \cdot\pi\cdot\delta^3 \; .
+V_\mathcal{H}^i = \beta^i \, \frac {4} {3} \, \pi \, \delta^3 \; .
 ```
 
 Here $\beta^i\in [0,1]$ is a factor for the completeness of the neighborhood that takes incomplete point families at the surface into account (see figure 1).

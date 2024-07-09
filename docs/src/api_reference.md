@@ -4,7 +4,7 @@
 
 ```
 
-```@index
+```@contents
 Pages = ["api_reference.md"]
 ```
 

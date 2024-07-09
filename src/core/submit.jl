@@ -1,7 +1,7 @@
 const SUBMIT_KWARGS = (:quiet,)
 
 """
-    submit(job::Job; kwargs...)
+    submit(job::Job; quiet=false)
 
 Run the simulation by submitting the job.
 
@@ -9,7 +9,7 @@ Run the simulation by submitting the job.
 - `job::Job`: Job that contains all defined parameters and conditions.
 
 # Keywords
-- `quiet::Bool`: If `true`, no outputs are printed in the terminal.
+- `quiet::Bool`: If `true`, no outputs are printed in the terminal. (default: `false`)
 """
 function submit(job::Job; kwargs...)
     o = Dict{Symbol,Any}(kwargs)

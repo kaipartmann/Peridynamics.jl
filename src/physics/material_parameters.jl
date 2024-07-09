@@ -15,7 +15,7 @@ the parameters will be set for all points of the body.
 
 # Arguments
 
-- `body::AbstractBody`: [`Body`](@ref)
+- `body::AbstractBody`: [`Body`](@ref).
 - `set_name::Symbol`: The name of a point set of this body.
 
 # Keywords
