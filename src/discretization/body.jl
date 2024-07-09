@@ -101,7 +101,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     end
 end
 
-function Base.show(io::IO, body::AbstractBody)
+function Base.show(io::IO, @nospecialize(body::AbstractBody))
     print(io, body.n_points, "-point Body{", material_type(body), "}")
     if has_name(body)
         print(io, " with name `", get_name(body), "`")
@@ -109,7 +109,7 @@ function Base.show(io::IO, body::AbstractBody)
     return nothing
 end
 
-function Base.show(io::IO, ::MIME"text/plain", body::AbstractBody)
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(body::AbstractBody))
     if get(io, :compact, false)
         show(io, body)
         return nothing

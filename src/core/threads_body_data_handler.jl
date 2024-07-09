@@ -180,3 +180,7 @@ end
 @inline function system_type(dh::ThreadsBodyDataHandler{Sys}) where {Sys}
     return Sys
 end
+
+@inline function get_body_name(dh::AbstractThreadsBodyDataHandler)
+    return dh.chunks[1].body_name
+end

@@ -230,7 +230,10 @@ end
 function log_system(::Type{B}, options::AbstractJobOptions,
                     dh::AbstractDataHandler) where {B<:BondSystem}
     n_bonds = calc_n_bonds(dh)
-    msg = "BOND SYSTEM\n"
+    msg = "BOND SYSTEM"
+    body_name = string(get_body_name(dh))
+    isempty(body_name) || (msg *= " `" * body_name * "`")
+    msg *= "\n"
     msg *= msg_qty("number of bonds", n_bonds)
     log_it(options, msg)
     return nothing

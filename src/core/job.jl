@@ -59,7 +59,7 @@ function Job(spatial_setup::S, time_solver::T; kwargs...) where {S,T}
     return Job(spatial_setup, time_solver, options)
 end
 
-function Base.show(io::IO, job::Job)
+function Base.show(io::IO, @nospecialize(job::Job))
     n_points = Peridynamics.n_points(job.spatial_setup)
     if job.spatial_setup isa AbstractMultibodySetup
         job_descr = "-point multibody Job with "
@@ -71,7 +71,7 @@ function Base.show(io::IO, job::Job)
     return nothing
 end
 
-function Base.show(io::IO, ::MIME"text/plain", job::Job)
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(job::Job))
     if get(io, :compact, false)
         show(io, job)
     else
@@ -91,12 +91,12 @@ struct JobOptions{F,V} <: AbstractJobOptions
     vtk_filebase::V
 end
 
-function Base.show(io::IO, options::JobOptions)
+function Base.show(io::IO, @nospecialize(options::JobOptions))
     print(io, msg_fields_inline(options, (:export_allowed, :freq,)))
     return nothing
 end
 
-function Base.show(io::IO, ::MIME"text/plain", options::JobOptions)
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(options::JobOptions))
     if get(io, :compact, false)
         show(io, options)
     else

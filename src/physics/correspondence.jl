@@ -74,7 +74,7 @@ Base.@kwdef struct NOSBMaterial <: AbstractBondSystemMaterial{NoCorrection}
     corr::Float64 = 100.0
 end
 
-function Base.show(io::IO, mat::NOSBMaterial)
+function Base.show(io::IO, @nospecialize(mat::NOSBMaterial))
     print(io, typeof(mat))
     print(io, msg_fields_in_brackets(mat))
     return nothing

@@ -1,5 +1,12 @@
-<img src="docs/src/assets/logo.png" width="450" />
-<img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/56648a2d-9d5a-4b99-94bf-10570affa113" width="450"/>
+<p align="center">
+  <img src="docs/src/assets/logo.png" width="450" />
+  <br>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/817c7bd4-9c02-4cc4-ac66-998c0f5e95e2">
+    <source media="(prefers-color-scheme: light)" srcset="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/70c24007-5aa9-460f-9a97-c67b1df32750">
+    <img alt="The Peridynamics.jl logo" src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/70c24007-5aa9-460f-9a97-c67b1df32750" width="400">
+  </picture>
+</p>
 
 A high-level Julia package for parallel peridynamics simulations
 
@@ -27,20 +34,11 @@ A high-level Julia package for parallel peridynamics simulations
 
 ## Installation
 
-To install `Peridynamics.jl`, follow these steps:
-
-1. Install Julia from the [official Julia website](https://julialang.org/) if you haven't already.
-
-2. Launch Julia and open the Julia REPL.
-
-3. Enter the package manager by pressing `]` in the REPL.
-
-4. In the package manager, type:
-   ```
-   add Peridynamics
-   ```
-
-5. Press `Backspace` or `Ctrl + C` to exit the package manager.
+`Peridynamics.jl` is a registered Julia package, so you can install it by just typing
+```
+add Peridynamics
+```
+in the julia package manager. Please take a look at the [documentation](https://kaipartmann.github.io/Peridynamics.jl/stable/index#Installation) for more details on the installation.
 
 ## Tutorials
 
@@ -74,6 +72,26 @@ To install `Peridynamics.jl`, follow these steps:
     </td>
   </tr>
 </table>
+
+## Usage
+To run the dynamic tensile test simulation shown above, just 7 lines of code are needed:
+```julia
+body = Body(BBMaterial(), "TensileTestMesh.inp")
+material!(body; horizon=0.01, rho=2700, E=70e9, Gc=100)
+velocity_bc!(t -> -0.6, body, :bottom, 1)
+velocity_bc!(t -> 0.6, body, :top, 1)
+vv = VelocityVerlet(steps=500)
+job = Job(body, vv; path="results/tension_dynamic")
+submit(job)
+```
+Take a look at the [tutorial of the tensile test](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/) for more details on this example.
+
+If you want to run this example with multithreading, just start Julia with more than 1 thread.
+To use MPI, you can create a script containing the **same code without changes** and run it with:
+```bash
+mpiexec -n 6 julia --project path/to/script.jl
+```
+Please take a look at the [how-to guide on MPI](https://kaipartmann.github.io/Peridynamics.jl/dev/howto_mpi/) for more details.
 
 ## Authors
 

@@ -141,13 +141,14 @@ function log_material_parameters(param::AbstractPointParameters; indentation::In
     return msg
 end
 
-function Base.show(io::IO, params::AbstractPointParameters)
+function Base.show(io::IO, @nospecialize(params::AbstractPointParameters))
     print(io, "Parameters ", material_type(params), ": ")
     print(io, msg_fields_inline(params, (:δ, :E, :nu, :rho, :Gc)))
     return nothing
 end
 
-function Base.show(io::IO, ::MIME"text/plain", params::AbstractPointParameters)
+function Base.show(io::IO, ::MIME"text/plain",
+                   @nospecialize(params::AbstractPointParameters))
     if get(io, :compact, false)
         show(io, params)
     else

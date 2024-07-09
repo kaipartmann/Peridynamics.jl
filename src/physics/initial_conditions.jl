@@ -5,7 +5,7 @@ struct SingleDimIC <: AbstractCondition
     dim::UInt8
 end
 
-function Base.show(io::IO, ic::SingleDimIC)
+function Base.show(io::IO, @nospecialize(ic::SingleDimIC))
     print(io, "IC on ", field_to_name(ic.field), ": ")
     print(io, msg_fields_inline(ic, (:point_set, :dim)))
     return nothing
@@ -25,7 +25,7 @@ struct PosDepSingleDimIC{F<:Function} <: AbstractCondition
     dim::UInt8
 end
 
-function Base.show(io::IO, ic::PosDepSingleDimIC)
+function Base.show(io::IO, @nospecialize(ic::PosDepSingleDimIC))
     print(io, "Pos.-dep. IC on ", field_to_name(ic.field), ": ")
     print(io, msg_fields_inline(ic, (:point_set, :dim)))
     return nothing

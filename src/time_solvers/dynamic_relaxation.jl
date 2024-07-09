@@ -55,13 +55,13 @@ mutable struct DynamicRelaxation <: AbstractTimeSolver
     end
 end
 
-function Base.show(io::IO, dr::DynamicRelaxation)
+function Base.show(io::IO, @nospecialize(dr::DynamicRelaxation))
     print(io, typeof(dr))
     print(io, msg_fields_in_brackets(dr))
     return nothing
 end
 
-function Base.show(io::IO, ::MIME"text/plain", dr::DynamicRelaxation)
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(dr::DynamicRelaxation))
     if get(io, :compact, false)
         show(io, dr)
     else
