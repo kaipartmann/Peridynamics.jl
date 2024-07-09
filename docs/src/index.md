@@ -1,6 +1,6 @@
 ```@raw html
 <p align="center">
-  <img src="../assets/logo.png" width="300" />
+  <img src="assets/logo.png" width="300" />
   <br>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/817c7bd4-9c02-4cc4-ac66-998c0f5e95e2">
