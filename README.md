@@ -46,12 +46,12 @@ in the julia package manager. Please take a look at the [documentation](https://
   <tr>
   </tr>
   <tr>
-    <td align="center">
+    <td align="center" style="width: 50% !important;">
       <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_static/">
         <figcaption>Tensile test quasi-static</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/ac69d8aa-526d-436a-aa0c-820a1f42bcca" width="200"/>
       </a>
     </td>
-    <td align="center">
+    <td align="center" style="width: 50% !important;">
       <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/">
         <figcaption>Tensile test dynamic</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/dda2b7b3-d44b-41a9-b133-6d1b548df1c1" width="200"/>
       </a>
@@ -60,15 +60,24 @@ in the julia package manager. Please take a look at the [documentation](https://
   <tr>
   </tr>
   <tr>
-    <td align="center">
+    <td align="center" style="width: 50% !important;">
       <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_precrack/">
         <figcaption>Tension with predefined crack</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/9f627d2d-44b5-43a3-94cd-9d34894fd142" width="240"/>
       </a>
     </td>
-    <td align="center">
+    <td align="center" style="width: 50% !important;">
       <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_logo/">
         <figcaption>Peridynamics.jl logo</figcaption><br><img src="docs/src/assets/logo.png" width="240"/>
       </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" style="width: 50% !important;">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_kalthoff-winkler_dynfrac/">
+        <figcaption>Kalthoff Winkler</figcaption><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/6dc362ef-4997-4327-9bc1-41350fac2dc1" style="width: 90% !important;"/><br>
+      </a>
+    </td>
+    <td align="center" style="width: 50% !important;">
     </td>
   </tr>
 </table>

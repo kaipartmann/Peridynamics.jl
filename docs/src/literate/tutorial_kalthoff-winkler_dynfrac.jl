@@ -12,9 +12,7 @@
 # mechanics.
 #
 # In this tutorial, we will simulate the Kalthoff-Winkler experiment using peridynamics
-# without the impactor. To do so, first we would import the packages.
-
-# ## Import Packages
+# without the impactor. To do so, first we would import the package.
 using Peridynamics
 
 # ## Geometrical Parameters
@@ -28,6 +26,7 @@ t  =   9.0E-3  # Thickness of the sample (meters)
 Δx =   1.0E-3  # Discretization size (meters)
 δ  =  4.015Δx  # Horizon (meters)
 a  =  50.0E-3  # Crack length (meters)
+nothing #hide
 
 # ## Create the Body
 #

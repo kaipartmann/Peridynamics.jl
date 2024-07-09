@@ -75,7 +75,6 @@ makedocs(;
             joinpath("generated", "tutorial_tension_precrack.md"),
             joinpath("generated", "tutorial_wave_in_bar.md"),
             joinpath("generated", "tutorial_kalthoff-winkler_dynfrac.md"),
-            # "tutorial_logo.md",
             joinpath("generated", "tutorial_logo.md"),
         ],
         "API Reference" => "api_reference.md",
