@@ -109,13 +109,12 @@ function find_data_xml(xml_doc::XMLDocument)
     position_xml = find_element(points_xml, "DataArray")
     isnothing(position_xml) && error("No DataArray found for `Points`!\n")
     point_data_xml = find_element(piece_xml, "PointData")
-    isnothing(point_data_xml) && error("Piece does not contain `PointData`!\n")
     field_data_xml = find_element(unstruct_grid_xml, "FieldData")
-    isnothing(field_data_xml) && error("UnstructuredGrid does not contain `FieldData`!\n")
     return position_xml, point_data_xml, field_data_xml
 end
 
 @inline extract_das(data_xml::XMLElement) = DataArray.(child_elements(data_xml))
+@inline extract_das(::Nothing) = nothing
 
 function parse_data_arrays(raw_xml_str::AbstractString)
     xml_doc = parse_string(raw_xml_str)
@@ -128,33 +127,36 @@ function parse_data_arrays(raw_xml_str::AbstractString)
 end
 
 function parse_data_arrays(vec_raw_xml_str::Vector{S}) where {S<:AbstractString}
-    n = length(vec_raw_xml_str)
-    vec_position_da = Vector{DataArray}(undef, n)
-    vec_point_das = Vector{Vector{DataArray}}(undef, n)
-    vec_n_point_das = zeros(Int, n)
-    vec_field_das = Vector{Vector{DataArray}}(undef, n)
-    vec_n_field_das = zeros(Int, n)
-    @batch for i in eachindex(vec_raw_xml_str)
+    vec_position_da = Vector{DataArray}(undef, length(vec_raw_xml_str))
+    vec_point_das = Vector{Vector{DataArray}}()
+    vec_n_point_das = Vector{Int}()
+    vec_field_das = Vector{Vector{DataArray}}()
+    vec_n_field_das = Vector{Int}()
+    for i in eachindex(vec_raw_xml_str)
         position_da, point_das, field_das = parse_data_arrays(vec_raw_xml_str[i])
         vec_position_da[i] = position_da
-        vec_point_das[i] = point_das
-        vec_n_point_das[i] = length(point_das)
-        vec_field_das[i] = field_das
-        vec_n_field_das[i] = length(field_das)
+        if !isnothing(point_das)
+            push!(vec_point_das, point_das)
+            push!(vec_n_point_das, length(point_das))
+        end
+        if !isnothing(field_das)
+            push!(vec_field_das, field_das)
+            push!(vec_n_field_das, length(field_das))
+        end
     end
     position_pda = PDataArray(promote_type.(vec_position_da))
 
     allequal(vec_n_point_das) || error("corrupted pvtu file!\n")
-    n_point_das = first(vec_n_point_das)
+    n_point_das = isempty(vec_n_point_das) ? 0 : first(vec_n_point_das)
     point_pdas = Vector{PDataArray}(undef, n_point_das)
-    @batch for i in 1:n_point_das
+    for i in 1:n_point_das
         point_pdas[i] = PDataArray([pdas[i] for pdas in vec_point_das])
     end
 
     allequal(vec_n_field_das) || error("corrupted pvtu file!\n")
-    n_field_das = first(vec_n_field_das)
+    n_field_das = isempty(vec_n_field_das) ? 0 : first(vec_n_field_das)
     field_pdas = Vector{PDataArray}(undef, n_field_das)
-    @batch for i in 1:n_field_das
+    for i in 1:n_field_das
         field_pdas[i] = PDataArray([fdas[i] for fdas in vec_field_das])
     end
 
@@ -210,27 +212,38 @@ function get_decompressed_data(da::DataArray{T,N}, raw_data::Vector{UInt8}) wher
     return data_decompressed
 end
 
-function promote_vec_or_mat_elemtype(pda::D1, pdas::Vector{D2},
-                                     fdas::Vector{D3}) where {D1,D2,D3<:AbstractDataArray}
-    element_type_pda = element_type(pda)
-    element_types_pdas = element_type.(pdas)
-    element_types_fdas = element_type.(fdas)
+function promote_vec_or_mat_elemtype(position_da, point_das, field_das)
+    element_type_pda = element_type(position_da)
+    if !isnothing(point_das)
+        element_types_pdas = element_type.(point_das)
+    else
+        element_types_pdas = ()
+    end
+    if !isnothing(field_das)
+        element_types_fdas = element_type.(field_das)
+    else
+        element_types_fdas = ()
+    end
     return typejoin(element_type_pda, element_types_pdas..., element_types_fdas...)
 end
 
-function get_dict(pda, pdas, fdas, raw_data)
-    type = promote_vec_or_mat_elemtype(pda, pdas, fdas)
+function get_dict(position_da, point_das, field_das, raw_data)
+    type = promote_vec_or_mat_elemtype(position_da, point_das, field_das)
     if isconcretetype(type)
         d = Dict{Symbol,VecOrMat{type}}()
     else
         d = Dict{Symbol,VecOrMat{<:type}}()
     end
-    d[:position] = get_data(pda, raw_data)
-    for da in pdas
-        d[da.name] = get_data(da, raw_data)
+    d[:position] = get_data(position_da, raw_data)
+    if !isnothing(point_das)
+        for da in point_das
+            d[da.name] = get_data(da, raw_data)
+        end
     end
-    for da in fdas
-        d[da.name] = get_field_data(da, raw_data)
+    if !isnothing(field_das)
+        for da in field_das
+            d[da.name] = get_field_data(da, raw_data)
+        end
     end
     return d
 end

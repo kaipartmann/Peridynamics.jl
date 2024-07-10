@@ -192,3 +192,46 @@ end
 
     rm(root; recursive=true, force=true)
 end
+
+@testitem "read pvtu files with nothing exported" begin
+    using Peridynamics.WriteVTK
+
+    root = joinpath(@__DIR__, "tempdir")
+    isdir(root) && rm(root; recursive=true, force=true)
+    bname = joinpath(root, "vtk_test")
+    name = bname * ".pvtu"
+    isfile(name) && rm(name)
+    n_points = 10
+    n_parts = 3
+    position = [rand(3, n_points) for _ in 1:n_parts]
+    cells = [Peridynamics.get_cells(n_points) for _ in 1:n_parts]
+    for i in 1:n_parts
+        pvtk_grid(bname, position[i], cells[i]; part=i, nparts=n_parts) do vtk
+        end
+    end
+
+    result = read_vtk(name)
+
+    @test result[:position] ≈ reduce(hcat, position)
+
+    rm(root; recursive=true, force=true)
+end
+
+@testitem "read vtu files with nothing exported" begin
+    using Peridynamics.WriteVTK
+
+    bname = joinpath(@__DIR__, "vtk_test_1")
+    name = bname * ".vtu"
+    isfile(name) && rm(name)
+    n_points = 10
+    position = rand(3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    vtk_grid(bname, position, cells) do vtk
+    end
+    result = read_vtk(name)
+
+    @test typeof(result) == Dict{Symbol,VecOrMat{Float64}}
+    @test result[:position] == position
+
+    rm(name)
+end
