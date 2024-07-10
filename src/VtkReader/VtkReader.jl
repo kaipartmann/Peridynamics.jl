@@ -212,11 +212,19 @@ function get_decompressed_data(da::DataArray{T,N}, raw_data::Vector{UInt8}) wher
     return data_decompressed
 end
 
-function promote_vec_or_mat_elemtype(pda::D1, pdas::Vector{D2},
-                                     fdas::Vector{D3}) where {D1,D2,D3<:AbstractDataArray}
+function promote_vec_or_mat_elemtype(pda::D1, pdas::Union{Vector{D2},Nothing},
+                                     fdas::Union{Vector{D3},Nothing}) where {D1,D2,D3}
     element_type_pda = element_type(pda)
-    element_types_pdas = element_type.(pdas)
-    element_types_fdas = element_type.(fdas)
+    if !isnothing(pdas)
+        element_types_pdas = element_type.(pdas)
+    else
+        element_types_pdas = ()
+    end
+    if !isnothing(fdas)
+        element_types_fdas = element_type.(fdas)
+    else
+        element_types_fdas = ()
+    end
     return typejoin(element_type_pda, element_types_pdas..., element_types_fdas...)
 end
 
@@ -228,11 +236,15 @@ function get_dict(pda, pdas, fdas, raw_data)
         d = Dict{Symbol,VecOrMat{<:type}}()
     end
     d[:position] = get_data(pda, raw_data)
-    for da in pdas
-        d[da.name] = get_data(da, raw_data)
+    if !isnothing(pdas)
+        for da in pdas
+            d[da.name] = get_data(da, raw_data)
+        end
     end
-    for da in fdas
-        d[da.name] = get_field_data(da, raw_data)
+    if !isnothing(fdas)
+        for da in fdas
+            d[da.name] = get_field_data(da, raw_data)
+        end
     end
     return d
 end

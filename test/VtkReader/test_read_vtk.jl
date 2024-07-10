@@ -216,3 +216,22 @@ end
 
     rm(root; recursive=true, force=true)
 end
+
+@testitem "read vtu files with nothing exported" begin
+    using Peridynamics.WriteVTK
+
+    bname = joinpath(@__DIR__, "vtk_test_1")
+    name = bname * ".vtu"
+    isfile(name) && rm(name)
+    n_points = 10
+    position = rand(3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    vtk_grid(bname, position, cells) do vtk
+    end
+    result = read_vtk(name)
+
+    @test typeof(result) == Dict{Symbol,VecOrMat{Float64}}
+    @test result[:position] == position
+
+    rm(name)
+end
