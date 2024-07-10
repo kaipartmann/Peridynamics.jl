@@ -212,37 +212,36 @@ function get_decompressed_data(da::DataArray{T,N}, raw_data::Vector{UInt8}) wher
     return data_decompressed
 end
 
-function promote_vec_or_mat_elemtype(pda::D1, pdas::Union{Vector{D2},Nothing},
-                                     fdas::Union{Vector{D3},Nothing}) where {D1,D2,D3}
-    element_type_pda = element_type(pda)
-    if !isnothing(pdas)
-        element_types_pdas = element_type.(pdas)
+function promote_vec_or_mat_elemtype(position_da, point_das, field_das)
+    element_type_pda = element_type(position_da)
+    if !isnothing(point_das)
+        element_types_pdas = element_type.(point_das)
     else
         element_types_pdas = ()
     end
-    if !isnothing(fdas)
-        element_types_fdas = element_type.(fdas)
+    if !isnothing(field_das)
+        element_types_fdas = element_type.(field_das)
     else
         element_types_fdas = ()
     end
     return typejoin(element_type_pda, element_types_pdas..., element_types_fdas...)
 end
 
-function get_dict(pda, pdas, fdas, raw_data)
-    type = promote_vec_or_mat_elemtype(pda, pdas, fdas)
+function get_dict(position_da, point_das, field_das, raw_data)
+    type = promote_vec_or_mat_elemtype(position_da, point_das, field_das)
     if isconcretetype(type)
         d = Dict{Symbol,VecOrMat{type}}()
     else
         d = Dict{Symbol,VecOrMat{<:type}}()
     end
-    d[:position] = get_data(pda, raw_data)
-    if !isnothing(pdas)
-        for da in pdas
+    d[:position] = get_data(position_da, raw_data)
+    if !isnothing(point_das)
+        for da in point_das
             d[da.name] = get_data(da, raw_data)
         end
     end
-    if !isnothing(fdas)
-        for da in fdas
+    if !isnothing(field_das)
+        for da in field_das
             d[da.name] = get_field_data(da, raw_data)
         end
     end
