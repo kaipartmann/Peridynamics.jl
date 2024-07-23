@@ -10,7 +10,7 @@ import LibGit2, Dates
 import Polyester: @batch
 
 # Material models
-export BBMaterial, OSBMaterial, NOSBMaterial, CKIMaterial
+export BBMaterial, OSBMaterial, NOSBMaterial, CKIMaterial, BANOSBMaterial
 
 # Systems related types
 export NoCorrection, EnergySurfaceCorrection
@@ -66,6 +66,7 @@ abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
+abstract type AbstractBondAssociatedSystemMaterial <: AbstractMaterial end
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
 
 include("auxiliary/function_arguments.jl")
@@ -88,6 +89,7 @@ include("discretization/decomposition.jl")
 include("discretization/chunk_handler.jl")
 include("discretization/bond_system.jl")
 include("discretization/bond_system_corrections.jl")
+include("discretization/bond_associated_system.jl")
 include("discretization/interaction_system.jl")
 include("discretization/body_chunk.jl")
 
@@ -112,6 +114,7 @@ include("physics/bond_based.jl")
 include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
 include("physics/correspondence.jl")
+include("physics/bond_associated_correspondence.jl")
 
 include("VtkReader/VtkReader.jl")
 using .VtkReader
