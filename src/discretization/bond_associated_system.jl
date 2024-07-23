@@ -1,12 +1,13 @@
 
-struct BondAssociatedSystem <: AbstractSystem
+struct BondAssociatedSystem <: AbstractBondSystem
     position::Matrix{Float64}
     volume::Vector{Float64}
     bonds::Vector{Bond}
     n_neighbors::Vector{Int}
     bond_ids::Vector{UnitRange{Int}}
     intersection_bond_ids::Vector{Vector{Int}}
-    volume_factor::Vector{Float64}
+    hood_volume::Vector{Float64}
+    ba_hood_volume::Vector{Float64}
 end
 
 function BondAssociatedSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
@@ -18,9 +19,10 @@ function BondAssociatedSystem(body::AbstractBody, pd::PointDecomposition, chunk_
     ch = get_chunk_handler(bonds, pd, chunk_id)
     localize!(bonds, ch.localizer)
     position, volume = get_pos_and_vol_chunk(body, ch.point_ids)
-    volume_factor = find_volume_factor(bonds, bond_ids, volume, intersection_bond_ids)
+    hood_volume = zeros(length(ch.point_ids))
+    ba_hood_volume = zeros(length(bonds))
     bs = BondAssociatedSystem(position, volume, bonds, n_neighbors, bond_ids,
-                              intersection_bond_ids, volume_factor)
+                              intersection_bond_ids, hood_volume, ba_hood_volume)
     return bs, ch
 end
 
@@ -57,19 +59,22 @@ function find_intersection_bond_ids(body, loc_points, bonds, bond_ids)
             for (ibond_id, bond_id) in enumerate(bond_ids_of_i)
                 bond = bonds[bond_id]
                 jj = bond.neighbor
-                if jj != j
-                    Xjj = get_coordinates(body, jj)
-                    ΔX = Xj - Xjj
-                    L² = dot(ΔX, ΔX)
-                    if L² < δ²
-                        push!(intersecting_bonds, ibond_id)
-                    end
+                Xjj = get_coordinates(body, jj)
+                ΔX = Xj - Xjj
+                L² = dot(ΔX, ΔX)
+                if L² < δ²
+                    push!(intersecting_bonds, ibond_id)
                 end
             end
             intersection_bond_ids[bond_id] = intersecting_bonds
         end
     end
     return intersection_bond_ids
+end
+
+@inline function each_intersecting_bond_idx(system::BondAssociatedSystem, point_id::Int,
+                                            bond_id::Int)
+    return view(each_bond_idx(system, point_id), system.intersection_bond_ids[bond_id])
 end
 
 function find_volume_factor(bonds, bond_ids, volume, intersection_bond_ids)
@@ -93,23 +98,54 @@ function find_volume_factor(bonds, bond_ids, volume, intersection_bond_ids)
         end
         volume_Hx[i] = vol_Hx
     end
-    volume_factor = zeros(length(bonds))
-    for i in eachindex(bond_ids)
-        bond_ids_of_i = bond_ids[i]
-        for bond_id in bond_ids_of_i
-            bond_j = bonds[bond_id]
-            j = bond_j.neighbor
-            volume_factor[bond_id] = volume_hx[bond_id] / volume_Hx[i]
+    return volume_Hx, volume_hx
+end
+
+function calc_hood_volumes!(chunk::AbstractBodyChunk{<:BondAssociatedSystem})
+    (; system) = chunk
+    (; volume, bonds, hood_volume, ba_hood_volume) = system
+
+    for i in each_point_idx(chunk)
+        _hood_volume = volume[i]
+        for bond_idx in each_bond_idx(system, i)
+            bond = bonds[bond_idx]
+            j = bond.neighbor
+            _hood_volume += volume[j]
+            _ba_hood_volume = volume[j]
+            for i_bond_idx in each_intersecting_bond_idx(system, i, bond_idx)
+                i_bond = bonds[i_bond_idx]
+                jj = i_bond.neighbor
+                _ba_hood_volume += volume[jj]
+            end
+            ba_hood_volume[bond_idx] = _ba_hood_volume
         end
+        hood_volume[i] = _hood_volume
     end
-    return volume_factor
+
+    return nothing
 end
 
-@inline function each_bond_idx(system::BondAssociatedSystem, point_id::Int)
-    return system.bond_ids[point_id]
+@inline get_hood_volume(chunk::AbstractBodyChunk) = chunk.system.hood_volume
+
+function initialize!(dh::AbstractThreadsBodyDataHandler{<:BondAssociatedSystem},
+                     ::AbstractTimeSolver)
+    @batch for chunk in dh.chunks
+        calc_hood_volumes!(chunk)
+    end
+    @batch for chunk_id in eachindex(dh.chunks)
+        exchange_loc_to_halo!(get_hood_volume, dh, chunk_id)
+    end
+    return nothing
 end
 
-@inline function each_intersecting_bond_idx(system::BondAssociatedSystem, point_id::Int,
-                                            bond_id::Int)
-    return view(each_bond_idx(system, point_id), system.intersection_bond_ids[bond_id])
+function initialize!(dh::AbstractMPIBodyDataHandler{<:BondAssociatedSystem},
+                     ::AbstractTimeSolver)
+    calc_hood_volumes!(dh.chunk)
+    exchange_loc_to_halo!(get_hood_volume, dh)
+    return nothing
+end
+
+@inline function volume_fraction_factor(system::BondAssociatedSystem, point_idx::Int,
+                                        bond_idx::Int)
+    return system.ba_hood_volume[bond_idx] / system.hood_volume[point_idx]
 end
