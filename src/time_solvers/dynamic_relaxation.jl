@@ -139,7 +139,8 @@ function _init_density_matrix!(chunk::AbstractBodyChunk, dr::DynamicRelaxation,
     return nothing
 end
 
-@inline function calc_density_matrix!(density_matrix::Matrix{Float64}, system::BondSystem,
+@inline function calc_density_matrix!(density_matrix::Matrix{Float64},
+                                      system::AbstractBondSystem,
                                       params::AbstractPointParameters,
                                       dr::DynamicRelaxation, i::Int)
     n_bonds = system.n_neighbors[i]
