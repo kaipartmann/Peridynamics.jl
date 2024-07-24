@@ -113,12 +113,12 @@ function calc_short_range_force_contacts!(dh::AbstractThreadsMultibodyDataHandle
         # update neighborhoodsearches
         posc_a = dh.position_caches[body_a_idx]
         posc_b = dh.position_caches[body_b_idx]
-        update_grid!(contact.nhs, posc_b)
+        update_grid!(contact.nhs, posc_b; parallelization_backend=ThreadsStaticBackend())
 
         # calc contact
         body_dh_a = get_body_dh(dh, body_a_idx)
         volc_b = dh.volume_caches[body_b_idx]
-        @batch for chunk_a in body_dh_a.chunks
+        @threads :static for chunk_a in body_dh_a.chunks
             calc_contact_force_density!(chunk_a, contact, posc_a, posc_b, volc_b)
         end
     end

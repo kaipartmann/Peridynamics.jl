@@ -101,7 +101,7 @@ function process_each_export_threads(f::F, vtk_files::Vector{String}) where {F<:
     ref_result = read_vtk(first(vtk_files))
     p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
                  enabled=progress_bars())
-    @batch for file_id in eachindex(vtk_files)
+    @threads :static for file_id in eachindex(vtk_files)
         process_step(f, ref_result, vtk_files[file_id], file_id)
         next!(p)
     end

@@ -25,7 +25,7 @@ function _chop_body_threads(::Type{ChunkType}, body::AbstractBody,
                             solver::AbstractTimeSolver, point_decomp::PointDecomposition,
                             param_spec::AbstractParamSpec) where {ChunkType}
     chunks = Vector{ChunkType}(undef, point_decomp.n_chunks)
-    @batch for chunk_id in eachindex(point_decomp.decomp)
+    @threads :static for chunk_id in eachindex(point_decomp.decomp)
         chunk = BodyChunk(body, solver, point_decomp, chunk_id, param_spec)
         apply_precracks!(chunk, body)
         apply_initial_conditions!(chunk, body)
@@ -38,7 +38,7 @@ end
 function find_halo_exchanges(chunks::Vector{B}) where {B<:AbstractBodyChunk}
     lth_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
     htl_exs = Vector{Vector{HaloExchange}}(undef, length(chunks))
-    @batch for chunk_id in eachindex(chunks)
+    @threads :static for chunk_id in eachindex(chunks)
         _lth_exs, _htl_exs = find_exs(chunks, chunk_id)
         lth_exs[chunk_id] = _lth_exs
         htl_exs[chunk_id] = _htl_exs
@@ -63,7 +63,7 @@ end
 
 function reorder_htl_exs!(htl_exs::Vector{Vector{HaloExchange}})
     all_htl_exs = reduce(vcat, htl_exs)
-    @batch for chunk_id in eachindex(htl_exs)
+    @threads :static for chunk_id in eachindex(htl_exs)
         htl_exs[chunk_id] = filter(x -> x.dest_chunk_id == chunk_id, all_htl_exs)
     end
     return nothing
@@ -166,7 +166,7 @@ end
 
 function export_reference_results(dh::ThreadsBodyDataHandler, options::AbstractJobOptions)
     options.export_allowed || return nothing
-    @batch for chunk_id in eachindex(dh.chunks)
+    @threads :static for chunk_id in eachindex(dh.chunks)
         _export_results(options, dh.chunks[chunk_id], chunk_id, dh.n_chunks, 0, 0.0)
     end
     return nothing
