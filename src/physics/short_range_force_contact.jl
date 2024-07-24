@@ -113,7 +113,7 @@ function calc_short_range_force_contacts!(dh::AbstractThreadsMultibodyDataHandle
         # update neighborhoodsearches
         posc_a = dh.position_caches[body_a_idx]
         posc_b = dh.position_caches[body_b_idx]
-        update_grid!(contact.nhs, posc_b)
+        update_grid!(contact.nhs, posc_b; parallelization_backend=ThreadsStaticBackend())
 
         # calc contact
         body_dh_a = get_body_dh(dh, body_a_idx)
