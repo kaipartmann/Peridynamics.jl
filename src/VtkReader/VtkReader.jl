@@ -88,7 +88,7 @@ end
 function get_raw_xml_and_data(files::Vector{String})
     vec_raw_xml_str = Vector{String}(undef, length(files))
     vec_raw_data = Vector{Vector{UInt8}}(undef, length(files))
-    Threads.@threads :static for i in eachindex(files)
+    Threads.@threads for i in eachindex(files)
         raw_xml_str, raw_data = get_raw_xml_and_data(files[i])
         vec_raw_xml_str[i] = raw_xml_str
         vec_raw_data[i] = raw_data
