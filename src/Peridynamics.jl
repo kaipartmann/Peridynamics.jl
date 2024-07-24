@@ -7,7 +7,6 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, Progres
 end
 
 import LibGit2, Dates
-import Polyester: @batch
 
 # Material models
 export BBMaterial, OSBMaterial, NOSBMaterial, CKIMaterial

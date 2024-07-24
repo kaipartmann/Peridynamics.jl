@@ -54,10 +54,10 @@ end
 
 function initialize!(dh::AbstractThreadsBodyDataHandler{BondSystem{EnergySurfaceCorrection}},
                      ::AbstractTimeSolver)
-    @batch for chunk in dh.chunks
+    @threads :static for chunk in dh.chunks
         calc_mfactor!(chunk)
     end
-    @batch for chunk_id in eachindex(dh.chunks)
+    @threads :static for chunk_id in eachindex(dh.chunks)
         exchange_loc_to_halo!(get_mfactor, dh, chunk_id)
         calc_scfactor!(dh.chunks[chunk_id])
     end

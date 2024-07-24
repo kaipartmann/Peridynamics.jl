@@ -135,7 +135,7 @@ end
 
 function calc_stable_timestep(dh::ThreadsBodyDataHandler, safety_factor::Float64)
     Δt = zeros(length(dh.chunks))
-    @batch for chunk_id in eachindex(dh.chunks)
+    @threads :static for chunk_id in eachindex(dh.chunks)
         Δt[chunk_id] = calc_timestep(dh.chunks[chunk_id])
     end
     return minimum(Δt) * safety_factor
@@ -181,17 +181,17 @@ end
 function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJobOptions,
                           Δt::Float64, Δt½::Float64, n::Int)
     t = n * Δt
-    @batch for chunk_id in eachindex(dh.chunks)
+    @threads :static for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
         update_vel_half!(chunk, Δt½)
         apply_boundary_conditions!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
-    @batch for chunk_id in eachindex(dh.chunks)
+    @threads :static for chunk_id in eachindex(dh.chunks)
         exchange_loc_to_halo!(dh, chunk_id)
         calc_force_density!(dh.chunks[chunk_id])
     end
-    @batch for chunk_id in eachindex(dh.chunks)
+    @threads :static for chunk_id in eachindex(dh.chunks)
         exchange_halo_to_loc!(dh, chunk_id)
         chunk = dh.chunks[chunk_id]
         calc_damage!(chunk)
@@ -206,13 +206,13 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
     t = n * Δt
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
-        @batch for chunk_id in eachindex(body_dh.chunks)
+        @threads :static for chunk_id in eachindex(body_dh.chunks)
             chunk = body_dh.chunks[chunk_id]
             update_vel_half!(chunk, Δt½)
             apply_boundary_conditions!(chunk, t)
             update_disp_and_pos!(chunk, Δt)
         end
-        @batch for chunk_id in eachindex(body_dh.chunks)
+        @threads :static for chunk_id in eachindex(body_dh.chunks)
             exchange_loc_to_halo!(body_dh, chunk_id)
             calc_force_density!(body_dh.chunks[chunk_id])
         end
@@ -222,7 +222,7 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
         body_name = get_body_name(dh, body_idx)
-        @batch for chunk_id in eachindex(body_dh.chunks)
+        @threads :static for chunk_id in eachindex(body_dh.chunks)
             exchange_halo_to_loc!(body_dh, chunk_id)
             chunk = body_dh.chunks[chunk_id]
             calc_damage!(chunk)
