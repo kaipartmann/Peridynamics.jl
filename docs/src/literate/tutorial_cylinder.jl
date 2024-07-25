@@ -45,3 +45,5 @@ job = Job(body, vv; path="results/fragmenting_cylinder", freq=10)
 #md # ```julia
 #md # submit(job)
 #md # ```
+
+# ![](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/f1574b72-bf86-4593-a5e0-74456f9db468)
