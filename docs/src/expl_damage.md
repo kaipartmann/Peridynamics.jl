@@ -18,7 +18,7 @@ or damaged ($d^{ij}=0$).
 ## Ordinary state-based formulation
 TODO
 ## Non-ordinary state-based formulation
-
+TODO
 ## Continuum-kinematics-inspired formulation
 
 ```math
