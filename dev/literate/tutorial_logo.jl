@@ -65,8 +65,8 @@ contact!(ms, :plate, :sphere1; radius=ΔX₀ₚ)
 contact!(ms, :plate, :sphere2; radius=ΔX₀ₚ)
 contact!(ms, :plate, :sphere3; radius=ΔX₀ₚ)
 
-# For this simulation, 3000 time steps with explicit time integration and the velocity
-# verlet algorithm are used.
+# For this simulation, 3000 time steps with explicit time integration and the Velocity
+# Verlet algorithm are used.
 vv = VelocityVerlet(steps=3000)
 
 # Now we create a directory for the results and create a Job.
