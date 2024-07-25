@@ -16,7 +16,7 @@ In this expression, bond failure $d^{ij}$ represents whether the bond between po
 or damaged ($d^{ij}=0$).
 
 ## Ordinary state-based formulation
-
+TODO
 ## Non-ordinary state-based formulation
 
 ## Continuum-kinematics-inspired formulation
