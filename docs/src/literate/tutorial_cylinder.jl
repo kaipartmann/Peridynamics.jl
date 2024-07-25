@@ -25,7 +25,7 @@ function fragmenting_cylinder_geometry(input_mesh_file::AbstractString)
 end
 
 # Now we specify the storage path of the file.
-input_mesh_file = joinpath(@__DIR__, "fragmenting_cylinder.txt")
+input_mesh_file = joinpath(@__DIR__, "..", "assets", "fragmenting_cylinder.txt")
 # To get the information we need, we use our function defined above.
 position, volume = fragmenting_cylinder_geometry(input_mesh_file)
 # Using this data, we can create a `Body` which represents the cylinder.
