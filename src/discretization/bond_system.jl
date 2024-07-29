@@ -194,7 +194,8 @@ function calc_timestep_point(bd::BondSystem, params::AbstractPointParameters, po
     return sqrt(2 * params.rho / dtsum)
 end
 
-function calc_force_density!(chunk::AbstractBodyChunk{S,M}) where {S<:BondSystem,M}
+function calc_force_density!(chunk::AbstractBodyChunk{S,M},
+                             ::Float64) where {S<:BondSystem,M}
     (; system, mat, paramsetup, storage) = chunk
     storage.b_int .= 0
     storage.n_active_bonds .= 0
