@@ -64,6 +64,7 @@ makedocs(;
             "expl_osbased.md",
             "expl_nosbased.md",
             "expl_continuumbased.md",
+            "expl_damage.md",
             "expl_references.md",
         ],
         "How-to guides" => [
