@@ -38,6 +38,8 @@ struct BANOSBVerletStorage <: AbstractStorage
     damage::Vector{Float64}
     bond_active::Vector{Bool}
     n_active_bonds::Vector{Int}
+    rotation::Matrix{Float64}
+    left_stretch::Matrix{Float64}
 end
 
 function BANOSBVerletStorage(::BANOSBMaterial, ::VelocityVerlet,
@@ -45,7 +47,7 @@ function BANOSBVerletStorage(::BANOSBMaterial, ::VelocityVerlet,
     n_loc_points = length(ch.loc_points)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
-    velocity = zeros(3, n_loc_points)
+    velocity = zeros(3, size(position, 2))
     velocity_half = zeros(3, n_loc_points)
     acceleration = zeros(3, n_loc_points)
     b_int = zeros(3, length(ch.point_ids))
@@ -53,14 +55,19 @@ function BANOSBVerletStorage(::BANOSBMaterial, ::VelocityVerlet,
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, length(system.bonds))
     n_active_bonds = copy(system.n_neighbors)
+    rotation = zeros(9, length(system.bonds))
+    rotation[[1, 5, 9], :] .= 1.0
+    left_stretch = zeros(9, length(system.bonds))
+    left_stretch[[1, 5, 9], :] .= 1.0
     s = BANOSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                          b_int, b_ext, damage, bond_active, n_active_bonds)
+                            b_int, b_ext, damage, bond_active, n_active_bonds, rotation,
+                            left_stretch)
     return s
 end
 
 @storage BANOSBMaterial VelocityVerlet BANOSBVerletStorage
 
-@loc_to_halo_fields BANOSBVerletStorage :position
+@loc_to_halo_fields BANOSBVerletStorage :position :velocity
 @halo_to_loc_fields BANOSBVerletStorage :b_int
 
 struct BANOSBRelaxationStorage <: AbstractStorage
@@ -106,41 +113,48 @@ end
 
 const BANOSBStorage = Union{BANOSBVerletStorage,BANOSBRelaxationStorage}
 
-function force_density_point!(storage::BANOSBStorage, system::BondAssociatedSystem,
-                              mat::BANOSBMaterial, paramhandler::AbstractParameterHandler,
-                              i::Int)
-    params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, i)
+function calc_force_density!(chunk::AbstractBodyChunk{S,M},
+                             Δt::Float64) where {S<:BondAssociatedSystem,M<:BANOSBMaterial}
+    (; system, mat, paramsetup, storage) = chunk
+    storage.b_int .= 0
+    storage.n_active_bonds .= 0
+    for point_id in each_point_idx(chunk)
+        force_density_point!(storage, system, mat, paramsetup, Δt, point_id)
+    end
     return nothing
 end
 
 function force_density_point!(storage::BANOSBStorage, system::BondAssociatedSystem,
-                              mat::BANOSBMaterial, params::BANOSBPointParameters, i::Int)
+                              mat::BANOSBMaterial, paramhandler::AbstractParameterHandler,
+                              Δt::Float64, i::Int)
+    params = get_params(paramhandler, i)
+    force_density_point!(storage, system, mat, params, Δt, i)
+    return nothing
+end
+
+function force_density_point!(storage::BANOSBStorage, system::BondAssociatedSystem,
+                              mat::BANOSBMaterial, params::BANOSBPointParameters,
+                              Δt::Float64, i::Int)
     for bond_idx in each_bond_idx(system, i)
-        force_density_bond!(storage, system, mat, params, i, bond_idx)
+        force_density_bond!(storage, system, mat, params, Δt, i, bond_idx)
     end
     return nothing
 end
 
 function force_density_bond!(storage::BANOSBStorage, system::BondAssociatedSystem,
-                             mat::BANOSBMaterial, params::BANOSBPointParameters, i::Int,
-                             bond_idx::Int)
-    F, Kinv = calc_deformation_gradient(storage, system, mat, params, i, bond_idx)
+                             mat::BANOSBMaterial, params::BANOSBPointParameters,
+                             Δt::Float64, i::Int, bond_idx::Int)
+    F, Ḟ, Kinv = calc_deformation_gradient(storage, system, mat, params, i, bond_idx)
     if containsnan(F) || storage.damage[i] > mat.maxdmg
         storage.bond_active[bond_idx] = false
         return nothing
     end
-    if containsnan(Kinv)
-        # @warn "Kinv contains NaN!"
-        storage.bond_active[bond_idx] = false
-        return nothing
-    end
-    P = calc_first_piola_stress(F, mat, params)
-    if containsnan(P)
-        # @warn "P contains NaN!"
-        storage.bond_active[bond_idx] = false
-        return nothing
-    end
+    σ = calc_cauchy_stress(mat, params, F)
+    calc_rod_and_rotation!(storage, F, Ḟ, Δt, bond_idx)
+    # R = get_rotation(storage, bond_idx)
+    # T = R * σ * R'
+    T = σ
+    P = det(F) * T * inv(F)'
     PKinv = P * Kinv
 
     bond = system.bonds[bond_idx]
@@ -173,19 +187,23 @@ function calc_deformation_gradient(storage::BANOSBStorage, system::BondAssociate
     (; bond_active) = storage
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
+    _Fdot = zeros(SMatrix{3,3})
     for bond_id in each_intersecting_bond_idx(system, i, bond_idx)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
         ΔXij = get_coordinates_diff(system, i, j)
         Δxij = get_coordinates_diff(storage, i, j)
+        Δvij = get_diff(storage.velocity, i, j)
         ωij = influence_function(mat, params, L) * bond_active[bond_id]
         temp = ωij * volume[j]
         K += temp * ΔXij * ΔXij'
         _F += temp * Δxij * ΔXij'
+        _Fdot += temp * Δvij * ΔXij'
     end
     Kinv = inv(K)
     F = _F * Kinv
-    return F, Kinv
+    Fdot = _Fdot * Kinv
+    return F, Fdot, Kinv
 end
 
 function calc_first_piola_stress(F::SMatrix{3,3}, ::BANOSBMaterial,
@@ -199,6 +217,174 @@ function calc_first_piola_stress(F::SMatrix{3,3}, ::BANOSBMaterial,
     P = F * S
     return P
 end
+
+
+function calc_cauchy_stress(mat::BANOSBMaterial, params::BANOSBPointParameters, F::SMatrix{3,3})
+    # ---- Neo-Hookean model
+    #      Ψ = G/2 (I₁ - 3) + K/2 (J - 1)^2
+    #      P = ∂Ψ/∂F = ∂Ψ/∂I₁ ∂I₁/∂F + ∂Ψ/∂J ∂J/∂F
+    #        = G F + K (J - 1) J F^(-T)
+    #      σ = 1/J P F^T
+    # J = det(F)
+    # J < eps() && return zero(SMatrix{3,3})
+    # J > mat.maxjacobi && return zero(SMatrix{3,3})
+    # B = F * F'
+    # σ = params.G / J .* B + params.K * (J - 1) .* I
+    # ----
+
+    # ---- Combined model with a Neo-Hookean type deviatoric response and a nonlinear
+    #      volumetric response:
+    J = det(F)
+    J < eps() && return zero(SMatrix{3,3})
+    # J > mat.maxjacobi && return zero(SMatrix{3,3})
+    C = F' * F
+    Cinv = inv(C)
+    S = params.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
+        params.K / 4 .* (J^2 - J^(-2)) .* Cinv
+    P = F * S
+    σ = 1/J .* P * F'
+    # ----
+
+    # ---- Saint Venant-Kirchhoff, taken from
+    #      https://doi.org/10.1016/j.jfluidstructs.2021.103312
+    # J = det(F)
+    # J < eps() && return zero(SMatrix{3,3})
+    # # J > mat.maxjacobi && return zero(SMatrix{3,3})
+    # E = 0.5 .* (F' * F - I)
+    # S = params.λ * tr(E) * I + 2 * params.μ * E
+    # P = F * S
+    # σ = 1/J .* P * F'
+    # ----
+
+    return σ
+end
+
+@inline function get_left_stretch(storage::BANOSBStorage, i::Int)
+    V = storage.left_stretch
+    _V = SMatrix{3,3}(V[1,i], V[2,i], V[3,i], V[4,i], V[5,i], V[6,i], V[7,i], V[8,i], V[9,i])
+    return _V
+end
+
+@inline function get_rotation(storage::BANOSBStorage, i::Int)
+    R = storage.rotation
+    _R = SMatrix{3,3}(R[1,i], R[2,i], R[3,i], R[4,i], R[5,i], R[6,i], R[7,i], R[8,i], R[9,i])
+    return _R
+end
+
+@inline function update_left_stretch!(storage::BANOSBStorage, i::Int, Vₙ₊₁::SMatrix{3,3})
+    Vₙ = storage.left_stretch
+    Vₙ[1,i] = Vₙ₊₁[1,1]
+    Vₙ[2,i] = Vₙ₊₁[1,2]
+    Vₙ[3,i] = Vₙ₊₁[1,3]
+    Vₙ[4,i] = Vₙ₊₁[2,1]
+    Vₙ[5,i] = Vₙ₊₁[2,2]
+    Vₙ[6,i] = Vₙ₊₁[2,3]
+    Vₙ[7,i] = Vₙ₊₁[3,1]
+    Vₙ[8,i] = Vₙ₊₁[3,2]
+    Vₙ[9,i] = Vₙ₊₁[3,3]
+    return nothing
+end
+
+@inline function update_rotation!(storage::BANOSBStorage, i::Int, Rₙ₊₁::SMatrix{3,3})
+    Rₙ = storage.rotation
+    Rₙ[1,i] = Rₙ₊₁[1,1]
+    Rₙ[2,i] = Rₙ₊₁[1,2]
+    Rₙ[3,i] = Rₙ₊₁[1,3]
+    Rₙ[4,i] = Rₙ₊₁[2,1]
+    Rₙ[5,i] = Rₙ₊₁[2,2]
+    Rₙ[6,i] = Rₙ₊₁[2,3]
+    Rₙ[7,i] = Rₙ₊₁[3,1]
+    Rₙ[8,i] = Rₙ₊₁[3,2]
+    Rₙ[9,i] = Rₙ₊₁[3,3]
+    return nothing
+end
+
+"""
+    calc_rod_and_rotation!()
+
+Calculates the rate of deformation and the rotation tensor needed for the kinematic
+computations described
+"""
+function calc_rod_and_rotation!(storage, F, Ḟ, Δt, i)
+    #(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
+
+    # inverse of the deformation gradient
+    F⁻¹ = inv(F)
+
+    # Eulerian velocity gradient [FT87, eq. (3)]
+    L = Ḟ * F⁻¹
+
+    # rate-of-deformation tensor D
+    D = 0.5 .* (L + L')
+
+    # spin tensor W
+    W = 0.5 .* (L - L')
+
+    # left stretch V
+    # 1 -> 1,1
+    # 2 -> 1,2
+    # 3 -> 1,3
+    # 4 -> 2,1
+    # 5 -> 2,2
+    # 6 -> 2,3
+    # 7 -> 3,1
+    # 8 -> 3,2
+    # 9 -> 3,3
+    V = get_left_stretch(storage, i)
+
+    # vector z [FT87, eq. (13)]
+    z_x = - V[1,3] * D[2,1] - V[2,3] * D[2,2] -
+            V[3,3] * D[2,3] + V[1,2] * D[3,1] +
+            V[2,2] * D[3,2] + V[3,2] * D[3,3]
+    z_y = V[1,3] * D[1,1] + V[2,3] * D[1,2] +
+          V[3,3] * D[1,3] - V[1,1] * D[3,1] -
+          V[2,1] * D[3,2] - V[3,1] * D[3,3]
+    z_z = - V[1,2] * D[1,1] - V[2,2] * D[1,2] -
+            V[3,2] * D[1,3] + V[1,1] * D[2,1] +
+            V[2,1] * D[2,2] + V[3,1] * D[2,3]
+    z = SVector{3}(z_x, z_y, z_z)
+
+    # w = -1/2 * \epsilon_{ijk} * W_{jk}  [FT87, eq. (11)]
+    w = 0.5 .* SVector{3}(W[3,1] - W[2,2], W[1,2] - W[2,3], W[1,3] - W[1,1])
+
+    # ω = w + (I * tr(V) - V)^(-1) * z [FT87, eq. (12)]
+    ω = w + inv(I * tr(V) - V) * z
+
+    # Ω [FT87, eq. (10)]
+    Ωtens = SMatrix{3,3}(0.0, -ω[3], ω[2], ω[3], 0.0, -ω[1], ω[2], ω[1], 0.0)
+    Ωtens² = Ωtens * Ωtens
+    Ω² = dot(ω, ω)
+    Ω = sqrt(Ω²)
+
+    # compute Q with [FT87, eq. (44)]
+    if 1e-30 < Ω² < Inf # avoid a potential divide-by-zero
+        fac1 = sin(Δt * Ω) / Ω
+        fac2 = -(1.0 - cos(Δt * Ω)) / Ω²
+        Q = I + fac1 .* Ωtens + fac2 .* Ωtens²
+    else
+        Q = SMatrix{3,3}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+    end
+
+    # compute Rotation of new step [FT87, eq. (36)]
+    R = get_rotation(storage, i)
+    Rₙ₊₁ = Q * R
+
+    # compute step 4 of [FT87]
+    V̇ = L * V - V * Ωtens
+
+    # compute step 5 of [FT87]
+    Vₙ₊₁ = V + Δt * V̇
+
+    # update rotation and left stretch
+    update_rotation!(storage, i, Rₙ₊₁)
+    update_left_stretch!(storage, i, Vₙ₊₁)
+
+    # compute step 6 of [FT87]
+    # d = R' * D * R
+
+    return nothing
+end
+
 
 function kill_point!(s::AbstractStorage, system::BondAssociatedSystem, i::Int)
     s.bond_active[each_bond_idx(system, i)] .= false

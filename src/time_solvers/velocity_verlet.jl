@@ -189,7 +189,7 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJ
     end
     @batch for chunk_id in eachindex(dh.chunks)
         exchange_loc_to_halo!(dh, chunk_id)
-        calc_force_density!(dh.chunks[chunk_id])
+        calc_force_density!(dh.chunks[chunk_id], Δt)
     end
     @batch for chunk_id in eachindex(dh.chunks)
         exchange_halo_to_loc!(dh, chunk_id)
@@ -214,7 +214,7 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
         end
         @batch for chunk_id in eachindex(body_dh.chunks)
             exchange_loc_to_halo!(body_dh, chunk_id)
-            calc_force_density!(body_dh.chunks[chunk_id])
+            calc_force_density!(body_dh.chunks[chunk_id], Δt)
         end
     end
     update_caches!(dh)
