@@ -145,11 +145,11 @@ end
 end
 
 @inline function _get_filename(vtk_filebase::String, ::Symbol, n::Int)
-    return @sprintf("%s_%06d", vtk_filebase, n)
+    return @sprintf("%s_%06d", vtk_filebase, n) #TODO: remove trailing zeros
 end
 
 @inline function _get_filename(vtk_filebase::Dict{Symbol,String}, body_name::Symbol, n::Int)
-    return @sprintf("%s_%06d", vtk_filebase[body_name], n)
+    return @sprintf("%s_%06d", vtk_filebase[body_name], n) #TODO: remove trailing zeros
 end
 
 function export_fields!(vtk, chunk, fields::Vector{Symbol})

@@ -71,7 +71,28 @@ function find_vtk_files(path::AbstractString)
     all_files = readdir(path; join=true)
     pvtu_files = filter(x -> endswith(x, ".pvtu"), all_files)
     isempty(pvtu_files) && throw(ArgumentError("no pvtu-files in path: $path\n"))
+    sort_by_time_step!(pvtu_files)
     return pvtu_files
+end
+
+function extract_time_step_from_filename(filename::AbstractString)
+    filename_base = first(splitext(basename(filename)))
+    time_step_str = last(split(filename_base, "_"))
+    time_step = parse(Int, time_step_str)
+    #TODO
+    # if startswith(filename_base, "timestep")
+    #     body_name = ""
+    # else
+    #     body_name = first(split(filename_base, "_timestep"))
+    # end
+    # return body_name, time_step
+    return time_step
+end
+
+function sort_by_time_step!(vtk_files::Vector{<:AbstractString})
+    idxs = sortperm(extract_time_step_from_filename.(vtk_files))
+    vtk_files .= vtk_files[idxs]
+    return nothing
 end
 
 function process_step(f::F, ref_result::Dict{Symbol,T}, file::AbstractString,
