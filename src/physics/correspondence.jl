@@ -65,7 +65,7 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 """
 Base.@kwdef struct NOSBMaterial <: AbstractBondSystemMaterial{NoCorrection}
     maxdmg::Float64 = 0.95
-    corr::Float64 = 0.015
+    corr::Float64 = 100.0
 end
 
 function Base.show(io::IO, @nospecialize(mat::NOSBMaterial))
