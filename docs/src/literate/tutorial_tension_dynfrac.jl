@@ -45,4 +45,4 @@ job = Job(body, vv; path="results/tension_dynamic_fracture")
 #md # ```julia
 #md # submit(job)
 #md # ```
-# ![](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/fcd71bd7-f6ef-4f72-97c2-27ddd2acbf89)
+# ![](https://github.com/user-attachments/assets/332babb0-5c6f-4ae0-89e8-3ae1a7a80177)

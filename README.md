@@ -77,7 +77,10 @@ in the julia package manager. Please take a look at the [documentation](https://
         <figcaption>Kalthoff Winkler</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/6dc362ef-4997-4327-9bc1-41350fac2dc1" width="300"/><br>
       </a>
     </td>
-    <td></td>
+    <td align="center">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_cylinder/">
+        <figcaption>Fragmenting cylinder</figcaption><br><img src="https://github.com/user-attachments/assets/58e11123-6143-4e13-8642-7e30c9e6c86d" width="300"/>
+   </a></td>
   </tr>
 </table>
 

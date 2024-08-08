@@ -115,4 +115,4 @@ job = Job(body, vv; path="results/mode_i_tension_precrack")
 #md # ```
 
 # ### Damage results:
-# ![](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/0f78a13a-7497-4218-a254-45d936df9602)
+# ![](https://github.com/user-attachments/assets/918aed7b-735d-418f-900c-e0a996db2bab)
