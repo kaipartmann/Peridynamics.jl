@@ -51,4 +51,4 @@ job = Job(body, dr; path="results/tension_static")
 #md # submit(job)
 #md # ```
 
-# ![](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/d74d60fb-c792-4d5b-a683-9448d6c92e83)
+# ![](https://github.com/user-attachments/assets/b6b2ba41-1ed3-497f-b496-44655d4be696)
