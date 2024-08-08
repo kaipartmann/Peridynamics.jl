@@ -1,6 +1,6 @@
 # # [The old Peridynamics.jl logo](@id tutorial_logo)
 
-# ![](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/b79fd475-67fc-4097-9f05-791833f29fa9)
+# ![](https://github.com/user-attachments/assets/0761ba02-f69a-4f3a-b5c5-0f219548070f)
 
 # (Visualization made with [ParaView](https://www.paraview.org))
 

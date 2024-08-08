@@ -85,7 +85,7 @@ job = Job(body, vv; path=path)
 #md # ```julia
 #md # @mpitime submit(job)
 #md # ```
-# ![](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/ba21d9d1-4fc3-4894-8842-65c835506463)
+# ![](https://github.com/user-attachments/assets/49aca8fe-cbe8-4e5a-8a78-02ce4aeb3cae)
 
 # ## Conclusion
 #

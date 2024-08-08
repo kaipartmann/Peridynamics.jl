@@ -81,6 +81,14 @@ To install `Peridynamics.jl`, follow these steps:
 ```
 
 ```@raw html
+<div class="tutorial-element">
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_cylinder/">
+      <figcaption>Fragmenting cylinder</figcaption><br><img src="https://github.com/user-attachments/assets/58e11123-6143-4e13-8642-7e30c9e6c86d" style="width: 90% !important;"/>
+   </a>
+</div>
+```
+
+```@raw html
 </div>
 ```
 
