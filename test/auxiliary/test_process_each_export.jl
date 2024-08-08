@@ -86,3 +86,23 @@
 
     rm(root; recursive=true, force=true)
 end
+
+@testitem "find_vtk_files" begin
+    root = joinpath(@__DIR__, "temp_root_find_vtk_files")
+    isdir(root) && rm(root; recursive=true, force=true)
+
+    vtk_files_unsorted = ["timestep_123.pvtu", "abcd_timestep_000005.pvtu",
+                          "timestep_02.pvtu", "_1.pvtu"]
+    mkpath(root)
+    for file in vtk_files_unsorted
+        open(joinpath(root, file), "w+") do io
+            write(io, "")
+        end
+    end
+
+    vtk_files = Peridynamics.find_vtk_files(root)
+    @test basename.(vtk_files) == ["_1.pvtu", "timestep_02.pvtu",
+                                   "abcd_timestep_000005.pvtu", "timestep_123.pvtu"]
+
+    rm(root; recursive=true, force=true)
+end
