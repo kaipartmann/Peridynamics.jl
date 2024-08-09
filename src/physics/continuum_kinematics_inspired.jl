@@ -201,7 +201,8 @@ end
 const CKIStorage = Union{CKIVerletStorage,CKIRelaxationStorage}
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,
-                              mat::CKIMaterial, params::AbstractParameterSetup, i::Int)
+                              mat::CKIMaterial, params::AbstractParameterSetup, t::Float64,
+                              Δt::Float64, i::Int)
     force_density_point_one_ni!(storage, system, mat, params, i)
     has_two_nis(params) && force_density_point_two_ni!(storage, system, mat, params, i)
     has_three_nis(params) && force_density_point_three_ni!(storage, system, mat, params, i)

@@ -342,12 +342,13 @@ function calc_timestep_point(system::InteractionSystem, params::AbstractPointPar
     return sqrt(2 * params.rho / dtsum)
 end
 
-function calc_force_density!(chunk::AbstractBodyChunk{S,M}) where {S<:InteractionSystem,M}
+function calc_force_density!(chunk::AbstractBodyChunk{S,M}, t::Float64,
+                             Δt::Float64) where {S<:InteractionSystem,M}
     (; system, mat, paramsetup, storage) = chunk
     storage.b_int .= 0
     storage.n_active_one_nis .= 0
     for point_id in each_point_idx(chunk)
-        force_density_point!(storage, system, mat, paramsetup, point_id)
+        force_density_point!(storage, system, mat, paramsetup, t, Δt, point_id)
     end
     return nothing
 end

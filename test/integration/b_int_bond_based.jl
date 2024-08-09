@@ -19,7 +19,7 @@
     # Point 2 with v_z = 1 m/s with Δt = 0.0015 s
     position[1, 2] = 1.0015
 
-    Peridynamics.calc_force_density!(chunk)
+    Peridynamics.calc_force_density!(chunk, 0.0, 0.0)
 
     b12 = 18 * E / (3 * (1 - 2 * 0.25)) / (π * δ^4) * 1.0015 * 0.0015/1.0015 * 1.0
     @test b_int ≈ [b12 -b12; 0.0 0.0; 0.0 0.0]
@@ -51,7 +51,7 @@ end
     # Point 2 with v_z = 1 m/s with Δt = 0.0015 s
     position[1, 2] = 1.0015
 
-    Peridynamics.calc_force_density!(chunk)
+    Peridynamics.calc_force_density!(chunk, 0.0015, 0.0015)
 
     b12 = 18 * E / (3 * (1 - 2 * 0.25)) / (π * δ^4) * 1.0015 * 0.0015/1.0015 * 1.0
     @test b_int ≈ [b12 -b12; 0.0 0.0; 0.0 0.0]

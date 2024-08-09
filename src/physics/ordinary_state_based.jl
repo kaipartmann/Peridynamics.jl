@@ -161,7 +161,7 @@ end
 const OSBStorage = Union{OSBVerletStorage,OSBRelaxationStorage}
 
 function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::OSBPointParameters, i::Int)
+                              params::OSBPointParameters, t::Float64, Δt::Float64, i::Int)
     wvol = calc_weighted_volume(storage, system, mat, params, i)
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, mat, params, wvol, i)
@@ -184,7 +184,8 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
 end
 
 function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              paramhandler::ParameterHandler, i::Int)
+                              paramhandler::ParameterHandler, t::Float64, Δt::Float64,
+                              i::Int)
     params_i = get_params(paramhandler, i)
     wvol = calc_weighted_volume(storage, system, mat, params_i, i)
     iszero(wvol) && return nothing

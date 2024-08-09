@@ -181,14 +181,16 @@ end
 const CCStorage = Union{CCVerletStorage,CCRelaxationStorage}
 
 function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
-                              paramhandler::AbstractParameterHandler, i::Int)
+                              paramhandler::AbstractParameterHandler, t::Float64,
+                              Δt::Float64, i::Int)
     params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, i)
+    force_density_point!(storage, system, mat, params, t, Δt, i)
     return nothing
 end
 
 function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
-                              params::CCPointParameters, i::Int)
+                              params::CCPointParameters, t::Float64, Δt::Float64,
+                              i::Int)
     F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         kill_point!(storage, system, i)
