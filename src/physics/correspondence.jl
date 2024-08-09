@@ -80,7 +80,7 @@ function Base.show(io::IO, @nospecialize(mat::CCMaterial))
     return nothing
 end
 
-struct NOSBPointParameters <: AbstractPointParameters
+struct CCPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64
     E::Float64
@@ -94,16 +94,16 @@ struct NOSBPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-function NOSBPointParameters(::CCMaterial, p::Dict{Symbol,Any})
+function CCPointParameters(::CCMaterial, p::Dict{Symbol,Any})
     δ = get_horizon(p)
     rho = get_density(p)
     E, nu, G, K, λ, μ = get_elastic_params(p)
     Gc, εc = get_frac_params(p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
-    return NOSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+    return CCPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@params CCMaterial NOSBPointParameters
+@params CCMaterial CCPointParameters
 
 struct NOSBVerletStorage <: AbstractStorage
     position::Matrix{Float64}
@@ -190,7 +190,7 @@ function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::CCM
 end
 
 function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::CCMaterial,
-                              params::NOSBPointParameters, i::Int)
+                              params::CCPointParameters, i::Int)
     F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         kill_point!(storage, system, i)
@@ -226,12 +226,12 @@ function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::CCM
     return nothing
 end
 
-@inline function influence_function(::CCMaterial, params::NOSBPointParameters, L::Float64)
+@inline function influence_function(::CCMaterial, params::CCPointParameters, L::Float64)
     return params.δ / L
 end
 
 function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
-                                   mat::CCMaterial, params::NOSBPointParameters, i::Int)
+                                   mat::CCMaterial, params::CCPointParameters, i::Int)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
     ω0 = 0.0
@@ -253,7 +253,7 @@ function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
 end
 
 function calc_first_piola_stress(F::SMatrix{3,3}, mat::CCMaterial,
-                                 params::NOSBPointParameters)
+                                 params::CCPointParameters)
     J = det(F)
     J < eps() && return zero(SMatrix{3,3})
     J > mat.maxjacobi && return zero(SMatrix{3,3})
