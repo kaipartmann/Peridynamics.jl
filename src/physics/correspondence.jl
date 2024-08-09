@@ -8,10 +8,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values.
-    (default: `0.95`)
-- `maxjacobi::Float64`: Maximum value of the Jacobi determinant. If this value is exceeded,
-    all bonds of that point are broken.
-    (default: `1.03`)
+    (default: `0.85`)
 - `corr::Float64`: Correction factor used for zero-energy mode stabilization. The
     stabilization algorithm of Silling (2017) is used.
     (default: `100.0`)
@@ -19,13 +16,13 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 !!! note "Stability of fracture simulations"
     This formulation is known to be not suitable for fracture simultations without
     stabilization of the zero-energy modes. Therefore be careful when doing fracture
-    simulations and try out different paremeters for `maxdmg`, `maxjacobi`, and `corr`.
+    simulations and try out different parameters for `maxdmg` and `corr`.
 
 # Examples
 
 ```julia-repl
 julia> mat = CCMaterial()
-CCMaterial(maxdmg=0.95, maxjacobi=1.03, corr=100.0)
+CCMaterial(maxdmg=0.85, maxjacobi=1.03, corr=100.0)
 ```
 
 ---
@@ -40,8 +37,6 @@ non-ordinary state-based peridynamics.
 # Fields
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
     constructor docs for more informations.
-- `maxjacobi::Float64`: Maximum value of the Jacobi determinant. See the constructor docs
-    for more informations.
 - `corr::Float64`: Correction factor used for zero-energy mode stabilization. See the
     constructor docs for more informations.
 
@@ -68,10 +63,13 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-Base.@kwdef struct CCMaterial <: AbstractBondSystemMaterial{NoCorrection}
-    maxdmg::Float64 = 0.95
-    maxjacobi::Float64 = 1.03
-    corr::Float64 = 100.0
+struct CCMaterial <: AbstractBondSystemMaterial{NoCorrection}
+    maxdmg::Float64
+    corr::Float64
+end
+
+function CCMaterial(; maxdmg=0.85, corr=100.0)
+    return CCMaterial(maxdmg, corr)
 end
 
 function Base.show(io::IO, @nospecialize(mat::CCMaterial))
@@ -131,7 +129,7 @@ function CCVerletStorage(::CCMaterial, ::VelocityVerlet, system::BondSystem, ch)
     bond_active = ones(Bool, length(system.bonds))
     n_active_bonds = copy(system.n_neighbors)
     s = CCVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                          b_int, b_ext, damage, bond_active, n_active_bonds)
+                        b_int, b_ext, damage, bond_active, n_active_bonds)
     return s
 end
 
@@ -170,8 +168,8 @@ function CCRelaxationStorage(::CCMaterial, ::DynamicRelaxation, system::BondSyst
     bond_active = ones(Bool, length(system.bonds))
     n_active_bonds = copy(system.n_neighbors)
     s = CCRelaxationStorage(position, displacement, velocity, velocity_half,
-                              velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
-                              damage, bond_active, n_active_bonds)
+                            velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
+                            damage, bond_active, n_active_bonds)
     return s
 end
 
@@ -256,7 +254,6 @@ function calc_first_piola_stress(F::SMatrix{3,3}, mat::CCMaterial,
                                  params::CCPointParameters)
     J = det(F)
     J < eps() && return zero(SMatrix{3,3})
-    J > mat.maxjacobi && return zero(SMatrix{3,3})
     C = F' * F
     Cinv = inv(C)
     S = params.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
