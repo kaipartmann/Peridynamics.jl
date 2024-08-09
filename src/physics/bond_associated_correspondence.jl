@@ -151,9 +151,9 @@ function force_density_bond!(storage::BANOSBStorage, system::BondAssociatedSyste
     end
     σ = calc_cauchy_stress(mat, params, F)
     calc_rod_and_rotation!(storage, F, Ḟ, Δt, bond_idx)
-    # R = get_rotation(storage, bond_idx)
-    # T = R * σ * R'
-    T = σ
+    R = get_rotation(storage, bond_idx)
+    T = R * σ * R'
+    # T = σ
     P = det(F) * T * inv(F)'
     PKinv = P * Kinv
 
@@ -167,8 +167,10 @@ function force_density_bond!(storage::BANOSBStorage, system::BondAssociatedSyste
 
     ωij = influence_function(mat, params, L) * storage.bond_active[bond_idx]
     tij = ωij * PKinv * ΔXij
-    temp_i = volume_fraction_factor(system, i, bond_idx) * system.volume[i]
-    temp_j = volume_fraction_factor(system, j, bond_idx) * system.volume[j]
+    # temp_i = volume_fraction_factor(system, i, bond_idx) * system.volume[i]
+    temp_i = system.volume[i]
+    # temp_j = volume_fraction_factor(system, j, bond_idx) * system.volume[j]
+    temp_j = system.volume[j]
     update_add_b_int!(storage, i, tij .* temp_j)
     update_add_b_int!(storage, j, -tij .* temp_i)
     return nothing
@@ -206,18 +208,17 @@ function calc_deformation_gradient(storage::BANOSBStorage, system::BondAssociate
     return F, Fdot, Kinv
 end
 
-function calc_first_piola_stress(F::SMatrix{3,3}, ::BANOSBMaterial,
-                                 params::BANOSBPointParameters)
-    J = det(F)
-    J < eps() && return zero(SMatrix{3,3})
-    C = F' * F
-    Cinv = inv(C)
-    S = params.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
-        params.K / 4 .* (J^2 - J^(-2)) .* Cinv
-    P = F * S
-    return P
-end
-
+# function calc_first_piola_stress(F::SMatrix{3,3}, ::BANOSBMaterial,
+#                                  params::BANOSBPointParameters)
+#     J = det(F)
+#     J < eps() && return zero(SMatrix{3,3})
+#     C = F' * F
+#     Cinv = inv(C)
+#     S = params.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
+#         params.K / 4 .* (J^2 - J^(-2)) .* Cinv
+#     P = F * S
+#     return P
+# end
 
 function calc_cauchy_stress(mat::BANOSBMaterial, params::BANOSBPointParameters, F::SMatrix{3,3})
     # ---- Neo-Hookean model
@@ -236,7 +237,6 @@ function calc_cauchy_stress(mat::BANOSBMaterial, params::BANOSBPointParameters, 
     #      volumetric response:
     J = det(F)
     J < eps() && return zero(SMatrix{3,3})
-    # J > mat.maxjacobi && return zero(SMatrix{3,3})
     C = F' * F
     Cinv = inv(C)
     S = params.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
@@ -259,43 +259,40 @@ function calc_cauchy_stress(mat::BANOSBMaterial, params::BANOSBPointParameters, 
     return σ
 end
 
+@inline function get_tensor(T::AbstractMatrix, i::Int)
+    tensor = SMatrix{3,3}(T[1,i], T[2,i], T[3,i], T[4,i], T[5,i], T[6,i], T[7,i], T[8,i],
+                          T[9,i])
+    return tensor
+end
+
 @inline function get_left_stretch(storage::BANOSBStorage, i::Int)
-    V = storage.left_stretch
-    _V = SMatrix{3,3}(V[1,i], V[2,i], V[3,i], V[4,i], V[5,i], V[6,i], V[7,i], V[8,i], V[9,i])
-    return _V
+    return get_tensor(storage.left_stretch, i)
 end
 
 @inline function get_rotation(storage::BANOSBStorage, i::Int)
-    R = storage.rotation
-    _R = SMatrix{3,3}(R[1,i], R[2,i], R[3,i], R[4,i], R[5,i], R[6,i], R[7,i], R[8,i], R[9,i])
-    return _R
+    return get_tensor(storage.rotation, i)
 end
 
-@inline function update_left_stretch!(storage::BANOSBStorage, i::Int, Vₙ₊₁::SMatrix{3,3})
-    Vₙ = storage.left_stretch
-    Vₙ[1,i] = Vₙ₊₁[1,1]
-    Vₙ[2,i] = Vₙ₊₁[1,2]
-    Vₙ[3,i] = Vₙ₊₁[1,3]
-    Vₙ[4,i] = Vₙ₊₁[2,1]
-    Vₙ[5,i] = Vₙ₊₁[2,2]
-    Vₙ[6,i] = Vₙ₊₁[2,3]
-    Vₙ[7,i] = Vₙ₊₁[3,1]
-    Vₙ[8,i] = Vₙ₊₁[3,2]
-    Vₙ[9,i] = Vₙ₊₁[3,3]
+@inline function update_tensor!(Tₙ::AbstractMatrix, i::Int, Tₙ₊₁::SMatrix{3,3})
+    Tₙ[1,i] = Tₙ₊₁[1,1]
+    Tₙ[2,i] = Tₙ₊₁[1,2]
+    Tₙ[3,i] = Tₙ₊₁[1,3]
+    Tₙ[4,i] = Tₙ₊₁[2,1]
+    Tₙ[5,i] = Tₙ₊₁[2,2]
+    Tₙ[6,i] = Tₙ₊₁[2,3]
+    Tₙ[7,i] = Tₙ₊₁[3,1]
+    Tₙ[8,i] = Tₙ₊₁[3,2]
+    Tₙ[9,i] = Tₙ₊₁[3,3]
     return nothing
 end
 
-@inline function update_rotation!(storage::BANOSBStorage, i::Int, Rₙ₊₁::SMatrix{3,3})
-    Rₙ = storage.rotation
-    Rₙ[1,i] = Rₙ₊₁[1,1]
-    Rₙ[2,i] = Rₙ₊₁[1,2]
-    Rₙ[3,i] = Rₙ₊₁[1,3]
-    Rₙ[4,i] = Rₙ₊₁[2,1]
-    Rₙ[5,i] = Rₙ₊₁[2,2]
-    Rₙ[6,i] = Rₙ₊₁[2,3]
-    Rₙ[7,i] = Rₙ₊₁[3,1]
-    Rₙ[8,i] = Rₙ₊₁[3,2]
-    Rₙ[9,i] = Rₙ₊₁[3,3]
+@inline function update_left_stretch!(storage::BANOSBStorage, i::Int, V::SMatrix{3,3})
+    update_tensor!(storage.left_stretch, i, V)
+    return nothing
+end
+
+@inline function update_rotation!(storage::BANOSBStorage, i::Int, R::SMatrix{3,3})
+    update_tensor!(storage.rotation, i, R)
     return nothing
 end
 
@@ -306,8 +303,6 @@ Calculates the rate of deformation and the rotation tensor needed for the kinema
 computations described
 """
 function calc_rod_and_rotation!(storage, F, Ḟ, Δt, i)
-    #(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
-
     # inverse of the deformation gradient
     F⁻¹ = inv(F)
 
@@ -321,15 +316,6 @@ function calc_rod_and_rotation!(storage, F, Ḟ, Δt, i)
     W = 0.5 .* (L - L')
 
     # left stretch V
-    # 1 -> 1,1
-    # 2 -> 1,2
-    # 3 -> 1,3
-    # 4 -> 2,1
-    # 5 -> 2,2
-    # 6 -> 2,3
-    # 7 -> 3,1
-    # 8 -> 3,2
-    # 9 -> 3,3
     V = get_left_stretch(storage, i)
 
     # vector z [FT87, eq. (13)]
@@ -345,21 +331,21 @@ function calc_rod_and_rotation!(storage, F, Ḟ, Δt, i)
     z = SVector{3}(z_x, z_y, z_z)
 
     # w = -1/2 * \epsilon_{ijk} * W_{jk}  [FT87, eq. (11)]
-    w = 0.5 .* SVector{3}(W[3,1] - W[2,2], W[1,2] - W[2,3], W[1,3] - W[1,1])
+    w = 0.5 .* SVector{3}(W[3,2] - W[2,3], W[1,3] - W[3,1], W[2,1] - W[1,2])
 
     # ω = w + (I * tr(V) - V)^(-1) * z [FT87, eq. (12)]
     ω = w + inv(I * tr(V) - V) * z
 
     # Ω [FT87, eq. (10)]
-    Ωtens = SMatrix{3,3}(0.0, -ω[3], ω[2], ω[3], 0.0, -ω[1], ω[2], ω[1], 0.0)
-    Ωtens² = Ωtens * Ωtens
+    Ωtens = SMatrix{3,3}(0.0, -ω[3], ω[2], ω[3], 0.0, -ω[1], -ω[2], ω[1], 0.0)
     Ω² = dot(ω, ω)
     Ω = sqrt(Ω²)
 
     # compute Q with [FT87, eq. (44)]
-    if 1e-30 < Ω² < Inf # avoid a potential divide-by-zero
+    if Ω² > 1e-30 # avoid a potential divide-by-zero
         fac1 = sin(Δt * Ω) / Ω
         fac2 = -(1.0 - cos(Δt * Ω)) / Ω²
+        Ωtens² = Ωtens * Ωtens
         Q = I + fac1 .* Ωtens + fac2 .* Ωtens²
     else
         Q = SMatrix{3,3}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
@@ -380,8 +366,8 @@ function calc_rod_and_rotation!(storage, F, Ḟ, Δt, i)
     update_left_stretch!(storage, i, Vₙ₊₁)
 
     # compute step 6 of [FT87]
-    # d = R' * D * R
-
+    # d = Rₙ₊₁' * D * Rₙ₊₁
+    # update_tensor!(storage.rate_of_deformation, i, d)
     return nothing
 end
 
