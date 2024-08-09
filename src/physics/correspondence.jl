@@ -105,7 +105,7 @@ end
 
 @params CCMaterial CCPointParameters
 
-struct NOSBVerletStorage <: AbstractStorage
+struct CCVerletStorage <: AbstractStorage
     position::Matrix{Float64}
     displacement::Matrix{Float64}
     velocity::Matrix{Float64}
@@ -118,7 +118,7 @@ struct NOSBVerletStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function NOSBVerletStorage(::CCMaterial, ::VelocityVerlet, system::BondSystem, ch)
+function CCVerletStorage(::CCMaterial, ::VelocityVerlet, system::BondSystem, ch)
     n_loc_points = length(ch.loc_points)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
@@ -130,17 +130,17 @@ function NOSBVerletStorage(::CCMaterial, ::VelocityVerlet, system::BondSystem, c
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, length(system.bonds))
     n_active_bonds = copy(system.n_neighbors)
-    s = NOSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
+    s = CCVerletStorage(position, displacement, velocity, velocity_half, acceleration,
                           b_int, b_ext, damage, bond_active, n_active_bonds)
     return s
 end
 
-@storage CCMaterial VelocityVerlet NOSBVerletStorage
+@storage CCMaterial VelocityVerlet CCVerletStorage
 
-@loc_to_halo_fields NOSBVerletStorage :position
-@halo_to_loc_fields NOSBVerletStorage :b_int
+@loc_to_halo_fields CCVerletStorage :position
+@halo_to_loc_fields CCVerletStorage :b_int
 
-struct NOSBRelaxationStorage <: AbstractStorage
+struct CCRelaxationStorage <: AbstractStorage
     position::Matrix{Float64}
     displacement::Matrix{Float64}
     velocity::Matrix{Float64}
@@ -155,7 +155,7 @@ struct NOSBRelaxationStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function NOSBRelaxationStorage(::CCMaterial, ::DynamicRelaxation, system::BondSystem, ch)
+function CCRelaxationStorage(::CCMaterial, ::DynamicRelaxation, system::BondSystem, ch)
     n_loc_points = length(ch.loc_points)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
@@ -169,27 +169,27 @@ function NOSBRelaxationStorage(::CCMaterial, ::DynamicRelaxation, system::BondSy
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, length(system.bonds))
     n_active_bonds = copy(system.n_neighbors)
-    s = NOSBRelaxationStorage(position, displacement, velocity, velocity_half,
+    s = CCRelaxationStorage(position, displacement, velocity, velocity_half,
                               velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
                               damage, bond_active, n_active_bonds)
     return s
 end
 
-@storage CCMaterial DynamicRelaxation NOSBRelaxationStorage
+@storage CCMaterial DynamicRelaxation CCRelaxationStorage
 
-@loc_to_halo_fields NOSBRelaxationStorage :position
-@halo_to_loc_fields NOSBRelaxationStorage :b_int
+@loc_to_halo_fields CCRelaxationStorage :position
+@halo_to_loc_fields CCRelaxationStorage :b_int
 
-const NOSBStorage = Union{NOSBVerletStorage,NOSBRelaxationStorage}
+const CCStorage = Union{CCVerletStorage,CCRelaxationStorage}
 
-function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::CCMaterial,
+function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
                               paramhandler::AbstractParameterHandler, i::Int)
     params = get_params(paramhandler, i)
     force_density_point!(storage, system, mat, params, i)
     return nothing
 end
 
-function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::CCMaterial,
+function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
                               params::CCPointParameters, i::Int)
     F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
@@ -230,7 +230,7 @@ end
     return params.δ / L
 end
 
-function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
+function calc_deformation_gradient(storage::CCStorage, system::BondSystem,
                                    mat::CCMaterial, params::CCPointParameters, i::Int)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
