@@ -1,4 +1,5 @@
 @testitem "show Job" begin
+    force_threads_run!()
     io = IOBuffer()
 
     b1 = Body(BBMaterial(), rand(3,10), rand(10))

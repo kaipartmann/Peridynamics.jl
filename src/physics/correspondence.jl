@@ -1,5 +1,5 @@
 """
-    NOSBMaterial(; maxdmg, maxjacobi, corr)
+    CCMaterial(; maxdmg, maxjacobi, corr)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
@@ -24,14 +24,14 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 # Examples
 
 ```julia-repl
-julia> mat = NOSBMaterial()
-NOSBMaterial(maxdmg=0.95, maxjacobi=1.03, corr=100.0)
+julia> mat = CCMaterial()
+CCMaterial(maxdmg=0.95, maxjacobi=1.03, corr=100.0)
 ```
 
 ---
 
 ```julia
-NOSBMaterial
+CCMaterial
 ```
 
 Material type for the local continuum consistent (correspondence) formulation of
@@ -46,7 +46,7 @@ non-ordinary state-based peridynamics.
     constructor docs for more informations.
 
 # Allowed material parameters
-When using [`material!`](@ref) on a [`Body`](@ref) with `NOSBMaterial`, then the following
+When using [`material!`](@ref) on a [`Body`](@ref) with `CCMaterial`, then the following
 parameters are allowed:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
@@ -57,7 +57,7 @@ parameters are allowed:
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
-`NOSBMaterial`, the following fields are allowed:
+`CCMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point
 - `displacement::Matrix{Float64}`: Displacement of each point
 - `velocity::Matrix{Float64}`: Velocity of each point
@@ -68,13 +68,13 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-Base.@kwdef struct NOSBMaterial <: AbstractBondSystemMaterial{NoCorrection}
+Base.@kwdef struct CCMaterial <: AbstractBondSystemMaterial{NoCorrection}
     maxdmg::Float64 = 0.95
     maxjacobi::Float64 = 1.03
     corr::Float64 = 100.0
 end
 
-function Base.show(io::IO, @nospecialize(mat::NOSBMaterial))
+function Base.show(io::IO, @nospecialize(mat::CCMaterial))
     print(io, typeof(mat))
     print(io, msg_fields_in_brackets(mat))
     return nothing
@@ -94,7 +94,7 @@ struct NOSBPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-function NOSBPointParameters(::NOSBMaterial, p::Dict{Symbol,Any})
+function NOSBPointParameters(::CCMaterial, p::Dict{Symbol,Any})
     δ = get_horizon(p)
     rho = get_density(p)
     E, nu, G, K, λ, μ = get_elastic_params(p)
@@ -103,7 +103,7 @@ function NOSBPointParameters(::NOSBMaterial, p::Dict{Symbol,Any})
     return NOSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@params NOSBMaterial NOSBPointParameters
+@params CCMaterial NOSBPointParameters
 
 struct NOSBVerletStorage <: AbstractStorage
     position::Matrix{Float64}
@@ -118,7 +118,7 @@ struct NOSBVerletStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function NOSBVerletStorage(::NOSBMaterial, ::VelocityVerlet, system::BondSystem, ch)
+function NOSBVerletStorage(::CCMaterial, ::VelocityVerlet, system::BondSystem, ch)
     n_loc_points = length(ch.loc_points)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
@@ -135,7 +135,7 @@ function NOSBVerletStorage(::NOSBMaterial, ::VelocityVerlet, system::BondSystem,
     return s
 end
 
-@storage NOSBMaterial VelocityVerlet NOSBVerletStorage
+@storage CCMaterial VelocityVerlet NOSBVerletStorage
 
 @loc_to_halo_fields NOSBVerletStorage :position
 @halo_to_loc_fields NOSBVerletStorage :b_int
@@ -155,7 +155,7 @@ struct NOSBRelaxationStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function NOSBRelaxationStorage(::NOSBMaterial, ::DynamicRelaxation, system::BondSystem, ch)
+function NOSBRelaxationStorage(::CCMaterial, ::DynamicRelaxation, system::BondSystem, ch)
     n_loc_points = length(ch.loc_points)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
@@ -175,21 +175,21 @@ function NOSBRelaxationStorage(::NOSBMaterial, ::DynamicRelaxation, system::Bond
     return s
 end
 
-@storage NOSBMaterial DynamicRelaxation NOSBRelaxationStorage
+@storage CCMaterial DynamicRelaxation NOSBRelaxationStorage
 
 @loc_to_halo_fields NOSBRelaxationStorage :position
 @halo_to_loc_fields NOSBRelaxationStorage :b_int
 
 const NOSBStorage = Union{NOSBVerletStorage,NOSBRelaxationStorage}
 
-function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
+function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::CCMaterial,
                               paramhandler::AbstractParameterHandler, i::Int)
     params = get_params(paramhandler, i)
     force_density_point!(storage, system, mat, params, i)
     return nothing
 end
 
-function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
+function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::CCMaterial,
                               params::NOSBPointParameters, i::Int)
     F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
@@ -226,12 +226,12 @@ function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOS
     return nothing
 end
 
-@inline function influence_function(::NOSBMaterial, params::NOSBPointParameters, L::Float64)
+@inline function influence_function(::CCMaterial, params::NOSBPointParameters, L::Float64)
     return params.δ / L
 end
 
 function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
-                                   mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
+                                   mat::CCMaterial, params::NOSBPointParameters, i::Int)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
     ω0 = 0.0
@@ -252,7 +252,7 @@ function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
     return F, Kinv, ω0
 end
 
-function calc_first_piola_stress(F::SMatrix{3,3}, mat::NOSBMaterial,
+function calc_first_piola_stress(F::SMatrix{3,3}, mat::CCMaterial,
                                  params::NOSBPointParameters)
     J = det(F)
     J < eps() && return zero(SMatrix{3,3})

@@ -12,7 +12,7 @@ Pages = ["api_reference.md"]
 ```@docs
 BBMaterial
 OSBMaterial
-NOSBMaterial
+CCMaterial
 CKIMaterial
 ```
 

@@ -199,7 +199,7 @@ end
     rm(root; recursive=true, force=true)
 end
 
-@testitem "MPI-Threads comparison NOSBMaterial" begin
+@testitem "MPI-Threads comparison CCMaterial" begin
     root = joinpath(@__DIR__, "temp_mpi_threads_comparison")
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
@@ -210,7 +210,7 @@ end
         l, Δx, δ, a = 1.0, 1/N, 3.015/N, 0.5
         pos, vol = uniform_box(l, l, 0.1l, Δx)
         ids = sortperm(pos[2,:])
-        b = Body(NOSBMaterial(), pos[:, ids], vol[ids])
+        b = Body(CCMaterial(), pos[:, ids], vol[ids])
         material!(b; horizon=3.015Δx, E=2.1e5, nu=0.25, rho=8e-6, Gc=2.7)
         point_set!(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, b, :set_a)
         point_set!(p -> p[1] ≤ -l/2+a && -2δ ≤ p[2] < 0, b, :set_b)
@@ -232,7 +232,7 @@ end
         l, Δx, δ, a = 1.0, 1/N, 3.015/N, 0.5
         pos, vol = uniform_box(l, l, 0.1l, Δx)
         ids = sortperm(pos[2,:])
-        b = Body(NOSBMaterial(), pos[:, ids], vol[ids])
+        b = Body(CCMaterial(), pos[:, ids], vol[ids])
         material!(b; horizon=3.015Δx, E=2.1e5, nu=0.25, rho=8e-6, Gc=2.7)
         point_set!(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, b, :set_a)
         point_set!(p -> p[1] ≤ -l/2+a && -2δ ≤ p[2] < 0, b, :set_b)
