@@ -22,7 +22,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 
 ```julia-repl
 julia> mat = CCMaterial()
-CCMaterial(maxdmg=0.85, maxjacobi=1.03, corr=100.0)
+CCMaterial(maxdmg=0.85, corr=100.0)
 ```
 
 ---
@@ -63,18 +63,25 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct CCMaterial <: AbstractBondSystemMaterial{NoCorrection}
+struct CCMaterial{CM,SI} <: AbstractCorrespondenceMaterial{CM,SI,NoCorrection}
+    constitutive_model::CM
+    stress_integration::SI
     maxdmg::Float64
     corr::Float64
+    function CCMaterial(cm::CM, si::SI, maxdmg::Real, corr::Real) where {CM,SI}
+        return new{CM,SI}(cm, si, maxdmg, corr)
+    end
 end
 
-function CCMaterial(; maxdmg=0.85, corr=100.0)
-    return CCMaterial(maxdmg, corr)
+function CCMaterial(constitutive_model::AbstractConstitutiveModel=NeoHookeNonlinear();
+                    stress_integration::AbstractStressIntegration=FlanaganTaylorRotation(),
+                    maxdmg::Real=0.85, corr::Real=100.0)
+    return CCMaterial(constitutive_model, stress_integration, maxdmg, corr)
 end
 
 function Base.show(io::IO, @nospecialize(mat::CCMaterial))
     print(io, typeof(mat))
-    print(io, msg_fields_in_brackets(mat))
+    print(io, msg_fields_in_brackets(mat, (:maxdmg, :corr)))
     return nothing
 end
 
@@ -114,28 +121,36 @@ struct CCVerletStorage <: AbstractStorage
     damage::Vector{Float64}
     bond_active::Vector{Bool}
     n_active_bonds::Vector{Int}
+    rotation::Matrix{Float64}
+    left_stretch::Matrix{Float64}
+    stress::Matrix{Float64}
 end
 
-function CCVerletStorage(::CCMaterial, ::VelocityVerlet, system::BondSystem, ch)
+function CCVerletStorage(mat::CCMaterial, ::VelocityVerlet, system::BondSystem, ch)
     n_loc_points = length(ch.loc_points)
+    n_all_points = length(ch.point_ids)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
-    velocity = zeros(3, n_loc_points)
+    velocity = zeros(3, n_all_points)
     velocity_half = zeros(3, n_loc_points)
     acceleration = zeros(3, n_loc_points)
-    b_int = zeros(3, length(ch.point_ids))
+    b_int = zeros(3, n_all_points)
     b_ext = zeros(3, n_loc_points)
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, length(system.bonds))
     n_active_bonds = copy(system.n_neighbors)
+    rotation = init_rotation(mat, n_loc_points)
+    left_stretch = init_left_stretch(mat, n_loc_points)
+    stress = zeros(9, n_loc_points)
     s = CCVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                        b_int, b_ext, damage, bond_active, n_active_bonds)
+                        b_int, b_ext, damage, bond_active, n_active_bonds, rotation,
+                        left_stretch, stress)
     return s
 end
 
 @storage CCMaterial VelocityVerlet CCVerletStorage
 
-@loc_to_halo_fields CCVerletStorage :position
+@loc_to_halo_fields CCVerletStorage :position :velocity
 @halo_to_loc_fields CCVerletStorage :b_int
 
 struct CCRelaxationStorage <: AbstractStorage
@@ -151,34 +166,72 @@ struct CCRelaxationStorage <: AbstractStorage
     damage::Vector{Float64}
     bond_active::Vector{Bool}
     n_active_bonds::Vector{Int}
+    rotation::Matrix{Float64}
+    left_stretch::Matrix{Float64}
+    stress::Matrix{Float64}
 end
 
-function CCRelaxationStorage(::CCMaterial, ::DynamicRelaxation, system::BondSystem, ch)
+function CCRelaxationStorage(mat::CCMaterial, ::DynamicRelaxation, system::BondSystem, ch)
     n_loc_points = length(ch.loc_points)
+    n_all_points = length(ch.point_ids)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
-    velocity = zeros(3, n_loc_points)
+    velocity = zeros(3, n_all_points)
     velocity_half = zeros(3, n_loc_points)
     velocity_half_old = zeros(3, n_loc_points)
-    b_int = zeros(3, length(ch.point_ids))
+    b_int = zeros(3, n_all_points)
     b_int_old = zeros(3, n_loc_points)
     b_ext = zeros(3, n_loc_points)
     density_matrix = zeros(3, n_loc_points)
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, length(system.bonds))
     n_active_bonds = copy(system.n_neighbors)
+    rotation = init_rotation(mat, n_loc_points)
+    left_stretch = init_left_stretch(mat, n_loc_points)
+    stress = zeros(9, n_loc_points)
     s = CCRelaxationStorage(position, displacement, velocity, velocity_half,
                             velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
-                            damage, bond_active, n_active_bonds)
+                            damage, bond_active, n_active_bonds, rotation, left_stretch,
+                            stress)
     return s
 end
 
 @storage CCMaterial DynamicRelaxation CCRelaxationStorage
 
-@loc_to_halo_fields CCRelaxationStorage :position
+@loc_to_halo_fields CCRelaxationStorage :position :velocity
 @halo_to_loc_fields CCRelaxationStorage :b_int
 
 const CCStorage = Union{CCVerletStorage,CCRelaxationStorage}
+
+function init_rotation(::CCMaterial{CM,<:FlanaganTaylorRotation}, n::Int) where{CM}
+    R = zeros(9, n)
+    R[[1, 5, 9], :] .= 1.0
+    return R
+end
+
+function init_rotation(::CCMaterial{CM,<:NoRotation}, n::Int) where {CM}
+    return Array{Float64,2}(undef, 0, 0)
+end
+
+function init_left_stretch(::CCMaterial{CM,<:FlanaganTaylorRotation}, n::Int) where {CM}
+    V = zeros(9, n)
+    V[[1, 5, 9], :] .= 1.0
+    return V
+end
+
+function init_left_stretch(::CCMaterial{CM,<:NoRotation}, n::Int) where {CM}
+    return Array{Float64,2}(undef, 0, 0)
+end
+
+function point_data_fields(::Type{S}) where {S<:CCStorage}
+    fields = (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
+              :b_ext, :damage, :n_active_bonds, :rotation, :left_stretch, :stress)
+    return fields
+end
+
+point_data_field(s::CCStorage, ::Val{:left_stretch}) = getfield(s, :left_stretch)
+point_data_field(s::CCStorage, ::Val{:rotation}) = getfield(s, :rotation)
+point_data_field(s::CCStorage, ::Val{:stress}) = getfield(s, :stress)
 
 function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
                               paramhandler::AbstractParameterHandler, t::Float64,
@@ -191,19 +244,17 @@ end
 function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
                               params::CCPointParameters, t::Float64, Δt::Float64,
                               i::Int)
-    F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
+    (; bonds, volume) = system
+    (; bond_active) = storage
+    F, Ḟ, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         kill_point!(storage, system, i)
         return nothing
     end
-    P = calc_first_piola_stress(F, mat, params)
-    if iszero(P) || containsnan(P)
-        kill_point!(storage, system, i)
-        return nothing
-    end
+    P = calc_first_piola_kirchhoff!(storage, mat, params, F, Ḟ, Δt, i)
     PKinv = P * Kinv
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
+        bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
         ΔXij = get_coordinates_diff(system, i, j)
         Δxij = get_coordinates_diff(storage, i, j)
@@ -212,16 +263,13 @@ function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMat
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
-        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
+        ωij = influence_function(mat, params, L) * bond_active[bond_id]
         Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
 
         # update of force density
         tij = ωij * PKinv * ΔXij + Tij
-        if containsnan(tij)
-            tij = zero(SMatrix{3,3})
-        end
-        update_add_b_int!(storage, i, tij .* system.volume[j])
-        update_add_b_int!(storage, j, -tij .* system.volume[i])
+        update_add_b_int!(storage, i, tij .* volume[j])
+        update_add_b_int!(storage, j, -tij .* volume[i])
     end
     return nothing
 end
@@ -230,38 +278,62 @@ end
     return params.δ / L
 end
 
-function calc_deformation_gradient(storage::CCStorage, system::BondSystem,
-                                   mat::CCMaterial, params::CCPointParameters, i::Int)
+function calc_deformation_gradient(storage::AbstractStorage, system::BondSystem,
+                                   mat::AbstractCorrespondenceMaterial,
+                                   params::AbstractPointParameters, i::Int)
+    (; bonds, volume) = system
+    (; bond_active) = storage
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
+    _Ḟ = zeros(SMatrix{3,3})
     ω0 = 0.0
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
+        bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        ΔXij = get_coordinates_diff(system, i, j)
-        Δxij = get_coordinates_diff(storage, i, j)
-        Vj = system.volume[j]
-        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
+        ΔXij = get_diff(system.position, i, j)
+        Δxij = get_diff(storage.position, i, j)
+        Δvij = get_diff(storage.velocity, i, j)
+        ωij = influence_function(mat, params, L) * bond_active[bond_id]
         ω0 += ωij
-        temp = ωij * Vj
+        temp = ωij * volume[j]
         K += temp * ΔXij * ΔXij'
         _F += temp * Δxij * ΔXij'
+        _Ḟ += temp * Δvij * ΔXij'
     end
     Kinv = inv(K)
     F = _F * Kinv
-    return F, Kinv, ω0
+    Ḟ = _Ḟ * Kinv
+    return F, Ḟ, Kinv, ω0
 end
 
-function calc_first_piola_stress(F::SMatrix{3,3}, mat::CCMaterial,
-                                 params::CCPointParameters)
-    J = det(F)
-    J < eps() && return zero(SMatrix{3,3})
-    C = F' * F
-    Cinv = inv(C)
-    S = params.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
-        params.K / 4 .* (J^2 - J^(-2)) .* Cinv
-    P = F * S
+function calc_first_piola_kirchhoff!(storage::CCStorage, mat::CCMaterial,
+                                     params::CCPointParameters, F::SMatrix{3,3},
+                                     Ḟ::SMatrix{3,3}, Δt::Float64, i::Int)
+    init_stress_integration!(storage, mat.stress_integration, F, Ḟ, Δt, i)
+    σ = cauchy_stress(mat.constitutive_model, storage, params, F)
+    T = stress_integration(storage, mat.stress_integration, σ, Δt, i)
+    update_tensor!(storage.stress, i, T)
+    P = det(F) * T * inv(F)'
     return P
+end
+
+@inline function get_tensor(T::AbstractMatrix, i::Int)
+    tensor = SMatrix{3,3}(T[1, i], T[2, i], T[3, i], T[4, i], T[5, i], T[6, i], T[7, i],
+                          T[8, i], T[9, i])
+    return tensor
+end
+
+@inline function update_tensor!(Tₙ::AbstractMatrix, i::Int, Tₙ₊₁::SMatrix{3,3})
+    Tₙ[1, i] = Tₙ₊₁[1, 1]
+    Tₙ[2, i] = Tₙ₊₁[1, 2]
+    Tₙ[3, i] = Tₙ₊₁[1, 3]
+    Tₙ[4, i] = Tₙ₊₁[2, 1]
+    Tₙ[5, i] = Tₙ₊₁[2, 2]
+    Tₙ[6, i] = Tₙ₊₁[2, 3]
+    Tₙ[7, i] = Tₙ₊₁[3, 1]
+    Tₙ[8, i] = Tₙ₊₁[3, 2]
+    Tₙ[9, i] = Tₙ₊₁[3, 3]
+    return nothing
 end
 
 function containsnan(K::T) where {T<:AbstractArray}

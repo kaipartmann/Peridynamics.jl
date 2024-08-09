@@ -11,6 +11,9 @@ import LibGit2, Dates
 # Material models
 export BBMaterial, OSBMaterial, CCMaterial, CKIMaterial
 
+# CCMaterial related things
+export NoRotation, FlanaganTaylorRotation, NeoHookeNonlinear
+
 # Systems related types
 export NoCorrection, EnergySurfaceCorrection
 
@@ -65,7 +68,11 @@ abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
+abstract type AbstractCorrespondenceMaterial{ConstitutiveModel,StressIntegration,Corr} <:
+              AbstractBondSystemMaterial{Corr} end
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
+abstract type AbstractConstitutiveModel end
+abstract type AbstractStressIntegration end
 
 include("auxiliary/function_arguments.jl")
 include("auxiliary/io.jl")
@@ -110,6 +117,8 @@ include("time_solvers/dynamic_relaxation.jl")
 include("physics/bond_based.jl")
 include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
+include("physics/stress_integration.jl")
+include("physics/constitutive_models.jl")
 include("physics/correspondence.jl")
 
 include("VtkReader/VtkReader.jl")
