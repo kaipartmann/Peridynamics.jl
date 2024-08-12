@@ -77,45 +77,25 @@ end
     return view(each_bond_idx(system, point_id), system.intersection_bond_ids[bond_id])
 end
 
-function find_volume_factor(bonds, bond_ids, volume, intersection_bond_ids)
-    volume_Hx = zeros(length(bond_ids))
-    volume_hx = zeros(length(bonds))
-    for i in eachindex(bond_ids)
-        bond_ids_of_i = bond_ids[i]
-        vol_Hx = 0.0
-        for bond_id in bond_ids_of_i
-            intersection_bond_ids_of_bond = intersection_bond_ids[bond_id]
-            bond_j = bonds[bond_id]
-            j = bond_j.neighbor
-            vol_Hx += volume[j]
-            vol_hx = 0.0
-            for i_bond_id in bond_ids_of_i[intersection_bond_ids_of_bond]
-                bond_jj = bonds[i_bond_id]
-                jj = bond_jj.neighbor
-                vol_hx += volume[jj]
-            end
-            volume_hx[bond_id] = vol_hx
-        end
-        volume_Hx[i] = vol_Hx
-    end
-    return volume_Hx, volume_hx
-end
-
 function calc_hood_volumes!(chunk::AbstractBodyChunk{<:BondAssociatedSystem})
-    (; system) = chunk
+    (; mat, paramsetup, system, storage) = chunk
     (; volume, bonds, hood_volume, ba_hood_volume) = system
+    (; bond_active) = storage
 
     for i in each_point_idx(chunk)
-        _hood_volume = volume[i]
+        _hood_volume = 0.0 # volume[i]
+        params = get_params(paramsetup, i)
         for bond_idx in each_bond_idx(system, i)
             bond = bonds[bond_idx]
-            j = bond.neighbor
-            _hood_volume += volume[j]
-            _ba_hood_volume = volume[j]
+            j, L = bond.neighbor, bond.length
+            ωij = influence_function(mat, params, L) * bond_active[bond_idx]
+            _hood_volume += ωij * volume[j]
+            _ba_hood_volume = 0.0
             for i_bond_idx in each_intersecting_bond_idx(system, i, bond_idx)
                 i_bond = bonds[i_bond_idx]
-                jj = i_bond.neighbor
-                _ba_hood_volume += volume[jj]
+                jj, LL = i_bond.neighbor, i_bond.length
+                ωijj = influence_function(mat, params, LL) * bond_active[i_bond_idx]
+                _ba_hood_volume += ωijj * volume[jj]
             end
             ba_hood_volume[bond_idx] = _ba_hood_volume
         end

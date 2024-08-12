@@ -144,6 +144,9 @@ end
 function force_density_bond!(storage::BANOSBStorage, system::BondAssociatedSystem,
                              mat::BANOSBMaterial, params::BANOSBPointParameters,
                              Δt::Float64, i::Int, bond_idx::Int)
+    # if length(each_intersecting_bond_idx(system, i, bond_idx)) < 3
+    #     return nothing
+    # end
     F, Ḟ, Kinv = calc_deformation_gradient(storage, system, mat, params, i, bond_idx)
     if containsnan(F) || storage.damage[i] > mat.maxdmg
         storage.bond_active[bond_idx] = false
@@ -166,13 +169,10 @@ function force_density_bond!(storage::BANOSBStorage, system::BondAssociatedSyste
     stretch_based_failure!(storage, system, bond, params, ε, i, bond_idx)
 
     ωij = influence_function(mat, params, L) * storage.bond_active[bond_idx]
-    tij = ωij * PKinv * ΔXij
-    # temp_i = volume_fraction_factor(system, i, bond_idx) * system.volume[i]
-    temp_i = system.volume[i]
-    # temp_j = volume_fraction_factor(system, j, bond_idx) * system.volume[j]
-    temp_j = system.volume[j]
-    update_add_b_int!(storage, i, tij .* temp_j)
-    update_add_b_int!(storage, j, -tij .* temp_i)
+    ϕi = volume_fraction_factor(system, i, bond_idx)
+    tij = ϕi * ωij * PKinv * ΔXij
+    update_add_b_int!(storage, i, tij .* system.volume[j])
+    update_add_b_int!(storage, j, -tij .* system.volume[i])
     return nothing
 end
 
