@@ -12,7 +12,7 @@ import LibGit2, Dates
 export BBMaterial, OSBMaterial, CCMaterial, CKIMaterial
 
 # CCMaterial related things
-export NoRotation, FlanaganTaylorRotation, NeoHookeNonlinear
+export NoRotation, FlanaganTaylorRotation, NeoHookeNonlinear, SaintVenantKirchhoff
 
 # Systems related types
 export NoCorrection, EnergySurfaceCorrection
