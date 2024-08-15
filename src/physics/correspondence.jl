@@ -278,10 +278,11 @@ function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMat
 
         ωij = influence_function(mat, params, L) * bond_active[bond_id]
 
-        # old stabilization
+        # previous stabilization from Silling:
         # Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
 
-        # improved stabilization
+        # improved stabilization from this article:
+        # https://doi.org/10.1007/s10409-019-00873-y
         Tij = ωij * C₁ * (Δxij .- F * ΔXij)
 
         # update of force density
