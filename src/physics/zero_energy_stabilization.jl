@@ -1,8 +1,9 @@
 # this is very slow! change this function to remove the Tensors and TensorOperations
 # packages and write it by hand!
-function get_zem_stiffness(storage, params, Kinv, ::NoRotation, i)
-    C_1 = @MMatrix zeros(3,3)
-    C = params.C
+function get_zem_stiffness!(storage, params, Kinv, ::NoRotation, i)
+    (; C_1) = storage
+    (; C) = params
+    C_1 .= 0.0
 
     # Compute C_1 from C and Kinv
     for i in 1:3, j in 1:3
@@ -18,10 +19,11 @@ end
 
 # this is very slow! change this function to remove the Tensors and TensorOperations
 # packages and write it by hand!
-function get_zem_stiffness(storage, params, Kinv, ::FlanaganTaylorRotation, i)
-    C_1 = @MMatrix zeros(3,3)
-    C_rotated = @MArray zeros(3,3,3,3)
-    C = params.C
+function get_zem_stiffness!(storage, params, Kinv, ::FlanaganTaylorRotation, i)
+    (; C_1, C_rotated) = storage
+    (; C) = params
+    C_1 .= 0.0
+    C_rotated .= 0.0
     R = get_tensor(storage.rotation, i)
 
     # Rotate the C tensor

@@ -126,6 +126,8 @@ struct CCVerletStorage <: AbstractStorage
     rotation::Matrix{Float64}
     left_stretch::Matrix{Float64}
     stress::Matrix{Float64}
+    C_1::MMatrix{3,3,Float64,9}
+    C_rotated::MArray{NTuple{4,3},Float64,4,81}
 end
 
 function CCVerletStorage(mat::CCMaterial, ::VelocityVerlet, system::BondSystem, ch)
@@ -144,9 +146,11 @@ function CCVerletStorage(mat::CCMaterial, ::VelocityVerlet, system::BondSystem, 
     rotation = init_rotation(mat, n_loc_points)
     left_stretch = init_left_stretch(mat, n_loc_points)
     stress = zeros(9, n_loc_points)
+    C_1 = @MMatrix zeros(3, 3)
+    C_rotated = @MArray zeros(3, 3, 3, 3)
     s = CCVerletStorage(position, displacement, velocity, velocity_half, acceleration,
                         b_int, b_ext, damage, bond_active, n_active_bonds, rotation,
-                        left_stretch, stress)
+                        left_stretch, stress, C_1, C_rotated)
     return s
 end
 
@@ -171,6 +175,8 @@ struct CCRelaxationStorage <: AbstractStorage
     rotation::Matrix{Float64}
     left_stretch::Matrix{Float64}
     stress::Matrix{Float64}
+    C_1::MMatrix{3,3,Float64,9}
+    C_rotated::MArray{NTuple{4,3},Float64,4,81}
 end
 
 function CCRelaxationStorage(mat::CCMaterial, ::DynamicRelaxation, system::BondSystem, ch)
@@ -191,10 +197,12 @@ function CCRelaxationStorage(mat::CCMaterial, ::DynamicRelaxation, system::BondS
     rotation = init_rotation(mat, n_loc_points)
     left_stretch = init_left_stretch(mat, n_loc_points)
     stress = zeros(9, n_loc_points)
+    C_1 = @MMatrix zeros(3, 3)
+    C_rotated = @MArray zeros(3, 3, 3, 3)
     s = CCRelaxationStorage(position, displacement, velocity, velocity_half,
                             velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
                             damage, bond_active, n_active_bonds, rotation, left_stretch,
-                            stress)
+                            stress, C_1, C_rotated)
     return s
 end
 
@@ -257,7 +265,7 @@ function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMat
     PKinv = P * Kinv
 
     # stabilization
-    C₁ = get_zem_stiffness(storage, params, Kinv, mat.stress_integration, i)
+    C₁ = get_zem_stiffness!(storage, params, Kinv, mat.stress_integration, i)
 
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
