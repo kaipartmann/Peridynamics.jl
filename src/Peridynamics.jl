@@ -1,7 +1,7 @@
 module Peridynamics
 
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, ProgressMeter,
-      WriteVTK, TimerOutputs, MPI, PrecompileTools
+      WriteVTK, TimerOutputs, MPI, PrecompileTools, Tensors, TensorOperations
 @static if Sys.islinux()
     using ThreadPinning
 end
@@ -119,6 +119,7 @@ include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
 include("physics/stress_integration.jl")
 include("physics/constitutive_models.jl")
+include("physics/zero_energy_stabilization.jl")
 include("physics/correspondence.jl")
 
 include("VtkReader/VtkReader.jl")

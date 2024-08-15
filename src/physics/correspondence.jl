@@ -97,6 +97,7 @@ struct CCPointParameters <: AbstractPointParameters
     Gc::Float64
     εc::Float64
     bc::Float64
+    C::MArray{NTuple{4,3},Float64,4,81}
 end
 
 function CCPointParameters(::CCMaterial, p::Dict{Symbol,Any})
@@ -105,7 +106,8 @@ function CCPointParameters(::CCMaterial, p::Dict{Symbol,Any})
     E, nu, G, K, λ, μ = get_elastic_params(p)
     Gc, εc = get_frac_params(p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
-    return CCPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+    C = get_hooke_matrix(nu, λ, μ)
+    return CCPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc, C)
 end
 
 @params CCMaterial CCPointParameters
@@ -246,13 +248,17 @@ function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMat
                               i::Int)
     (; bonds, volume) = system
     (; bond_active) = storage
-    F, Ḟ, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
+    F, Ḟ, Kinv = calc_deformation_gradient(storage, system, mat, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         kill_point!(storage, system, i)
         return nothing
     end
     P = calc_first_piola_kirchhoff!(storage, mat, params, F, Ḟ, Δt, i)
     PKinv = P * Kinv
+
+    # stabilization
+    C₁ = get_zem_stiffness(storage, params, Kinv, mat.stress_integration, i)
+
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
@@ -262,9 +268,13 @@ function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMat
         ε = (l - L) / L
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
-        # stabilization
         ωij = influence_function(mat, params, L) * bond_active[bond_id]
-        Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
+
+        # old stabilization
+        # Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
+
+        # improved stabilization
+        Tij = ωij * C₁ * (Δxij .- F * ΔXij)
 
         # update of force density
         tij = ωij * PKinv * ΔXij + Tij
@@ -286,7 +296,6 @@ function calc_deformation_gradient(storage::AbstractStorage, system::BondSystem,
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
     _Ḟ = zeros(SMatrix{3,3})
-    ω0 = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
@@ -294,16 +303,15 @@ function calc_deformation_gradient(storage::AbstractStorage, system::BondSystem,
         Δxij = get_diff(storage.position, i, j)
         Δvij = get_diff(storage.velocity, i, j)
         ωij = influence_function(mat, params, L) * bond_active[bond_id]
-        ω0 += ωij
-        temp = ωij * volume[j]
-        K += temp * ΔXij * ΔXij'
-        _F += temp * Δxij * ΔXij'
-        _Ḟ += temp * Δvij * ΔXij'
+        m = ωij * volume[j]
+        K += m * ΔXij * ΔXij'
+        _F += m * Δxij * ΔXij'
+        _Ḟ += m * Δvij * ΔXij'
     end
     Kinv = inv(K)
     F = _F * Kinv
     Ḟ = _Ḟ * Kinv
-    return F, Ḟ, Kinv, ω0
+    return F, Ḟ, Kinv
 end
 
 function calc_first_piola_kirchhoff!(storage::CCStorage, mat::CCMaterial,
