@@ -45,4 +45,9 @@ job = Job(body, vv; path="results/tension_dynamic_fracture")
 #md # ```julia
 #md # submit(job)
 #md # ```
-# ![](https://github.com/user-attachments/assets/332babb0-5c6f-4ae0-89e8-3ae1a7a80177)
+
+# ```@raw html
+#     <video controls loop="true">
+#         <source src="https://github.com/user-attachments/assets/332babb0-5c6f-4ae0-89e8-3ae1a7a80177" />
+#     </video>
+# ```

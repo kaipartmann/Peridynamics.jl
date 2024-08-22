@@ -1,6 +1,10 @@
 # # [The old Peridynamics.jl logo](@id tutorial_logo)
 
-# ![](https://github.com/user-attachments/assets/0761ba02-f69a-4f3a-b5c5-0f219548070f)
+# ```@raw html
+#     <video controls loop="true">
+#         <source src="https://github.com/user-attachments/assets/0761ba02-f69a-4f3a-b5c5-0f219548070f" />
+#     </video>
+# ```
 
 # (Visualization made with [ParaView](https://www.paraview.org))
 
