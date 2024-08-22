@@ -125,9 +125,13 @@ end
 
 # ###################################################################
 
+
+# Uniform_cylinder
+
 """
 TODO
 """
+# round_sphere
 function sphere_shape(diameter::Real, ΔX0::Real; center_position=(0, 0, 0), tlsph=false)
     radius = diameter / 2
     NDIMS = length(center_position)
@@ -144,6 +148,7 @@ end
 """
 TODO
 """
+# round_cylinder
 # Richtung der längsachse ändern?
 function cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0), tlsph=false)
     radius = diameter / 2
