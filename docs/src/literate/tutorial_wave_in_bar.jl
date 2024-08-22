@@ -57,5 +57,11 @@ job = Job(body, vv; path="results/xwave")
 
 # The last step is submitting the job to start the simulation.
 #md # ```julia
-#md # submit(job);
+#md # submit(job)
 #md # ```
+
+# ```@raw html
+#     <video controls loop="true">
+#         <source src="https://github.com/user-attachments/assets/a2594777-5d0b-4c5a-acd4-da1e357a06e3" />
+#     </video>
+# ```
