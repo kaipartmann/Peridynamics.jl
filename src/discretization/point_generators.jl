@@ -8,7 +8,7 @@ and point spacing `ΔX0`.
 - `lx::Real`: Length in x-dimension.
 - `ly::Real`: Length in y-dimension.
 - `lz::Real`: Length in z-dimension.
-- `ΔX0::Real`: The point spacing of the points.
+- `ΔX0::Real`: Spacing of the points.
 
 # Keywords
 - `center_x::Real`: Center of the cuboid in x-direction. (default: `0`)
@@ -64,11 +64,12 @@ end
     uniform_sphere(diameter, ΔX0; kwargs...)
 
 Creates a grid of uniformly distributed points in a sphere with a specific `diameter` and
-the point spacing `ΔX0`.
+the point spacing `ΔX0`. Due to the uniform point spacings, edges on the surface of the
+sphere can occur.
 
 # Arguments
 - `diameter::Real`: Diameter of the sphere.
-- `ΔX0::Real`: The point spacing of the points.
+- `ΔX0::Real`: Spacing of the points.
 
 # Keywords
 - `center_x::Real`: Center of the cuboid in x-direction. (default: `0`)
@@ -122,7 +123,49 @@ function uniform_sphere(diameter::Real, ΔX0::Real; center_x::Real=0, center_y::
 end
 
 """
-TODO
+    uniform_cylinder(diameter::Real, height::Real, ΔX0::Real; kwargs...)
+
+Creates a grid of uniformly distributed points in a cylindrical shape with a specific
+`height` in z-dimension, a `diameter` and the point spacing `ΔX0`. Due to the uniform point
+spacings, edges on the surface of the cylinder can occur.
+
+# Arguments
+- `diameter::Real`: Diameter of the cylinder.
+- `height::Real`: Height of the cylinder.
+- `ΔX0::Real`: Spacing of the points.
+
+# Keywords
+- `center_position`: The coordinates of the center of the cylinder. Default: `(0, 0, 0)`
+
+# Returns
+- `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
+- `volume::Vector{Float64}`: A vector with the volume of each point.
+
+# Examples
+
+```julia-repl
+julia> position, volume = uniform_cylinder(5, 10, 2);
+
+julia> position
+3×20 Matrix{Float64}:
+ -1.0   1.0  -1.0   1.0  -1.0   1.0  -1.0  …   1.0  -1.0  1.0  -1.0   1.0  -1.0  1.0
+ -1.0  -1.0   1.0   1.0  -1.0  -1.0   1.0     -1.0   1.0  1.0  -1.0  -1.0   1.0  1.0
+ -4.0  -4.0  -4.0  -4.0  -2.0  -2.0  -2.0      2.0   2.0  2.0   4.0   4.0   4.0  4.0
+
+julia> volume
+20-element Vector{Int64}:
+ 8
+ 8
+ 8
+ 8
+ 8
+ ⋮
+ 8
+ 8
+ 8
+ 8
+ 8
+```
 """
 function uniform_cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0))
 radius = diameter / 2
@@ -146,7 +189,46 @@ end
 
 
 """
-TODO
+    round_sphere(diameter, ΔX0; kwargs...)
+
+Creates a grid of points distributed in a smooth sphere without edges on the surface
+with a specific `diameter` and the point spacing `ΔX0`.
+
+# Arguments
+- `diameter::Real`: Diameter of the sphere.
+- `ΔX0::Real`: Spacing of the points.
+
+# Keywords
+- `center_position`: The coordinates of the center of the sphere. Default: `(0, 0, 0)`
+
+# Returns
+- `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
+- `volume::Vector{Float64}`: A vector with the volume of each point.
+
+# Examples
+
+```julia-repl
+julia> position, volume = round_sphere(10, 2);
+
+julia> position
+3×63 Matrix{Float64}:
+ 0.0  1.74586  0.539501  -1.41243  -1.41243  …  -1.95518   -0.48289   1.35303   0.0
+ 0.0  0.0      1.66041    1.02619  -1.02619     -0.941566  -2.11568  -1.69664   0.0
+ 2.0  0.97569  0.97569    0.97569   0.97569     -3.36017   -3.36017  -3.36017  -4.0
+
+julia> volume
+63-element Vector{Float64}:
+ 8.311091676163475
+ 8.311091676163475
+ 8.311091676163475
+ 8.311091676163475
+ 8.311091676163475
+ ⋮
+ 8.311091676163475
+ 8.311091676163475
+ 8.311091676163475
+ 8.311091676163475
+```
 """
 function round_sphere(diameter::Real, ΔX0::Real; center_position=(0, 0, 0))
     radius = diameter / 2
@@ -160,9 +242,50 @@ function round_sphere(diameter::Real, ΔX0::Real; center_position=(0, 0, 0))
 end
 
 """
-TODO
+    round_cylinder(diameter::Real, height::Real, ΔX0::Real; kwargs...)
+
+Creates a grid of  points distributed in a cylindrical shape with a specific
+`height` in z-dimension, a `diameter` and the point spacing `ΔX0`. Due to a concentric
+point distribution in the x-y-plane, there are no sharp edges that appear on the surface
+of the cylinder.
+
+# Arguments
+- `diameter::Real`: Diameter of the cylinder.
+- `height::Real`: Height of the cylinder.
+- `ΔX0::Real`: Spacing of the points.
+
+# Keywords
+- `center_position`: The coordinates of the center of the cylinder. Default: `(0, 0, 0)`
+
+# Returns
+- `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
+- `volume::Vector{Float64}`: A vector with the volume of each point.
+
+# Examples
+
+```julia-repl
+julia> position, volume = uniform_cylinder(5, 10, 2);
+
+julia> position
+3×20 Matrix{Float64}:
+ -1.0   1.0  -1.0   1.0  -1.0   1.0  -1.0  …   1.0  -1.0  1.0  -1.0   1.0  -1.0  1.0
+ -1.0  -1.0   1.0   1.0  -1.0  -1.0   1.0     -1.0   1.0  1.0  -1.0  -1.0   1.0  1.0
+ -4.0  -4.0  -4.0  -4.0  -2.0  -2.0  -2.0      2.0   2.0  2.0   4.0   4.0   4.0  4.0
+
+julia> volume
+20-element Vector{Int64}:
+ 8
+ 8
+ 8
+ 8
+ 8
+ ⋮
+ 8
+ 8
+ 8
+ 8
+ 8
 """
-# Richtung der längsachse ändern?
 function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0))
     radius = diameter / 2
 
