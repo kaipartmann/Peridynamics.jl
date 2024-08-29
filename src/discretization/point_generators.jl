@@ -121,17 +121,33 @@ function uniform_sphere(diameter::Real, ΔX0::Real; center_x::Real=0, center_y::
     return position, volume
 end
 
-
+"""
+TODO
+"""
+function uniform_cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0))
+radius = diameter / 2
+center_x, center_y, center_z = center_position
+_gridxy = range(- radius + ΔX0 / 2, radius - ΔX0 / 2; step=ΔX0)
+gridxy = _gridxy .- sum(_gridxy) / length(_gridxy)
+_gridz = range((-height + ΔX0) / 2, (height - ΔX0) / 2; step=ΔX0)
+gridz = _gridz .- sum(_gridz) / length(_gridz)
+__position = vec(collect(Iterators.product(gridxy, gridxy, gridz)))
+_position = reinterpret(reshape, eltype(eltype(__position)), __position)
+cylinder_points = find_points(p -> √(p[1]^2 + p[2]^2) ≤ radius, _position)
+position = _position[:, cylinder_points]
+volume = fill(ΔX0^3, size(position, 2))
+isapprox(center_x, 0; atol=eps()) || (position[1, :] .+= center_x)
+isapprox(center_y, 0; atol=eps()) || (position[2, :] .+= center_y)
+isapprox(center_z, 0; atol=eps()) || (position[3, :] .+= center_z)
+return position, volume
+end
 
 # ###################################################################
 
 
-# Uniform_cylinder
-
 """
 TODO
 """
-# round_sphere
 function round_sphere(diameter::Real, ΔX0::Real; center_position=(0, 0, 0))
     radius = diameter / 2
     NDIMS = length(center_position)
@@ -146,7 +162,6 @@ end
 """
 TODO
 """
-# round_cylinder
 # Richtung der längsachse ändern?
 function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0))
     radius = diameter / 2
