@@ -132,12 +132,10 @@ end
 TODO
 """
 # round_sphere
-function sphere_shape(diameter::Real, ΔX0::Real; center_position=(0, 0, 0), tlsph=false)
+function sphere_shape(diameter::Real, ΔX0::Real; center_position=(0, 0, 0))
     radius = diameter / 2
     NDIMS = length(center_position)
-    coordinates = sphere_shape_coords(ΔX0, radius,
-                                      SVector{NDIMS}(center_position),
-                                      tlsph)
+    coordinates = sphere_shape_coords(ΔX0, radius, SVector{NDIMS}(center_position))
     n_points = size(coordinates, 2)
     volumes = zeros(n_points)
     volumes .= 4/3 * π * radius^3 / n_points
@@ -150,11 +148,11 @@ TODO
 """
 # round_cylinder
 # Richtung der längsachse ändern?
-function cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0), tlsph=false)
+function cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0))
     radius = diameter / 2
 
     xy = sphere_shape_coords(ΔX0, radius,
-                             SVector{2}((center_position[1], center_position[2])), tlsph)
+                             SVector{2}((center_position[1], center_position[2])))
     _z = range(-height/2, height/2, step=ΔX0)
     z = _z .- sum(_z) / length(_z) .+ center_position[3]
     n_layers = length(z)
@@ -175,12 +173,7 @@ end
 
 ##########################################
 
-function sphere_shape_coords(particle_spacing, radius, center, tlsph)
-    if tlsph
-        # Just create a sphere that is 0.5 particle spacing larger
-        radius += 0.5particle_spacing
-    end
-
+function sphere_shape_coords(particle_spacing, radius, center)
     # Each layer has thickness `particle_spacing`
     n_layers = round(Int, radius / particle_spacing)
 
