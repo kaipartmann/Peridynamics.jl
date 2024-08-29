@@ -132,7 +132,7 @@ end
 TODO
 """
 # round_sphere
-function sphere_shape(diameter::Real, ΔX0::Real; center_position=(0, 0, 0))
+function round_sphere(diameter::Real, ΔX0::Real; center_position=(0, 0, 0))
     radius = diameter / 2
     NDIMS = length(center_position)
     coordinates = sphere_shape_coords(ΔX0, radius, SVector{NDIMS}(center_position))
@@ -148,7 +148,7 @@ TODO
 """
 # round_cylinder
 # Richtung der längsachse ändern?
-function cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0))
+function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0))
     radius = diameter / 2
 
     xy = sphere_shape_coords(ΔX0, radius,
@@ -188,7 +188,7 @@ function sphere_shape_coords(particle_spacing, radius, center)
     coords = zeros(length(center), 0)
 
     for layer in 0:(n_layers - 1)
-        sphere_coords = round_sphere(particle_spacing,
+        sphere_coords = _round_sphere(particle_spacing,
                                      inner_radius + layer * particle_spacing, center)
         coords = hcat(coords, sphere_coords)
     end
@@ -196,7 +196,7 @@ function sphere_shape_coords(particle_spacing, radius, center)
     return coords
 end
 
-function round_sphere(particle_spacing, radius, center::SVector{2})
+function _round_sphere(particle_spacing, radius, center::SVector{2})
 
     n_particles = round(Int, 2pi * radius / particle_spacing)
 
@@ -218,7 +218,7 @@ function round_sphere(particle_spacing, radius, center::SVector{2})
     return particle_coords
 end
 
-function round_sphere(particle_spacing, radius, center::SVector{3})
+function _round_sphere(particle_spacing, radius, center::SVector{3})
     # The number of particles can either be calculated in 2D or in 3D.
     # Let δ be the particle spacing and r the sphere radius.
     #
@@ -336,7 +336,7 @@ function round_sphere(particle_spacing, radius, center::SVector{3})
             circle_spacing = 1.0
         end
 
-        circle_coords_2d = round_sphere(circle_spacing, circle_radius,
+        circle_coords_2d = _round_sphere(circle_spacing, circle_radius,
                                         SVector(center[1], center[2]))
         circle_coords_3d = vcat(circle_coords_2d,
                                 center[3] .+ z * ones(1, size(circle_coords_2d, 2)))
