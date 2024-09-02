@@ -44,6 +44,7 @@ point_set!(x -> x < -lx / 2 + 1.2Δx, body, :left)
 #         0 &\text{else}
 #     \end{cases}
 # ```
+# ![](https://github.com/user-attachments/assets/34165b09-2df9-495d-8e41-acff28d0098c)
 # is applied to point set `:left`. The parameters used for this excitation are period
 # length `T` and amplitude `vmax`.
 T, vmax = 1.0e-5, 2.0
