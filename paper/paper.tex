@@ -95,10 +95,11 @@ In contrast to \texttt{Peridigm}, installing and extending \texttt{Peridynamics.
 \texttt{Peridynamics.jl} was already used in numerous publications \cite{Friebertshaeuser2022PAMM,Friebertshaeuser2022AIMS,Partmann2023IJF,Partmann2024AAM,Partmann2024PAMM,Tornquist2022PAMM}, which shows the practical usability of the package.
 
 \section{Perspectives}
-In version \texttt{0.2.0}, a multithreading approach is employed.
-An extension to a hybrid approach utilizing MPI and multithreading is currently underway and is planned for version \texttt{0.3.0}.
-The internals have been thoroughly reworked to incorporate a parallel data structure, resulting in significantly faster simulations that surpass the performance of \texttt{Peridigm}.
-The planned changes include new material models and a simplified API with streamlined internal structures.
+In version \texttt{v0.2.0}, a multithreading approach is employed.
+An extension to a hybrid approach with MPI or multithreading is made in version \texttt{v0.3.0}.
+The internals have been thoroughly reworked to incorporate a data structure that can be used for parallel simulations with either MPI or multithreading.
+These changes also include new material models and a simplified API with streamlined internal structures.
+For future versions it is planned to add improved material models and to utilize \texttt{DifferentialEquations.jl} for the time integration.
 
 \section{Acknowledgments}
 The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) in the project \mbox{WE~2525/15-1} and \mbox{WE~2525/15-2}.
