@@ -52,7 +52,7 @@ The general internal force density for state-based peridynamics is defined as
 \end{equation}
 with the \emph{force vector states} $\vb{t}=\vb{t}(\vb{\Delta X}, t)$ and $\vb{t}'=\vb{t}(-\vb{\Delta X}, t)$.
 In the first original bond-based formulation of peridynamics, the force vector states $\vb{t}$ and  $\vb{t}'$ have the same value and opposite direction.
-This implies intrinsic limitation to only one material parameter and in consequence to restrictions on the Poisson's ratio \cite{Silling2007,Trageser2020}.
+This implies intrinsic limitation to only one material parameter and in consequence to restrictions on the Poisson's ratio \cite{Silling2007}.
 To overcome these restrictions, a state-based peridynamics was established.
 In the ordinary state-based peridynamics, the deformation states of neighboring points also influence the internal force density \cite{Silling2007}.
 This leads to force vector states which are still collinear but not of same value anymore.
@@ -101,7 +101,7 @@ The package is used for teaching and was already used by several students for th
 In version \texttt{v0.2.0}, a multithreading approach is employed.
 An extension to a hybrid approach with MPI or multithreading is made in version \texttt{v0.3.0}.
 The internals have been thoroughly reworked to incorporate a data structure that can be used for parallel simulations with either MPI or multithreading.
-These changes also include new material models and a simplified API with streamlined internal structures.
+These changes also include new material models and a simplified API.
 For future versions it is planned to add improved material models and to utilize \texttt{DifferentialEquations.jl} for the time integration.
 
 \section{Acknowledgments}
