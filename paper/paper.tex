@@ -90,9 +90,12 @@ Various peridynamics software projects exist, including \texttt{PeriPy} \cite{Pe
 includes several material models and features.
 However, the installation process and integrating custom models is notably complex.
 
-The initial intention in developing the package was to simplify the process of implementing new material models within the Julia ecosystem.
-In contrast to \texttt{Peridigm}, installing and extending \texttt{Peridynamics.jl} is straightforward, as it benefits from the Julia ecosystem.
+Installing and extending \texttt{Peridynamics.jl} is straightforward, as it benefits from the Julia ecosystem.
+Due to its extendability via multiple-dispatch, the package is attractive to researchers developing new peridynamic models.
 \texttt{Peridynamics.jl} was already used in numerous publications \cite{Friebertshaeuser2022PAMM,Friebertshaeuser2022AIMS,Partmann2023IJF,Partmann2024AAM,Partmann2024PAMM,Tornquist2022PAMM}, which shows the practical usability of the package.
+
+Furthermore, practitioners interested in high-performance computing can also use the default methods of the package for exciting simulations.
+The package is used for teaching and was already used by several students for their final thesis.
 
 \section{Perspectives}
 In version \texttt{v0.2.0}, a multithreading approach is employed.
