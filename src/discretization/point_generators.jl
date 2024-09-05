@@ -193,7 +193,8 @@ end
     round_sphere(diameter, ΔX0; kwargs...)
 
 Creates a grid of points distributed in a smooth sphere without edges on the surface
-with a specific `diameter` and the point spacing `ΔX0`.
+with a specific `diameter` and the point spacing `ΔX0`. Internally, some parts of 
+`TrixiParticles.jl` were copied and adapted for this function.
 
 # Arguments
 - `diameter::Real`: Diameter of the sphere.
