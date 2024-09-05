@@ -17,7 +17,7 @@ export NoCorrection, EnergySurfaceCorrection
 # Discretization
 export Body, point_set!, point_sets, failure_permit!, material!, velocity_bc!, velocity_ic!,
        forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box, uniform_sphere,
-       n_points
+       uniform_cylinder, round_sphere, round_cylinder, n_points
 
 # Running simulations
 export VelocityVerlet, DynamicRelaxation, Job, submit
