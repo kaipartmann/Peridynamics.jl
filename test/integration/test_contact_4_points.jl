@@ -1,4 +1,8 @@
 @testitem "Contact example with 4 points" begin
+    # for now, this test only works with multithreading!
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
     pos1 = [
         0.0 1.0
         0.0 0.0
@@ -38,4 +42,7 @@
     vel_contact = acc_contact * job.time_solver.Δt * 0.5
     @test s1.velocity[1,2] ≈ -vel_contact
     @test s2.velocity[1,1] ≈ vel_contact
+
+    # reset to the value as before
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
 end

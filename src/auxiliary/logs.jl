@@ -12,11 +12,13 @@ function set_progress_bars!()
     progress_bars_enabled = !is_logging && !quiet()
     set_progress_bars!(progress_bars_enabled)
     mpi_run() || return nothing
-    if !progress_bars_enabled && !quiet() && mpi_progress_bars()
-        set_progress_bars!(mpi_progress_bars())
+    if mpi_progress_bars()
+        set_progress_bars!(true)
         msg = "progress bar settings overwritten manually!\n"
         msg *= "The use of progress bars with MPI can lead to a mess in output files!"
         @warn msg
+    else
+        set_progress_bars!(false)
     end
     return nothing
 end
