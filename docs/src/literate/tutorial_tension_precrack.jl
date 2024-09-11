@@ -115,4 +115,9 @@ job = Job(body, vv; path="results/mode_i_tension_precrack")
 #md # ```
 
 # ### Damage results:
-# ![](https://github.com/user-attachments/assets/918aed7b-735d-418f-900c-e0a996db2bab)
+
+# ```@raw html
+#     <video controls loop="true">
+#         <source src="https://github.com/user-attachments/assets/918aed7b-735d-418f-900c-e0a996db2bab" />
+#     </video>
+# ```

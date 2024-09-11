@@ -44,6 +44,7 @@ point_set!(x -> x < -lx / 2 + 1.2Δx, body, :left)
 #         0 &\text{else}
 #     \end{cases}
 # ```
+# ![](https://github.com/user-attachments/assets/34165b09-2df9-495d-8e41-acff28d0098c)
 # is applied to point set `:left`. The parameters used for this excitation are period
 # length `T` and amplitude `vmax`.
 T, vmax = 1.0e-5, 2.0
@@ -57,5 +58,11 @@ job = Job(body, vv; path="results/xwave")
 
 # The last step is submitting the job to start the simulation.
 #md # ```julia
-#md # submit(job);
+#md # submit(job)
 #md # ```
+
+# ```@raw html
+#     <video controls loop="true">
+#         <source src="https://github.com/user-attachments/assets/a2594777-5d0b-4c5a-acd4-da1e357a06e3" />
+#     </video>
+# ```

@@ -51,4 +51,8 @@ job = Job(body, dr; path="results/tension_static")
 #md # submit(job)
 #md # ```
 
-# ![](https://github.com/user-attachments/assets/b6b2ba41-1ed3-497f-b496-44655d4be696)
+# ```@raw html
+#     <video controls loop="true">
+#         <source src="https://github.com/user-attachments/assets/b6b2ba41-1ed3-497f-b496-44655d4be696" />
+#     </video>
+# ```
