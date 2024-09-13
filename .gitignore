@@ -26,6 +26,7 @@ Manifest.toml
 ._*
 .Spotlight-V100
 .Trashes
+.vscode/settings.json
 
 # LaTeX paper
 # paper/paper.pdf

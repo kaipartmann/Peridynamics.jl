@@ -1,7 +1,14 @@
-<img src="https://github.com/kaipartmann/Peridynamics.jl/blob/main/docs/src/assets/logo.png?raw=true" width="450" />
+<p align="center">
+  <img src="docs/src/assets/logo.png" width="300" />
+  <br>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/817c7bd4-9c02-4cc4-ac66-998c0f5e95e2">
+    <source media="(prefers-color-scheme: light)" srcset="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/70c24007-5aa9-460f-9a97-c67b1df32750">
+    <img alt="The Peridynamics.jl logo" src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/70c24007-5aa9-460f-9a97-c67b1df32750" width="400">
+  </picture>
+</p>
 
-# Peridynamics.jl
-A high-level Julia package for multithreaded peridynamics simulations
+A high-level Julia package for parallel peridynamics simulations
 
 **Documentation:**\
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://kaipartmann.github.io/Peridynamics.jl/stable/)
@@ -18,32 +25,84 @@ A high-level Julia package for multithreaded peridynamics simulations
 **Citation:**\
 [![DOI](https://zenodo.org/badge/503281781.svg)](https://zenodo.org/badge/latestdoi/503281781)
 
-## What is peridynamics?
-Peridynamics is a non-local formulation of continuum mechanics where material points represent the continuum, and the relative displacements and forces are governed by an integro-differential equation that allows discontinuities. As a result, peridynamics is particularly well-suited for dynamic fracture simulations involving numerous cracks.
-
-## Who can benefit from this package?
-This package is designed for anyone interested in performing peridynamics simulations. While the current feature set provides a solid foundation, we are continuously working to enhance and expand the capabilities of `Peridynamics.jl`. We encourage you to open an issue or submit a pull request to share your feedback or contribute to making this package even more valuable to the community!
+## Main Features
+- 🎯 Dynamic and quasi-static analysis
+- 🪨 Multiple peridynamics formulations and material models
+- 🎳 Multibody contact simulations
+- 🤓 User friendly API that captures many errors before submitting simulations
+- 🚀 Enhanced HPC capabilities with MPI or multithreading
 
 ## Installation
 
-To install `Peridynamics.jl`, follow these steps:
+`Peridynamics.jl` is a registered Julia package, so you can install it by just typing
+```
+add Peridynamics
+```
+in the julia package manager. Please take a look at the [documentation](https://kaipartmann.github.io/Peridynamics.jl/stable/index#Installation) for more details on the installation.
 
-1. Install Julia from the [official Julia website](https://julialang.org/) if you haven't already.
+## Tutorials
 
-2. Launch Julia and open the Julia REPL.
+<table align="center" border="0">
+  <tr>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_static/">
+        <figcaption>Tensile test quasi-static</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/ac69d8aa-526d-436a-aa0c-820a1f42bcca" width="200"/>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/">
+        <figcaption>Tensile test dynamic</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/dda2b7b3-d44b-41a9-b133-6d1b548df1c1" width="200"/>
+      </a>
+    </td>
+  </tr>
+  <tr>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_precrack/">
+        <figcaption>Tension with predefined crack</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/9f627d2d-44b5-43a3-94cd-9d34894fd142" width="240"/>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_logo/">
+        <figcaption>The old logo</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/5439e112-9088-49a3-bb01-aff541adc0f8" width="240"/>
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_kalthoff-winkler_dynfrac/">
+        <figcaption>Kalthoff Winkler</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/6dc362ef-4997-4327-9bc1-41350fac2dc1" width="300"/><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_cylinder/">
+        <figcaption>Fragmenting cylinder</figcaption><br><img src="https://github.com/user-attachments/assets/58e11123-6143-4e13-8642-7e30c9e6c86d" width="300"/>
+   </a></td>
+  </tr>
+</table>
 
-3. Enter the package manager by pressing `]` in the REPL.
+## Usage
+To run the dynamic tensile test simulation shown above, just 7 lines of code are needed:
+```julia
+body = Body(BBMaterial(), "TensileTestMesh.inp")
+material!(body; horizon=0.01, rho=2700, E=70e9, Gc=100)
+velocity_bc!(t -> -0.6, body, :bottom, 1)
+velocity_bc!(t -> 0.6, body, :top, 1)
+vv = VelocityVerlet(steps=500)
+job = Job(body, vv; path="results/tension_dynamic")
+submit(job)
+```
+Take a look at the [tutorial of the tensile test](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/) for more details on this example.
 
-4. In the package manager, type:
-   ```
-   add Peridynamics
-   ```
-
-5. Press `Backspace` or `Ctrl + C` to exit the package manager.
-
-## Getting Started
-
-We recommend looking at the [how-to guides](https://kaipartmann.github.io/Peridynamics.jl/stable/) and the [tutorials](https://kaipartmann.github.io/Peridynamics.jl/stable/) to start working with this package!
+If you want to run this example with multithreading, just start Julia with more than 1 thread.
+To use MPI, you can create a script containing the **same code without changes** and run it with:
+```bash
+mpiexec -n 6 julia --project path/to/script.jl
+```
+Please take a look at the [how-to guide on MPI](https://kaipartmann.github.io/Peridynamics.jl/dev/howto_mpi/) for more details.
 
 ## Authors
 
@@ -51,7 +110,11 @@ We recommend looking at the [how-to guides](https://kaipartmann.github.io/Peridy
 - <a href="https://orcid.org/0009-0004-9195-0112">Manuel Dienst (University of Siegen) <img alt="ORCID logo" src="https://info.orcid.org/wp-content/uploads/2019/11/orcid_16x16.png" width="16" height="16" /></a>
 - <a href="https://orcid.org/0000-0002-2213-8401">Kerstin Weinberg (University of Siegen) <img alt="ORCID logo" src="https://info.orcid.org/wp-content/uploads/2019/11/orcid_16x16.png" width="16" height="16" /></a>
 
-## Acknowledgement
+## Acknowledgements
 <img src=https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/0d14a65b-4e05-4408-8107-59ac9c1477d2 width=500>
 
 The authors gratefully acknowledge the support of the Deutsche Forschungsgemeinschaft (DFG) under the project WE2525-14/1.
+
+The support of Carsten Bauer and Xin Wu from PC2 with the design of the internal structure regarding parallel performance is gratefully acknowledged.
+
+The authors gratefully acknowledge the computing time provided to them on the high-performance computer Noctua 2 at the NHR Center PC2. These are funded by the Federal Ministry of Education and Research and the state governments participating on the basis of the resolutions of the GWK for the national highperformance computing at universities (www.nhr-verein.de/unsere-partner).
