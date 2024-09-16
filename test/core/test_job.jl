@@ -1,4 +1,8 @@
 @testitem "show Job" begin
+    # for now, this test only works with multithreading!
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
     io = IOBuffer()
 
     b1 = Body(BBMaterial(), rand(3,10), rand(10))
@@ -17,9 +21,16 @@
     msg = String(take!(io))
     @test contains(msg, "15-point MultibodySetup")
     @test contains(msg, "VelocityVerlet(n_steps=1, safety_factor=0.7)")
+
+    # reset to the value as before
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
 end
 
 @testitem "Job pre submission checks" begin
+    # for now, this test only works with multithreading!
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
     b1 = Body(BBMaterial(), rand(3,10), rand(10))
     vv = VelocityVerlet(steps=1)
     @test_throws ErrorException Job(b1, vv)
@@ -45,4 +56,7 @@ end
     velocity_ic!(b2, :all_points, 1, 1.0)
     job = Job(ms, vv)
     @test job.spatial_setup isa MultibodySetup
+
+    # reset to the value as before
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
 end

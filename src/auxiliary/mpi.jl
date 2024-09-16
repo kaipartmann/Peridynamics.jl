@@ -46,24 +46,21 @@ After this function is called, all following simulations will use multithreading
     return nothing
 end
 
-@inline function set_mpi_run!(b::Bool)
-    MPI_RUN_FORCED[] && return nothing
-    MPI_RUN[] = b
-    return nothing
-end
-
 function init_mpi()
     if !MPI_INITIALIZED[]
         MPI.Init(finalize_atexit=true)
         MPI_INITIALIZED[] = true
     end
     MPI_ISROOT[] = mpi_rank() == 0
-    set_mpi_run!(mpi_run_initial_check())
+
+    # do not overwrite settings if they were already set manually
+    MPI_RUN_FORCED[] && return nothing
+
+    MPI_RUN[] = mpi_run_initial_check()
     return nothing
 end
 
 function mpi_run_initial_check()
-    MPI_RUN_FORCED[] && return MPI_RUN[]
     haskey(ENV, "MPI_LOCALRANKID") && return true
     mpi_nranks() > 1 && return true
     nthreads() > 1 && return false
