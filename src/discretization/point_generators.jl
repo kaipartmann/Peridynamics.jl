@@ -11,7 +11,7 @@ and point spacing `ΔX0`.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center_position`: The coordinates of the center of the cuboid. Default: `(0, 0, 0)`
+- `center`: The coordinates of the center of the cuboid. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -41,9 +41,8 @@ julia> volume
  8
 ```
 """
-function uniform_box(lx::Real, ly::Real, lz::Real, ΔX0::Real;
-                     center_position=(0, 0, 0))
-    center_x, center_y, center_z = center_position
+function uniform_box(lx::Real, ly::Real, lz::Real, ΔX0::Real; center=(0, 0, 0))
+    center_x, center_y, center_z = center
     _gridx = range((-lx + ΔX0) / 2, (lx - ΔX0) / 2; step=ΔX0)
     gridx = _gridx .- sum(_gridx) / length(_gridx)
     _gridy = range((-ly + ΔX0) / 2, (ly - ΔX0) / 2; step=ΔX0)
@@ -71,7 +70,7 @@ sphere can occur.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center_position`: The coordinates of the center of the sphere. Default: `(0, 0, 0)`
+- `center`: The coordinates of the center of the sphere. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -103,8 +102,8 @@ julia> volume
  8
 ```
 """
-function uniform_sphere(diameter::Real, ΔX0::Real; center_position=(0, 0, 0))
-    center_x, center_y, center_z = center_position
+function uniform_sphere(diameter::Real, ΔX0::Real; center=(0, 0, 0))
+    center_x, center_y, center_z = center
     radius = diameter / 2
     _grid = range(- radius + ΔX0 / 2, radius - ΔX0 / 2; step=ΔX0)
     grid = _grid .- sum(_grid) / length(_grid)
@@ -132,7 +131,7 @@ spacings, edges on the surface of the cylinder can occur.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center_position`: The coordinates of the center of the cylinder. Default: `(0, 0, 0)`
+- `center`: The coordinates of the center of the cylinder. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -164,10 +163,9 @@ julia> volume
  8
 ```
 """
-function uniform_cylinder(diameter::Real, height::Real, ΔX0::Real;
-                          center_position=(0, 0, 0))
+function uniform_cylinder(diameter::Real, height::Real, ΔX0::Real; center=(0, 0, 0))
     radius = diameter / 2
-    center_x, center_y, center_z = center_position
+    center_x, center_y, center_z = center
     _gridxy = range(-radius + ΔX0 / 2, radius - ΔX0 / 2; step=ΔX0)
     gridxy = _gridxy .- sum(_gridxy) / length(_gridxy)
     _gridz = range((-height + ΔX0) / 2, (height - ΔX0) / 2; step=ΔX0)
@@ -198,7 +196,7 @@ with a specific `diameter` and the point spacing `ΔX0`. Internally, some parts 
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center_position`: The coordinates of the center of the sphere. Default: `(0, 0, 0)`
+- `center`: The coordinates of the center of the sphere. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -229,10 +227,10 @@ julia> volume
  8.311091676163475
 ```
 """
-function round_sphere(diameter::Real, ΔX0::Real; center_position=(0, 0, 0))
+function round_sphere(diameter::Real, ΔX0::Real; center=(0, 0, 0))
     radius = diameter / 2
-    NDIMS = length(center_position)
-    coordinates = sphere_shape_coords(ΔX0, radius, SVector{NDIMS}(center_position))
+    NDIMS = length(center)
+    coordinates = sphere_shape_coords(ΔX0, radius, SVector{NDIMS}(center))
     n_points = size(coordinates, 2)
     volumes = zeros(n_points)
     volumes .= 4/3 * π * radius^3 / n_points
@@ -254,7 +252,7 @@ of the cylinder.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center_position`: The coordinates of the center of the cylinder. Default: `(0, 0, 0)`
+- `center`: The coordinates of the center of the cylinder. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -284,13 +282,13 @@ julia> volume
  13.089969389957473
  13.089969389957473
 """
-function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0))
+function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center=(0, 0, 0))
     radius = diameter / 2
 
     xy = sphere_shape_coords(ΔX0, radius,
-                             SVector{2}((center_position[1], center_position[2])))
+                             SVector{2}((center[1], center[2])))
     _z = range(-height/2, height/2, step=ΔX0)
-    z = _z .- sum(_z) / length(_z) .+ center_position[3]
+    z = _z .- sum(_z) / length(_z) .+ center[3]
     n_layers = length(z)
     n_points_per_layer = size(xy, 2)
     n_points = n_points_per_layer * n_layers
