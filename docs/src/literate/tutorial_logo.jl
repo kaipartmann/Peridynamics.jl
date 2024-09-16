@@ -39,9 +39,9 @@ material!(plate; horizon=3.015ΔX₀ₚ, E=30e9, rho=2000, Gc=10)
 cz = Ø / 2 + lz / 2 + 1.1 * ΔX₀ₛ
 r_logo = Ø / 2 + 0.2 * Ø
 sxy, cxy = r_logo * sin(30π / 180), r_logo * cos(30π / 180)
-posₛ₁, volₛ₁ = uniform_sphere(Ø, ΔX₀ₛ; center_y=r_logo, center_z=cz)
-posₛ₂, volₛ₂ = uniform_sphere(Ø, ΔX₀ₛ; center_x=cxy, center_y=-sxy, center_z=cz)
-posₛ₃, volₛ₃ = uniform_sphere(Ø, ΔX₀ₛ; center_x=-cxy, center_y=-sxy, center_z=cz)
+posₛ₁, volₛ₁ = uniform_sphere(Ø, ΔX₀ₛ; center=(0, r_logo, cz))
+posₛ₂, volₛ₂ = uniform_sphere(Ø, ΔX₀ₛ; center=(cxy, -sxy, cz))
+posₛ₃, volₛ₃ = uniform_sphere(Ø, ΔX₀ₛ; center=(-cxy, -sxy, cz))
 sphere₁ = Body(BBMaterial(), posₛ₁, volₛ₁)
 sphere₂ = Body(BBMaterial(), posₛ₂, volₛ₂)
 sphere₃ = Body(BBMaterial(), posₛ₃, volₛ₃)
