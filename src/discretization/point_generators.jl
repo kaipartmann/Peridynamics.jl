@@ -11,9 +11,7 @@ and point spacing `ΔX0`.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center_x::Real`: Center of the cuboid in x-direction. (default: `0`)
-- `center_y::Real`: Center of the cuboid in y-direction. (default: `0`)
-- `center_z::Real`: Center of the cuboid in z-direction. (default: `0`)
+- `center_position`: The coordinates of the center of the cuboid. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -44,7 +42,8 @@ julia> volume
 ```
 """
 function uniform_box(lx::Real, ly::Real, lz::Real, ΔX0::Real;
-                     center_x::Real=0, center_y::Real=0, center_z::Real=0)
+                     center_position=(0, 0, 0))
+    center_x, center_y, center_z = center_position
     _gridx = range((-lx + ΔX0) / 2, (lx - ΔX0) / 2; step=ΔX0)
     gridx = _gridx .- sum(_gridx) / length(_gridx)
     _gridy = range((-ly + ΔX0) / 2, (ly - ΔX0) / 2; step=ΔX0)
@@ -72,9 +71,7 @@ sphere can occur.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center_x::Real`: Center of the cuboid in x-direction. (default: `0`)
-- `center_y::Real`: Center of the cuboid in y-direction. (default: `0`)
-- `center_z::Real`: Center of the cuboid in z-direction. (default: `0`)
+- `center_position`: The coordinates of the center of the sphere. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -106,8 +103,8 @@ julia> volume
  8
 ```
 """
-function uniform_sphere(diameter::Real, ΔX0::Real; center_x::Real=0, center_y::Real=0,
-                        center_z::Real=0)
+function uniform_sphere(diameter::Real, ΔX0::Real; center_position=(0, 0, 0))
+    center_x, center_y, center_z = center_position
     radius = diameter / 2
     _grid = range(- radius + ΔX0 / 2, radius - ΔX0 / 2; step=ΔX0)
     grid = _grid .- sum(_grid) / length(_grid)
@@ -193,7 +190,7 @@ end
     round_sphere(diameter, ΔX0; kwargs...)
 
 Creates a grid of points distributed in a smooth sphere without edges on the surface
-with a specific `diameter` and the point spacing `ΔX0`. Internally, some parts of 
+with a specific `diameter` and the point spacing `ΔX0`. Internally, some parts of
 `TrixiParticles.jl` were copied and adapted for this function.
 
 # Arguments
@@ -269,24 +266,23 @@ of the cylinder.
 julia> position, volume = uniform_cylinder(5, 10, 2);
 
 julia> position
-3×20 Matrix{Float64}:
- -1.0   1.0  -1.0   1.0  -1.0   1.0  -1.0  …   1.0  -1.0  1.0  -1.0   1.0  -1.0  1.0
- -1.0  -1.0   1.0   1.0  -1.0  -1.0   1.0     -1.0   1.0  1.0  -1.0  -1.0   1.0  1.0
- -4.0  -4.0  -4.0  -4.0  -2.0  -2.0  -2.0      2.0   2.0  2.0   4.0   4.0   4.0  4.0
+3×30 Matrix{Float64}:
+  1.5   0.463525  -1.21353   -1.21353   …  -1.21353   -1.21353    0.463525
+  0.0   1.42658    0.881678  -0.881678      0.881678  -0.881678  -1.42658
+ -5.0  -5.0       -5.0       -5.0           5.0        5.0        5.0
 
 julia> volume
-20-element Vector{Int64}:
- 8
- 8
- 8
- 8
- 8
- ⋮
- 8
- 8
- 8
- 8
- 8
+30-element Vector{Int64}:
+ 13.089969389957473
+ 13.089969389957473
+ 13.089969389957473
+ 13.089969389957473
+ 13.089969389957473
+  ⋮
+ 13.089969389957473
+ 13.089969389957473
+ 13.089969389957473
+ 13.089969389957473
 """
 function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center_position=(0, 0, 0))
     radius = diameter / 2

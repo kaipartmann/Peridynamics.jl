@@ -7,7 +7,7 @@
     ]
     @test vol == fill(0.125, 8)
 
-    pos, vol = uniform_box(1, 1, 1, 0.5; center_x=1, center_y=1, center_z=1)
+    pos, vol = uniform_box(1, 1, 1, 0.5; center_position=(1, 1, 1))
     @test pos == [
         0.75  1.25  0.75  1.25  0.75  1.25  0.75  1.25
         0.75  0.75  1.25  1.25  0.75  0.75  1.25  1.25
@@ -25,7 +25,7 @@ end
     ]
     @test vol == fill(0.125, 8)
 
-    pos, vol = uniform_sphere(1, 0.5; center_x=1, center_y=1, center_z=1)
+    pos, vol = uniform_sphere(1, 0.5; center_position=(1, 1, 1))
     @test pos == [
         0.75  1.25  0.75  1.25  0.75  1.25  0.75  1.25
         0.75  0.75  1.25  1.25  0.75  0.75  1.25  1.25
