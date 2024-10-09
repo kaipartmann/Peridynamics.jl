@@ -58,30 +58,39 @@ struct OSBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
 
 OSBMaterial() = OSBMaterial{NoCorrection}()
 
-struct OSBPointParameters <: AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
+@params OSBMaterial struct OSBPointParameters <: AbstractPointParameters
+    @required_params
     bc::Float64
 end
 
-function OSBPointParameters(::OSBMaterial, p::Dict{Symbol,Any})
-    δ = get_horizon(p)
-    rho = get_density(p)
-    E, nu, G, K, λ, μ = get_elastic_params(p)
-    Gc, εc = get_frac_params(p, δ, K)
-    bc = 18 * K / (π * δ^4)
-    return OSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+function calc_parameter(::OSBMaterial, ::Val{:bc}, params::NamedTuple)
+    return 18 * params.K / (π * params.δ^4)
 end
 
-@params OSBMaterial OSBPointParameters
+# struct OSBPointParameters <: AbstractPointParameters
+#     δ::Float64
+#     rho::Float64
+#     E::Float64
+#     nu::Float64
+#     G::Float64
+#     K::Float64
+#     λ::Float64
+#     μ::Float64
+#     Gc::Float64
+#     εc::Float64
+#     bc::Float64
+# end
+
+# function OSBPointParameters(::OSBMaterial, p::Dict{Symbol,Any})
+#     δ = get_horizon(p)
+#     rho = get_density(p)
+#     E, nu, G, K, λ, μ = get_elastic_params(p)
+#     Gc, εc = get_frac_params(p, δ, K)
+#     bc = 18 * K / (π * δ^4)
+#     return OSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+# end
+
+# @params OSBMaterial OSBPointParameters
 
 struct OSBVerletStorage <: AbstractStorage
     position::Matrix{Float64}

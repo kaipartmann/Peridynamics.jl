@@ -1,24 +1,15 @@
 struct TestMaterial <: Peridynamics.AbstractBondSystemMaterial{Peridynamics.NoCorrection} end
-struct TestPointParameters <: Peridynamics.AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
+Peridynamics.@params TestMaterial struct TestPointParameters <: Peridynamics.AbstractPointParameters
+    Peridynamics.@required_params
 end
-function TestPointParameters(::TestMaterial, p::Dict{Symbol,Any})
-    δ = Peridynamics.get_horizon(p)
-    rho = Peridynamics.get_density(p)
-    E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(p)
-    Gc, εc = Peridynamics.get_frac_params(p, δ, K)
-    return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc)
-end
-Peridynamics.@params TestMaterial TestPointParameters
+# function TestPointParameters(::TestMaterial, p::Dict{Symbol,Any})
+#     δ = Peridynamics.get_horizon(p)
+#     rho = Peridynamics.get_density(p)
+#     E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(p)
+#     Gc, εc = Peridynamics.get_frac_params(p, δ, K)
+#     return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc)
+# end
+# Peridynamics.@params TestMaterial TestPointParameters
 # Peridynamics.@system TestMaterial Peridynamics.BondSystem
 struct TestVerletStorage <: Peridynamics.AbstractStorage
     position::Matrix{Float64}

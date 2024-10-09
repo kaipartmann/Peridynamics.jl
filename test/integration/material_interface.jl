@@ -8,7 +8,7 @@ end
 
 @testitem "Point parameters declaration" begin
     struct TestMaterial2 <: Peridynamics.AbstractMaterial end
-    struct TestPointParameters2 <: Peridynamics.AbstractPointParameters
+    Peridynamics.@params TestMaterial2 struct TestPointParameters2 <: Peridynamics.AbstractPointParameters
         δ::Float64
         rho::Float64
         E::Float64
@@ -49,7 +49,6 @@ end
     end
     @test_throws ErrorException Peridynamics.typecheck_params(PointParametersMissingHorizon)
 
-    Peridynamics.@params TestMaterial2 TestPointParameters2
     @test hasmethod(Peridynamics.point_param_type, Tuple{TestMaterial2})
     @test Peridynamics.point_param_type(TestMaterial2()) == TestPointParameters2
     @test hasmethod(Peridynamics.get_point_params, Tuple{TestMaterial2,Dict{Symbol,Any}})

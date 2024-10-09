@@ -62,24 +62,17 @@ struct BBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
 
 BBMaterial() = BBMaterial{NoCorrection}()
 
-struct BBPointParameters <: AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
+@params BBMaterial struct BBPointParameters <: AbstractPointParameters
+    @required_params
     bc::Float64
 end
 
-function BBPointParameters(::BBMaterial, p::Dict{Symbol,Any})
-    δ = get_horizon(p)
-    rho = get_density(p)
-    if haskey(p, :nu)
+function calc_parameter(::BBMaterial, ::Val{:bc}, params::NamedTuple)
+    return 18 * params.K / (π * params.δ^4)
+end
+
+function extract_required_parameters(::BBMaterial, p::Dict{Symbol,Any})
+    if haskey(p, :nu) #&& !isapprox(float(p[:nu]), 0.25)
         msg = "keyword `nu` is not allowed for BBMaterial!\n"
         msg *= "Bond-based peridynamics has a limitation on the possion ratio.\n"
         msg *= "Therefore, when using BBMaterial, `nu` is hardcoded as 1/4.\n"
@@ -87,13 +80,43 @@ function BBPointParameters(::BBMaterial, p::Dict{Symbol,Any})
     else
         p[:nu] = 0.25
     end
-    E, nu, G, K, λ, μ = get_elastic_params(p)
-    Gc, εc = get_frac_params(p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
-    return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+    params = (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)
+    params = (; params..., get_frac_params(p, params)...)
+    return params
 end
 
-@params BBMaterial BBPointParameters
+# struct BBPointParameters <: AbstractPointParameters
+#     δ::Float64
+#     rho::Float64
+#     E::Float64
+#     nu::Float64
+#     G::Float64
+#     K::Float64
+#     λ::Float64
+#     μ::Float64
+#     Gc::Float64
+#     εc::Float64
+#     bc::Float64
+# end
+
+# function BBPointParameters(::BBMaterial, p::Dict{Symbol,Any})
+#     δ = get_horizon(p)
+#     rho = get_density(p)
+#     if haskey(p, :nu)
+#         msg = "keyword `nu` is not allowed for BBMaterial!\n"
+#         msg *= "Bond-based peridynamics has a limitation on the possion ratio.\n"
+#         msg *= "Therefore, when using BBMaterial, `nu` is hardcoded as 1/4.\n"
+#         throw(ArgumentError(msg))
+#     else
+#         p[:nu] = 0.25
+#     end
+#     E, nu, G, K, λ, μ = get_elastic_params(p)
+#     Gc, εc = get_frac_params(p, δ, K)
+#     bc = 18 * K / (π * δ^4) # bond constant
+#     return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+# end
+
+# @params BBMaterial BBPointParameters
 
 struct BBVerletStorage <: AbstractStorage
     position::Matrix{Float64}

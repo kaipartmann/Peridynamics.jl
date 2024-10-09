@@ -1,7 +1,7 @@
 @testitem "get_horizon" begin
     p = Dict{Symbol,Any}(:horizon => 1)
-    rho = Peridynamics.get_horizon(p)
-    @test rho ≈ 1.0
+    (; δ) = Peridynamics.get_horizon(p)
+    @test δ ≈ 1.0
 
     p = Dict{Symbol,Any}(:nothorizon => 1)
     @test_throws UndefKeywordError(:horizon) Peridynamics.get_horizon(p)
@@ -13,7 +13,7 @@ end
 
 @testitem "get_density" begin
     p = Dict{Symbol,Any}(:rho => 1)
-    rho = Peridynamics.get_density(p)
+    (; rho) = Peridynamics.get_density(p)
     @test rho ≈ 1.0
 
     p = Dict{Symbol,Any}(:notrho => 1)

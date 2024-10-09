@@ -2,7 +2,8 @@ const ELASTIC_KWARGS = (:E, :nu)
 const FRAC_KWARGS = (:Gc, :epsilon_c)
 const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
 
-function allowed_material_kwargs(::AbstractMaterial)
+function allowed_material_kwargs(mat::AbstractMaterial)
+    # return fieldnames(point_param_type(mat))
     return DEFAULT_POINT_KWARGS
 end
 
@@ -96,7 +97,7 @@ function get_horizon(p::Dict{Symbol,Any})
     end
     δ::Float64 = float(p[:horizon])
     δ ≤ 0 && throw(ArgumentError("`horizon` should be larger than zero!\n"))
-    return δ
+    return (; δ,)
 end
 
 function get_density(p::Dict{Symbol,Any})
@@ -105,7 +106,7 @@ function get_density(p::Dict{Symbol,Any})
     end
     rho::Float64 = float(p[:rho])
     rho ≤ 0 && throw(ArgumentError("`rho` should be larger than zero!\n"))
-    return rho
+    return (; rho,)
 end
 
 function get_elastic_params(p::Dict{Symbol,Any})
@@ -123,10 +124,10 @@ function get_elastic_params(p::Dict{Symbol,Any})
     K = E / (3 * (1 - 2 * nu))
     λ = E * nu / ((1 + nu) * (1 - 2nu))
     μ = G
-    return E, nu, G, K, λ, μ
+    return (; E, nu, G, K, λ, μ)
 end
 
-required_point_parameters() = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :Gc, :εc)
+# required_point_parameters() = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :Gc, :εc)
 
 #TODO: parameter checks material dependent...
 # req_param_material(::AbstractMaterial) = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ)
@@ -139,21 +140,4 @@ function log_material_parameters(param::AbstractPointParameters; indentation::In
     msg *= msg_qty("shear modulus", param.G; indentation=indentation)
     msg *= msg_qty("bulk modulus", param.K; indentation=indentation)
     return msg
-end
-
-function Base.show(io::IO, @nospecialize(params::AbstractPointParameters))
-    print(io, "Parameters ", material_type(params), ": ")
-    print(io, msg_fields_inline(params, (:δ, :E, :nu, :rho, :Gc)))
-    return nothing
-end
-
-function Base.show(io::IO, ::MIME"text/plain",
-                   @nospecialize(params::AbstractPointParameters))
-    if get(io, :compact, false)
-        show(io, params)
-    else
-        println(io, typeof(params), ":")
-        print(io, msg_fields(params))
-    end
-    return nothing
 end

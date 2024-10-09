@@ -56,68 +56,87 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 """
 struct CKIMaterial <: AbstractInteractionSystemMaterial end
 
-struct CKIPointParameters <: AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
+@params CKIMaterial struct CKIPointParameters <: AbstractPointParameters
+    @required_params
     C1::Float64
     C2::Float64
     C3::Float64
 end
 
-function CKIPointParameters(::CKIMaterial, p::Dict{Symbol,Any})
-    δ = get_horizon(p)
-    rho = get_density(p)
-    E, nu, G, K, λ, μ = get_elastic_params(p)
-    Gc, εc = get_frac_params(p, δ, K)
-    C1, C2, C3 = cki_parameters(p, δ, λ, μ)
-    return CKIPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, C1, C2, C3)
+function calc_parameter(::CKIMaterial, ::Val{:C1}, params::NamedTuple)
+    return 30 / π * params.μ / params.δ^4
 end
 
-function cki_parameters(p::Dict{Symbol,Any}, δ, λ, μ)
-    if haskey(p, :C1)
-        C1::Float64 = float(p[:C1])
-    else
-        C1 = 0.0
-    end
-
-    if haskey(p, :C2)
-        C2::Float64 = float(p[:C2])
-    else
-        C2 = 0.0
-    end
-
-    if haskey(p, :C3)
-        C3::Float64 = float(p[:C3])
-    else
-        C3 = 0.0
-    end
-
-    if C1 ≈ 0 && C2 ≈ 0 && C3 ≈ 0
-        C1 = 30 / π * μ / δ^4
-        C2 = 0.0
-        C3 = 32 / π^4 * (λ - μ) / δ^12
-    else
-        msg = "parameters for CKIMaterial specified manually!\n"
-        msg *= "Be careful when adjusting these parameters to avoid unexpected outcomes!"
-        @mpiroot @warn msg
-    end
-
-    return C1, C2, C3
+function calc_parameter(::CKIMaterial, ::Val{:C2}, params::NamedTuple)
+    return 0.0
 end
+
+function calc_parameter(::CKIMaterial, ::Val{:C3}, params::NamedTuple)
+    return 32 / π^4 * (params.λ - params.μ) / params.δ^12
+end
+
+# struct CKIPointParameters <: AbstractPointParameters
+#     δ::Float64
+#     rho::Float64
+#     E::Float64
+#     nu::Float64
+#     G::Float64
+#     K::Float64
+#     λ::Float64
+#     μ::Float64
+#     Gc::Float64
+#     εc::Float64
+#     C1::Float64
+#     C2::Float64
+#     C3::Float64
+# end
+
+# function CKIPointParameters(::CKIMaterial, p::Dict{Symbol,Any})
+#     δ = get_horizon(p)
+#     rho = get_density(p)
+#     E, nu, G, K, λ, μ = get_elastic_params(p)
+#     Gc, εc = get_frac_params(p, δ, K)
+#     C1, C2, C3 = cki_parameters(p, δ, λ, μ)
+#     return CKIPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, C1, C2, C3)
+# end
+
+# function cki_parameters(p::Dict{Symbol,Any}, δ, λ, μ)
+#     if haskey(p, :C1)
+#         C1::Float64 = float(p[:C1])
+#     else
+#         C1 = 0.0
+#     end
+
+#     if haskey(p, :C2)
+#         C2::Float64 = float(p[:C2])
+#     else
+#         C2 = 0.0
+#     end
+
+#     if haskey(p, :C3)
+#         C3::Float64 = float(p[:C3])
+#     else
+#         C3 = 0.0
+#     end
+
+#     if C1 ≈ 0 && C2 ≈ 0 && C3 ≈ 0
+#         C1 = 30 / π * μ / δ^4
+#         C2 = 0.0
+#         C3 = 32 / π^4 * (λ - μ) / δ^12
+#     else
+#         msg = "parameters for CKIMaterial specified manually!\n"
+#         msg *= "Be careful when adjusting these parameters to avoid unexpected outcomes!"
+#         @mpiroot @warn msg
+#     end
+
+#     return C1, C2, C3
+# end
 
 function allowed_material_kwargs(::CKIMaterial)
     return (DEFAULT_POINT_KWARGS..., :C1, :C2, :C3)
 end
 
-@params CKIMaterial CKIPointParameters
+# @params CKIMaterial CKIPointParameters
 
 @inline get_c2(params::CKIPointParameters) = params.C2
 @inline get_c2(params) = 0.0

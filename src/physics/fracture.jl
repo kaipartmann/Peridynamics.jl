@@ -42,11 +42,10 @@ function failure_permit!(body::AbstractBody, set_name::Symbol, fail_permit::Bool
     return nothing
 end
 
-
-function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
+function get_frac_params(p::Dict{Symbol,Any}, params::NamedTuple)
+    (; δ, K) = params
     local Gc::Float64
     local εc::Float64
-
     if haskey(p, :Gc) && !haskey(p, :epsilon_c)
         Gc = float(p[:Gc])
         εc = sqrt(5.0 * Gc / (9.0 * K * δ))
@@ -62,8 +61,7 @@ function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
         msg *= "Define either Gc or epsilon_c!\n"
         throw(ArgumentError(msg))
     end
-
-    return Gc, εc
+    return (; Gc, εc)
 end
 
 
