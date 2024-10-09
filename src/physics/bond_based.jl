@@ -71,6 +71,8 @@ function calc_parameter(::BBMaterial, ::Val{:bc}, params::NamedTuple)
     return 18 * params.K / (π * params.δ^4)
 end
 
+@inline set_kw(::Type{<:BBMaterial}, ::Val{:bc}) = nothing
+
 function extract_required_parameters(::BBMaterial, p::Dict{Symbol,Any})
     if haskey(p, :nu) #&& !isapprox(float(p[:nu]), 0.25)
         msg = "keyword `nu` is not allowed for BBMaterial!\n"

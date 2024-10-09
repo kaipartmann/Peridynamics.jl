@@ -132,9 +132,9 @@ end
 #     return C1, C2, C3
 # end
 
-function allowed_material_kwargs(::CKIMaterial)
-    return (DEFAULT_POINT_KWARGS..., :C1, :C2, :C3)
-end
+# function allowed_material_kwargs(::CKIMaterial)
+#     return (DEFAULT_POINT_KWARGS..., :C1, :C2, :C3)
+# end
 
 # @params CKIMaterial CKIPointParameters
 

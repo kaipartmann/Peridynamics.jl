@@ -21,9 +21,13 @@ function extract_parameters(mat::AbstractMaterial,
             value = calc_parameter(mat, Val(name), required_params)
         end
         check_parameter(mat, Val(name), value)
-        params = (; params..., name = value)
+        params = (; params..., name => value)
     end
     return params
+end
+
+function set_kw(::Type, ::Val{keyword}) where {keyword}
+    return keyword
 end
 
 function extract_required_parameters(::AbstractMaterial, p::Dict{Symbol,Any})
@@ -32,7 +36,9 @@ function extract_required_parameters(::AbstractMaterial, p::Dict{Symbol,Any})
     return params
 end
 
-function parse_parameter(::M, keyword::Symbol, ::Type{T}, p::Dict{Symbol,Any}) where {M,T}
+function parse_parameter(::M, name::Symbol, ::Type{T}, p::Dict{Symbol,Any}) where {M,T}
+    keyword = set_kw(M, Val(name))
+    isnothing(keyword) && return nothing
     haskey(p, keyword) || return nothing
     value::T = convert(T, p[keyword])
     return value
@@ -47,7 +53,7 @@ function check_parameter(::AbstractMaterial, ::Val{P}, value) where {P}
     return nothing
 end
 
-function required_point_parameters(::Type{Material}) where {Material}
+function required_point_parameters(::Val{M}) where {M}
     required_params = (:(δ::Float64), # horizon
                        :(rho::Float64), # density
                        :(E::Float64), # Young's modulus
@@ -61,14 +67,14 @@ function required_point_parameters(::Type{Material}) where {Material}
     return required_params
 end
 
-function required_point_parameter_names(::Type{Material}) where {Material}
-    required_params = required_point_parameters(Material)
+function required_point_parameter_names(mat::Val{M}) where {M}
+    required_params = required_point_parameters(mat)
     param_names = Tuple(extract_parameter_name(field) for field in required_params)
     return param_names
 end
 
-function required_point_parameter_types(::Type{Material}) where {Material}
-    required_params = required_point_parameters(Material)
+function required_point_parameter_types(mat::Val{M}) where {M}
+    required_params = required_point_parameters(mat)
     param_types = Tuple(extract_parameter_type(field) for field in required_params)
     return param_types
 end
@@ -87,13 +93,13 @@ function extract_parameter_type(expr::Expr)::DataType
     return eval(expr.args[2])
 end
 
-function expand_point_parameters(material, struct_expr)
+function expand_point_parameters(struct_expr, matval)
     # get the struct name and the input fields
     struct_header = struct_expr.args[2]
     input_fields = filter(field -> field isa Expr, struct_expr.args[3].args)
     # construct the fields block
-    required_params = required_point_parameters(material)
-    required_param_names = required_point_parameter_names(material)
+    required_params = required_point_parameters(matval)
+    required_param_names = required_point_parameter_names(matval)
     fields_expr = Vector{Expr}()
     custom_fields = Vector{Tuple{Symbol,DataType}}()
     for field in input_fields
@@ -126,7 +132,8 @@ macro params(material, params_expr)
     macrocheck_input_material(material)
     macrocheck_input_params(params_expr)
     params = extract_struct_name(params_expr)
-    local _struct, custom_fields = expand_point_parameters(eval(material), params_expr)
+    matval = extract_material_value(material)
+    local _struct, custom_fields = expand_point_parameters(params_expr, matval)
     local _checks = quote
         Peridynamics.typecheck_material($(esc(material)))
         Peridynamics.typecheck_params($(esc(material)), $(esc(params)))
@@ -172,6 +179,17 @@ function extract_struct_name(struct_expr::Expr)
     return struct_header.args[1]
 end
 
+function extract_material_value(material)
+    if material isa Symbol
+        return Val(material)
+    elseif material isa Expr && material.head === :.
+        return Val(material.args[2])
+    else
+        msg = "invalid material input: $material\n"
+        throw(ArgumentError(msg))
+    end
+end
+
 function typecheck_material(::Type{Material}) where {Material}
     if !(Material <: AbstractMaterial)
         msg = "$Material is not a valid material type!\n"
@@ -186,7 +204,7 @@ function typecheck_params(::Type{Material}, ::Type{Param}) where {Material,Param
         throw(ArgumentError(msg))
     end
     parameters = fieldnames(Param)
-    for req_param in required_point_parameter_names(Material)
+    for req_param in required_point_parameter_names(Val(Symbol(Material)))
         if !in(req_param, parameters)
             msg = "required parameter $req_param not found in $(Param)!\n"
             throw(ArgumentError(msg))

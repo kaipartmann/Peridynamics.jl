@@ -2,9 +2,11 @@ const ELASTIC_KWARGS = (:E, :nu)
 const FRAC_KWARGS = (:Gc, :epsilon_c)
 const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
 
-function allowed_material_kwargs(mat::AbstractMaterial)
-    # return fieldnames(point_param_type(mat))
-    return DEFAULT_POINT_KWARGS
+function allowed_material_kwargs(mat::M) where {M<:AbstractMaterial}
+    fields = fieldnames(point_param_type(mat))
+    kwargs = [set_kw(M, Val(p)) for p in fields]
+    allowed_kwargs = Tuple(filter(x -> !isnothing(x), kwargs))
+    return allowed_kwargs
 end
 
 """
@@ -91,20 +93,22 @@ function check_material_kwargs(mat::AbstractMaterial, p::Dict{Symbol,Any})
     return nothing
 end
 
+@inline set_kw(::Type{M}, ::Val{:δ}) where {M} = :horizon
+@inline set_kw(::Type{M}, ::Val{:G}) where {M} = nothing
+@inline set_kw(::Type{M}, ::Val{:K}) where {M} = nothing
+@inline set_kw(::Type{M}, ::Val{:λ}) where {M} = nothing
+@inline set_kw(::Type{M}, ::Val{:μ}) where {M} = nothing
+
 function get_horizon(p::Dict{Symbol,Any})
-    if !haskey(p, :horizon)
-        throw(UndefKeywordError(:horizon))
-    end
-    δ::Float64 = float(p[:horizon])
+    δ = parse_parameter(AbstractMaterial, :δ, Float64, p)
+    isnothing(δ) && throw(UndefKeywordError(set_kw(AbstractMaterial, Val(:δ))))
     δ ≤ 0 && throw(ArgumentError("`horizon` should be larger than zero!\n"))
     return (; δ,)
 end
 
 function get_density(p::Dict{Symbol,Any})
-    if !haskey(p, :rho)
-        throw(UndefKeywordError(:rho))
-    end
-    rho::Float64 = float(p[:rho])
+    rho = parse_parameter(AbstractMaterial, :rho, Float64, p)
+    isnothing(rho) && throw(UndefKeywordError(:rho))
     rho ≤ 0 && throw(ArgumentError("`rho` should be larger than zero!\n"))
     return (; rho,)
 end

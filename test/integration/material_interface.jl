@@ -20,7 +20,7 @@ end
         Gc::Float64
         εc::Float64
     end
-    @test isnothing(Peridynamics.typecheck_params(TestPointParameters2))
+    @test isnothing(Peridynamics.typecheck_params(TestMaterial2,TestPointParameters2))
 
     struct PointParametersNoSubtype
         δ::Float64
@@ -34,7 +34,7 @@ end
         Gc::Float64
         εc::Float64
     end
-    @test_throws ArgumentError Peridynamics.typecheck_params(PointParametersNoSubtype)
+    @test_throws ArgumentError Peridynamics.typecheck_params(TestMaterial2,PointParametersNoSubtype)
 
     struct PointParametersMissingHorizon <: Peridynamics.AbstractPointParameters
         rho::Float64
@@ -47,7 +47,7 @@ end
         Gc::Float64
         εc::Float64
     end
-    @test_throws ErrorException Peridynamics.typecheck_params(PointParametersMissingHorizon)
+    @test_throws ArgumentError Peridynamics.typecheck_params(TestMaterial2, PointParametersMissingHorizon)
 
     @test hasmethod(Peridynamics.point_param_type, Tuple{TestMaterial2})
     @test Peridynamics.point_param_type(TestMaterial2()) == TestPointParameters2

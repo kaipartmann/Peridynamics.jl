@@ -1,6 +1,6 @@
 struct TestMaterial <: Peridynamics.AbstractBondSystemMaterial{Peridynamics.NoCorrection} end
 Peridynamics.@params TestMaterial struct TestPointParameters <: Peridynamics.AbstractPointParameters
-    Peridynamics.@required_params
+    @required_params
 end
 # function TestPointParameters(::TestMaterial, p::Dict{Symbol,Any})
 #     δ = Peridynamics.get_horizon(p)

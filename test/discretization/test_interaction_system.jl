@@ -4,7 +4,7 @@
                 0.0 0.0 1.0]
     volume = fill(1.0, 3)
     body = Body(CKIMaterial(), position, volume)
-    material!(body; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1)
+    material!(body; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1, C3=0)
     pd = Peridynamics.PointDecomposition(body, 1)
 
     is, ch = Peridynamics.InteractionSystem(body, pd, 1)
