@@ -6,6 +6,8 @@ function allowed_material_kwargs(::AbstractMaterial)
     return DEFAULT_POINT_KWARGS
 end
 
+@inline elasticity_parameters() = (:E, :nu, :G, :K, :λ, :μ)
+
 """
     material!(body, set_name; kwargs...)
     material!(body; kwargs...)

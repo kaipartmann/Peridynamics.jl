@@ -45,6 +45,10 @@ function check_bond_system_compat(::AbstractBondSystemMaterial)
     return nothing
 end
 
+function required_point_parameters(::AbstractBondSystemMaterial)
+    return (:δ, :rho, elasticity_parameters()...)
+end
+
 function find_bonds(body::AbstractBody, loc_points::UnitRange{Int})
     δmax = maximum_horizon(body)
     nhs = GridNeighborhoodSearch{3}(search_radius=δmax, n_points=body.n_points)

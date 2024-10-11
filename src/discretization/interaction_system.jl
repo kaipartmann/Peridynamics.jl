@@ -81,6 +81,10 @@ function check_interaction_system_compat(::AbstractInteractionSystemMaterial)
     return nothing
 end
 
+function required_point_parameters(::AbstractInteractionSystemMaterial)
+    return (:δ, :rho, elasticity_parameters()..., :C1, :C2, :C3)
+end
+
 function has_two_nis(body::AbstractBody)
     for params in body.point_params
         get_c2(params) ≈ 0 || return true
