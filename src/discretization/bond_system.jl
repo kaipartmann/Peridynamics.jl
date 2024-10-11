@@ -45,10 +45,6 @@ function check_bond_system_compat(::AbstractBondSystemMaterial)
     return nothing
 end
 
-function required_point_parameters(::AbstractBondSystemMaterial)
-    return (:δ, :rho, elasticity_parameters()...)
-end
-
 function find_bonds(body::AbstractBody, loc_points::UnitRange{Int})
     δmax = maximum_horizon(body)
     nhs = GridNeighborhoodSearch{3}(search_radius=δmax, n_points=body.n_points)
@@ -254,4 +250,12 @@ end
 function calc_n_bonds(dh::AbstractMPIBodyDataHandler)
     n_bonds = MPI.Reduce(length(dh.chunk.system.bonds), MPI.SUM, mpi_comm())
     return n_bonds
+end
+
+function required_point_parameters(::Type{<:BondSystem})
+    return (:δ, :rho, elasticity_parameters()...)
+end
+
+function get_required_point_parameters(::AbstractBondSystemMaterial, p::Dict{Symbol,Any})
+    return (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)
 end

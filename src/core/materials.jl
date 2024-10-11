@@ -1,13 +1,21 @@
-function point_param_type(mat::AbstractMaterial)
-    throw(MethodError(point_param_type, mat))
+function point_param_type(::M) where {M<:AbstractMaterial}
+    return point_param_type(M)
 end
 
-function material_type(params::AbstractPointParameters)
-    throw(MethodError(material_type, params))
+function point_param_type(mat::Type{T}) where {T}
+    return throw(MethodError(point_param_type, mat))
+end
+
+function material_type(::P) where {P<:AbstractPointParameters}
+    return material_type(P)
+end
+
+function material_type(params::Type{T}) where {T}
+    return throw(MethodError(material_type, params))
 end
 
 function get_point_params(mat::AbstractMaterial, ::Dict{Symbol,Any})
-    throw(MethodError(get_point_params, mat))
+    return throw(MethodError(get_point_params, mat))
 end
 
 macro params(material, params)
@@ -15,14 +23,13 @@ macro params(material, params)
     macrocheck_input_params(params)
     local _checks = quote
         Peridynamics.typecheck_material($(esc(material)))
-        #TODO: make this check material dependent -> overloadable for own types!
         Peridynamics.typecheck_params($(esc(params)))
     end
     local _pointparam_type = quote
-        Peridynamics.point_param_type(::$(esc(material))) = $(esc(params))
+        Peridynamics.point_param_type(::Base.Type{<:$(esc(material))}) = $(esc(params))
     end
     local _material_type = quote
-        Peridynamics.material_type(::$(esc(params))) = $(esc(material))
+        Peridynamics.material_type(::Base.Type{<:$(esc(params))}) = $(esc(material))
     end
     local _get_pointparams = quote
         function Peridynamics.get_point_params(m::$(esc(material)), p::Dict{Symbol,Any})
@@ -58,8 +65,9 @@ function typecheck_params(::Type{Param}) where {Param}
         msg = "$Param is not a valid point parameter type!\n"
         throw(ArgumentError(msg))
     end
+    material = material_type(Param)
     parameters = fieldnames(Param)
-    for req_param in required_point_parameters()
+    for req_param in required_point_parameters(material)
         if !in(req_param, parameters)
             msg = "required parameter $req_param not found in $(Param)!\n"
             error(msg)

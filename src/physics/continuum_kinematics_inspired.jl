@@ -72,45 +72,10 @@ struct CKIPointParameters <: AbstractPointParameters
     C3::Float64
 end
 
-function CKIPointParameters(::CKIMaterial, p::Dict{Symbol,Any})
-    δ = get_horizon(p)
-    rho = get_density(p)
-    E, nu, G, K, λ, μ = get_elastic_params(p)
-    Gc, εc = get_frac_params(p, δ, K)
-    C1, C2, C3 = cki_parameters(p, δ, λ, μ)
+function CKIPointParameters(mat::CKIMaterial, p::Dict{Symbol,Any})
+    (; δ, rho, E, nu, G, K, λ, μ, C1, C2, C3) = get_required_point_parameters(mat, p)
+    (; Gc, εc) = get_frac_params(p, δ, K)
     return CKIPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, C1, C2, C3)
-end
-
-function cki_parameters(p::Dict{Symbol,Any}, δ, λ, μ)
-    if haskey(p, :C1)
-        C1::Float64 = float(p[:C1])
-    else
-        C1 = 0.0
-    end
-
-    if haskey(p, :C2)
-        C2::Float64 = float(p[:C2])
-    else
-        C2 = 0.0
-    end
-
-    if haskey(p, :C3)
-        C3::Float64 = float(p[:C3])
-    else
-        C3 = 0.0
-    end
-
-    if C1 ≈ 0 && C2 ≈ 0 && C3 ≈ 0
-        C1 = 30 / π * μ / δ^4
-        C2 = 0.0
-        C3 = 32 / π^4 * (λ - μ) / δ^12
-    else
-        msg = "parameters for CKIMaterial specified manually!\n"
-        msg *= "Be careful when adjusting these parameters to avoid unexpected outcomes!"
-        @mpiroot @warn msg
-    end
-
-    return C1, C2, C3
 end
 
 function allowed_material_kwargs(::CKIMaterial)

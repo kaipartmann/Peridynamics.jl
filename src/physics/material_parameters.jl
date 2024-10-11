@@ -128,10 +128,7 @@ function get_elastic_params(p::Dict{Symbol,Any})
     return E, nu, G, K, λ, μ
 end
 
-required_point_parameters() = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :Gc, :εc)
 
-#TODO: parameter checks material dependent...
-# req_param_material(::AbstractMaterial) = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ)
 
 function log_material_parameters(param::AbstractPointParameters; indentation::Int=2)
     msg = msg_qty("horizon", param.δ; indentation=indentation)

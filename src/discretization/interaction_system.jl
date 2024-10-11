@@ -81,10 +81,6 @@ function check_interaction_system_compat(::AbstractInteractionSystemMaterial)
     return nothing
 end
 
-function required_point_parameters(::AbstractInteractionSystemMaterial)
-    return (:δ, :rho, elasticity_parameters()..., :C1, :C2, :C3)
-end
-
 function has_two_nis(body::AbstractBody)
     for params in body.point_params
         get_c2(params) ≈ 0 || return true
@@ -418,4 +414,48 @@ function calc_n_interactions(dh::AbstractMPIBodyDataHandler)
     n_two_nis = MPI.Reduce(length(dh.chunk.system.two_nis), MPI.SUM, mpi_comm())
     n_three_nis = MPI.Reduce(length(dh.chunk.system.three_nis), MPI.SUM, mpi_comm())
     return n_one_nis, n_two_nis, n_three_nis
+end
+
+function required_point_parameters(::Type{<:InteractionSystem})
+    return (:δ, :rho, elasticity_parameters()..., :C1, :C2, :C3)
+end
+
+function get_required_point_parameters(::AbstractInteractionSystemMaterial,
+                                       p::Dict{Symbol,Any})
+    params = (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)
+    (; δ, λ, μ) = params
+    params = (; params..., get_interaction_parameters(p, δ, λ, μ)...)
+    return params
+end
+
+function get_interaction_parameters(p::Dict{Symbol,Any}, δ, λ, μ)
+    if haskey(p, :C1)
+        C1::Float64 = float(p[:C1])
+    else
+        C1 = 0.0
+    end
+
+    if haskey(p, :C2)
+        C2::Float64 = float(p[:C2])
+    else
+        C2 = 0.0
+    end
+
+    if haskey(p, :C3)
+        C3::Float64 = float(p[:C3])
+    else
+        C3 = 0.0
+    end
+
+    if C1 ≈ 0 && C2 ≈ 0 && C3 ≈ 0
+        C1 = 30 / π * μ / δ^4
+        C2 = 0.0
+        C3 = 32 / π^4 * (λ - μ) / δ^12
+    else
+        msg = "interaction parameters for $(typeof(mat)) specified manually!\n"
+        msg *= "Be careful when adjusting these parameters to avoid unexpected outcomes!"
+        @mpiroot @warn msg
+    end
+
+    return C1, C2, C3
 end

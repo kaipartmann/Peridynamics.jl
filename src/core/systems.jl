@@ -1,5 +1,9 @@
-function system_type(mat::AbstractMaterial)
-    throw(MethodError(system_type, mat))
+function system_type(::M) where {M<:AbstractMaterial}
+    return system_type(M)
+end
+
+function system_type(mat::Type{M}) where {M}
+    return throw(MethodError(system_type, mat))
 end
 
 function get_system(::AbstractBody{M}, ::PointDecomposition, ::Int) where {M}
@@ -12,6 +16,10 @@ function log_system(options::AbstractJobOptions, dh::AbstractDataHandler)
     return nothing
 end
 
-function required_point_parameters(sys::AbstractSystem)
+function required_point_parameters(mat::AbstractMaterial)
+    return required_point_parameters(system_type(mat))
+end
+
+function required_point_parameters(sys::Type{Sys}) where {Sys<:AbstractSystem}
     return throw(MethodError(required_point_parameters, sys))
 end
