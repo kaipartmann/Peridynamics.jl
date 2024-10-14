@@ -6,8 +6,8 @@
         error(msg)
     end
     root = joinpath(@__DIR__, "temp_precompilation")
-    pos1, vol1 = uniform_box(1, 1, 1, 0.5; center_x=0.5, center_y=0.5, center_z=0.5)
-    pos2, vol2 = uniform_box(1, 1, 1, 0.5; center_x=-0.5, center_y=0.5, center_z=0.5)
+    pos1, vol1 = uniform_box(1, 1, 1, 0.5; center=(0.5, 0.5, 0.5))
+    pos2, vol2 = uniform_box(1, 1, 1, 0.5; center=(-0.5, 0.5, 0.5))
     path_bb = joinpath(root, "BB")
     path_osb = joinpath(root, "OSB")
     path_nosb = joinpath(root, "NOSB")

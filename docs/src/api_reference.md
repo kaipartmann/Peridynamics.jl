@@ -37,6 +37,9 @@ precrack!
 contact!
 uniform_box
 uniform_sphere
+uniform_cylinder
+round_sphere
+round_cylinder
 n_points
 ```
 

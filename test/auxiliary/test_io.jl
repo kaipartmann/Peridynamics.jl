@@ -295,7 +295,7 @@ end
     body_a = Body(BBMaterial(), pos_a, vol_a)
     material!(body_a, horizon=1.5, E=1, rho=1, Gc=1)
 
-    pos_b, vol_b = uniform_box(1, 1, 1, 0.5, center_z=1.5)
+    pos_b, vol_b = uniform_box(1, 1, 1, 0.5, center=(0, 0, 1.5))
     body_b = Body(BBMaterial(), pos_b, vol_b)
     material!(body_b, horizon=1.5, E=1, rho=1, Gc=1)
 
