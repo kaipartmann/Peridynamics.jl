@@ -62,7 +62,7 @@ end
 
 function typecheck_params(::Type{Material}, ::Type{Param}) where {Material,Param}
     if !(Param <: AbstractPointParameters)
-        msg = "$Param is not a valid point parameter type!\n"
+        msg = "$Param is not a subtype of AbstractPointParameters!\n"
         throw(ArgumentError(msg))
     end
     parameters = fieldnames(Param)
