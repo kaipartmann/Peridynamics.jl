@@ -7,8 +7,10 @@
 end
 
 @testitem "Point parameters declaration" begin
-    struct TestMaterial2 <: Peridynamics.AbstractMaterial end
-    struct TestPointParameters2 <: Peridynamics.AbstractPointParameters
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, AbstractPointParameters,
+                         typecheck_params, point_param_type, get_point_params
+    struct TestMaterial2 <: AbstractBondSystemMaterial{NoCorrection} end
+    struct TestPointParameters2 <: AbstractPointParameters
         δ::Float64
         rho::Float64
         E::Float64
@@ -20,7 +22,7 @@ end
         Gc::Float64
         εc::Float64
     end
-    @test isnothing(Peridynamics.typecheck_params(TestPointParameters2))
+    @test isnothing(typecheck_params(TestMaterial2, TestPointParameters2))
 
     struct PointParametersNoSubtype
         δ::Float64
@@ -34,9 +36,9 @@ end
         Gc::Float64
         εc::Float64
     end
-    @test_throws ArgumentError Peridynamics.typecheck_params(PointParametersNoSubtype)
+    @test_throws ArgumentError typecheck_params(TestMaterial2, PointParametersNoSubtype)
 
-    struct PointParametersMissingHorizon <: Peridynamics.AbstractPointParameters
+    struct PointParametersMissingHorizon <: AbstractPointParameters
         rho::Float64
         E::Float64
         nu::Float64
@@ -47,14 +49,15 @@ end
         Gc::Float64
         εc::Float64
     end
-    @test_throws ErrorException Peridynamics.typecheck_params(PointParametersMissingHorizon)
+    @test_throws ErrorException typecheck_params(TestMaterial2,
+                                                 PointParametersMissingHorizon)
 
-    @test_throws Peridynamics.InterfaceError Peridynamics.point_param_type(TestMaterial2())
+    @test_throws Peridynamics.InterfaceError point_param_type(TestMaterial2())
 
     Peridynamics.@params TestMaterial2 TestPointParameters2
-    @test hasmethod(Peridynamics.point_param_type, Tuple{TestMaterial2})
+    @test hasmethod(point_param_type, Tuple{TestMaterial2})
     @test Peridynamics.point_param_type(TestMaterial2()) == TestPointParameters2
-    @test hasmethod(Peridynamics.get_point_params, Tuple{TestMaterial2,Dict{Symbol,Any}})
+    @test hasmethod(get_point_params, Tuple{TestMaterial2,Dict{Symbol,Any}})
 end
 
 # TODO

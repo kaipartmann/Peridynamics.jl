@@ -1,10 +1,7 @@
-const ELASTIC_KWARGS = (:E, :nu)
-const FRAC_KWARGS = (:Gc, :epsilon_c)
-const DEFAULT_POINT_KWARGS = (:horizon, :rho, ELASTIC_KWARGS..., FRAC_KWARGS...)
+@inline elasticity_parameters() = (:E, :nu, :G, :K, :λ, :μ)
 
-function allowed_material_kwargs(::AbstractMaterial)
-    return DEFAULT_POINT_KWARGS
-end
+@inline elasticity_kwargs() = (:E, :nu)
+@inline discretization_kwargs() = (:horizon, :rho)
 
 """
     material!(body, set_name; kwargs...)
@@ -96,7 +93,7 @@ function get_horizon(p::Dict{Symbol,Any})
     end
     δ::Float64 = float(p[:horizon])
     δ ≤ 0 && throw(ArgumentError("`horizon` should be larger than zero!\n"))
-    return δ
+    return (; δ,)
 end
 
 function get_density(p::Dict{Symbol,Any})
@@ -105,7 +102,7 @@ function get_density(p::Dict{Symbol,Any})
     end
     rho::Float64 = float(p[:rho])
     rho ≤ 0 && throw(ArgumentError("`rho` should be larger than zero!\n"))
-    return rho
+    return (; rho,)
 end
 
 function get_elastic_params(p::Dict{Symbol,Any})
@@ -123,13 +120,8 @@ function get_elastic_params(p::Dict{Symbol,Any})
     K = E / (3 * (1 - 2 * nu))
     λ = E * nu / ((1 + nu) * (1 - 2nu))
     μ = G
-    return E, nu, G, K, λ, μ
+    return (; E, nu, G, K, λ, μ)
 end
-
-required_point_parameters() = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :Gc, :εc)
-
-#TODO: parameter checks material dependent...
-# req_param_material(::AbstractMaterial) = (:δ, :rho, :E, :nu, :G, :K, :λ, :μ)
 
 function log_material_parameters(param::AbstractPointParameters; indentation::Int=2)
     msg = msg_qty("horizon", param.δ; indentation=indentation)

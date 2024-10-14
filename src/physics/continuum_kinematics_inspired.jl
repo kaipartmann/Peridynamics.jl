@@ -72,12 +72,9 @@ struct CKIPointParameters <: AbstractPointParameters
     C3::Float64
 end
 
-function CKIPointParameters(::CKIMaterial, p::Dict{Symbol,Any})
-    δ = get_horizon(p)
-    rho = get_density(p)
-    E, nu, G, K, λ, μ = get_elastic_params(p)
-    Gc, εc = get_frac_params(p, δ, K)
-    C1, C2, C3 = cki_parameters(p, δ, λ, μ)
+function CKIPointParameters(mat::CKIMaterial, p::Dict{Symbol,Any})
+    (; δ, rho, E, nu, G, K, λ, μ, C1, C2, C3) = get_required_point_parameters(mat, p)
+    (; Gc, εc) = get_frac_params(p, δ, K)
     return CKIPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, C1, C2, C3)
 end
 
@@ -111,10 +108,6 @@ function cki_parameters(p::Dict{Symbol,Any}, δ, λ, μ)
     end
 
     return C1, C2, C3
-end
-
-function allowed_material_kwargs(::CKIMaterial)
-    return (DEFAULT_POINT_KWARGS..., :C1, :C2, :C3)
 end
 
 @params CKIMaterial CKIPointParameters

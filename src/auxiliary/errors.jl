@@ -1,10 +1,11 @@
 struct InterfaceError <: Exception
     type::DataType
     func::String
-end
-
-function InterfaceError(::T, f::F) where {T,F}
-    return InterfaceError(T, string(f))
+    function InterfaceError(_type::T, _func::F) where {T,F}
+        func = string(_func)
+        type = isa(_type, DataType) ? _type : T
+        return new(type, func)
+    end
 end
 
 function Base.showerror(io::IO, e::InterfaceError)

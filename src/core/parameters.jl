@@ -10,13 +10,20 @@ function get_point_params(mat::AbstractMaterial, ::Dict{Symbol,Any})
     return throw(InterfaceError(mat, "get_point_params"))
 end
 
+function required_point_parameters(mat::Type{<:AbstractMaterial})
+    return throw(InterfaceError(mat, "required_point_parameters"))
+end
+
+function allowed_material_kwargs(mat::AbstractMaterial)
+    return throw(InterfaceError(mat, "allowed_material_kwargs"))
+end
+
 macro params(material, params)
     macrocheck_input_material(material)
     macrocheck_input_params(params)
     local _checks = quote
         Peridynamics.typecheck_material($(esc(material)))
-        #TODO: make this check material dependent -> overloadable for own types!
-        Peridynamics.typecheck_params($(esc(params)))
+        Peridynamics.typecheck_params($(esc(material)), $(esc(params)))
     end
     local _pointparam_type = quote
         Peridynamics.point_param_type(::$(esc(material))) = $(esc(params))
@@ -53,13 +60,13 @@ function typecheck_material(::Type{Material}) where {Material}
     return nothing
 end
 
-function typecheck_params(::Type{Param}) where {Param}
+function typecheck_params(::Type{Material}, ::Type{Param}) where {Material,Param}
     if !(Param <: AbstractPointParameters)
         msg = "$Param is not a valid point parameter type!\n"
         throw(ArgumentError(msg))
     end
     parameters = fieldnames(Param)
-    for req_param in required_point_parameters()
+    for req_param in required_point_parameters(Material)
         if !in(req_param, parameters)
             msg = "required parameter $req_param not found in $(Param)!\n"
             error(msg)

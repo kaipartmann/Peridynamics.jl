@@ -251,3 +251,15 @@ function calc_n_bonds(dh::AbstractMPIBodyDataHandler)
     n_bonds = MPI.Reduce(length(dh.chunk.system.bonds), MPI.SUM, mpi_comm())
     return n_bonds
 end
+
+function required_point_parameters(::Type{<:AbstractBondSystemMaterial})
+    return (:δ, :rho, elasticity_parameters()...)
+end
+
+function get_required_point_parameters(::AbstractBondSystemMaterial, p::Dict{Symbol,Any})
+    return (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)
+end
+
+function allowed_material_kwargs(::AbstractBondSystemMaterial)
+    return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...)
+end
