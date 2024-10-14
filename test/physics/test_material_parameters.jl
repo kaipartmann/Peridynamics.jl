@@ -1,7 +1,7 @@
 @testitem "get_horizon" begin
     p = Dict{Symbol,Any}(:horizon => 1)
-    rho = Peridynamics.get_horizon(p)
-    @test rho ≈ 1.0
+    (; δ) = Peridynamics.get_horizon(p)
+    @test δ ≈ 1.0
 
     p = Dict{Symbol,Any}(:nothorizon => 1)
     @test_throws UndefKeywordError(:horizon) Peridynamics.get_horizon(p)
@@ -13,7 +13,7 @@ end
 
 @testitem "get_density" begin
     p = Dict{Symbol,Any}(:rho => 1)
-    rho = Peridynamics.get_density(p)
+    (; rho) = Peridynamics.get_density(p)
     @test rho ≈ 1.0
 
     p = Dict{Symbol,Any}(:notrho => 1)
@@ -26,7 +26,7 @@ end
 
 @testitem "get_elastic_params" begin
     p = Dict{Symbol,Any}(:E => 1, :nu => 0.25)
-    E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(p)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -66,5 +66,4 @@ end
     p = Dict{Symbol,Any}(:E => 1, :nu => 1.1)
     msg = "too high value of `nu`! Condition: 0 < `nu` ≤ 1\n"
     @test_throws ArgumentError Peridynamics.get_elastic_params(p)
-
 end

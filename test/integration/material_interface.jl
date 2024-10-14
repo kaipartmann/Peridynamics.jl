@@ -1,14 +1,29 @@
 @testitem "Material declaration" begin
-    struct TestMaterial1 <: Peridynamics.AbstractMaterial end
-    struct WrongTestMaterial end
+    import Peridynamics: NoCorrection, InterfaceError
 
+    struct TestMaterial1 <: Peridynamics.AbstractBondSystemMaterial{NoCorrection} end
     @test isnothing(Peridynamics.typecheck_material(TestMaterial1))
+    @test Peridynamics.required_point_parameters(TestMaterial1) === (:δ, :rho, :E, :nu, :G,
+                                                                     :K, :λ, :μ)
+    @test Peridynamics.allowed_material_kwargs(TestMaterial1()) === (:horizon, :rho, :E,
+                                                                     :nu, :Gc, :epsilon_c)
+
+    struct WrongTestMaterial end
     @test_throws ArgumentError Peridynamics.typecheck_material(WrongTestMaterial)
+
+    struct WrongTestMaterial2 <: Peridynamics.AbstractMaterial end
+    @test isnothing(Peridynamics.typecheck_material(WrongTestMaterial2))
+    @test_throws InterfaceError Peridynamics.required_point_parameters(WrongTestMaterial2)
+    @test_throws InterfaceError Peridynamics.allowed_material_kwargs(WrongTestMaterial2())
 end
 
 @testitem "Point parameters declaration" begin
-    struct TestMaterial2 <: Peridynamics.AbstractMaterial end
-    struct TestPointParameters2 <: Peridynamics.AbstractPointParameters
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, AbstractPointParameters,
+                         InterfaceError, typecheck_params, constructor_check,
+                         point_param_type, material_type, get_point_params,
+                         macrocheck_input_material, macrocheck_input_params
+    struct TestMaterial2 <: AbstractBondSystemMaterial{NoCorrection} end
+    struct TestPointParameters2 <: AbstractPointParameters
         δ::Float64
         rho::Float64
         E::Float64
@@ -20,7 +35,16 @@ end
         Gc::Float64
         εc::Float64
     end
-    @test isnothing(Peridynamics.typecheck_params(TestPointParameters2))
+    tpp2 = TestPointParameters2(0,0,0,0,0,0,0,0,0,0)
+    TestPointParameters2(::TestMaterial2, ::Dict{Symbol,Any}) = nothing
+
+    @test isnothing(typecheck_params(TestMaterial2, TestPointParameters2))
+    ie1 = InterfaceError(TestMaterial2, "point_param_type")
+    @test_throws ie1 point_param_type(TestMaterial2())
+    ie2 = InterfaceError(TestPointParameters2, "material_type")
+    @test_throws ie2 material_type(tpp2)
+    ie3 = InterfaceError(TestMaterial2, "get_point_params")
+    @test_throws ie3 get_point_params(TestMaterial2(), Dict{Symbol,Any}())
 
     struct PointParametersNoSubtype
         δ::Float64
@@ -34,9 +58,10 @@ end
         Gc::Float64
         εc::Float64
     end
-    @test_throws ArgumentError Peridynamics.typecheck_params(PointParametersNoSubtype)
+    @test_throws ArgumentError typecheck_params(TestMaterial2, PointParametersNoSubtype)
+    @test_throws InterfaceError constructor_check(TestMaterial2, PointParametersNoSubtype)
 
-    struct PointParametersMissingHorizon <: Peridynamics.AbstractPointParameters
+    struct PointParametersMissingHorizon <: AbstractPointParameters
         rho::Float64
         E::Float64
         nu::Float64
@@ -47,28 +72,23 @@ end
         Gc::Float64
         εc::Float64
     end
-    @test_throws ErrorException Peridynamics.typecheck_params(PointParametersMissingHorizon)
+    @test_throws ErrorException typecheck_params(TestMaterial2,
+                                                 PointParametersMissingHorizon)
+
+    @test_throws InterfaceError point_param_type(TestMaterial2())
 
     Peridynamics.@params TestMaterial2 TestPointParameters2
-    @test hasmethod(Peridynamics.point_param_type, Tuple{TestMaterial2})
+    @test hasmethod(point_param_type, Tuple{TestMaterial2})
     @test Peridynamics.point_param_type(TestMaterial2()) == TestPointParameters2
-    @test hasmethod(Peridynamics.get_point_params, Tuple{TestMaterial2,Dict{Symbol,Any}})
+    @test hasmethod(get_point_params, Tuple{TestMaterial2,Dict{Symbol,Any}})
+
+    @test isnothing(macrocheck_input_material(:MyMaterial))
+    @test isnothing(macrocheck_input_material(:(MyModule.MyMaterial)))
+    @test_throws ArgumentError macrocheck_input_material(:(1 + 1))
+    @test isnothing(macrocheck_input_params(:MyParams))
+    @test isnothing(macrocheck_input_params(:(MyModule.MyParams)))
+    @test_throws ArgumentError macrocheck_input_params(:(1 + 1))
 end
-
-# TODO
-# @testitem "System declaration" begin
-#     struct TestMaterial3 <: Peridynamics.AbstractMaterial end
-#     struct WrongMaterial2 end
-
-#     @test_throws ArgumentError Peridynamics.@system WrongMaterial2 Peridynamics.BondSystem
-#     @test_throws ArgumentError Peridynamics.@system TestMaterial3 Peridynamics.BBMaterial
-
-#     Peridynamics.@system TestMaterial3 Peridynamics.BondSystem
-#     @test hasmethod(Peridynamics.system_type, Tuple{TestMaterial3})
-#     @test Peridynamics.system_type(TestMaterial3()) == Peridynamics.BondSystem
-#     @test hasmethod(Peridynamics.get_system,
-#                     Tuple{Peridynamics.AbstractBody{TestMaterial3}})
-# end
 
 @testitem "Storage declaration" begin
     struct TestMaterial4 <: Peridynamics.AbstractMaterial end

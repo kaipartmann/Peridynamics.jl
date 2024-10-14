@@ -1,22 +1,29 @@
 function point_param_type(mat::AbstractMaterial)
-    throw(MethodError(point_param_type, mat))
+    return throw(InterfaceError(mat, "point_param_type"))
 end
 
 function material_type(params::AbstractPointParameters)
-    throw(MethodError(material_type, params))
+    return throw(InterfaceError(params, "material_type"))
 end
 
 function get_point_params(mat::AbstractMaterial, ::Dict{Symbol,Any})
-    throw(MethodError(get_point_params, mat))
+    return throw(InterfaceError(mat, "get_point_params"))
+end
+
+function required_point_parameters(mat::Type{<:AbstractMaterial})
+    return throw(InterfaceError(mat, "required_point_parameters"))
+end
+
+function allowed_material_kwargs(mat::AbstractMaterial)
+    return throw(InterfaceError(mat, "allowed_material_kwargs"))
 end
 
 macro params(material, params)
     macrocheck_input_material(material)
     macrocheck_input_params(params)
-    local _checks = quote
+    local _pre_checks = quote
         Peridynamics.typecheck_material($(esc(material)))
-        #TODO: make this check material dependent -> overloadable for own types!
-        Peridynamics.typecheck_params($(esc(params)))
+        Peridynamics.typecheck_params($(esc(material)), $(esc(params)))
     end
     local _pointparam_type = quote
         Peridynamics.point_param_type(::$(esc(material))) = $(esc(params))
@@ -29,7 +36,12 @@ macro params(material, params)
             return $(esc(params))(m, p)
         end
     end
-    return Expr(:block, _checks, _pointparam_type, _material_type, _get_pointparams)
+    local _post_checks = quote
+        Peridynamics.constructor_check($(esc(material)), $(esc(params)))
+    end
+    exprs = Expr(:block, _pre_checks, _pointparam_type, _material_type, _get_pointparams,
+                 _post_checks)
+    return exprs
 end
 
 function macrocheck_input_material(material)
@@ -53,17 +65,24 @@ function typecheck_material(::Type{Material}) where {Material}
     return nothing
 end
 
-function typecheck_params(::Type{Param}) where {Param}
+function typecheck_params(::Type{Material}, ::Type{Param}) where {Material,Param}
     if !(Param <: AbstractPointParameters)
-        msg = "$Param is not a valid point parameter type!\n"
+        msg = "$Param is not a subtype of AbstractPointParameters!\n"
         throw(ArgumentError(msg))
     end
     parameters = fieldnames(Param)
-    for req_param in required_point_parameters()
+    for req_param in required_point_parameters(Material)
         if !in(req_param, parameters)
             msg = "required parameter $req_param not found in $(Param)!\n"
             error(msg)
         end
+    end
+    return nothing
+end
+
+function constructor_check(::Type{Material}, ::Type{Param}) where {Material,Param}
+    if !hasmethod(Param, Tuple{Material,Dict{Symbol,Any}})
+        throw(InterfaceError(Param, "$(Param)(::$(Material), ::Dict{Symbol,Any})"))
     end
     return nothing
 end

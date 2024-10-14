@@ -94,11 +94,9 @@ struct NOSBPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-function NOSBPointParameters(::NOSBMaterial, p::Dict{Symbol,Any})
-    δ = get_horizon(p)
-    rho = get_density(p)
-    E, nu, G, K, λ, μ = get_elastic_params(p)
-    Gc, εc = get_frac_params(p, δ, K)
+function NOSBPointParameters(mat::NOSBMaterial, p::Dict{Symbol,Any})
+    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
+    (; Gc, εc) = get_frac_params(p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
     return NOSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
