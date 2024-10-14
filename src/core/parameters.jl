@@ -1,13 +1,13 @@
 function point_param_type(mat::AbstractMaterial)
-    throw(MethodError(point_param_type, mat))
+    return throw(InterfaceError(mat, "point_param_type"))
 end
 
 function material_type(params::AbstractPointParameters)
-    throw(MethodError(material_type, params))
+    return throw(InterfaceError(params, "material_type"))
 end
 
 function get_point_params(mat::AbstractMaterial, ::Dict{Symbol,Any})
-    throw(MethodError(get_point_params, mat))
+    return throw(InterfaceError(mat, "get_point_params"))
 end
 
 macro params(material, params)

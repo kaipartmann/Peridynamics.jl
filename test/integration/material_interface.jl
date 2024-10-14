@@ -49,6 +49,8 @@ end
     end
     @test_throws ErrorException Peridynamics.typecheck_params(PointParametersMissingHorizon)
 
+    @test_throws Peridynamics.InterfaceError Peridynamics.point_param_type(TestMaterial2())
+
     Peridynamics.@params TestMaterial2 TestPointParameters2
     @test hasmethod(Peridynamics.point_param_type, Tuple{TestMaterial2})
     @test Peridynamics.point_param_type(TestMaterial2()) == TestPointParameters2
