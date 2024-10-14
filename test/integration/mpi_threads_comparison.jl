@@ -1,5 +1,5 @@
 @testitem "MPI-Threads comparison BBMaterial{NoCorrection}" begin
-    root = joinpath(@__DIR__, "temp_mpi_threads_comparison")
+    root = joinpath(@__DIR__, "temp_mpi_threads_comparison_bbnc")
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
     path_mpi = joinpath(root, "results_mpi")
@@ -66,7 +66,7 @@
 end
 
 @testitem "MPI-Threads comparison BBMaterial{EnergySurfaceCorrection}" begin
-    root = joinpath(@__DIR__, "temp_mpi_threads_comparison")
+    root = joinpath(@__DIR__, "temp_mpi_threads_comparison_bbesc")
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
     path_mpi = joinpath(root, "results_mpi")
@@ -133,7 +133,7 @@ end
 end
 
 @testitem "MPI-Threads comparison OSBMaterial" begin
-    root = joinpath(@__DIR__, "temp_mpi_threads_comparison")
+    root = joinpath(@__DIR__, "temp_mpi_threads_comparison_osb")
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
     path_mpi = joinpath(root, "results_mpi")
@@ -200,7 +200,7 @@ end
 end
 
 @testitem "MPI-Threads comparison NOSBMaterial" begin
-    root = joinpath(@__DIR__, "temp_mpi_threads_comparison")
+    root = joinpath(@__DIR__, "temp_mpi_threads_comparison_cc")
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
     path_mpi = joinpath(root, "results_mpi")

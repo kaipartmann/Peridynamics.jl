@@ -1,4 +1,4 @@
-@testitem "symmetry OSBMaterial" begin
+@testitem "symmetry OSBMaterial VelocityVerlet" begin
     # simulation
     Δx = 0.2
     width = 1
@@ -16,7 +16,7 @@
     velocity_bc!(t -> 100, body, :set_a, :z)
     velocity_bc!(t -> -100, body, :set_b, :z)
     vv = VelocityVerlet(steps=100)
-    temp_root = joinpath(@__DIR__, "temp_root_symmetry_test")
+    temp_root = joinpath(@__DIR__, "temp_root_symmetry_test_osb_vv")
     rm(temp_root; recursive=true, force=true)
     job = Job(body, vv; path=temp_root, freq=10)
     dh = Peridynamics.submit_threads(job, 1)
@@ -75,7 +75,7 @@ end
     forcedensity_bc!(t -> 1e10, body, :set_a, :z)
     forcedensity_bc!(t -> -1e10, body, :set_b, :z)
     dr = DynamicRelaxation(steps=100)
-    temp_root = joinpath(@__DIR__, "temp_root_symmetry_test")
+    temp_root = joinpath(@__DIR__, "temp_root_symmetry_test_osb_dr")
     rm(temp_root; recursive=true, force=true)
     job = Job(body, dr; path=temp_root, freq=10)
     dh = Peridynamics.submit_threads(job, 1)
