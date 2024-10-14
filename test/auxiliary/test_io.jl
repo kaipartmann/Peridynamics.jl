@@ -244,7 +244,7 @@
 end
 
 @testitem "export_results Body" begin
-    temp_root = joinpath(@__DIR__, "temp_root_export_results_test")
+    temp_root = joinpath(@__DIR__, "temp_root_export_results_test_body")
     rm(temp_root; recursive=true, force=true)
 
     pos, vol = uniform_box(1, 1, 1, 0.5)
@@ -288,7 +288,7 @@ end
 end
 
 @testitem "export_results MultibodySetup" begin
-    temp_root = joinpath(@__DIR__, "temp_root_export_results_test")
+    temp_root = joinpath(@__DIR__, "temp_root_export_results_test_multibody")
     rm(temp_root; recursive=true, force=true)
 
     pos_a, vol_a = uniform_box(1, 1, 1, 0.5)
