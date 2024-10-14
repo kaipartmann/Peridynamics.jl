@@ -82,11 +82,7 @@ end
 
 function constructor_check(::Type{Material}, ::Type{Param}) where {Material,Param}
     if !hasmethod(Param, Tuple{Material,Dict{Symbol,Any}})
-        msg = "constructor of $Param missing!\n"
-        msg *= "A method\n\n"
-        msg *= "  $(Param)(::$(Material), p::Dict{Symbol,Any})\n\n"
-        msg *= "needs to be defined!\n"
-        error(msg)
+        throw(InterfaceError(Param, "$(Param)(::$(Material), ::Dict{Symbol,Any})"))
     end
     return nothing
 end
