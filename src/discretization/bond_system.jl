@@ -31,8 +31,8 @@ function get_system(body::AbstractBody{Material}, pd::PointDecomposition,
     return BondSystem(body, pd, chunk_id)
 end
 
-@inline function system_type(mat::AbstractBondSystemMaterial)
-    return BondSystem{correction_type(mat)}
+@inline function system_type(::Type{<:AbstractBondSystemMaterial})
+    return BondSystem
 end
 
 function check_bond_system_compat(::M) where {M<:AbstractMaterial}

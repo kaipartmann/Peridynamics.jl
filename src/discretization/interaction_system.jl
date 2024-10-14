@@ -67,7 +67,7 @@ function get_system(body::AbstractBody{Material}, pd::PointDecomposition,
     return InteractionSystem(body, pd, chunk_id)
 end
 
-@inline function system_type(::AbstractInteractionSystemMaterial)
+@inline function system_type(::Type{<:AbstractInteractionSystemMaterial})
     return InteractionSystem
 end
 

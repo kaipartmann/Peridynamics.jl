@@ -1,9 +1,9 @@
-function system_type(::M) where {M<:AbstractMaterial}
-    return system_type(M)
+function system_type(mat::AbstractMaterial)
+    return system_type(typeof(mat))
 end
 
-function system_type(mat::Type{M}) where {M}
-    return throw(MethodError(system_type, mat))
+function system_type(mat::Type{M}) where {M<:AbstractMaterial}
+    return throw(InterfaceError(mat, system_type))
 end
 
 function get_system(::AbstractBody{M}, ::PointDecomposition, ::Int) where {M}
@@ -20,6 +20,6 @@ function required_point_parameters(mat::AbstractMaterial)
     return required_point_parameters(system_type(mat))
 end
 
-function required_point_parameters(sys::Type{Sys}) where {Sys<:AbstractSystem}
-    return throw(MethodError(required_point_parameters, sys))
+function required_point_parameters(system::Type{<:AbstractSystem})
+    return throw(InterfaceError(system, required_point_parameters))
 end

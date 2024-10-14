@@ -71,6 +71,7 @@ include("auxiliary/function_arguments.jl")
 include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
 include("auxiliary/mpi.jl")
+include("auxiliary/errors.jl")
 
 include("physics/boundary_conditions.jl")
 include("physics/initial_conditions.jl")
