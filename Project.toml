@@ -1,7 +1,7 @@
 name = "Peridynamics"
 uuid = "4dc47793-80f3-4232-b30e-ca78ca9d621b"
 authors = ["Kai Partmann"]
-version = "0.3.3"
+version = "0.4.0-DEV"
 
 [deps]
 AbaqusReader = "bc6b9049-e460-56d6-94b4-a597b2c0390d"
