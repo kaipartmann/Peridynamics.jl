@@ -8,7 +8,8 @@ end
 
 @testitem "Point parameters declaration" begin
     import Peridynamics: AbstractBondSystemMaterial, NoCorrection, AbstractPointParameters,
-                         typecheck_params, point_param_type, get_point_params
+                         typecheck_params, constructor_check, point_param_type,
+                         get_point_params
     struct TestMaterial2 <: AbstractBondSystemMaterial{NoCorrection} end
     struct TestPointParameters2 <: AbstractPointParameters
         δ::Float64
@@ -22,6 +23,7 @@ end
         Gc::Float64
         εc::Float64
     end
+    TestPointParameters2(::TestMaterial2, ::Dict{Symbol,Any}) = nothing
     @test isnothing(typecheck_params(TestMaterial2, TestPointParameters2))
 
     struct PointParametersNoSubtype
@@ -37,6 +39,7 @@ end
         εc::Float64
     end
     @test_throws ArgumentError typecheck_params(TestMaterial2, PointParametersNoSubtype)
+    @test_throws ErrorException constructor_check(TestMaterial2, PointParametersNoSubtype)
 
     struct PointParametersMissingHorizon <: AbstractPointParameters
         rho::Float64

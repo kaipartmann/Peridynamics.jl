@@ -21,7 +21,7 @@ end
 macro params(material, params)
     macrocheck_input_material(material)
     macrocheck_input_params(params)
-    local _checks = quote
+    local _pre_checks = quote
         Peridynamics.typecheck_material($(esc(material)))
         Peridynamics.typecheck_params($(esc(material)), $(esc(params)))
     end
@@ -36,7 +36,12 @@ macro params(material, params)
             return $(esc(params))(m, p)
         end
     end
-    return Expr(:block, _checks, _pointparam_type, _material_type, _get_pointparams)
+    local _post_checks = quote
+        Peridynamics.constructor_check($(esc(material)), $(esc(params)))
+    end
+    exprs = Expr(:block, _pre_checks, _pointparam_type, _material_type, _get_pointparams,
+                 _post_checks)
+    return exprs
 end
 
 function macrocheck_input_material(material)
@@ -71,6 +76,17 @@ function typecheck_params(::Type{Material}, ::Type{Param}) where {Material,Param
             msg = "required parameter $req_param not found in $(Param)!\n"
             error(msg)
         end
+    end
+    return nothing
+end
+
+function constructor_check(::Type{Material}, ::Type{Param}) where {Material,Param}
+    if !hasmethod(Param, Tuple{Material,Dict{Symbol,Any}})
+        msg = "constructor of $Param missing!\n"
+        msg *= "A method\n\n"
+        msg *= "  $(Param)(::$(Material), p::Dict{Symbol,Any})\n\n"
+        msg *= "needs to be defined!\n"
+        error(msg)
     end
     return nothing
 end
