@@ -78,44 +78,7 @@ function CKIPointParameters(mat::CKIMaterial, p::Dict{Symbol,Any})
     return CKIPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, C1, C2, C3)
 end
 
-function cki_parameters(p::Dict{Symbol,Any}, δ, λ, μ)
-    if haskey(p, :C1)
-        C1::Float64 = float(p[:C1])
-    else
-        C1 = 0.0
-    end
-
-    if haskey(p, :C2)
-        C2::Float64 = float(p[:C2])
-    else
-        C2 = 0.0
-    end
-
-    if haskey(p, :C3)
-        C3::Float64 = float(p[:C3])
-    else
-        C3 = 0.0
-    end
-
-    if C1 ≈ 0 && C2 ≈ 0 && C3 ≈ 0
-        C1 = 30 / π * μ / δ^4
-        C2 = 0.0
-        C3 = 32 / π^4 * (λ - μ) / δ^12
-    else
-        msg = "parameters for CKIMaterial specified manually!\n"
-        msg *= "Be careful when adjusting these parameters to avoid unexpected outcomes!"
-        @mpiroot @warn msg
-    end
-
-    return C1, C2, C3
-end
-
 @params CKIMaterial CKIPointParameters
-
-@inline get_c2(params::CKIPointParameters) = params.C2
-@inline get_c2(params) = 0.0
-@inline get_c3(params::CKIPointParameters) = params.C3
-@inline get_c3(params) = 0.0
 
 struct CKIVerletStorage <: AbstractStorage
     position::Matrix{Float64}
@@ -290,9 +253,8 @@ function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSys
         aijky = Δxijz * Δxikx - Δxijx * Δxikz
         aijkz = Δxijx * Δxiky - Δxijy * Δxikx
         surface = sqrt(aijkx * aijkx + aijky * aijky + aijkz * aijkz)
-        if surface == 0 # to avoid divide by zero error for failed interactions
-            surface = 1e-40
-        end
+        # avoid to divide by zero error for failed interactions
+        isapprox(surface, 0; atol=eps()) && (surface = 1e-40)
         failure = storage.one_ni_active[oni_j_id] * storage.one_ni_active[oni_k_id]
         params_j = get_params(paramhandler, j)
         params_k = get_params(paramhandler, k)
@@ -338,9 +300,8 @@ function force_density_point_three_ni!(storage::CKIStorage, system::InteractionS
         aijky = Δxijz * Δxikx - Δxijx * Δxikz
         aijkz = Δxijx * Δxiky - Δxijy * Δxikx
         volume = aijkx * Δxilx + aijky * Δxily + aijkz * Δxilz
-        if volume == 0 # avoid to divide by zero error for failed interactions
-            volume = 1e-40
-        end
+        # avoid to divide by zero error for failed interactions
+        isapprox(volume, 0; atol=eps()) && (volume = 1e-40)
         abs_volume = abs(volume)
         failure = storage.one_ni_active[oni_j_id] * storage.one_ni_active[oni_k_id] *
                   storage.one_ni_active[oni_l_id]

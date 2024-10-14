@@ -81,6 +81,16 @@ function check_interaction_system_compat(::AbstractInteractionSystemMaterial)
     return nothing
 end
 
+function get_c2(params::AbstractPointParameters)
+    hasproperty(params, :C2) || return 0.0
+    return params.C2
+end
+
+function get_c3(params::AbstractPointParameters)
+    hasproperty(params, :C3) || return 0.0
+    return params.C3
+end
+
 function has_two_nis(body::AbstractBody)
     for params in body.point_params
         get_c2(params) ≈ 0 || return true
