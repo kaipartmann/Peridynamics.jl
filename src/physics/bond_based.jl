@@ -76,19 +76,15 @@ struct BBPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-function BBPointParameters(::BBMaterial, p::Dict{Symbol,Any})
-    δ = get_horizon(p)
-    rho = get_density(p)
-    if haskey(p, :nu)
-        msg = "keyword `nu` is not allowed for BBMaterial!\n"
-        msg *= "Bond-based peridynamics has a limitation on the possion ratio.\n"
-        msg *= "Therefore, when using BBMaterial, `nu` is hardcoded as 1/4.\n"
+function BBPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
+    if haskey(p, :nu) && !isapprox(p[:nu], 0.25)
+        msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
+        msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
         throw(ArgumentError(msg))
-    else
-        p[:nu] = 0.25
     end
-    E, nu, G, K, λ, μ = get_elastic_params(p)
-    Gc, εc = get_frac_params(p, δ, K)
+    p[:nu] = 0.25
+    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
+    (; Gc, εc) = get_frac_params(p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
     return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end

@@ -72,12 +72,10 @@ struct OSBPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-function OSBPointParameters(::OSBMaterial, p::Dict{Symbol,Any})
-    δ = get_horizon(p)
-    rho = get_density(p)
-    E, nu, G, K, λ, μ = get_elastic_params(p)
-    Gc, εc = get_frac_params(p, δ, K)
-    bc = 18 * K / (π * δ^4)
+function OSBPointParameters(mat::OSBMaterial, p::Dict{Symbol,Any})
+    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
+    (; Gc, εc) = get_frac_params(p, δ, K)
+    bc = 18 * K / (π * δ^4) # bond constant
     return OSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 

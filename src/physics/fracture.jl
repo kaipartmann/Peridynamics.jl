@@ -1,3 +1,5 @@
+@inline fracture_kwargs() = (:Gc, :epsilon_c)
+
 """
     failure_permit!(body, fail_permit)
     failure_permit!(body, set_name, fail_permit)
@@ -42,7 +44,6 @@ function failure_permit!(body::AbstractBody, set_name::Symbol, fail_permit::Bool
     return nothing
 end
 
-
 function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     local Gc::Float64
     local εc::Float64
@@ -63,9 +64,8 @@ function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
         throw(ArgumentError(msg))
     end
 
-    return Gc, εc
+    return (; Gc, εc)
 end
-
 
 function required_fields_fracture()
     return (req_point_data_fields_fracture()..., req_data_fields_fracture()...)
