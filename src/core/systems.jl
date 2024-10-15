@@ -47,3 +47,7 @@ end
 @inline function get_loc_view(a::AbstractArray, system::AbstractSystem)
     return get_loc_view(a, system.chunk_handler)
 end
+
+@inline function get_n_points(system::AbstractSystem)
+    return get_n_points(system.chunk_handler)
+end

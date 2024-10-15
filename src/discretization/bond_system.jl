@@ -254,6 +254,16 @@ function calc_n_bonds(dh::AbstractMPIBodyDataHandler)
     return n_bonds
 end
 
+function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:bond_active})
+    return ones(Bool, get_n_bonds(system))
+end
+
+function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:n_active_bonds})
+    return copy(system.n_neighbors)
+end
+
 function required_point_parameters(::Type{<:AbstractBondSystemMaterial})
     return (:δ, :rho, elasticity_parameters()...)
 end
@@ -265,3 +275,5 @@ end
 function allowed_material_kwargs(::AbstractBondSystemMaterial)
     return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...)
 end
+
+@inline get_n_bonds(system::BondSystem) = length(system.bonds)

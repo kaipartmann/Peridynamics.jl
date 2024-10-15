@@ -428,6 +428,16 @@ function calc_n_interactions(dh::AbstractMPIBodyDataHandler)
     return n_one_nis, n_two_nis, n_three_nis
 end
 
+function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::InteractionSystem,
+                    ::Val{:one_ni_active})
+    return ones(Bool, get_n_one_nis(system))
+end
+
+function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::InteractionSystem,
+                    ::Val{:n_active_one_nis})
+    return copy(system.n_one_nis)
+end
+
 function required_point_parameters(::Type{<:AbstractInteractionSystemMaterial})
     return (:δ, :rho, elasticity_parameters()..., :C1, :C2, :C3)
 end
@@ -478,3 +488,5 @@ function allowed_material_kwargs(::AbstractInteractionSystemMaterial)
               :C1, :C2, :C3)
     return kwargs
 end
+
+@inline get_n_one_nis(system::InteractionSystem) = length(system.one_nis)

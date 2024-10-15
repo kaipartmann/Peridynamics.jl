@@ -37,7 +37,7 @@ end
                                  param_spec::AbstractParamSpec) where {Material}
     System = system_type(body.mat)
     Params = parameter_setup_type(body, param_spec)
-    Storage = storage_type(body, solver)
+    Storage = storage_type(body)
     return BodyChunk{System,Material,Params,Storage}
 end
 
@@ -45,6 +45,7 @@ end
 @inline each_point_idx_pair(chunk::AbstractBodyChunk) = each_point_idx_pair(chunk.system)
 
 @inline n_loc_points(chunk::AbstractBodyChunk) = get_n_loc_points(chunk.system)
+@inline n_points(chunk::AbstractBodyChunk) = get_n_points(chunk.system)
 
 function initialize!(::AbstractBodyChunk)
     return nothing

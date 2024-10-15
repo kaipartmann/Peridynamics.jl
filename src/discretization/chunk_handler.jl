@@ -98,3 +98,7 @@ end
 @inline function get_loc_view(a::Vector{T}, chunk_handler::ChunkHandler) where {T}
     return view(a, 1:chunk_handler.n_loc_points)
 end
+
+@inline function get_n_points(chunk_handler::ChunkHandler)
+    return length(chunk_handler.point_ids)
+end

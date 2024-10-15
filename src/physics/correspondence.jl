@@ -103,47 +103,13 @@ end
 
 @params NOSBMaterial NOSBPointParameters
 
-struct NOSBVerletStorage <: AbstractStorage
-    position::Matrix{Float64}
-    displacement::Matrix{Float64}
-    velocity::Matrix{Float64}
-    velocity_half::Matrix{Float64}
-    acceleration::Matrix{Float64}
-    b_int::Matrix{Float64}
-    b_ext::Matrix{Float64}
-    damage::Vector{Float64}
-    bond_active::Vector{Bool}
-    n_active_bonds::Vector{Int}
-end
-
-function NOSBVerletStorage(::NOSBMaterial, ::VelocityVerlet, system::BondSystem)
-    n_loc_points = get_n_loc_points(system)
-    position = copy(system.position)
-    displacement = zeros(3, n_loc_points)
-    velocity = zeros(3, n_loc_points)
-    velocity_half = zeros(3, n_loc_points)
-    acceleration = zeros(3, n_loc_points)
-    b_int = zeros(3, length(get_point_ids(system)))
-    b_ext = zeros(3, n_loc_points)
-    damage = zeros(n_loc_points)
-    bond_active = ones(Bool, length(system.bonds))
-    n_active_bonds = copy(system.n_neighbors)
-    s = NOSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                          b_int, b_ext, damage, bond_active, n_active_bonds)
-    return s
-end
-
-@storage NOSBMaterial VelocityVerlet NOSBVerletStorage
-
-@loc_to_halo_fields NOSBVerletStorage :position
-@halo_to_loc_fields NOSBVerletStorage :b_int
-
-struct NOSBRelaxationStorage <: AbstractStorage
+struct NOSBStorage <: AbstractStorage
     position::Matrix{Float64}
     displacement::Matrix{Float64}
     velocity::Matrix{Float64}
     velocity_half::Matrix{Float64}
     velocity_half_old::Matrix{Float64}
+    acceleration::Matrix{Float64}
     b_int::Matrix{Float64}
     b_int_old::Matrix{Float64}
     b_ext::Matrix{Float64}
@@ -153,32 +119,69 @@ struct NOSBRelaxationStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function NOSBRelaxationStorage(::NOSBMaterial, ::DynamicRelaxation, system::BondSystem)
-    n_loc_points = get_n_loc_points(system)
-    position = copy(system.position)
-    displacement = zeros(3, n_loc_points)
-    velocity = zeros(3, n_loc_points)
-    velocity_half = zeros(3, n_loc_points)
-    velocity_half_old = zeros(3, n_loc_points)
-    b_int = zeros(3, length(get_point_ids(system)))
-    b_int_old = zeros(3, n_loc_points)
-    b_ext = zeros(3, n_loc_points)
-    density_matrix = zeros(3, n_loc_points)
-    damage = zeros(n_loc_points)
-    bond_active = ones(Bool, length(system.bonds))
-    n_active_bonds = copy(system.n_neighbors)
-    s = NOSBRelaxationStorage(position, displacement, velocity, velocity_half,
-                              velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
-                              damage, bond_active, n_active_bonds)
-    return s
-end
+# function NOSBVerletStorage(::NOSBMaterial, ::VelocityVerlet, system::BondSystem)
+#     n_loc_points = get_n_loc_points(system)
+#     position = copy(system.position)
+#     displacement = zeros(3, n_loc_points)
+#     velocity = zeros(3, n_loc_points)
+#     velocity_half = zeros(3, n_loc_points)
+#     acceleration = zeros(3, n_loc_points)
+#     b_int = zeros(3, get_n_points(system))
+#     b_ext = zeros(3, n_loc_points)
+#     damage = zeros(n_loc_points)
+#     bond_active = ones(Bool, length(system.bonds))
+#     n_active_bonds = copy(system.n_neighbors)
+#     s = NOSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
+#                           b_int, b_ext, damage, bond_active, n_active_bonds)
+#     return s
+# end
 
-@storage NOSBMaterial DynamicRelaxation NOSBRelaxationStorage
+@storage NOSBMaterial NOSBStorage
 
-@loc_to_halo_fields NOSBRelaxationStorage :position
-@halo_to_loc_fields NOSBRelaxationStorage :b_int
+@loc_to_halo_fields NOSBStorage :position
+@halo_to_loc_fields NOSBStorage :b_int
 
-const NOSBStorage = Union{NOSBVerletStorage,NOSBRelaxationStorage}
+# struct NOSBRelaxationStorage <: AbstractStorage
+#     position::Matrix{Float64}
+#     displacement::Matrix{Float64}
+#     velocity::Matrix{Float64}
+#     velocity_half::Matrix{Float64}
+#     velocity_half_old::Matrix{Float64}
+#     b_int::Matrix{Float64}
+#     b_int_old::Matrix{Float64}
+#     b_ext::Matrix{Float64}
+#     density_matrix::Matrix{Float64}
+#     damage::Vector{Float64}
+#     bond_active::Vector{Bool}
+#     n_active_bonds::Vector{Int}
+# end
+
+# function NOSBRelaxationStorage(::NOSBMaterial, ::DynamicRelaxation, system::BondSystem)
+#     n_loc_points = get_n_loc_points(system)
+#     position = copy(system.position)
+#     displacement = zeros(3, n_loc_points)
+#     velocity = zeros(3, n_loc_points)
+#     velocity_half = zeros(3, n_loc_points)
+#     velocity_half_old = zeros(3, n_loc_points)
+#     b_int = zeros(3, get_n_points(system))
+#     b_int_old = zeros(3, n_loc_points)
+#     b_ext = zeros(3, n_loc_points)
+#     density_matrix = zeros(3, n_loc_points)
+#     damage = zeros(n_loc_points)
+#     bond_active = ones(Bool, length(system.bonds))
+#     n_active_bonds = copy(system.n_neighbors)
+#     s = NOSBRelaxationStorage(position, displacement, velocity, velocity_half,
+#                               velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
+#                               damage, bond_active, n_active_bonds)
+#     return s
+# end
+
+# @storage NOSBMaterial DynamicRelaxation NOSBRelaxationStorage
+
+# @loc_to_halo_fields NOSBRelaxationStorage :position
+# @halo_to_loc_fields NOSBRelaxationStorage :b_int
+
+# const NOSBStorage = Union{NOSBVerletStorage,NOSBRelaxationStorage}
 
 function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
                               paramhandler::AbstractParameterHandler, i::Int)

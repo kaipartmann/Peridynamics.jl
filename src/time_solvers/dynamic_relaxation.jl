@@ -247,13 +247,82 @@ function relaxation_updates!(s::AbstractStorage, d::Int, i::Int)
     return nothing
 end
 
-function req_point_data_fields_timesolver(::Type{DynamicRelaxation})
+function init_field(::AbstractMaterial, ::DynamicRelaxation, system::AbstractSystem,
+                    ::Val{:position})
+    return copy(system.position)
+end
+
+function init_field(::AbstractMaterial, ::DynamicRelaxation, system::AbstractSystem,
+                    ::Val{:displacement})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::DynamicRelaxation, system::AbstractSystem,
+                    ::Val{:velocity})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::DynamicRelaxation, system::AbstractSystem,
+                    ::Val{:velocity_half})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::DynamicRelaxation, system::AbstractSystem,
+                    ::Val{:velocity_half_old})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::AbstractSystem,
+                    ::Val{:velocity_half_old})
+    return Array{Float64,2}(undef, 0, 0)
+end
+
+function init_field(::AbstractMaterial, ::DynamicRelaxation, system::AbstractSystem,
+                    ::Val{:acceleration})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::DynamicRelaxation, system::AbstractSystem,
+                    ::Val{:b_int})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::DynamicRelaxation, system::AbstractSystem,
+                    ::Val{:b_int_old})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::AbstractSystem,
+                    ::Val{:b_int_old})
+    return Array{Float64,2}(undef, 0, 0)
+end
+
+function init_field(::AbstractMaterial, ::DynamicRelaxation, system::AbstractSystem,
+                    ::Val{:b_ext})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::DynamicRelaxation, system::AbstractSystem,
+                    ::Val{:density_matrix})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::AbstractSystem,
+                    ::Val{:density_matrix})
+    return Array{Float64,2}(undef, 0, 0)
+end
+
+function req_point_data_fields_timesolver(::Type{<:DynamicRelaxation})
     fields = (:position, :displacement, :velocity, :velocity_half, :velocity_half_old,
-              :b_int, :b_int_old, :b_ext)
+              :b_int, :b_int_old, :b_ext, :density_matrix)
     return fields
 end
 
-function req_data_fields_timesolver(::Type{DynamicRelaxation})
+function req_bond_data_fields_timesolver(::Type{<:DynamicRelaxation})
+    return ()
+end
+
+function req_data_fields_timesolver(::Type{<:DynamicRelaxation})
     return ()
 end
 
@@ -266,3 +335,5 @@ function log_timesolver(options::AbstractJobOptions, dr::DynamicRelaxation)
     log_it(options, msg)
     return nothing
 end
+
+register_solver!(DynamicRelaxation)

@@ -22,30 +22,16 @@ struct TestVerletStorage <: Peridynamics.AbstractStorage
     displacement::Matrix{Float64}
     velocity::Matrix{Float64}
     velocity_half::Matrix{Float64}
+    velocity_half_old::Matrix{Float64}
     acceleration::Matrix{Float64}
     b_int::Matrix{Float64}
+    b_int_old::Matrix{Float64}
     b_ext::Matrix{Float64}
+    density_matrix::Matrix{Float64}
     damage::Vector{Float64}
     bond_active::Vector{Bool}
     n_active_bonds::Vector{Int}
 end
-function TestVerletStorage(::TestMaterial, ::Peridynamics.VelocityVerlet,
-                           system::Peridynamics.BondSystem)
-    n_loc_points = Peridynamics.get_n_loc_points(system)
-    position = copy(system.position)
-    displacement = zeros(3, n_loc_points)
-    velocity = zeros(3, n_loc_points)
-    velocity_half = zeros(3, n_loc_points)
-    acceleration = zeros(3, n_loc_points)
-    b_int = zeros(3, length(Peridynamics.get_point_ids(system)))
-    b_ext = zeros(3, n_loc_points)
-    damage = zeros(n_loc_points)
-    bond_active = ones(Bool, length(system.bonds))
-    n_active_bonds = copy(system.n_neighbors)
-    return TestVerletStorage(position, displacement, velocity, velocity_half,
-                             acceleration, b_int, b_ext, damage, bond_active,
-                             n_active_bonds)
-end
-Peridynamics.@storage TestMaterial VelocityVerlet TestVerletStorage
+Peridynamics.@storage TestMaterial TestVerletStorage
 Peridynamics.@loc_to_halo_fields TestVerletStorage :position
 Peridynamics.@halo_to_loc_fields TestVerletStorage :b_int

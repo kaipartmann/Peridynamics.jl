@@ -80,46 +80,13 @@ end
 
 @params CKIMaterial CKIPointParameters
 
-struct CKIVerletStorage <: AbstractStorage
-    position::Matrix{Float64}
-    displacement::Matrix{Float64}
-    velocity::Matrix{Float64}
-    velocity_half::Matrix{Float64}
-    acceleration::Matrix{Float64}
-    b_int::Matrix{Float64}
-    b_ext::Matrix{Float64}
-    damage::Vector{Float64}
-    one_ni_active::Vector{Bool}
-    n_active_one_nis::Vector{Int}
-end
-
-function CKIVerletStorage(::CKIMaterial, ::VelocityVerlet, system::InteractionSystem)
-    n_loc_points = get_n_loc_points(system)
-    position = copy(system.position)
-    displacement = zeros(3, n_loc_points)
-    velocity = zeros(3, n_loc_points)
-    velocity_half = zeros(3, n_loc_points)
-    acceleration = zeros(3, n_loc_points)
-    b_int = zeros(3, n_loc_points)
-    b_ext = zeros(3, n_loc_points)
-    damage = zeros(n_loc_points)
-    one_ni_active = ones(Bool, length(system.one_nis))
-    n_active_one_nis = copy(system.n_one_nis)
-    s = CKIVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-                         b_int, b_ext, damage, one_ni_active, n_active_one_nis)
-    return s
-end
-
-@storage CKIMaterial VelocityVerlet CKIVerletStorage
-
-@loc_to_halo_fields CKIVerletStorage :position
-
-struct CKIRelaxationStorage <: AbstractStorage
+struct CKIStorage <: AbstractStorage
     position::Matrix{Float64}
     displacement::Matrix{Float64}
     velocity::Matrix{Float64}
     velocity_half::Matrix{Float64}
     velocity_half_old::Matrix{Float64}
+    acceleration::Matrix{Float64}
     b_int::Matrix{Float64}
     b_int_old::Matrix{Float64}
     b_ext::Matrix{Float64}
@@ -129,31 +96,67 @@ struct CKIRelaxationStorage <: AbstractStorage
     n_active_one_nis::Vector{Int}
 end
 
-function CKIRelaxationStorage(::CKIMaterial, ::DynamicRelaxation, system::InteractionSystem)
-    n_loc_points = get_n_loc_points(system)
-    position = copy(system.position)
-    displacement = zeros(3, n_loc_points)
-    velocity = zeros(3, n_loc_points)
-    velocity_half = zeros(3, n_loc_points)
-    velocity_half_old = zeros(3, n_loc_points)
-    b_int = zeros(3, n_loc_points)
-    b_int_old = zeros(3, n_loc_points)
-    b_ext = zeros(3, n_loc_points)
-    density_matrix = zeros(3, n_loc_points)
-    damage = zeros(n_loc_points)
-    one_ni_active = ones(Bool, length(system.one_nis))
-    n_active_one_nis = copy(system.n_one_nis)
-    s = CKIRelaxationStorage(position, displacement, velocity, velocity_half,
-                             velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
-                             damage, one_ni_active, n_active_one_nis)
-    return s
-end
+# function CKIVerletStorage(::CKIMaterial, ::VelocityVerlet, system::InteractionSystem)
+#     n_loc_points = get_n_loc_points(system)
+#     position = copy(system.position)
+#     displacement = zeros(3, n_loc_points)
+#     velocity = zeros(3, n_loc_points)
+#     velocity_half = zeros(3, n_loc_points)
+#     acceleration = zeros(3, n_loc_points)
+#     b_int = zeros(3, n_loc_points)
+#     b_ext = zeros(3, n_loc_points)
+#     damage = zeros(n_loc_points)
+#     one_ni_active = ones(Bool, length(system.one_nis))
+#     n_active_one_nis = copy(system.n_one_nis)
+#     s = CKIVerletStorage(position, displacement, velocity, velocity_half, acceleration,
+#                          b_int, b_ext, damage, one_ni_active, n_active_one_nis)
+#     return s
+# end
 
-@storage CKIMaterial DynamicRelaxation CKIRelaxationStorage
+@storage CKIMaterial CKIStorage
 
-@loc_to_halo_fields CKIRelaxationStorage :position
+@loc_to_halo_fields CKIStorage :position
 
-const CKIStorage = Union{CKIVerletStorage,CKIRelaxationStorage}
+# struct CKIRelaxationStorage <: AbstractStorage
+#     position::Matrix{Float64}
+#     displacement::Matrix{Float64}
+#     velocity::Matrix{Float64}
+#     velocity_half::Matrix{Float64}
+#     velocity_half_old::Matrix{Float64}
+#     b_int::Matrix{Float64}
+#     b_int_old::Matrix{Float64}
+#     b_ext::Matrix{Float64}
+#     density_matrix::Matrix{Float64}
+#     damage::Vector{Float64}
+#     one_ni_active::Vector{Bool}
+#     n_active_one_nis::Vector{Int}
+# end
+
+# function CKIRelaxationStorage(::CKIMaterial, ::DynamicRelaxation, system::InteractionSystem)
+#     n_loc_points = get_n_loc_points(system)
+#     position = copy(system.position)
+#     displacement = zeros(3, n_loc_points)
+#     velocity = zeros(3, n_loc_points)
+#     velocity_half = zeros(3, n_loc_points)
+#     velocity_half_old = zeros(3, n_loc_points)
+#     b_int = zeros(3, n_loc_points)
+#     b_int_old = zeros(3, n_loc_points)
+#     b_ext = zeros(3, n_loc_points)
+#     density_matrix = zeros(3, n_loc_points)
+#     damage = zeros(n_loc_points)
+#     one_ni_active = ones(Bool, length(system.one_nis))
+#     n_active_one_nis = copy(system.n_one_nis)
+#     s = CKIRelaxationStorage(position, displacement, velocity, velocity_half,
+#                              velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
+#                              damage, one_ni_active, n_active_one_nis)
+#     return s
+# end
+
+# @storage CKIMaterial DynamicRelaxation CKIRelaxationStorage
+
+# @loc_to_halo_fields CKIRelaxationStorage :position
+
+# const CKIStorage = Union{CKIVerletStorage,CKIRelaxationStorage}
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,
                               mat::CKIMaterial, params::AbstractParameterSetup, i::Int)

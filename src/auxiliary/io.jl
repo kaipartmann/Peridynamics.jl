@@ -83,7 +83,7 @@ end
 
 function check_export_fields(body::AbstractBody, solver::AbstractTimeSolver,
                              fields::Vector{Symbol})
-    S = storage_type(body, solver)
+    S = storage_type(body)
     check_export_fields(S, fields)
     return nothing
 end
@@ -92,7 +92,7 @@ function check_export_fields(ms::AbstractMultibodySetup, solver::AbstractTimeSol
                              fields_spec::Dict{Symbol,Vector{Symbol}})
     for body_name in each_body_name(ms)
         body = get_body(ms, body_name)
-        S = storage_type(body, solver)
+        S = storage_type(body)
         fields = fields_spec[body_name]
         check_export_fields(S, fields)
     end

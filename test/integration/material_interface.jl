@@ -98,14 +98,17 @@ end
         displacement::Matrix{Float64}
         velocity::Matrix{Float64}
         velocity_half::Matrix{Float64}
+        velocity_half_old::Matrix{Float64}
         acceleration::Matrix{Float64}
         b_int::Matrix{Float64}
+        b_int_old::Matrix{Float64}
         b_ext::Matrix{Float64}
+        density_matrix::Matrix{Float64}
         damage::Vector{Float64}
         bond_active::Vector{Bool}
         n_active_bonds::Vector{Int}
     end
-    @test_throws ArgumentError Peridynamics.@storage(TestMaterial4, VelocityVerlet,
+    @test_throws ArgumentError Peridynamics.@storage(TestMaterial4,
                                                      TestVerletStorageNoSubtype)
 
     struct TestVerletStorageMissingField1 <: Peridynamics.AbstractStorage
@@ -113,14 +116,17 @@ end
         # displacement::Matrix{Float64}
         velocity::Matrix{Float64}
         velocity_half::Matrix{Float64}
+        velocity_half_old::Matrix{Float64}
         acceleration::Matrix{Float64}
         b_int::Matrix{Float64}
+        b_int_old::Matrix{Float64}
         b_ext::Matrix{Float64}
+        density_matrix::Matrix{Float64}
         damage::Vector{Float64}
         bond_active::Vector{Bool}
         n_active_bonds::Vector{Int}
     end
-    @test_throws ErrorException Peridynamics.@storage(TestMaterial4, VelocityVerlet,
+    @test_throws ErrorException Peridynamics.@storage(TestMaterial4,
                                                       TestVerletStorageMissingField1)
 
     # TODO
@@ -144,18 +150,21 @@ end
         displacement::Matrix{Float64}
         velocity::Matrix{Float64}
         velocity_half::Matrix{Float64}
+        velocity_half_old::Matrix{Float64}
         acceleration::Matrix{Float64}
         b_int::Matrix{Float64}
+        b_int_old::Matrix{Float64}
         b_ext::Matrix{Float64}
+        density_matrix::Matrix{Float64}
         damage::Vector{Float64}
         bond_active::Vector{Bool}
         n_active_bonds::Vector{Int}
     end
 
-    Peridynamics.@storage TestMaterial4 VelocityVerlet TestVerletStorage1
-    @test hasmethod(Peridynamics.storage_type, Tuple{TestMaterial4,VelocityVerlet})
+    Peridynamics.@storage TestMaterial4 TestVerletStorage1
+    @test hasmethod(Peridynamics.storage_type, Tuple{TestMaterial4})
     mat, vv = TestMaterial4(), VelocityVerlet(steps=1)
-    @test Peridynamics.storage_type(mat, vv) == TestVerletStorage1
+    @test Peridynamics.storage_type(mat) == TestVerletStorage1
 
     @test_throws ArgumentError Peridynamics.@loc_to_halo_fields(TestVerletStorageNoSubtype,
                                                               :position)

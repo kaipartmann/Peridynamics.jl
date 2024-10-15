@@ -323,13 +323,52 @@ function _update_vel!(velocity, velocity_half, acceleration, Δt½, i)
     return nothing
 end
 
-function req_point_data_fields_timesolver(::Type{VelocityVerlet})
+function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
+                    ::Val{:position})
+    return copy(system.position)
+end
+
+function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
+                    ::Val{:displacement})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
+                    ::Val{:velocity})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
+                    ::Val{:velocity_half})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
+                    ::Val{:acceleration})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
+                    ::Val{:b_int})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
+                    ::Val{:b_ext})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function req_point_data_fields_timesolver(::Type{<:VelocityVerlet})
     fields = (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
               :b_ext)
     return fields
 end
 
-function req_data_fields_timesolver(::Type{VelocityVerlet})
+function req_bond_data_fields_timesolver(::Type{<:VelocityVerlet})
+    return ()
+end
+
+function req_data_fields_timesolver(::Type{<:VelocityVerlet})
     return ()
 end
 
@@ -342,3 +381,5 @@ function log_timesolver(options::AbstractJobOptions, vv::VelocityVerlet)
     log_it(options, msg)
     return nothing
 end
+
+register_solver!(VelocityVerlet)

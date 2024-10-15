@@ -7,7 +7,7 @@
     system = Peridynamics.get_system(body, pd, 1)
     storage = Peridynamics.get_storage(body.mat, ts, system)
 
-    @test storage isa Peridynamics.BBVerletStorage
+    @test storage isa Peridynamics.BBStorage
     @test storage.position == position
     @test storage.displacement == zeros(3, 64)
     @test storage.velocity == zeros(3, 64)

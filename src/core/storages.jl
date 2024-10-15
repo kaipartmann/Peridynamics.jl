@@ -1,32 +1,46 @@
-function storage_type(mat::AbstractMaterial, ts::AbstractTimeSolver)
-    throw(MethodError(storage_type, mat, ts))
+function storage_type(mat::AbstractMaterial)
+    return throw(InterfaceError(mat, "storage_type"))
 end
 
-function get_storage(::M, ts::T, system) where {M,T}
-    msg = "storage for material $M and time solver $T not specified!\n"
-    return error(msg)
+function get_storage(material, solver, system)
+    return throw(InterfaceError(material, "get_storage"))
 end
 
-macro storage(material, timesolver, storage)
+function init_field(material, solver, system, field)
+    method = "init_field(::$(typeof(material)), "
+    method *= "::$(typeof(solver)), "
+    method *= "::$(typeof(system)), "
+    method *= "::$(typeof(field)))"
+    return throw(InterfaceError(M, method))
+end
+
+macro storage(material, storage)
     macrocheck_input_material(material)
-    macrocheck_input_timesolver(timesolver)
     macrocheck_input_storage(storage)
     local _checks = quote
         Peridynamics.typecheck_material($(esc(material)))
-        Peridynamics.typecheck_storage($(esc(storage)), $(esc(timesolver)))
+        Peridynamics.typecheck_storage($(esc(storage)))
     end
     local _storage_type = quote
-        function Peridynamics.storage_type(::$(esc(material)), ::$(esc(timesolver)))
+        function Peridynamics.storage_type(::$(esc(material)))
             return $(esc(storage))
         end
     end
-    local _get_storage = quote
-        function Peridynamics.get_storage(mat::$(esc(material)), ts::$(esc(timesolver)),
-                                          system)
-            return $(esc(storage))(mat, ts, system)
+    local _constructor = quote
+        function $(esc(storage))(mat::$(esc(material)), solver::AbstractTimeSolver,
+                                 system::AbstractSystem)
+            fields = fieldnames($(esc(storage)))
+            args = (init_field(mat, solver, system, Val(field)) for field in fields)
+            return $(esc(storage))(args...)
         end
     end
-    return Expr(:block, _checks, _storage_type, _get_storage)
+    local _get_storage = quote
+        function Peridynamics.get_storage(mat::$(esc(material)), solver::AbstractTimeSolver,
+                                          system::AbstractSystem)
+            return $(esc(storage))(mat, solver, system)
+        end
+    end
+    return Expr(:block, _checks, _storage_type, _constructor, _get_storage)
 end
 
 loc_to_halo_fields(::AbstractStorage) = ()
@@ -126,11 +140,13 @@ function typecheck_is_storage(::Type{Storage}) where {Storage}
     return nothing
 end
 
-function typecheck_storage(::Type{Storage}, ::Type{TimeSolver}) where {Storage,TimeSolver}
+function typecheck_storage(::Type{Storage}) where {Storage}
     typecheck_is_storage(Storage)
-    # TODO: add the material type! Then users can add requirements for own materials
-    req_storage_fields_timesolver(Storage, TimeSolver)
-    # req_storage_fields_fracture(Storage)
+    typecheck_req_fields_missing(Storage, required_fields_timesolvers())
+    # TODO: this check would currently be system dependent!
+    # However, this is still not optimal. There has to be some additional type for different
+    # damage models...
+    # typecheck_req_fields_missing(Storage, required_fields_fracture())
     return nothing
 end
 
@@ -143,6 +159,16 @@ function typecheck_storage_fields(::Type{S}, fields::NTuple{N,Symbol}) where {S,
         end
     end
     return nothing
+end
+
+function typecheck_req_fields_missing(::Type{Storage}, req_fields) where {Storage}
+    storage_fields = fieldnames(Storage)
+    for req_field in req_fields
+        if !in(req_field, storage_fields)
+            error("required field $req_field not found in $(Storage)!\n")
+        end
+    end
+    return false
 end
 
 @inline function get_point_data(s::AbstractStorage, field::Symbol)
@@ -158,11 +184,40 @@ point_data_field(s::AbstractStorage, ::Val{:b_int}) = getfield(s, :b_int)
 point_data_field(s::AbstractStorage, ::Val{:b_ext}) = getfield(s, :b_ext)
 point_data_field(s::AbstractStorage, ::Val{:damage}) = getfield(s, :damage)
 point_data_field(s::AbstractStorage, ::Val{:n_active_bonds}) = getfield(s, :n_active_bonds)
-# point_data_field(s::AbstractStorage, ::Val{Field}) where {Field} = getfield(s, Field)
+point_data_field(s::AbstractStorage, ::Val{:n_active_one_nis}) = getfield(s, :n_active_bonds)
 
-function point_data_field(::AbstractStorage, ::Val{field}) where {field}
-    return throw(ArgumentError("field $field is not a valid point data field!\n"))
+function point_data_field(::S, ::Val{Field}) where {S,Field}
+    return throw(InterfaceError(S, "point_data_field(::$S, ::Val{$Field})"))
 end
+
+# macro point_data_field(fields)
+#     if fields isa Expr && fields.head === :tuple
+#         local pdfields = fields.args
+#     else
+#         local pdfields = eval(fields)
+#     end
+#     local exprs = Expr[]
+#     for _field in pdfields
+#         if _field isa QuoteNode
+#             field = _field
+#         elseif _field isa Symbol
+#             field = QuoteNode(_field)
+#         else
+#             msg = "input $(field) is not a QuoteNode or a Symbol!\n"
+#             throw(ArgumentError(msg))
+#         end
+#         local _get_point_data_function = quote
+#             function Peridynamics.point_data_field(s::Peridynamics.AbstractStorage,
+#                                                    ::Base.Val{$(field)})
+#                 return Base.getfield(s, $(field))
+#             end
+#         end
+#         push!(exprs, _get_point_data_function)
+#     end
+#     return Expr(:block, exprs...)
+# end
+
+# @point_data_field required_fields_timesolvers()
 
 # TODO: use required fields specifications!
 function point_data_fields(::Type{S}) where {S<:AbstractStorage}
