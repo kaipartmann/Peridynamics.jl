@@ -85,7 +85,7 @@ in the julia package manager. Please take a look at the [documentation](https://
     <tr>
     <td align="center">
       <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_in_bar/">
-        <figcaption>Wave propagation</figcaption><br><img src="https://github.com/user-attachments/assets/34165b09-2df9-495d-8e41-acff28d0098c" width="300"/><br>
+        <figcaption>Wave propagation</figcaption><br><img src="https://github.com/user-attachments/assets/86837acb-3a42-4dcd-987c-41371530d8ee" width="300"/><br>
       </a>
     </td>
     <td align="center">
