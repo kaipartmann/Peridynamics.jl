@@ -35,6 +35,7 @@ LIT_TUTORIALS_IN = [
     "tutorial_kalthoff-winkler_dynfrac.jl",
     "tutorial_logo.jl",
     "tutorial_cylinder.jl",
+    "tutorial_wave_interface.jl"
 ]
 LIT_TUTORIALS_IN .= joinpath.(@__DIR__, "src", "literate", LIT_TUTORIALS_IN)
 Literate.markdown.(LIT_TUTORIALS_IN, LIT_MD_OUT; credit=false)
@@ -76,6 +77,7 @@ makedocs(;
             joinpath("generated", "tutorial_tension_dynfrac.md"),
             joinpath("generated", "tutorial_tension_precrack.md"),
             joinpath("generated", "tutorial_wave_in_bar.md"),
+            joinpath("generated", "tutorial_wave_interface.md"),
             joinpath("generated", "tutorial_kalthoff-winkler_dynfrac.md"),
             joinpath("generated", "tutorial_logo.md"),
             joinpath("generated", "tutorial_cylinder.md"),
