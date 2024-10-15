@@ -116,14 +116,14 @@ struct NOSBVerletStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function NOSBVerletStorage(::NOSBMaterial, ::VelocityVerlet, system::BondSystem, ch)
-    n_loc_points = length(ch.loc_points)
+function NOSBVerletStorage(::NOSBMaterial, ::VelocityVerlet, system::BondSystem)
+    n_loc_points = get_n_loc_points(system)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
     velocity = zeros(3, n_loc_points)
     velocity_half = zeros(3, n_loc_points)
     acceleration = zeros(3, n_loc_points)
-    b_int = zeros(3, length(ch.point_ids))
+    b_int = zeros(3, length(get_point_ids(system)))
     b_ext = zeros(3, n_loc_points)
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, length(system.bonds))
@@ -153,14 +153,14 @@ struct NOSBRelaxationStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function NOSBRelaxationStorage(::NOSBMaterial, ::DynamicRelaxation, system::BondSystem, ch)
-    n_loc_points = length(ch.loc_points)
+function NOSBRelaxationStorage(::NOSBMaterial, ::DynamicRelaxation, system::BondSystem)
+    n_loc_points = get_n_loc_points(system)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
     velocity = zeros(3, n_loc_points)
     velocity_half = zeros(3, n_loc_points)
     velocity_half_old = zeros(3, n_loc_points)
-    b_int = zeros(3, length(ch.point_ids))
+    b_int = zeros(3, length(get_point_ids(system)))
     b_int_old = zeros(3, n_loc_points)
     b_ext = zeros(3, n_loc_points)
     density_matrix = zeros(3, n_loc_points)

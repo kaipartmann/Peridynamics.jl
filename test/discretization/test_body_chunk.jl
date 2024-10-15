@@ -15,13 +15,13 @@
     ts = VelocityVerlet(steps=10)
     pd = Peridynamics.PointDecomposition(body, 2)
     ps = Peridynamics.get_param_spec(body)
-    bc = Peridynamics.BodyChunk(body, ts, pd, 1, ps)
+    chunk = Peridynamics.BodyChunk(body, ts, pd, 1, ps)
 
-    @test bc.mat == mat
-    @test bc.system isa Peridynamics.BondSystem
-    @test bc.system.position == position
-    @test bc.system.volume == volume
-    @test bc.system.bonds == [
+    @test chunk.mat == mat
+    @test chunk.system isa Peridynamics.BondSystem
+    @test chunk.system.position == position
+    @test chunk.system.volume == volume
+    @test chunk.system.bonds == [
         Peridynamics.Bond(2, 1.0, true),
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, 1.0, true),
@@ -29,15 +29,16 @@
         Peridynamics.Bond(3, √2, true),
         Peridynamics.Bond(4, √2, true),
     ]
-    @test bc.system.n_neighbors == [3, 3]
-    @test bc.system.bond_ids == [1:3, 4:6]
+    @test chunk.system.n_neighbors == [3, 3]
+    @test chunk.system.bond_ids == [1:3, 4:6]
 
-    @test bc.ch.point_ids == [1, 2, 3, 4]
-    @test bc.ch.loc_points == pd.decomp[1]
-    @test bc.ch.halo_points == [3, 4]
-    @test bc.ch.hidxs_by_src[2] == 3:4
+    ch = chunk.system.chunk_handler
+    @test ch.point_ids == [1, 2, 3, 4]
+    @test ch.loc_points == pd.decomp[1]
+    @test ch.halo_points == [3, 4]
+    @test ch.hidxs_by_src[2] == 3:4
     for i in 1:4
-        @test bc.ch.localizer[i] == i
+        @test ch.localizer[i] == i
     end
 
     #TODO: test the other fields!
@@ -118,12 +119,13 @@ end
     @test b1.sdbcs[1].point_set === :a
     @test b1.sdbcs[1].dim == 0x01
 
-    @test b1.ch.point_ids == [1, 2, 3, 4]
-    @test b1.ch.loc_points == 1:2
-    @test b1.ch.halo_points == [3, 4]
-    @test b1.ch.hidxs_by_src[2] == 3:4
+    ch1 = b1.system.chunk_handler
+    @test ch1.point_ids == [1, 2, 3, 4]
+    @test ch1.loc_points == 1:2
+    @test ch1.halo_points == [3, 4]
+    @test ch1.hidxs_by_src[2] == 3:4
     for i in 1:4
-        @test b1.ch.localizer[i] == i
+        @test ch1.localizer[i] == i
     end
 
     b2 = body_chunks[2]
@@ -180,14 +182,15 @@ end
     @test b2.sdbcs[1].point_set === :a
     @test b2.sdbcs[1].dim == 0x01
 
-    @test b2.ch.point_ids == [3, 4, 1, 2]
-    @test b2.ch.loc_points == [3, 4]
-    @test b2.ch.halo_points == [1, 2]
-    @test b2.ch.hidxs_by_src[1] == 3:4
-    @test b2.ch.localizer[3] == 1
-    @test b2.ch.localizer[4] == 2
-    @test b2.ch.localizer[1] == 3
-    @test b2.ch.localizer[2] == 4
+    ch2 = b2.system.chunk_handler
+    @test ch2.point_ids == [3, 4, 1, 2]
+    @test ch2.loc_points == [3, 4]
+    @test ch2.halo_points == [1, 2]
+    @test ch2.hidxs_by_src[1] == 3:4
+    @test ch2.localizer[3] == 1
+    @test ch2.localizer[4] == 2
+    @test ch2.localizer[1] == 3
+    @test ch2.localizer[2] == 4
 end
 
 @testitem "chop_body_threads BBMaterial N=2" begin
@@ -307,12 +310,13 @@ end
     @test b1.sdbcs[1].point_set === :a
     @test b1.sdbcs[1].dim == 0x01
 
-    @test b1.ch.point_ids == [1, 2, 3, 4]
-    @test b1.ch.loc_points == 1:2
-    @test b1.ch.halo_points == [3, 4]
-    @test b1.ch.hidxs_by_src[2] == 3:4
+    ch1 = b1.system.chunk_handler
+    @test ch1.point_ids == [1, 2, 3, 4]
+    @test ch1.loc_points == 1:2
+    @test ch1.halo_points == [3, 4]
+    @test ch1.hidxs_by_src[2] == 3:4
     for i in 1:4
-        @test b1.ch.localizer[i] == i
+        @test ch1.localizer[i] == i
     end
 
     b2 = body_chunks[2]
@@ -411,12 +415,13 @@ end
     @test b2.sdbcs[1].point_set === :a
     @test b2.sdbcs[1].dim == 0x01
 
-    @test b2.ch.point_ids == [3, 4, 1, 2]
-    @test b2.ch.loc_points == [3, 4]
-    @test b2.ch.halo_points == [1, 2]
-    @test b2.ch.hidxs_by_src[1] == 3:4
-    @test b2.ch.localizer[3] == 1
-    @test b2.ch.localizer[4] == 2
-    @test b2.ch.localizer[1] == 3
-    @test b2.ch.localizer[2] == 4
+    ch2 = b2.system.chunk_handler
+    @test ch2.point_ids == [3, 4, 1, 2]
+    @test ch2.loc_points == [3, 4]
+    @test ch2.halo_points == [1, 2]
+    @test ch2.hidxs_by_src[1] == 3:4
+    @test ch2.localizer[3] == 1
+    @test ch2.localizer[4] == 2
+    @test ch2.localizer[1] == 3
+    @test ch2.localizer[2] == 4
 end

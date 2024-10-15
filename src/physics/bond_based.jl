@@ -104,8 +104,8 @@ struct BBVerletStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function BBVerletStorage(::BBMaterial, ::VelocityVerlet, system::BondSystem, ch)
-    n_loc_points = length(ch.loc_points)
+function BBVerletStorage(::BBMaterial, ::VelocityVerlet, system::BondSystem)
+    n_loc_points = get_n_loc_points(system)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
     velocity = zeros(3, n_loc_points)
@@ -140,8 +140,8 @@ struct BBRelaxationStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-function BBRelaxationStorage(::BBMaterial, ::DynamicRelaxation, system::BondSystem, ch)
-    n_loc_points = length(ch.loc_points)
+function BBRelaxationStorage(::BBMaterial, ::DynamicRelaxation, system::BondSystem)
+    n_loc_points = get_n_loc_points(system)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
     velocity = zeros(3, n_loc_points)

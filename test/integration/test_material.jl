@@ -30,14 +30,14 @@ struct TestVerletStorage <: Peridynamics.AbstractStorage
     n_active_bonds::Vector{Int}
 end
 function TestVerletStorage(::TestMaterial, ::Peridynamics.VelocityVerlet,
-                           system::Peridynamics.BondSystem, ch::Peridynamics.ChunkHandler)
-    n_loc_points = length(ch.loc_points)
+                           system::Peridynamics.BondSystem)
+    n_loc_points = Peridynamics.get_n_loc_points(system)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
     velocity = zeros(3, n_loc_points)
     velocity_half = zeros(3, n_loc_points)
     acceleration = zeros(3, n_loc_points)
-    b_int = zeros(3, length(ch.point_ids))
+    b_int = zeros(3, length(Peridynamics.get_point_ids(system)))
     b_ext = zeros(3, n_loc_points)
     damage = zeros(n_loc_points)
     bond_active = ones(Bool, length(system.bonds))

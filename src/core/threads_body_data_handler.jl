@@ -51,10 +51,12 @@ function find_exs(chunks::Vector{B}, chunk_id::Int) where {B<:AbstractBodyChunk}
     lth_exs = Vector{HaloExchange}()
     htl_exs = Vector{HaloExchange}()
     chunk = chunks[chunk_id]
-    for (halo_chunk_id, idxs) in chunk.ch.hidxs_by_src
+    point_ids = get_point_ids(chunk.system)
+    for (halo_chunk_id, idxs) in get_hidxs_by_src(chunk.system)
         halo_chunk = chunks[halo_chunk_id]
-        halo_idxs = chunk.ch.point_ids[idxs]
-        localize!(halo_idxs, halo_chunk.ch.localizer)
+        halo_idxs = point_ids[idxs]
+        localizer = get_localizer(halo_chunk.system)
+        localize!(halo_idxs, localizer)
         push!(lth_exs, HaloExchange(0, halo_chunk_id, chunk_id, halo_idxs, idxs))
         push!(htl_exs, HaloExchange(0, chunk_id, halo_chunk_id, idxs, halo_idxs))
     end

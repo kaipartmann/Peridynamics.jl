@@ -11,19 +11,21 @@ struct BondSystem{Correction<:AbstractCorrection} <: AbstractSystem
     n_neighbors::Vector{Int}
     bond_ids::Vector{UnitRange{Int}}
     correction::Correction
+    chunk_handler::ChunkHandler
 end
 
 function BondSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     check_bond_system_compat(body.mat)
     bonds, n_neighbors = find_bonds(body, pd.decomp[chunk_id])
     bond_ids = find_bond_ids(n_neighbors)
-    ch = get_chunk_handler(bonds, pd, chunk_id)
-    localize!(bonds, ch.localizer)
-    position, volume = get_pos_and_vol_chunk(body, ch.point_ids)
-    correction = get_correction(body.mat, ch.n_loc_points, length(ch.point_ids),
-                                length(bonds))
-    bs = BondSystem(position, volume, bonds, n_neighbors, bond_ids, correction)
-    return bs, ch
+    chunk_handler = get_chunk_handler(bonds, pd, chunk_id)
+    localize!(bonds, chunk_handler.localizer)
+    position, volume = get_pos_and_vol_chunk(body, chunk_handler.point_ids)
+    correction = get_correction(body.mat, chunk_handler.n_loc_points,
+                                length(chunk_handler.point_ids), length(bonds))
+    system = BondSystem(position, volume, bonds, n_neighbors, bond_ids, correction,
+                        chunk_handler)
+    return system
 end
 
 function get_system(body::AbstractBody{Material}, pd::PointDecomposition,
@@ -165,10 +167,10 @@ function localize!(bonds::Vector{Bond}, localizer::Dict{Int,Int})
     return nothing
 end
 
-function break_bonds!(s::AbstractStorage, system::BondSystem, ch::ChunkHandler,
-                      set_a::Vector{Int}, set_b::Vector{Int})
-    s.n_active_bonds .= 0
-    for point_id in each_point_idx(ch)
+function break_bonds!(storage::AbstractStorage, system::BondSystem, set_a::Vector{Int},
+                      set_b::Vector{Int})
+    storage.n_active_bonds .= 0
+    for point_id in each_point_idx(system)
         for bond_id in each_bond_idx(system, point_id)
             bond = system.bonds[bond_id]
             neighbor_id = bond.neighbor
@@ -177,9 +179,9 @@ function break_bonds!(s::AbstractStorage, system::BondSystem, ch::ChunkHandler,
             neigh_in_a = in(neighbor_id, set_a)
             neigh_in_b = in(neighbor_id, set_b)
             if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
-                s.bond_active[bond_id] = false
+                storage.bond_active[bond_id] = false
             end
-            s.n_active_bonds[point_id] += s.bond_active[bond_id]
+            storage.n_active_bonds[point_id] += storage.bond_active[bond_id]
         end
     end
     return nothing

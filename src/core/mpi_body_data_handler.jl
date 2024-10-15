@@ -69,8 +69,9 @@ end
 
 function get_all_point_ids(chunk::AbstractBodyChunk, n_points::Int)
     loc_point_ids = zeros(Int, n_points)
-    for i in eachindex(chunk.ch.point_ids)
-        loc_point_ids[i] = chunk.ch.point_ids[i]
+    ch_point_ids = chunk.system.chunk_handler.point_ids
+    for i in eachindex(ch_point_ids)
+        loc_point_ids[i] = ch_point_ids[i]
     end
     _point_ids = MPI.Allgather(loc_point_ids, mpi_comm())
     point_ids = reshape(_point_ids, n_points, mpi_nranks())

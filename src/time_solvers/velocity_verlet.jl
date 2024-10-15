@@ -152,12 +152,12 @@ function calc_stable_timestep(dh::MPIBodyDataHandler, safety_factor::Float64)
     return Δt * safety_factor
 end
 
-function calc_timestep(b::AbstractBodyChunk)
-    isempty(each_point_idx(b)) && return Inf
-    Δt = fill(Inf, length(each_point_idx(b.ch)))
-    for point_id in each_point_idx(b.ch)
-        pp = get_params(b, point_id)
-        Δt[point_id] = calc_timestep_point(b.system, pp, point_id)
+function calc_timestep(chunk::AbstractBodyChunk)
+    isempty(each_point_idx(chunk)) && return Inf
+    Δt = fill(Inf, length(each_point_idx(chunk)))
+    for point_id in each_point_idx(chunk)
+        pp = get_params(chunk, point_id)
+        Δt[point_id] = calc_timestep_point(chunk.system, pp, point_id)
     end
     return minimum(Δt)
 end

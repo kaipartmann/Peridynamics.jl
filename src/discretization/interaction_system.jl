@@ -26,6 +26,7 @@ struct InteractionSystem <: AbstractSystem
     one_ni_idxs::Vector{UnitRange{Int}}
     two_ni_idxs::Vector{UnitRange{Int}}
     three_ni_idxs::Vector{UnitRange{Int}}
+    chunk_handler::ChunkHandler
 end
 
 function InteractionSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
@@ -53,13 +54,14 @@ function InteractionSystem(body::AbstractBody, pd::PointDecomposition, chunk_id:
         volume_three_nis = Vector{Float64}()
         three_ni_idxs = Vector{UnitRange{Int}}()
     end
-    ch = get_chunk_handler(bonds, pd, chunk_id)
-    localize!(bonds, ch.localizer)
-    position, volume = get_pos_and_vol_chunk(body, ch.point_ids)
-    is = InteractionSystem(position, bonds, two_nis, three_nis, volume, volume_one_nis,
-                           volume_two_nis, volume_three_nis, n_one_nis, n_two_nis,
-                           n_three_nis, one_ni_idxs, two_ni_idxs, three_ni_idxs)
-    return is, ch
+    chunk_handler = get_chunk_handler(bonds, pd, chunk_id)
+    localize!(bonds, chunk_handler.localizer)
+    position, volume = get_pos_and_vol_chunk(body, chunk_handler.point_ids)
+    system = InteractionSystem(position, bonds, two_nis, three_nis, volume, volume_one_nis,
+                               volume_two_nis, volume_three_nis, n_one_nis, n_two_nis,
+                               n_three_nis, one_ni_idxs, two_ni_idxs, three_ni_idxs,
+                               chunk_handler)
+    return system
 end
 
 function get_system(body::AbstractBody{Material}, pd::PointDecomposition,
@@ -322,10 +324,10 @@ function update_volume_three_nis!(system, volume_hood)
     return nothing
 end
 
-function break_bonds!(s::AbstractStorage, system::InteractionSystem, ch::ChunkHandler,
+function break_bonds!(storage::AbstractStorage, system::InteractionSystem,
                       set_a::Vector{Int}, set_b::Vector{Int})
-    s.n_active_one_nis .= 0
-    for point_id in each_point_idx(ch)
+    storage.n_active_one_nis .= 0
+    for point_id in each_point_idx(system)
         for bond_id in each_one_ni_idx(system, point_id)
             bond = system.one_nis[bond_id]
             neighbor_id = bond.neighbor
@@ -334,9 +336,9 @@ function break_bonds!(s::AbstractStorage, system::InteractionSystem, ch::ChunkHa
             neigh_in_a = in(neighbor_id, set_a)
             neigh_in_b = in(neighbor_id, set_b)
             if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
-                s.one_ni_active[bond_id] = false
+                storage.one_ni_active[bond_id] = false
             end
-            s.n_active_one_nis[point_id] += s.one_ni_active[bond_id]
+            storage.n_active_one_nis[point_id] += storage.one_ni_active[bond_id]
         end
     end
     return nothing

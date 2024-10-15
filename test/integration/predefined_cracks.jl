@@ -43,12 +43,13 @@
     @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
     @test b1.storage.n_active_bonds == [1, 1]
 
-    @test b1.ch.point_ids == [1, 2, 3, 4]
-    @test b1.ch.loc_points == 1:2
-    @test b1.ch.halo_points == [3, 4]
-    @test b1.ch.hidxs_by_src[2] == 3:4
+    ch1 = b1.system.chunk_handler
+    @test ch1.point_ids == [1, 2, 3, 4]
+    @test ch1.loc_points == 1:2
+    @test ch1.halo_points == [3, 4]
+    @test ch1.hidxs_by_src[2] == 3:4
     for i in 1:4
-        @test b1.ch.localizer[i] == i
+        @test ch1.localizer[i] == i
     end
 
     b2 = body_chunks[2]
@@ -79,14 +80,15 @@
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    @test b2.ch.point_ids == [3, 4, 1, 2]
-    @test b2.ch.loc_points == [3, 4]
-    @test b2.ch.halo_points == [1, 2]
-    @test b2.ch.hidxs_by_src[1] == 3:4
-    @test b2.ch.localizer[3] == 1
-    @test b2.ch.localizer[4] == 2
-    @test b2.ch.localizer[1] == 3
-    @test b2.ch.localizer[2] == 4
+    ch2 = b2.system.chunk_handler
+    @test ch2.point_ids == [3, 4, 1, 2]
+    @test ch2.loc_points == [3, 4]
+    @test ch2.halo_points == [1, 2]
+    @test ch2.hidxs_by_src[1] == 3:4
+    @test ch2.localizer[3] == 1
+    @test ch2.localizer[4] == 2
+    @test ch2.localizer[1] == 3
+    @test ch2.localizer[2] == 4
 end
 
 @testitem "precrack bond chunk with bond filter" begin
@@ -130,12 +132,13 @@ end
     @test b1.storage.bond_active == [1, 1]
     @test b1.storage.n_active_bonds == [1, 1]
 
-    @test b1.ch.point_ids == [1, 2]
-    @test b1.ch.loc_points == 1:2
-    @test b1.ch.halo_points == Int[]
-    @test b1.ch.hidxs_by_src == Dict{Int,UnitRange{Int}}()
+    ch1 = b1.system.chunk_handler
+    @test ch1.point_ids == [1, 2]
+    @test ch1.loc_points == 1:2
+    @test ch1.halo_points == Int[]
+    @test ch1.hidxs_by_src == Dict{Int,UnitRange{Int}}()
     for i in 1:2
-        @test b1.ch.localizer[i] == i
+        @test ch1.localizer[i] == i
     end
 
     b2 = body_chunks[2]
@@ -162,12 +165,13 @@ end
     @test b2.storage.bond_active == [1, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    @test b2.ch.point_ids == [3, 4]
-    @test b2.ch.loc_points == [3, 4]
-    @test b2.ch.halo_points == Int[]
-    @test b2.ch.hidxs_by_src == Dict{Int,UnitRange{Int}}()
-    @test b2.ch.localizer[3] == 1
-    @test b2.ch.localizer[4] == 2
+    ch2 = b2.system.chunk_handler
+    @test ch2.point_ids == [3, 4]
+    @test ch2.loc_points == [3, 4]
+    @test ch2.halo_points == Int[]
+    @test ch2.hidxs_by_src == Dict{Int,UnitRange{Int}}()
+    @test ch2.localizer[3] == 1
+    @test ch2.localizer[4] == 2
 end
 
 @testitem "precrack bond system with filter" begin
@@ -185,17 +189,18 @@ end
     pd = Peridynamics.PointDecomposition(body, 2)
 
     # 1
-    bs, ch = Peridynamics.BondSystem(body, pd, 1)
+    system = Peridynamics.BondSystem(body, pd, 1)
 
-    @test bs.position == position[:, 1:2]
-    @test bs.volume == volume[1:2]
-    @test bs.bonds == [
+    @test system.position == position[:, 1:2]
+    @test system.volume == volume[1:2]
+    @test system.bonds == [
         Peridynamics.Bond(2, 1.0, true),
         Peridynamics.Bond(1, 1.0, true),
     ]
-    @test bs.n_neighbors == [1, 1]
-    @test bs.bond_ids == [1:1, 2:2]
+    @test system.n_neighbors == [1, 1]
+    @test system.bond_ids == [1:1, 2:2]
 
+    ch = system.chunk_handler
     @test ch.point_ids == [1, 2]
     @test ch.loc_points == [1, 2]
     @test ch.halo_points == Int[]
@@ -206,17 +211,18 @@ end
     end
 
     # 2
-    bs, ch = Peridynamics.BondSystem(body, pd, 2)
+    system = Peridynamics.BondSystem(body, pd, 2)
 
-    @test bs.position == position[:, 3:4]
-    @test bs.volume == volume[3:4]
-    @test bs.bonds == [
+    @test system.position == position[:, 3:4]
+    @test system.volume == volume[3:4]
+    @test system.bonds == [
         Peridynamics.Bond(2, √2, true),
         Peridynamics.Bond(1, √2, true),
     ]
-    @test bs.n_neighbors == [1, 1]
-    @test bs.bond_ids == [1:1, 2:2]
+    @test system.n_neighbors == [1, 1]
+    @test system.bond_ids == [1:1, 2:2]
 
+    ch = system.chunk_handler
     @test ch.point_ids == [3, 4]
     @test ch.loc_points == [3, 4]
     @test ch.halo_points == Int[]

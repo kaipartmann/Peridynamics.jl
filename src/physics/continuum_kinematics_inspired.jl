@@ -93,8 +93,8 @@ struct CKIVerletStorage <: AbstractStorage
     n_active_one_nis::Vector{Int}
 end
 
-function CKIVerletStorage(::CKIMaterial, ::VelocityVerlet, system::InteractionSystem, ch)
-    n_loc_points = length(ch.loc_points)
+function CKIVerletStorage(::CKIMaterial, ::VelocityVerlet, system::InteractionSystem)
+    n_loc_points = get_n_loc_points(system)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
     velocity = zeros(3, n_loc_points)
@@ -129,9 +129,8 @@ struct CKIRelaxationStorage <: AbstractStorage
     n_active_one_nis::Vector{Int}
 end
 
-function CKIRelaxationStorage(::CKIMaterial, ::DynamicRelaxation, system::InteractionSystem,
-                              ch)
-    n_loc_points = length(ch.loc_points)
+function CKIRelaxationStorage(::CKIMaterial, ::DynamicRelaxation, system::InteractionSystem)
+    n_loc_points = get_n_loc_points(system)
     position = copy(system.position)
     displacement = zeros(3, n_loc_points)
     velocity = zeros(3, n_loc_points)

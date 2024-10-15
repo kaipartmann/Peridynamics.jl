@@ -154,7 +154,7 @@ end
 
 function export_fields!(vtk, chunk, fields::Vector{Symbol})
     for field in fields
-        point_data = get_loc_point_data(chunk.storage, chunk.ch, field)
+        point_data = get_loc_point_data(chunk.storage, chunk.system, field)
         vtk[string(field), VTKPointData()] = point_data
     end
     return nothing
@@ -167,5 +167,5 @@ function export_fields!(vtk, chunk, fields_spec::Dict{Symbol,Vector{Symbol}})
 end
 
 @inline function get_loc_position(chunk::AbstractBodyChunk)
-    return @views chunk.storage.position[:, 1:chunk.ch.n_loc_points]
+    return @views chunk.storage.position[:, 1:n_loc_points(chunk)]
 end

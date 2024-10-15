@@ -2,7 +2,7 @@ function storage_type(mat::AbstractMaterial, ts::AbstractTimeSolver)
     throw(MethodError(storage_type, mat, ts))
 end
 
-function get_storage(::M, ts::T, system, ch) where {M,T}
+function get_storage(::M, ts::T, system) where {M,T}
     msg = "storage for material $M and time solver $T not specified!\n"
     return error(msg)
 end
@@ -22,8 +22,8 @@ macro storage(material, timesolver, storage)
     end
     local _get_storage = quote
         function Peridynamics.get_storage(mat::$(esc(material)), ts::$(esc(timesolver)),
-                                          system, ch)
-            return $(esc(storage))(mat, ts, system, ch)
+                                          system)
+            return $(esc(storage))(mat, ts, system)
         end
     end
     return Expr(:block, _checks, _storage_type, _get_storage)
@@ -197,10 +197,10 @@ function get_n_halo_fields(s::S) where {S<:AbstractStorage}
     return n_halo_fields
 end
 
-function get_loc_point_data(s::AbstractStorage, ch::AbstractChunkHandler, field::Symbol)
+function get_loc_point_data(storage::AbstractStorage, system::AbstractSystem, field::Symbol)
     val_field = Val(field)
-    is_halo_field(s, val_field) || return point_data_field(s, val_field)
-    return get_loc_view(point_data_field(s, val_field), ch)
+    is_halo_field(storage, val_field) || return point_data_field(storage, val_field)
+    return get_loc_view(point_data_field(storage, val_field), system)
 end
 
 @inline function get_coordinates(s, i)
