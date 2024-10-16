@@ -43,9 +43,19 @@ in the julia package manager. Please take a look at the [documentation](https://
 
 ## Tutorials
 
-<p align="center">
-  <img src="docs/src/assets/tutorial_overview.svg" width="100%" height="900" />
-</p>
+# Simulation Tutorials Overview
+
+| Simulation | Description & Link |
+|------------|--------------------|
+| ![Tensile test quasi-static](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/ac69d8aa-526d-436a-aa0c-820a1f42bcca) | [**Tensile test quasi-static**](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_static/) |
+| ![Tensile test dynamic](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/dda2b7b3-d44b-41a9-b133-6d1b548df1c1) | [**Tensile test dynamic**](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/) |
+| ![Tension with predefined crack](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/9f627d2d-44b5-43a3-94cd-9d34894fd142) | [**Tension with predefined crack**](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_precrack/) |
+| ![The old logo](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/5439e112-9088-49a3-bb01-aff541adc0f8) | [**The old logo**](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_logo/) |
+| ![Kalthoff Winkler](https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/6dc362ef-4997-4327-9bc1-41350fac2dc1) | [**Kalthoff Winkler**](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_kalthoff-winkler_dynfrac/) |
+| ![Fragmenting cylinder](https://github.com/user-attachments/assets/58e11123-6143-4e13-8642-7e30c9e6c86d) | [**Fragmenting cylinder**](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_cylinder/) |
+| ![Wave propagation](https://github.com/user-attachments/assets/7fa65fd4-38d8-46cb-833f-990417211d17) | [**Wave propagation**](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_in_bar/) |
+| ![Wave propagation across interface](https://github.com/user-attachments/assets/082f635f-caf2-40db-938e-e4a98e2f3915) | [**Wave propagation across interface**](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_interface/) |
+
 
 ## Usage
 To run the dynamic tensile test simulation shown above, just 7 lines of code are needed:
