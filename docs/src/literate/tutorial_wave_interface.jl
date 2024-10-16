@@ -5,7 +5,6 @@
 # [Partmann2024AAM](@cite). This means that a bar containing two sections with different
 # material properties is regarded.
 
-[Partmann2024AAM](@cite)
 # First import the Peridynamics.jl package:
 using Peridynamics
 
