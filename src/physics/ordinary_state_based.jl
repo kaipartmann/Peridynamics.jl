@@ -97,23 +97,6 @@ struct OSBStorage <: AbstractStorage
     n_active_bonds::Vector{Int}
 end
 
-# function OSBVerletStorage(::OSBMaterial, ::VelocityVerlet, system::BondSystem)
-#     n_loc_points = get_n_loc_points(system)
-#     position = copy(system.position)
-#     displacement = zeros(3, n_loc_points)
-#     velocity = zeros(3, n_loc_points)
-#     velocity_half = zeros(3, n_loc_points)
-#     acceleration = zeros(3, n_loc_points)
-#     b_int = zeros(3, get_n_points(system))
-#     b_ext = zeros(3, n_loc_points)
-#     damage = zeros(n_loc_points)
-#     bond_active = ones(Bool, length(system.bonds))
-#     n_active_bonds = copy(system.n_neighbors)
-#     s = OSBVerletStorage(position, displacement, velocity, velocity_half, acceleration,
-#                          b_int, b_ext, damage, bond_active, n_active_bonds)
-#     return s
-# end
-
 @storage OSBMaterial OSBStorage
 
 function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
@@ -122,48 +105,6 @@ end
 
 @loc_to_halo_fields OSBStorage :position
 @halo_to_loc_fields OSBStorage :b_int
-
-# struct OSBRelaxationStorage <: AbstractStorage
-#     position::Matrix{Float64}
-#     displacement::Matrix{Float64}
-#     velocity::Matrix{Float64}
-#     velocity_half::Matrix{Float64}
-#     velocity_half_old::Matrix{Float64}
-#     b_int::Matrix{Float64}
-#     b_int_old::Matrix{Float64}
-#     b_ext::Matrix{Float64}
-#     density_matrix::Matrix{Float64}
-#     damage::Vector{Float64}
-#     bond_active::Vector{Bool}
-#     n_active_bonds::Vector{Int}
-# end
-
-# function OSBRelaxationStorage(::OSBMaterial, ::DynamicRelaxation, system::BondSystem)
-#     n_loc_points = get_n_loc_points(system)
-#     position = copy(system.position)
-#     displacement = zeros(3, n_loc_points)
-#     velocity = zeros(3, n_loc_points)
-#     velocity_half = zeros(3, n_loc_points)
-#     velocity_half_old = zeros(3, n_loc_points)
-#     b_int = zeros(3, get_n_points(system))
-#     b_int_old = zeros(3, n_loc_points)
-#     b_ext = zeros(3, n_loc_points)
-#     density_matrix = zeros(3, n_loc_points)
-#     damage = zeros(n_loc_points)
-#     bond_active = ones(Bool, length(system.bonds))
-#     n_active_bonds = copy(system.n_neighbors)
-#     s = OSBRelaxationStorage(position, displacement, velocity, velocity_half,
-#                              velocity_half_old, b_int, b_int_old, b_ext, density_matrix,
-#                              damage, bond_active, n_active_bonds)
-#     return s
-# end
-
-# @storage OSBMaterial DynamicRelaxation OSBRelaxationStorage
-
-# @loc_to_halo_fields OSBRelaxationStorage :position
-# @halo_to_loc_fields OSBRelaxationStorage :b_int
-
-# const OSBStorage = Union{OSBVerletStorage,OSBRelaxationStorage}
 
 function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
                               params::OSBPointParameters, i::Int)
