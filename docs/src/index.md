@@ -89,6 +89,22 @@ To install `Peridynamics.jl`, follow these steps:
 ```
 
 ```@raw html
+<div class="tutorial-element">
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_in_bar/">
+      <figcaption>Wave propagation</figcaption><br><img src="https://github.com/user-attachments/assets/7fa65fd4-38d8-46cb-833f-990417211d17" style="width: 90% !important;"/>
+   </a>
+</div>
+```
+
+```@raw html
+<div class="tutorial-element">
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_interface/">
+      <figcaption>Wave propagation across interface</figcaption><br><img src="https://github.com/user-attachments/assets/082f635f-caf2-40db-938e-e4a98e2f3915" style="width: 90% !important;"/>
+   </a>
+</div>
+```
+
+```@raw html
 </div>
 ```
 
