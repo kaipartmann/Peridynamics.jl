@@ -68,3 +68,7 @@ end
 function log_timesolver(::AbstractJobOptions, ::AbstractTimeSolver)
     return nothing
 end
+
+@inline function init_field_solver(solver, system, field)
+    return nothing
+end

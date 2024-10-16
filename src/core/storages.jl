@@ -7,11 +7,15 @@ function get_storage(material, solver, system)
 end
 
 function init_field(material, solver, system, field)
-    method = "init_field(::$(typeof(material)), "
-    method *= "::$(typeof(solver)), "
-    method *= "::$(typeof(system)), "
-    method *= "::$(typeof(field)))"
-    return throw(InterfaceError(M, method))
+    field_value_system = init_field_system(system, field)
+    isnothing(field_value_system) || return field_value_system
+    field_value_solver = init_field_solver(solver, system, field)
+    isnothing(field_value_solver) || return field_value_solver
+    method_msg = "init_field(::$(typeof(material)), "
+    method_msg *= "::$(typeof(solver)), "
+    method_msg *= "::$(typeof(system)), "
+    method_msg *= "::$(typeof(field)))"
+    return throw(InterfaceError(M, method_msg))
 end
 
 macro storage(material, storage)
@@ -27,20 +31,24 @@ macro storage(material, storage)
         end
     end
     local _constructor = quote
-        function $(esc(storage))(mat::$(esc(material)), solver::AbstractTimeSolver,
-                                 system::AbstractSystem)
-            fields = fieldnames($(esc(storage)))
-            args = (init_field(mat, solver, system, Val(field)) for field in fields)
+        function $(esc(storage))(mat::$(esc(material)),
+                                solver::Peridynamics.AbstractTimeSolver,
+                                system::Peridynamics.AbstractSystem)
+            fields = Base.fieldnames($(esc(storage)))
+            args = (Peridynamics.init_field(mat, solver, system, Val(field))
+                    for field in fields)
             return $(esc(storage))(args...)
         end
     end
     local _get_storage = quote
-        function Peridynamics.get_storage(mat::$(esc(material)), solver::AbstractTimeSolver,
-                                          system::AbstractSystem)
+        function Peridynamics.get_storage(mat::$(esc(material)),
+                                          solver::Peridynamics.AbstractTimeSolver,
+                                          system::Peridynamics.AbstractSystem)
             return $(esc(storage))(mat, solver, system)
         end
     end
-    return Expr(:block, _checks, _storage_type, _constructor, _get_storage)
+    # the checks have to come last; otherwise errors cannot be tested with @test_throws ...
+    return Expr(:block, _storage_type, _constructor, _get_storage, _checks)
 end
 
 loc_to_halo_fields(::AbstractStorage) = ()
@@ -66,7 +74,8 @@ macro loc_to_halo_fields(storage, fields...)
                                  end
                              end
                              for _field in fields]
-    return Expr(:block, _checks, _loc_to_halo_fields, _is_halo_fields...)
+    # the checks have to come last; otherwise errors cannot be tested with @test_throws ...
+    return Expr(:block, _loc_to_halo_fields, _is_halo_fields..., _checks)
 end
 
 macro halo_to_loc_fields(storage, fields...)
@@ -88,7 +97,8 @@ macro halo_to_loc_fields(storage, fields...)
                                  end
                              end
                              for _field in fields]
-    return Expr(:block, _checks, _loc_to_halo_fields, _is_halo_fields...)
+    # the checks have to come last; otherwise errors cannot be tested with @test_throws ...
+    return Expr(:block, _loc_to_halo_fields, _is_halo_fields..., _checks)
 end
 
 macro halo_fields(storage, fields...)
@@ -105,7 +115,8 @@ macro halo_fields(storage, fields...)
                                  end
                              end
                              for _field in fields]
-    return Expr(:block, _checks, _loc_to_halo_fields, _is_halo_fields...)
+    # the checks have to come last; otherwise errors cannot be tested with @test_throws ...
+    return Expr(:block, _loc_to_halo_fields, _is_halo_fields..., _checks)
 end
 
 function macrocheck_input_storage(storage)
@@ -140,6 +151,10 @@ function typecheck_is_storage(::Type{Storage}) where {Storage}
     return nothing
 end
 
+function typecheck_is_storage(storage)
+    return throw(ArgumentError("$storage is not a valid storage type!\n"))
+end
+
 function typecheck_storage(::Type{Storage}) where {Storage}
     typecheck_is_storage(Storage)
     typecheck_req_fields_missing(Storage, required_fields_timesolvers())
@@ -148,6 +163,10 @@ function typecheck_storage(::Type{Storage}) where {Storage}
     # damage models...
     # typecheck_req_fields_missing(Storage, required_fields_fracture())
     return nothing
+end
+
+function typecheck_storage(storage)
+    return throw(ArgumentError("$storage is not a valid storage type!\n"))
 end
 
 function typecheck_storage_fields(::Type{S}, fields::NTuple{N,Symbol}) where {S,N}

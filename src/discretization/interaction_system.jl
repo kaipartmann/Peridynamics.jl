@@ -428,14 +428,16 @@ function calc_n_interactions(dh::AbstractMPIBodyDataHandler)
     return n_one_nis, n_two_nis, n_three_nis
 end
 
-function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::InteractionSystem,
-                    ::Val{:one_ni_active})
+function init_field_system(system::InteractionSystem, ::Val{:one_ni_active})
     return ones(Bool, get_n_one_nis(system))
 end
 
-function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::InteractionSystem,
-                    ::Val{:n_active_one_nis})
+function init_field_system(system::InteractionSystem, ::Val{:n_active_one_nis})
     return copy(system.n_one_nis)
+end
+
+function init_field_system(system::InteractionSystem, ::Val{:damage})
+    return zeros(get_n_loc_points(system))
 end
 
 function required_point_parameters(::Type{<:AbstractInteractionSystemMaterial})

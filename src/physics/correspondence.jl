@@ -136,6 +136,10 @@ end
 #     return s
 # end
 
+function init_field(::NOSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
+    return zeros(3, get_n_points(system))
+end
+
 @storage NOSBMaterial NOSBStorage
 
 @loc_to_halo_fields NOSBStorage :position

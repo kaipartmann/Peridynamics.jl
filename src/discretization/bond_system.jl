@@ -254,14 +254,16 @@ function calc_n_bonds(dh::AbstractMPIBodyDataHandler)
     return n_bonds
 end
 
-function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:bond_active})
+function init_field_system(system::BondSystem, ::Val{:bond_active})
     return ones(Bool, get_n_bonds(system))
 end
 
-function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:n_active_bonds})
+function init_field_system(system::BondSystem, ::Val{:n_active_bonds})
     return copy(system.n_neighbors)
+end
+
+function init_field_system(system::BondSystem, ::Val{:damage})
+    return zeros(get_n_loc_points(system))
 end
 
 function required_point_parameters(::Type{<:AbstractBondSystemMaterial})

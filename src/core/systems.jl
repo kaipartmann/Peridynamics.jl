@@ -51,3 +51,7 @@ end
 @inline function get_n_points(system::AbstractSystem)
     return get_n_points(system.chunk_handler)
 end
+
+@inline function init_field_system(system, field)
+    return nothing
+end

@@ -67,11 +67,6 @@ function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     return (; Gc, εc)
 end
 
-function init_field(::AbstractMaterial, ::AbstractTimeSolver, system::AbstractSystem,
-                    ::Val{:damage})
-    return zeros(get_n_loc_points(system))
-end
-
 function required_fields_fracture()
     fields = (req_point_data_fields_fracture()..., req_bond_data_fields_fracture()...,
               req_data_fields_fracture()...)

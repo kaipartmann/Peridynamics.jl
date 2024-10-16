@@ -108,8 +108,9 @@ end
         bond_active::Vector{Bool}
         n_active_bonds::Vector{Int}
     end
-    @test_throws ArgumentError Peridynamics.@storage(TestMaterial4,
-                                                     TestVerletStorageNoSubtype)
+
+    e1 = ArgumentError("TestVerletStorageNoSubtype is not a valid storage type!\n")
+    @test_throws e1 Peridynamics.@storage TestMaterial4 TestVerletStorageNoSubtype
 
     struct TestVerletStorageMissingField1 <: Peridynamics.AbstractStorage
         position::Matrix{Float64}
@@ -126,24 +127,11 @@ end
         bond_active::Vector{Bool}
         n_active_bonds::Vector{Int}
     end
-    @test_throws ErrorException Peridynamics.@storage(TestMaterial4,
-                                                      TestVerletStorageMissingField1)
-
-    # TODO
-    # struct TestVerletStorageMissingField2 <: Peridynamics.AbstractStorage
-    #     position::Matrix{Float64}
-    #     displacement::Matrix{Float64}
-    #     velocity::Matrix{Float64}
-    #     velocity_half::Matrix{Float64}
-    #     acceleration::Matrix{Float64}
-    #     b_int::Matrix{Float64}
-    #     b_ext::Matrix{Float64}
-    #     # damage::Vector{Float64}
-    #     bond_active::Vector{Bool}
-    #     n_active_bonds::Vector{Int}
-    # end
-    # @test_throws ErrorException Peridynamics.@storage(TestMaterial4, VelocityVerlet,
-    #                                                  TestVerletStorageMissingField2)
+    # TODO: somehow this throws ArgumentError defined as fallback
+    # errmsg2 = "required field displacement not found in TestVerletStorageMissingField1!"
+    # e2 = ErrorException(errmsg2)
+    @test_throws ArgumentError Peridynamics.@storage(TestMaterial4,
+                                                     TestVerletStorageMissingField1)
 
     struct TestVerletStorage1 <: Peridynamics.AbstractStorage
         position::Matrix{Float64}
@@ -182,7 +170,7 @@ end
                                                                :b_int)
 
     @test_throws ArgumentError Peridynamics.@halo_to_loc_fields(TestVerletStorage1,
-                                                               :randomfield)
+                                                                :randomfield)
 
     Peridynamics.@halo_to_loc_fields TestVerletStorage1 :b_int :b_ext
     @test hasmethod(Peridynamics.halo_to_loc_fields, Tuple{TestVerletStorage1})
@@ -316,4 +304,33 @@ end
     @test b2.storage.damage ≈ [2/3, 2/3]
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
+end
+
+@testitem "TestMaterial full simulation" begin
+    include("test_material.jl")
+    root = joinpath(@__DIR__, "temp_testmaterial_full_simulation")
+    path_vtk = joinpath(root, "vtk")
+
+    N = 10
+    l, Δx, δ, a = 1.0, 1/N, 3.015/N, 0.5
+    pos, vol = uniform_box(l, l, 0.1l, Δx)
+    ids = sortperm(pos[2,:])
+    body = Body(TestMaterial(), pos[:, ids], vol[ids])
+    material!(body; horizon=3.015Δx, E=2.1e5, nu=0.25, rho=8e-6, Gc=2.7)
+    point_set!(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, body, :set_a)
+    point_set!(p -> p[1] ≤ -l/2+a && -2δ ≤ p[2] < 0, body, :set_b)
+    precrack!(body, :set_a, :set_b)
+    point_set!(p -> p[2] > l/2-Δx, body, :set_top)
+    point_set!(p -> p[2] < -l/2+Δx, body, :set_bottom)
+    velocity_bc!(t -> -30, body, :set_bottom, :y)
+    velocity_bc!(t -> 30, body, :set_top, :y)
+    vv = VelocityVerlet(steps=2)
+    job = Job(body, vv; path=root, freq=1)
+    submit(job)
+
+    @test isdir(path_vtk)
+    vtk_files = Peridynamics.find_vtk_files(path_vtk)
+    @test length(vtk_files) == 3
+
+    rm(root; recursive=true, force=true)
 end

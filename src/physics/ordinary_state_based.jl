@@ -116,6 +116,10 @@ end
 
 @storage OSBMaterial OSBStorage
 
+function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
+    return zeros(3, get_n_points(system))
+end
+
 @loc_to_halo_fields OSBStorage :position
 @halo_to_loc_fields OSBStorage :b_int
 

@@ -323,38 +323,31 @@ function _update_vel!(velocity, velocity_half, acceleration, Δt½, i)
     return nothing
 end
 
-function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
-                    ::Val{:position})
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:position})
     return copy(system.position)
 end
 
-function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
-                    ::Val{:displacement})
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:displacement})
     return zeros(3, get_n_loc_points(system))
 end
 
-function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
-                    ::Val{:velocity})
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:velocity})
     return zeros(3, get_n_loc_points(system))
 end
 
-function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
-                    ::Val{:velocity_half})
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:velocity_half})
     return zeros(3, get_n_loc_points(system))
 end
 
-function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
-                    ::Val{:acceleration})
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:acceleration})
     return zeros(3, get_n_loc_points(system))
 end
 
-function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
-                    ::Val{:b_int})
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:b_int})
     return zeros(3, get_n_loc_points(system))
 end
 
-function init_field(::AbstractMaterial, ::VelocityVerlet, system::AbstractSystem,
-                    ::Val{:b_ext})
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:b_ext})
     return zeros(3, get_n_loc_points(system))
 end
 
