@@ -23,6 +23,7 @@ A high-level Julia package for parallel peridynamics simulations
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 **Citation:**\
+[![DOI](https://proceedings.juliacon.org/papers/10.21105/jcon.00165/status.svg)](https://doi.org/10.21105/jcon.00165)
 [![DOI](https://zenodo.org/badge/503281781.svg)](https://zenodo.org/badge/latestdoi/503281781)
 
 ## Main Features
