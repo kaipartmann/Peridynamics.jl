@@ -85,12 +85,12 @@ in the julia package manager. Please take a look at the [documentation](https://
     <tr>
     <td align="center">
       <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_in_bar/">
-        <figcaption>Wave propagation</figcaption><br><img src="https://github.com/user-attachments/assets/86837acb-3a42-4dcd-987c-41371530d8ee" width="300"/><br>
+        <figcaption>Wave propagation</figcaption><br><img src="https://github.com/user-attachments/assets/7fa65fd4-38d8-46cb-833f-990417211d17" width="300"/><br>
       </a>
     </td>
     <td align="center">
       <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_interface/">
-        <figcaption>Wave propagation across interface</figcaption><br><img src="https://github.com/user-attachments/assets/c589ab03-e7f5-4b71-b0c2-0f05eb3cdddc" width="300"/>
+        <figcaption>Wave propagation across interface</figcaption><br><img src="https://github.com/user-attachments/assets/082f635f-caf2-40db-938e-e4a98e2f3915" width="300"/>
    </a></td>
   </tr>
 </table>
