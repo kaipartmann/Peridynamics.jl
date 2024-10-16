@@ -1,0 +1,113 @@
+<svg fill="none" viewBox="0 0 700 1300" width="700" height="1300" xmlns="http://www.w3.org/2000/svg">
+    <foreignObject width="100%" height="100%">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+            <style>
+                .tutorial-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    grid-gap: 20px;
+                    padding: 20px;
+                    max-width: 500px;
+                    margin: 0 auto;
+                }
+
+                .tutorial-element {
+                    text-align: center;
+                    /* background-color: #f9f9f9; */
+                    background-color: rgb(240, 240, 240);
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                    transition: transform 0.3s, box-shadow 0.3s;
+                }
+
+                /* .tutorial-element:hover {
+                    transform: scale(1.05);
+                    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+                } */
+
+                .tutorial-element img {
+                    width: 100%;
+                    max-width: 300px;
+                    height: auto;
+                    border-radius: 10px;
+                    margin-bottom: 10px;
+                }
+
+                .tutorial-element a {
+                    color: #333;
+                    text-decoration: none;
+                    font-weight: bold;
+                }
+
+                /* .tutorial-element a:hover {
+                    color: #007bff;
+                } */
+
+                .tutorial-element figcaption {
+                    margin-bottom: 14px; /* Add some space below the figcaption */
+                    display: block; /* Ensure it takes up the full width */
+                }
+            </style>
+
+            <div class="tutorial-grid">
+                <div class="tutorial-element">
+                    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_static/">
+                        <figcaption>Tensile test quasi-static</figcaption>
+                        <img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/ac69d8aa-526d-436a-aa0c-820a1f42bcca"
+                            style="width: 90% !important;" />
+                    </a>
+                </div>
+                <div class="tutorial-element">
+                    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/">
+                        <figcaption>Tensile test dynamic</figcaption>
+                        <img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/dda2b7b3-d44b-41a9-b133-6d1b548df1c1"
+                            style="width: 90% !important;" />
+                    </a>
+                </div>
+                <div class="tutorial-element">
+                    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_precrack/">
+                        <figcaption>Tension with predefined crack</figcaption>
+                        <img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/9f627d2d-44b5-43a3-94cd-9d34894fd142"
+                            style="width: 90% !important;" />
+                    </a>
+                </div>
+                <div class="tutorial-element">
+                    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_logo/">
+                        <figcaption>The old logo</figcaption>
+                        <img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/5439e112-9088-49a3-bb01-aff541adc0f8"
+                            style="width: 90% !important;" />
+                    </a>
+                </div>
+                <div class="tutorial-element">
+                    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_kalthoff-winkler_dynfrac/">
+                        <figcaption>Kalthoff Winkler</figcaption>
+                        <img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/6dc362ef-4997-4327-9bc1-41350fac2dc1"
+                            style="width: 90% !important;" />
+                    </a>
+                </div>
+                <div class="tutorial-element">
+                    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_cylinder/">
+                        <figcaption>Fragmenting cylinder</figcaption>
+                        <img src="https://github.com/user-attachments/assets/58e11123-6143-4e13-8642-7e30c9e6c86d"
+                            style="width: 90% !important;" />
+                    </a>
+                </div>
+                <div class="tutorial-element">
+                    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_in_bar/">
+                        <figcaption>Wave propagation</figcaption>
+                        <img src="https://github.com/user-attachments/assets/7fa65fd4-38d8-46cb-833f-990417211d17"
+                            style="width: 90% !important;" />
+                    </a>
+                </div>
+                <div class="tutorial-element">
+                    <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_interface/">
+                        <figcaption>Wave propagation interface</figcaption>
+                        <img src="https://github.com/user-attachments/assets/082f635f-caf2-40db-938e-e4a98e2f3915"
+                            style="width: 90% !important;" />
+                    </a>
+                </div>
+            </div>
+        </div>
+    </foreignObject>
+</svg>
