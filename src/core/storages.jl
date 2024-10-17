@@ -51,55 +51,146 @@ macro storage(material, storage)
     return Expr(:block, _storage_type, _constructor, _get_storage, _checks)
 end
 
-# macro storagedef(material, storage)
-#     macrocheck_input_material(material)
-#     macrocheck_input_storage_struct(storage)
+macro storagedef(material, storage)
+    macrocheck_input_material(material)
+    macrocheck_input_storage_struct(storage)
 
-#     # extract the fields of the struct, annotated
-#     local _point_fields = Vector{Expr}()
-#     local _htl_fields = Vector{Expr}()
-#     local _lth_fields = Vector{Expr}()
-#     local _constructor = quote
-#         function $(esc(storage))(mat::$(esc(material)),
-#                                  solver::Peridynamics.AbstractTimeSolver,
-#                                  system::Peridynamics.AbstractSystem)
-#             fields = Base.fieldnames($(esc(storage)))
-#             args = (Peridynamics.init_field(mat, solver, system, Val(field))
-#                     for field in fields)
-#             return $(esc(storage))(args...)
-#         end
-#     end
-#     local _storage_type = quote
-#         function Peridynamics.storage_type(::$(esc(material)))
-#             return $(esc(storage))
-#         end
-#     end
-#     local _get_storage = quote
-#         function Peridynamics.get_storage(mat::$(esc(material)),
-#                                           solver::Peridynamics.AbstractTimeSolver,
-#                                           system::Peridynamics.AbstractSystem)
-#             return $(esc(storage))(mat, solver, system)
-#         end
-#     end
-#     local _checks = quote
-#         Peridynamics.typecheck_material($(esc(material)))
-#         Peridynamics.typecheck_storage($(esc(material)), $(esc(storage)))
-#     end
-#     local _exprs = Expr(:block, _storage_type, _constructor, _get_storage, _checks)
-#     return _exprs
-# end
+    local _expr_extraction = get_storage_structdef(storage)
+    local _storage_struct, _point_fields, _htl_fields, _lth_fields = _expr_extraction
+    # local _point_field_names = Tuple(f.args[1] for f in _point_fields)
+    local _htl_field_names = Tuple(QuoteNode(f.args[1]) for f in _htl_fields)
+    local _lth_field_names = Tuple(QuoteNode(f.args[1]) for f in _lth_fields)
+    local _halo_field_names = (_htl_field_names..., _lth_field_names...)
+    local _storage_type = extract_storage_type(_storage_struct)
+    local _constructor = quote
+        function $(esc(_storage_type))(mat::$(esc(material)),
+                                 solver::Peridynamics.AbstractTimeSolver,
+                                 system::Peridynamics.AbstractSystem)
+            fields = Base.fieldnames($(esc(_storage_type)))
+            args = (Peridynamics.init_field(mat, solver, system, Val(field))
+                    for field in fields)
+            return $(esc(_storage_type))(args...)
+        end
+    end
+    local _storage_type_function = quote
+        function Peridynamics.storage_type(::$(esc(material)))
+            return $(esc(_storage_type))
+        end
+    end
+    local _get_storage = quote
+        function Peridynamics.get_storage(mat::$(esc(material)),
+                                          solver::Peridynamics.AbstractTimeSolver,
+                                          system::Peridynamics.AbstractSystem)
+            return $(esc(_storage_type))(mat, solver, system)
+        end
+    end
+    local _halo_to_loc_fields = quote
+        function Peridynamics.halo_to_local_fields(::$(_storage_type))
+            return $(Expr(:tuple, _htl_field_names...))
+        end
+    end
+    local _loc_to_halo_fields = quote
+        function Peridynamics.loc_to_halo_fields(::$(_storage_type))
+            return $(Expr(:tuple, _lth_field_names...))
+        end
+    end
+    local _is_halo_fields = [quote
+                                 function Peridynamics.is_halo_field(::$(_storage_type),
+                                                                     ::Val{$(_field)})
+                                     return true
+                                 end
+                             end
+                             for _field in _halo_field_names]
+    local _checks = quote
+        Peridynamics.typecheck_material($(esc(material)))
+        Peridynamics.typecheck_storage($(esc(material)), $(esc(_storage_type)))
+    end
+    local _exprs = Expr(:block, _storage_struct, _constructor, _storage_type_function,
+                        _get_storage, _halo_to_loc_fields, _loc_to_halo_fields,
+                        _is_halo_fields, _checks)
+    return _exprs
+end
 
-# macro pointfield(expr)
-#     return nothing
-# end
+function get_storage_structdef(storage_expr)
+    # extract the fields of the struct
+    fields_exprs = Vector{Expr}()
 
-# macro htlfield(expr)
-#     return nothing
-# end
+    # indices of special annotated fields in `_fields`
+    point_fields_idxs = Vector{Int}()
+    htl_fields_idxs = Vector{Int}()
+    lth_fields_idxs = Vector{Int}()
 
-# macro lthfield(expr)
-#     return nothing
-# end
+    field_idx = 0
+    for field in storage_expr.args[3].args
+        field isa Expr || continue
+        # just a normal data field (bond data or arbitrary data)
+        if field.head === :(::)
+            field_idx += 1
+            push!(fields_exprs, field)
+        # a point data field
+        elseif field.head === :macrocall && field.args[1] === Symbol("@pointfield")
+            annotated_field = field.args[3]
+            if annotated_field isa Expr && annotated_field.head == :(::)
+                field_idx += 1
+                push!(fields_exprs, annotated_field)
+                push!(point_fields_idxs, field_idx)
+            else
+                msg = "unexpected or untyped field: $annotated_field\n"
+                throw(ArgumentError(msg))
+            end
+        elseif field.head === :macrocall && field.args[1] === Symbol("@htlfield")
+            annotated_field = field.args[3]
+            if annotated_field isa Expr && annotated_field.head == :(::)
+                field_idx += 1
+                push!(fields_exprs, annotated_field)
+                push!(htl_fields_idxs, field_idx)
+            else
+                msg = "unexpected or untyped field: $annotated_field\n"
+                throw(ArgumentError(msg))
+            end
+        elseif field.head === :macrocall && field.args[1] === Symbol("@lthfield")
+            annotated_field = field.args[3]
+            if annotated_field isa Expr && annotated_field.head == :(::)
+                field_idx += 1
+                push!(fields_exprs, annotated_field)
+                push!(lth_fields_idxs, field_idx)
+            else
+                msg = "unexpected or untyped field: $annotated_field\n"
+                throw(ArgumentError(msg))
+            end
+        else
+            msg = "unexpected or untyped field: $field\n"
+            throw(ArgumentError(msg))
+        end
+    end
+    fields_block = Expr(:block, fields_exprs...)
+    storage_struct = Expr(:struct, storage_expr.args[1], storage_expr.args[2], fields_block)
+    point_fields_exprs = [fields_exprs[i] for i in point_fields_idxs]
+    htl_fields_exprs = [fields_exprs[i] for i in htl_fields_idxs]
+    lth_fields_exprs = [fields_exprs[i] for i in lth_fields_idxs]
+    return storage_struct, point_fields_exprs, htl_fields_exprs, lth_fields_exprs
+end
+
+function extract_storage_type(storage_expr)
+    header = storage_expr.args[2]
+    if header.head === :(<:) && header.args[1] isa Symbol
+        return header.args[1]
+    else
+        error("not yet supported storage header: `$header`\n")
+    end
+end
+
+macro pointfield(expr)
+    return nothing
+end
+
+macro htlfield(expr)
+    return nothing
+end
+
+macro lthfield(expr)
+    return nothing
+end
 
 loc_to_halo_fields(::AbstractStorage) = ()
 halo_to_loc_fields(::AbstractStorage) = ()
