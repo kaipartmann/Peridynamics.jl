@@ -103,30 +103,30 @@ end
 
 @params NOSBMaterial NOSBPointParameters
 
-struct NOSBStorage <: AbstractStorage
-    position::Matrix{Float64}
-    displacement::Matrix{Float64}
-    velocity::Matrix{Float64}
-    velocity_half::Matrix{Float64}
-    velocity_half_old::Matrix{Float64}
-    acceleration::Matrix{Float64}
-    b_int::Matrix{Float64}
-    b_int_old::Matrix{Float64}
-    b_ext::Matrix{Float64}
-    density_matrix::Matrix{Float64}
-    damage::Vector{Float64}
+@storagedef NOSBMaterial struct NOSBStorage <: AbstractStorage
+    @lthfield position::Matrix{Float64}
+    @pointfield displacement::Matrix{Float64}
+    @pointfield velocity::Matrix{Float64}
+    @pointfield velocity_half::Matrix{Float64}
+    @pointfield velocity_half_old::Matrix{Float64}
+    @pointfield acceleration::Matrix{Float64}
+    @htlfield b_int::Matrix{Float64}
+    @pointfield b_int_old::Matrix{Float64}
+    @pointfield b_ext::Matrix{Float64}
+    @pointfield density_matrix::Matrix{Float64}
+    @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
-    n_active_bonds::Vector{Int}
+    @pointfield n_active_bonds::Vector{Int}
 end
 
 function init_field(::NOSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
     return zeros(3, get_n_points(system))
 end
 
-@storage NOSBMaterial NOSBStorage
+# @storage NOSBMaterial NOSBStorage
 
-@loc_to_halo_fields NOSBStorage :position
-@halo_to_loc_fields NOSBStorage :b_int
+# @loc_to_halo_fields NOSBStorage :position
+# @halo_to_loc_fields NOSBStorage :b_int
 
 function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
                               paramhandler::AbstractParameterHandler, i::Int)
