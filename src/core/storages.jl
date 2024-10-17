@@ -203,7 +203,7 @@ point_data_field(s::AbstractStorage, ::Val{:b_int}) = getfield(s, :b_int)
 point_data_field(s::AbstractStorage, ::Val{:b_ext}) = getfield(s, :b_ext)
 point_data_field(s::AbstractStorage, ::Val{:damage}) = getfield(s, :damage)
 point_data_field(s::AbstractStorage, ::Val{:n_active_bonds}) = getfield(s, :n_active_bonds)
-point_data_field(s::AbstractStorage, ::Val{:n_active_one_nis}) = getfield(s, :n_active_bonds)
+point_data_field(s::AbstractStorage, ::Val{:n_active_one_nis}) = getfield(s, :n_active_one_nis)
 
 function point_data_field(::S, ::Val{Field}) where {S,Field}
     return throw(InterfaceError(S, "point_data_field(::$S, ::Val{$Field})"))
