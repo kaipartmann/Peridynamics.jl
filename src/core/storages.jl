@@ -20,10 +20,10 @@ end
 
 macro storage(material, storage)
     macrocheck_input_material(material)
-    macrocheck_input_storage(storage)
+    macrocheck_input_storage_type(storage)
     local _checks = quote
         Peridynamics.typecheck_material($(esc(material)))
-        Peridynamics.typecheck_storage($(esc(storage)))
+        Peridynamics.typecheck_storage($(esc(material)), $(esc(storage)))
     end
     local _storage_type = quote
         function Peridynamics.storage_type(::$(esc(material)))
@@ -51,12 +51,62 @@ macro storage(material, storage)
     return Expr(:block, _storage_type, _constructor, _get_storage, _checks)
 end
 
+# macro storagedef(material, storage)
+#     macrocheck_input_material(material)
+#     macrocheck_input_storage_struct(storage)
+
+#     # extract the fields of the struct, annotated
+#     local _point_fields = Vector{Expr}()
+#     local _htl_fields = Vector{Expr}()
+#     local _lth_fields = Vector{Expr}()
+#     local _constructor = quote
+#         function $(esc(storage))(mat::$(esc(material)),
+#                                  solver::Peridynamics.AbstractTimeSolver,
+#                                  system::Peridynamics.AbstractSystem)
+#             fields = Base.fieldnames($(esc(storage)))
+#             args = (Peridynamics.init_field(mat, solver, system, Val(field))
+#                     for field in fields)
+#             return $(esc(storage))(args...)
+#         end
+#     end
+#     local _storage_type = quote
+#         function Peridynamics.storage_type(::$(esc(material)))
+#             return $(esc(storage))
+#         end
+#     end
+#     local _get_storage = quote
+#         function Peridynamics.get_storage(mat::$(esc(material)),
+#                                           solver::Peridynamics.AbstractTimeSolver,
+#                                           system::Peridynamics.AbstractSystem)
+#             return $(esc(storage))(mat, solver, system)
+#         end
+#     end
+#     local _checks = quote
+#         Peridynamics.typecheck_material($(esc(material)))
+#         Peridynamics.typecheck_storage($(esc(material)), $(esc(storage)))
+#     end
+#     local _exprs = Expr(:block, _storage_type, _constructor, _get_storage, _checks)
+#     return _exprs
+# end
+
+# macro pointfield(expr)
+#     return nothing
+# end
+
+# macro htlfield(expr)
+#     return nothing
+# end
+
+# macro lthfield(expr)
+#     return nothing
+# end
+
 loc_to_halo_fields(::AbstractStorage) = ()
 halo_to_loc_fields(::AbstractStorage) = ()
 is_halo_field(::AbstractStorage, ::Val{F}) where {F} = false
 
 macro loc_to_halo_fields(storage, fields...)
-    macrocheck_input_storage(storage)
+    macrocheck_input_storage_type(storage)
     macrocheck_input_fields(fields...)
     local _checks = quote
         Peridynamics.typecheck_is_storage($(esc(storage)))
@@ -79,7 +129,7 @@ macro loc_to_halo_fields(storage, fields...)
 end
 
 macro halo_to_loc_fields(storage, fields...)
-    macrocheck_input_storage(storage)
+    macrocheck_input_storage_type(storage)
     macrocheck_input_fields(fields...)
     local _checks = quote
         Peridynamics.typecheck_is_storage($(esc(storage)))
@@ -102,7 +152,7 @@ macro halo_to_loc_fields(storage, fields...)
 end
 
 macro halo_fields(storage, fields...)
-    macrocheck_input_storage(storage)
+    macrocheck_input_storage_type(storage)
     macrocheck_input_fields(fields...)
     local _checks = quote
         Peridynamics.typecheck_is_storage($(esc(storage)))
@@ -119,11 +169,19 @@ macro halo_fields(storage, fields...)
     return Expr(:block, _loc_to_halo_fields, _is_halo_fields..., _checks)
 end
 
-function macrocheck_input_storage(storage)
+function macrocheck_input_storage_type(storage)
     storage isa Symbol && return nothing
     (storage isa Expr && storage.head === :.) && return nothing
     msg = "argument `$storage` is not a valid storage input!\n"
     return throw(ArgumentError(msg))
+end
+
+function macrocheck_input_storage_struct(storage)
+    if !(storage isa Expr && storage.head === :struct)
+        msg = "specified input is not a valid point parameter struct expression!\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
 end
 
 function macrocheck_input_timesolver(timesolver)
@@ -135,12 +193,27 @@ end
 
 function macrocheck_input_fields(fields...)
     for field in fields
-        if !(field isa QuoteNode && field.value isa Symbol)
-            msg = "argument $field is not a valid field input!\n"
-            throw(ArgumentError(msg))
-        end
+        macrocheck_input_field(field)
     end
     return nothing
+end
+
+function macrocheck_input_field(field)
+    if !(field isa QuoteNode && field.value isa Symbol)
+        msg = "argument $field is not a valid field input!\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
+end
+
+function typecheck_storage(::Type{Material}, ::Type{Storage}) where {Material,Storage}
+    typecheck_is_storage(Storage)
+    typecheck_req_fields_missing(Storage, required_fields(Material))
+    return nothing
+end
+
+function typecheck_storage(material, storage)
+    return throw(ArgumentError("$storage is not a valid storage type!\n"))
 end
 
 function typecheck_is_storage(::Type{Storage}) where {Storage}
@@ -152,20 +225,6 @@ function typecheck_is_storage(::Type{Storage}) where {Storage}
 end
 
 function typecheck_is_storage(storage)
-    return throw(ArgumentError("$storage is not a valid storage type!\n"))
-end
-
-function typecheck_storage(::Type{Storage}) where {Storage}
-    typecheck_is_storage(Storage)
-    typecheck_req_fields_missing(Storage, required_fields_timesolvers())
-    # TODO: this check would currently be system dependent!
-    # However, this is still not optimal. There has to be some additional type for different
-    # damage models...
-    # typecheck_req_fields_missing(Storage, required_fields_fracture())
-    return nothing
-end
-
-function typecheck_storage(storage)
     return throw(ArgumentError("$storage is not a valid storage type!\n"))
 end
 
@@ -190,9 +249,31 @@ function typecheck_req_fields_missing(::Type{Storage}, req_fields) where {Storag
     return false
 end
 
+function required_fields(::Type{Material}) where {Material<:AbstractMaterial}
+    fields = (required_fields_timesolvers()..., required_fields_fracture(Material)...)
+    return fields
+end
+
 @inline function get_point_data(s::AbstractStorage, field::Symbol)
     return point_data_field(s, Val(field))
 end
+
+function point_data_field(::S, ::Val{Field}) where {S,Field}
+    return throw(InterfaceError(S, "point_data_field(::$S, ::Val{$Field})"))
+end
+
+# macro point_data_field(storage, field)
+#     macrocheck_input_storage_type(storage)
+#     macrocheck_input_field(field)
+#     local _field_symb = field isa QuoteNode ? field : QuoteNode(field)
+#     local _pdf_func = quote
+#         function Peridynamics.point_data_field(storage::$(esc(storage)),
+#                                                ::Base.Val{$(_field_symb)})
+#             return Base.getfield(storage, $(_field_symb))
+#         end
+#     end
+#     return _pdf_func
+# end
 
 point_data_field(s::AbstractStorage, ::Val{:position}) = getfield(s, :position)
 point_data_field(s::AbstractStorage, ::Val{:displacement}) = getfield(s, :displacement)
@@ -204,39 +285,6 @@ point_data_field(s::AbstractStorage, ::Val{:b_ext}) = getfield(s, :b_ext)
 point_data_field(s::AbstractStorage, ::Val{:damage}) = getfield(s, :damage)
 point_data_field(s::AbstractStorage, ::Val{:n_active_bonds}) = getfield(s, :n_active_bonds)
 point_data_field(s::AbstractStorage, ::Val{:n_active_one_nis}) = getfield(s, :n_active_one_nis)
-
-function point_data_field(::S, ::Val{Field}) where {S,Field}
-    return throw(InterfaceError(S, "point_data_field(::$S, ::Val{$Field})"))
-end
-
-# macro point_data_field(fields)
-#     if fields isa Expr && fields.head === :tuple
-#         local pdfields = fields.args
-#     else
-#         local pdfields = eval(fields)
-#     end
-#     local exprs = Expr[]
-#     for _field in pdfields
-#         if _field isa QuoteNode
-#             field = _field
-#         elseif _field isa Symbol
-#             field = QuoteNode(_field)
-#         else
-#             msg = "input $(field) is not a QuoteNode or a Symbol!\n"
-#             throw(ArgumentError(msg))
-#         end
-#         local _get_point_data_function = quote
-#             function Peridynamics.point_data_field(s::Peridynamics.AbstractStorage,
-#                                                    ::Base.Val{$(field)})
-#                 return Base.getfield(s, $(field))
-#             end
-#         end
-#         push!(exprs, _get_point_data_function)
-#     end
-#     return Expr(:block, exprs...)
-# end
-
-# @point_data_field required_fields_timesolvers()
 
 # TODO: use required fields specifications!
 function point_data_fields(::Type{S}) where {S<:AbstractStorage}

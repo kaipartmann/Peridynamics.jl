@@ -266,6 +266,18 @@ function init_field_system(system::BondSystem, ::Val{:damage})
     return zeros(get_n_loc_points(system))
 end
 
+function req_point_data_fields_fracture(::Type{<:AbstractBondSystemMaterial})
+    return (:damage, :n_active_bonds)
+end
+
+function req_bond_data_fields_fracture(::Type{<:AbstractBondSystemMaterial})
+    return (:bond_active,)
+end
+
+function req_data_fields_fracture(::Type{<:AbstractBondSystemMaterial})
+    return ()
+end
+
 function required_point_parameters(::Type{<:AbstractBondSystemMaterial})
     return (:δ, :rho, elasticity_parameters()...)
 end

@@ -91,9 +91,13 @@ end
 end
 
 @testitem "Storage declaration" begin
-    struct TestMaterial4 <: Peridynamics.AbstractMaterial end
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection,
+                         AbstractInteractionSystemMaterial
 
-    struct TestVerletStorageNoSubtype
+    struct Mat1 <: AbstractBondSystemMaterial{NoCorrection} end
+    struct Mat2 <: AbstractInteractionSystemMaterial end
+
+    struct StorageNoSubtype
         position::Matrix{Float64}
         displacement::Matrix{Float64}
         velocity::Matrix{Float64}
@@ -109,10 +113,10 @@ end
         n_active_bonds::Vector{Int}
     end
 
-    e1 = ArgumentError("TestVerletStorageNoSubtype is not a valid storage type!\n")
-    @test_throws e1 Peridynamics.@storage TestMaterial4 TestVerletStorageNoSubtype
+    e1 = ArgumentError("StorageNoSubtype is not a valid storage type!\n")
+    @test_throws e1 Peridynamics.@storage Mat1 StorageNoSubtype
 
-    struct TestVerletStorageMissingField1 <: Peridynamics.AbstractStorage
+    struct StorageMissing1 <: Peridynamics.AbstractStorage
         position::Matrix{Float64}
         # displacement::Matrix{Float64}
         velocity::Matrix{Float64}
@@ -130,10 +134,48 @@ end
     # TODO: somehow this throws ArgumentError defined as fallback
     # errmsg2 = "required field displacement not found in TestVerletStorageMissingField1!"
     # e2 = ErrorException(errmsg2)
-    @test_throws ArgumentError Peridynamics.@storage(TestMaterial4,
-                                                     TestVerletStorageMissingField1)
+    @test_throws ArgumentError Peridynamics.@storage Mat1 StorageMissing1
 
-    struct TestVerletStorage1 <: Peridynamics.AbstractStorage
+    struct StorageMissing2 <: Peridynamics.AbstractStorage
+        position::Matrix{Float64}
+        displacement::Matrix{Float64}
+        velocity::Matrix{Float64}
+        velocity_half::Matrix{Float64}
+        velocity_half_old::Matrix{Float64}
+        acceleration::Matrix{Float64}
+        b_int::Matrix{Float64}
+        b_int_old::Matrix{Float64}
+        b_ext::Matrix{Float64}
+        density_matrix::Matrix{Float64}
+        damage::Vector{Float64}
+        bond_active::Vector{Bool}
+        # n_active_bonds::Vector{Int}
+    end
+    # TODO: somehow this throws ArgumentError defined as fallback
+    # errmsg2 = "required field displacement not found in TestVerletStorageMissingField1!"
+    # e2 = ErrorException(errmsg2)
+    @test_throws ArgumentError Peridynamics.@storage Mat1 StorageMissing2
+
+    struct StorageMissing3 <: Peridynamics.AbstractStorage
+        position::Matrix{Float64}
+        displacement::Matrix{Float64}
+        velocity::Matrix{Float64}
+        velocity_half::Matrix{Float64}
+        velocity_half_old::Matrix{Float64}
+        acceleration::Matrix{Float64}
+        b_int::Matrix{Float64}
+        b_int_old::Matrix{Float64}
+        b_ext::Matrix{Float64}
+        density_matrix::Matrix{Float64}
+        damage::Vector{Float64}
+        one_ni_active::Vector{Bool}
+    end
+    # TODO: somehow this throws ArgumentError defined as fallback
+    # errmsg2 = "required field displacement not found in TestVerletStorageMissingField1!"
+    # e2 = ErrorException(errmsg2)
+    @test_throws ArgumentError Peridynamics.@storage Mat2 StorageMissing3
+
+    struct Storage1 <: Peridynamics.AbstractStorage
         position::Matrix{Float64}
         displacement::Matrix{Float64}
         velocity::Matrix{Float64}
@@ -149,33 +191,30 @@ end
         n_active_bonds::Vector{Int}
     end
 
-    Peridynamics.@storage TestMaterial4 TestVerletStorage1
-    @test hasmethod(Peridynamics.storage_type, Tuple{TestMaterial4})
-    mat, vv = TestMaterial4(), VelocityVerlet(steps=1)
-    @test Peridynamics.storage_type(mat) == TestVerletStorage1
+    Peridynamics.@storage Mat1 Storage1
+    @test hasmethod(Peridynamics.storage_type, Tuple{Mat1})
+    mat, vv = Mat1(), VelocityVerlet(steps=1)
+    @test Peridynamics.storage_type(mat) == Storage1
 
-    @test_throws ArgumentError Peridynamics.@loc_to_halo_fields(TestVerletStorageNoSubtype,
-                                                              :position)
+    @test_throws ArgumentError Peridynamics.@loc_to_halo_fields(StorageNoSubtype, :position)
+    @test_throws ArgumentError Peridynamics.@loc_to_halo_fields(Storage1, :randomfield)
 
-    @test_throws ArgumentError Peridynamics.@loc_to_halo_fields(TestVerletStorage1,
-                                                              :randomfield)
-
-    Peridynamics.@loc_to_halo_fields TestVerletStorage1 :position :displacement
-    @test hasmethod(Peridynamics.loc_to_halo_fields, Tuple{TestVerletStorage1})
-    @test hasmethod(Peridynamics.is_halo_field, Tuple{TestVerletStorage1,Val{:position}})
+    Peridynamics.@loc_to_halo_fields Storage1 :position :displacement
+    @test hasmethod(Peridynamics.loc_to_halo_fields, Tuple{Storage1})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:position}})
     @test hasmethod(Peridynamics.is_halo_field,
-                    Tuple{TestVerletStorage1,Val{:displacement}})
+                    Tuple{Storage1,Val{:displacement}})
 
-    @test_throws ArgumentError Peridynamics.@halo_to_loc_fields(TestVerletStorageNoSubtype,
+    @test_throws ArgumentError Peridynamics.@halo_to_loc_fields(StorageNoSubtype,
                                                                :b_int)
 
-    @test_throws ArgumentError Peridynamics.@halo_to_loc_fields(TestVerletStorage1,
+    @test_throws ArgumentError Peridynamics.@halo_to_loc_fields(Storage1,
                                                                 :randomfield)
 
-    Peridynamics.@halo_to_loc_fields TestVerletStorage1 :b_int :b_ext
-    @test hasmethod(Peridynamics.halo_to_loc_fields, Tuple{TestVerletStorage1})
-    @test hasmethod(Peridynamics.is_halo_field, Tuple{TestVerletStorage1,Val{:b_int}})
-    @test hasmethod(Peridynamics.is_halo_field, Tuple{TestVerletStorage1,Val{:b_ext}})
+    Peridynamics.@halo_to_loc_fields Storage1 :b_int :b_ext
+    @test hasmethod(Peridynamics.halo_to_loc_fields, Tuple{Storage1})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:b_int}})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:b_ext}})
 end
 
 @testitem "TestMaterial halo exchange" begin

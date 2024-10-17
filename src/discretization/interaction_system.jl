@@ -440,6 +440,18 @@ function init_field_system(system::InteractionSystem, ::Val{:damage})
     return zeros(get_n_loc_points(system))
 end
 
+function req_point_data_fields_fracture(::Type{<:AbstractInteractionSystemMaterial})
+    return (:damage, :n_active_one_nis)
+end
+
+function req_bond_data_fields_fracture(::Type{<:AbstractInteractionSystemMaterial})
+    return (:one_ni_active,)
+end
+
+function req_data_fields_fracture(::Type{<:AbstractInteractionSystemMaterial})
+    return ()
+end
+
 function required_point_parameters(::Type{<:AbstractInteractionSystemMaterial})
     return (:δ, :rho, elasticity_parameters()..., :C1, :C2, :C3)
 end
