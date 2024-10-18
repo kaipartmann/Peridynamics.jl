@@ -34,9 +34,6 @@ Peridynamics.@storagedef TestMaterial struct TestStorage <: Peridynamics.Abstrac
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
 end
-# Peridynamics.@storage TestMaterial TestStorage
-# Peridynamics.@loc_to_halo_fields TestStorage :position
-# Peridynamics.@halo_to_loc_fields TestStorage :b_int
 function Peridynamics.init_field(::TestMaterial, ::Peridynamics.VelocityVerlet,
                                  system::Peridynamics.BondSystem, ::Val{:b_int})
     return zeros(3, Peridynamics.get_n_points(system))

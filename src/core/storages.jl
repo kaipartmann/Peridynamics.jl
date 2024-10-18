@@ -18,50 +18,22 @@ function init_field(material, solver, system, field)
     return throw(InterfaceError(M, method_msg))
 end
 
-# macro storage(material, storage)
-#     macrocheck_input_material(material)
-#     macrocheck_input_storage_type(storage)
-#     local _checks = quote
-#         Peridynamics.typecheck_material($(esc(material)))
-#         Peridynamics.typecheck_storage($(esc(material)), $(esc(storage)))
-#     end
-#     local _storage_type = quote
-#         function Peridynamics.storage_type(::$(esc(material)))
-#             return $(esc(storage))
-#         end
-#     end
-#     local _constructor = quote
-#         function $(esc(storage))(mat::$(esc(material)),
-#                                 solver::Peridynamics.AbstractTimeSolver,
-#                                 system::Peridynamics.AbstractSystem)
-#             fields = Base.fieldnames($(esc(storage)))
-#             args = (Peridynamics.init_field(mat, solver, system, Val(field))
-#                     for field in fields)
-#             return $(esc(storage))(args...)
-#         end
-#     end
-#     local _get_storage = quote
-#         function Peridynamics.get_storage(mat::$(esc(material)),
-#                                           solver::Peridynamics.AbstractTimeSolver,
-#                                           system::Peridynamics.AbstractSystem)
-#             return $(esc(storage))(mat, solver, system)
-#         end
-#     end
-#     # the checks have to come last; otherwise errors cannot be tested with @test_throws ...
-#     return Expr(:block, _storage_type, _constructor, _get_storage, _checks)
-# end
-
 macro storagedef(material, storage)
     macrocheck_input_material(material)
     macrocheck_input_storage_struct(storage)
 
-    local _expr_extraction = get_storage_structdef(storage)
-    local _storage_struct, _point_fields, _htl_fields, _lth_fields = _expr_extraction
+    local _storage_struct_data = get_storage_structdef(storage)
+    local _storage_struct = _storage_struct_data.storage_struct
+    local _storage_type = _storage_struct_data.storage_type
+    local _point_fields = _storage_struct_data.point_fields_exprs
+    local _htl_fields = _storage_struct_data.htl_fields_exprs
+    local _lth_fields = _storage_struct_data.lth_fields_exprs
+
     local _point_field_names = Tuple(QuoteNode(f.args[1]) for f in _point_fields)
     local _htl_field_names = Tuple(QuoteNode(f.args[1]) for f in _htl_fields)
     local _lth_field_names = Tuple(QuoteNode(f.args[1]) for f in _lth_fields)
     local _halo_field_names = (_htl_field_names..., _lth_field_names...)
-    local _storage_type = extract_storage_type(_storage_struct)
+
     local _constructor = quote
         function $(esc(_storage_type))(mat::$(esc(material)),
                                  solver::Peridynamics.AbstractTimeSolver,
@@ -72,11 +44,13 @@ macro storagedef(material, storage)
             return $(esc(_storage_type))(args...)
         end
     end
+
     local _storage_type_function = quote
         function Peridynamics.storage_type(::$(esc(material)))
             return $(esc(_storage_type))
         end
     end
+
     local _get_storage = quote
         function Peridynamics.get_storage(mat::$(esc(material)),
                                           solver::Peridynamics.AbstractTimeSolver,
@@ -84,6 +58,7 @@ macro storagedef(material, storage)
             return $(esc(_storage_type))(mat, solver, system)
         end
     end
+
     local _point_data_fields = [
         quote
             function Peridynamics.point_data_field(s::$(esc(_storage_type)),
@@ -93,21 +68,25 @@ macro storagedef(material, storage)
         end
         for _field in _point_field_names
     ]
+
     local _get_all_point_data_fields = quote
         function Peridynamics.point_data_fields(::Base.Type{<:$(esc(_storage_type))})
             return $(Expr(:tuple, _point_field_names...))
         end
     end
+
     local _halo_to_loc_fields = quote
         function Peridynamics.halo_to_loc_fields(::$(esc(_storage_type)))
             return $(Expr(:tuple, _htl_field_names...))
         end
     end
+
     local _loc_to_halo_fields = quote
         function Peridynamics.loc_to_halo_fields(::$(esc(_storage_type)))
             return $(Expr(:tuple, _lth_field_names...))
         end
     end
+
     local _is_halo_fields = [
         quote
             function Peridynamics.is_halo_field(::$(esc(_storage_type)), ::Val{$(_field)})
@@ -116,10 +95,12 @@ macro storagedef(material, storage)
         end
         for _field in _halo_field_names
     ]
+
     local _checks = quote
         Peridynamics.typecheck_material($(esc(material)))
         Peridynamics.typecheck_storage($(esc(material)), $(esc(_storage_type)))
     end
+
     local _exprs = Expr(:block, _storage_struct, _constructor, _storage_type_function,
                         _get_storage, _point_data_fields..., _get_all_point_data_fields,
                         _halo_to_loc_fields, _loc_to_halo_fields, _is_halo_fields...,
@@ -182,20 +163,43 @@ function get_storage_structdef(storage_expr)
         end
     end
     fields_block = Expr(:block, fields_exprs...)
-    storage_struct = Expr(:struct, storage_expr.args[1], storage_expr.args[2], fields_block)
+    storage_header, storage_type = get_storage_header(storage_expr)
+    storage_struct = Expr(:struct, storage_expr.args[1], storage_header, fields_block)
     point_fields_exprs = [fields_exprs[i] for i in point_fields_idxs]
     htl_fields_exprs = [fields_exprs[i] for i in htl_fields_idxs]
     lth_fields_exprs = [fields_exprs[i] for i in lth_fields_idxs]
-    return storage_struct, point_fields_exprs, htl_fields_exprs, lth_fields_exprs
+    return (; storage_struct, storage_type, point_fields_exprs, htl_fields_exprs,
+              lth_fields_exprs)
 end
 
-function extract_storage_type(storage_expr)
+function get_storage_header(storage_expr)
     header = storage_expr.args[2]
-    if header.head === :(<:) && header.args[1] isa Symbol
-        return header.args[1]
+    if header isa Symbol
+        # case `struct MyStorage`
+        storage_type = header
+        storage_header = Expr(:(<:), header, :(Peridynamics.AbstractStorage))
+    elseif header isa Expr && header.head === :(<:)
+        if header.args[1] isa Symbol
+            # case `struct MyStorage <: AbstractStorage`
+            storage_type = header.args[1]
+            storage_header = header
+        elseif header.args[1] isa Expr && header.args[1].head === :curly
+            # case `struct MyStorage{A,B,C} <: AbstractStorage`
+            storage_type = header.args[1].args[1]
+            storage_header = header
+        else
+            msg = "storage header `$header` not supported!\n"
+            throw(ArgumentError(msg))
+        end
+    elseif header isa Expr && header.head === :curly
+        # case `struct MyStorage{A,B,C}`
+        storage_type = header.args[1]
+        storage_header = Expr(:(<:), header, :(Peridynamics.AbstractStorage))
     else
-        error("not yet supported storage header: `$header`\n")
+        msg = "storage header `$header` not supported!\n"
+        throw(ArgumentError(msg))
     end
+    return storage_header, storage_type
 end
 
 macro pointfield(expr)
@@ -213,52 +217,6 @@ end
 loc_to_halo_fields(::AbstractStorage) = ()
 halo_to_loc_fields(::AbstractStorage) = ()
 is_halo_field(::AbstractStorage, ::Val{F}) where {F} = false
-
-# macro loc_to_halo_fields(storage, fields...)
-#     macrocheck_input_storage_type(storage)
-#     macrocheck_input_fields(fields...)
-#     local _checks = quote
-#         Peridynamics.typecheck_is_storage($(esc(storage)))
-#         Peridynamics.typecheck_storage_fields($(esc(storage)), $(Expr(:tuple, fields...)))
-#     end
-#     local _loc_to_halo_fields = quote
-#         function Peridynamics.loc_to_halo_fields(::$(esc(storage)))
-#             return $(Expr(:tuple, fields...))
-#         end
-#     end
-#     local _is_halo_fields = [quote
-#                                  function Peridynamics.is_halo_field(::$(esc(storage)),
-#                                                                      ::Val{$(esc(_field))})
-#                                      return true
-#                                  end
-#                              end
-#                              for _field in fields]
-#     # the checks have to come last; otherwise errors cannot be tested with @test_throws ...
-#     return Expr(:block, _loc_to_halo_fields, _is_halo_fields..., _checks)
-# end
-
-# macro halo_to_loc_fields(storage, fields...)
-#     macrocheck_input_storage_type(storage)
-#     macrocheck_input_fields(fields...)
-#     local _checks = quote
-#         Peridynamics.typecheck_is_storage($(esc(storage)))
-#         Peridynamics.typecheck_storage_fields($(esc(storage)), $(Expr(:tuple, fields...)))
-#     end
-#     local _loc_to_halo_fields = quote
-#         function Peridynamics.halo_to_loc_fields(::$(esc(storage)))
-#             return $(Expr(:tuple, fields...))
-#         end
-#     end
-#     local _is_halo_fields = [quote
-#                                  function Peridynamics.is_halo_field(::$(esc(storage)),
-#                                                                      ::Val{$(esc(_field))})
-#                                      return true
-#                                  end
-#                              end
-#                              for _field in fields]
-#     # the checks have to come last; otherwise errors cannot be tested with @test_throws ...
-#     return Expr(:block, _loc_to_halo_fields, _is_halo_fields..., _checks)
-# end
 
 macro halo_fields(storage, fields...)
     macrocheck_input_storage_type(storage)
@@ -395,8 +353,8 @@ end
 # point_data_field(s::AbstractStorage, ::Val{:n_active_bonds}) = getfield(s, :n_active_bonds)
 # point_data_field(s::AbstractStorage, ::Val{:n_active_one_nis}) = getfield(s, :n_active_one_nis)
 
-function point_data_fields(::Type{<:AbstractStorage})
-    return ()
+function point_data_fields(::Type{S}) where {S<:AbstractStorage}
+    return throw(InterfaceError(S, "point_data_fields(::Type{$S})"))
 end
 
 function get_loc_to_halo_fields(s::AbstractStorage)

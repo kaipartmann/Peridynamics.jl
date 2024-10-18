@@ -97,121 +97,79 @@ end
     struct Mat1 <: AbstractBondSystemMaterial{NoCorrection} end
     struct Mat2 <: AbstractInteractionSystemMaterial end
 
-    struct StorageNoSubtype
-        position::Matrix{Float64}
-        displacement::Matrix{Float64}
-        velocity::Matrix{Float64}
-        velocity_half::Matrix{Float64}
-        velocity_half_old::Matrix{Float64}
-        acceleration::Matrix{Float64}
-        b_int::Matrix{Float64}
-        b_int_old::Matrix{Float64}
-        b_ext::Matrix{Float64}
-        density_matrix::Matrix{Float64}
-        damage::Vector{Float64}
+    @test_throws ErrorException Peridynamics.@storagedef Mat1 struct StorageMissing1
+        @lthfield position::Matrix{Float64}
+        # @pointfield displacement::Matrix{Float64}
+        @pointfield velocity::Matrix{Float64}
+        @pointfield velocity_half::Matrix{Float64}
+        @pointfield velocity_half_old::Matrix{Float64}
+        @pointfield acceleration::Matrix{Float64}
+        @pointfield b_int::Matrix{Float64}
+        @pointfield b_int_old::Matrix{Float64}
+        @pointfield b_ext::Matrix{Float64}
+        @pointfield density_matrix::Matrix{Float64}
+        @pointfield damage::Vector{Float64}
         bond_active::Vector{Bool}
-        n_active_bonds::Vector{Int}
+        @pointfield n_active_bonds::Vector{Int}
     end
 
-    e1 = ArgumentError("StorageNoSubtype is not a valid storage type!\n")
-    @test_throws e1 Peridynamics.@storage Mat1 StorageNoSubtype
-
-    struct StorageMissing1 <: Peridynamics.AbstractStorage
-        position::Matrix{Float64}
-        # displacement::Matrix{Float64}
-        velocity::Matrix{Float64}
-        velocity_half::Matrix{Float64}
-        velocity_half_old::Matrix{Float64}
-        acceleration::Matrix{Float64}
-        b_int::Matrix{Float64}
-        b_int_old::Matrix{Float64}
-        b_ext::Matrix{Float64}
-        density_matrix::Matrix{Float64}
-        damage::Vector{Float64}
+    @test_throws ErrorException Peridynamics.@storagedef Mat1 struct StorageMissing2
+        @lthfield position::Matrix{Float64}
+        @pointfield displacement::Matrix{Float64}
+        @pointfield velocity::Matrix{Float64}
+        @pointfield velocity_half::Matrix{Float64}
+        @pointfield velocity_half_old::Matrix{Float64}
+        @pointfield acceleration::Matrix{Float64}
+        @pointfield b_int::Matrix{Float64}
+        @pointfield b_int_old::Matrix{Float64}
+        @pointfield b_ext::Matrix{Float64}
+        @pointfield density_matrix::Matrix{Float64}
+        @pointfield damage::Vector{Float64}
         bond_active::Vector{Bool}
-        n_active_bonds::Vector{Int}
+        # @pointfield n_active_bonds::Vector{Int}
     end
-    # TODO: somehow this throws ArgumentError defined as fallback
-    # errmsg2 = "required field displacement not found in TestVerletStorageMissingField1!"
-    # e2 = ErrorException(errmsg2)
-    @test_throws ArgumentError Peridynamics.@storage Mat1 StorageMissing1
 
-    struct StorageMissing2 <: Peridynamics.AbstractStorage
-        position::Matrix{Float64}
-        displacement::Matrix{Float64}
-        velocity::Matrix{Float64}
-        velocity_half::Matrix{Float64}
-        velocity_half_old::Matrix{Float64}
-        acceleration::Matrix{Float64}
-        b_int::Matrix{Float64}
-        b_int_old::Matrix{Float64}
-        b_ext::Matrix{Float64}
-        density_matrix::Matrix{Float64}
-        damage::Vector{Float64}
-        bond_active::Vector{Bool}
-        # n_active_bonds::Vector{Int}
-    end
-    # TODO: somehow this throws ArgumentError defined as fallback
-    # errmsg2 = "required field displacement not found in TestVerletStorageMissingField1!"
-    # e2 = ErrorException(errmsg2)
-    @test_throws ArgumentError Peridynamics.@storage Mat1 StorageMissing2
-
-    struct StorageMissing3 <: Peridynamics.AbstractStorage
-        position::Matrix{Float64}
-        displacement::Matrix{Float64}
-        velocity::Matrix{Float64}
-        velocity_half::Matrix{Float64}
-        velocity_half_old::Matrix{Float64}
-        acceleration::Matrix{Float64}
-        b_int::Matrix{Float64}
-        b_int_old::Matrix{Float64}
-        b_ext::Matrix{Float64}
-        density_matrix::Matrix{Float64}
-        damage::Vector{Float64}
+    @test_throws ErrorException Peridynamics.@storagedef Mat2 struct StorageMissing3
+        @lthfield position::Matrix{Float64}
+        @pointfield displacement::Matrix{Float64}
+        @pointfield velocity::Matrix{Float64}
+        @pointfield velocity_half::Matrix{Float64}
+        @pointfield velocity_half_old::Matrix{Float64}
+        @pointfield acceleration::Matrix{Float64}
+        @pointfield b_int::Matrix{Float64}
+        @pointfield b_int_old::Matrix{Float64}
+        @pointfield b_ext::Matrix{Float64}
+        @pointfield density_matrix::Matrix{Float64}
+        @pointfield damage::Vector{Float64}
         one_ni_active::Vector{Bool}
+        # @pointfield n_active_one_nis::Vector{Int}
     end
-    # TODO: somehow this throws ArgumentError defined as fallback
-    # errmsg2 = "required field displacement not found in TestVerletStorageMissingField1!"
-    # e2 = ErrorException(errmsg2)
-    @test_throws ArgumentError Peridynamics.@storage Mat2 StorageMissing3
 
-    struct Storage1 <: Peridynamics.AbstractStorage
-        position::Matrix{Float64}
-        displacement::Matrix{Float64}
-        velocity::Matrix{Float64}
-        velocity_half::Matrix{Float64}
-        velocity_half_old::Matrix{Float64}
-        acceleration::Matrix{Float64}
-        b_int::Matrix{Float64}
-        b_int_old::Matrix{Float64}
-        b_ext::Matrix{Float64}
-        density_matrix::Matrix{Float64}
-        damage::Vector{Float64}
+    Peridynamics.@storagedef Mat1 struct Storage1 <: Peridynamics.AbstractStorage
+        @lthfield position::Matrix{Float64}
+        @pointfield displacement::Matrix{Float64}
+        @pointfield velocity::Matrix{Float64}
+        @pointfield velocity_half::Matrix{Float64}
+        @pointfield velocity_half_old::Matrix{Float64}
+        @pointfield acceleration::Matrix{Float64}
+        @pointfield b_int::Matrix{Float64}
+        @pointfield b_int_old::Matrix{Float64}
+        @pointfield b_ext::Matrix{Float64}
+        @pointfield density_matrix::Matrix{Float64}
+        @pointfield damage::Vector{Float64}
         bond_active::Vector{Bool}
-        n_active_bonds::Vector{Int}
+        @pointfield n_active_bonds::Vector{Int}
     end
 
-    Peridynamics.@storage Mat1 Storage1
     @test hasmethod(Peridynamics.storage_type, Tuple{Mat1})
     mat, vv = Mat1(), VelocityVerlet(steps=1)
     @test Peridynamics.storage_type(mat) == Storage1
 
-    @test_throws ArgumentError Peridynamics.@loc_to_halo_fields(StorageNoSubtype, :position)
-    @test_throws ArgumentError Peridynamics.@loc_to_halo_fields(Storage1, :randomfield)
-
-    Peridynamics.@loc_to_halo_fields Storage1 :position :displacement
     @test hasmethod(Peridynamics.loc_to_halo_fields, Tuple{Storage1})
     @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:position}})
     @test hasmethod(Peridynamics.is_halo_field,
                     Tuple{Storage1,Val{:displacement}})
 
-    @test_throws ArgumentError Peridynamics.@halo_to_loc_fields(StorageNoSubtype,
-                                                               :b_int)
-
-    @test_throws ArgumentError Peridynamics.@halo_to_loc_fields(Storage1,
-                                                                :randomfield)
-
-    Peridynamics.@halo_to_loc_fields Storage1 :b_int :b_ext
     @test hasmethod(Peridynamics.halo_to_loc_fields, Tuple{Storage1})
     @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:b_int}})
     @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:b_ext}})
