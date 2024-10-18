@@ -19,7 +19,7 @@ function TestPointParameters(mat::TestMaterial, p::Dict{Symbol,Any})
     return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 Peridynamics.@params TestMaterial TestPointParameters
-Peridynamics.@storagedef TestMaterial struct TestStorage <: Peridynamics.AbstractStorage
+Peridynamics.@storage TestMaterial struct TestStorage <: Peridynamics.AbstractStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}

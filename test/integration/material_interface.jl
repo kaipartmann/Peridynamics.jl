@@ -97,7 +97,7 @@ end
     struct Mat1 <: AbstractBondSystemMaterial{NoCorrection} end
     struct Mat2 <: AbstractInteractionSystemMaterial end
 
-    @test_throws ErrorException Peridynamics.@storagedef Mat1 struct StorageMissing1
+    @test_throws ErrorException Peridynamics.@storage Mat1 struct StorageMissing1
         @lthfield position::Matrix{Float64}
         # @pointfield displacement::Matrix{Float64}
         @pointfield velocity::Matrix{Float64}
@@ -113,7 +113,7 @@ end
         @pointfield n_active_bonds::Vector{Int}
     end
 
-    @test_throws ErrorException Peridynamics.@storagedef Mat1 struct StorageMissing2
+    @test_throws ErrorException Peridynamics.@storage Mat1 struct StorageMissing2
         @lthfield position::Matrix{Float64}
         @pointfield displacement::Matrix{Float64}
         @pointfield velocity::Matrix{Float64}
@@ -129,7 +129,7 @@ end
         # @pointfield n_active_bonds::Vector{Int}
     end
 
-    @test_throws ErrorException Peridynamics.@storagedef Mat2 struct StorageMissing3
+    @test_throws ErrorException Peridynamics.@storage Mat2 struct StorageMissing3
         @lthfield position::Matrix{Float64}
         @pointfield displacement::Matrix{Float64}
         @pointfield velocity::Matrix{Float64}
@@ -145,7 +145,7 @@ end
         # @pointfield n_active_one_nis::Vector{Int}
     end
 
-    Peridynamics.@storagedef Mat1 struct Storage1 <: Peridynamics.AbstractStorage
+    Peridynamics.@storage Mat1 struct Storage1 <: Peridynamics.AbstractStorage
         @lthfield position::Matrix{Float64}
         @pointfield displacement::Matrix{Float64}
         @pointfield velocity::Matrix{Float64}

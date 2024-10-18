@@ -91,7 +91,7 @@ end
 
 @params BBMaterial BBPointParameters
 
-@storagedef BBMaterial struct BBStorage <: AbstractStorage
+@storage BBMaterial struct BBStorage <: AbstractStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
@@ -106,10 +106,6 @@ end
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
 end
-
-# @storage BBMaterial BBStorage
-
-# @loc_to_halo_fields BBStorage :position
 
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
                               params::BBPointParameters, i::Int)

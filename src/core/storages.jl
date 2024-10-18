@@ -18,7 +18,7 @@ function init_field(material, solver, system, field)
     return throw(InterfaceError(M, method_msg))
 end
 
-macro storagedef(material, storage)
+macro storage(material, storage)
     macrocheck_input_material(material)
     macrocheck_input_storage_struct(storage)
 

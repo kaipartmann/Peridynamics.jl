@@ -80,7 +80,7 @@ end
 
 @params CKIMaterial CKIPointParameters
 
-@storagedef CKIMaterial struct CKIStorage <: AbstractStorage
+@storage CKIMaterial struct CKIStorage <: AbstractStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
@@ -95,10 +95,6 @@ end
     one_ni_active::Vector{Bool}
     @pointfield n_active_one_nis::Vector{Int}
 end
-
-# @storage CKIMaterial CKIStorage
-
-# @loc_to_halo_fields CKIStorage :position
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,
                               mat::CKIMaterial, params::AbstractParameterSetup, i::Int)

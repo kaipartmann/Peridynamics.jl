@@ -103,7 +103,7 @@ end
 
 @params NOSBMaterial NOSBPointParameters
 
-@storagedef NOSBMaterial struct NOSBStorage <: AbstractStorage
+@storage NOSBMaterial struct NOSBStorage <: AbstractStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
@@ -122,11 +122,6 @@ end
 function init_field(::NOSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
     return zeros(3, get_n_points(system))
 end
-
-# @storage NOSBMaterial NOSBStorage
-
-# @loc_to_halo_fields NOSBStorage :position
-# @halo_to_loc_fields NOSBStorage :b_int
 
 function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
                               paramhandler::AbstractParameterHandler, i::Int)
