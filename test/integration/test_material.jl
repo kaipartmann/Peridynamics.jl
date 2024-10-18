@@ -10,42 +10,48 @@ struct TestPointParameters <: Peridynamics.AbstractPointParameters
     μ::Float64
     Gc::Float64
     εc::Float64
+    bc::Float64
 end
 function TestPointParameters(mat::TestMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ) = Peridynamics.get_required_point_parameters(mat, p)
     (; Gc, εc) = Peridynamics.get_frac_params(p, δ, K)
-    return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc)
+    bc = 18 * K / (π * δ^4) # bond constant
+    return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 Peridynamics.@params TestMaterial TestPointParameters
-struct TestVerletStorage <: Peridynamics.AbstractStorage
-    position::Matrix{Float64}
-    displacement::Matrix{Float64}
-    velocity::Matrix{Float64}
-    velocity_half::Matrix{Float64}
-    acceleration::Matrix{Float64}
-    b_int::Matrix{Float64}
-    b_ext::Matrix{Float64}
-    damage::Vector{Float64}
+Peridynamics.@storage TestMaterial struct TestStorage <: Peridynamics.AbstractStorage
+    @lthfield position::Matrix{Float64}
+    @pointfield displacement::Matrix{Float64}
+    @pointfield velocity::Matrix{Float64}
+    @pointfield velocity_half::Matrix{Float64}
+    @pointfield velocity_half_old::Matrix{Float64}
+    @pointfield acceleration::Matrix{Float64}
+    @htlfield b_int::Matrix{Float64}
+    @pointfield b_int_old::Matrix{Float64}
+    @pointfield b_ext::Matrix{Float64}
+    @pointfield density_matrix::Matrix{Float64}
+    @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
-    n_active_bonds::Vector{Int}
+    @pointfield n_active_bonds::Vector{Int}
 end
-function TestVerletStorage(::TestMaterial, ::Peridynamics.VelocityVerlet,
-                           system::Peridynamics.BondSystem, ch::Peridynamics.ChunkHandler)
-    n_loc_points = length(ch.loc_points)
-    position = copy(system.position)
-    displacement = zeros(3, n_loc_points)
-    velocity = zeros(3, n_loc_points)
-    velocity_half = zeros(3, n_loc_points)
-    acceleration = zeros(3, n_loc_points)
-    b_int = zeros(3, length(ch.point_ids))
-    b_ext = zeros(3, n_loc_points)
-    damage = zeros(n_loc_points)
-    bond_active = ones(Bool, length(system.bonds))
-    n_active_bonds = copy(system.n_neighbors)
-    return TestVerletStorage(position, displacement, velocity, velocity_half,
-                             acceleration, b_int, b_ext, damage, bond_active,
-                             n_active_bonds)
+function Peridynamics.init_field(::TestMaterial, ::Peridynamics.VelocityVerlet,
+                                 system::Peridynamics.BondSystem, ::Val{:b_int})
+    return zeros(3, Peridynamics.get_n_points(system))
 end
-Peridynamics.@storage TestMaterial VelocityVerlet TestVerletStorage
-Peridynamics.@loc_to_halo_fields TestVerletStorage :position
-Peridynamics.@halo_to_loc_fields TestVerletStorage :b_int
+function Peridynamics.force_density_point!(storage::TestStorage,
+                                           system::Peridynamics.BondSystem, ::TestMaterial,
+                                           params::TestPointParameters, i::Int)
+    for bond_id in Peridynamics.each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        Δxij = Peridynamics.get_coordinates_diff(storage, i, j)
+        l = Peridynamics.LinearAlgebra.norm(Δxij)
+        ε = (l - L) / L
+        Peridynamics.stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+        b_int = Peridynamics.bond_failure(storage, bond_id) *
+                Peridynamics.surface_correction_factor(system.correction, bond_id) *
+                params.bc * ε / l * system.volume[j] .* Δxij
+        Peridynamics.update_add_b_int!(storage, i, b_int)
+    end
+    return nothing
+end

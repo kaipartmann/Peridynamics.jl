@@ -69,7 +69,7 @@ end
 @testitem "corrupt file raw encoding" begin
     using Peridynamics.WriteVTK
 
-    bname = joinpath(@__DIR__, "vtk_test_2")
+    bname = joinpath(@__DIR__, "vtk_test_3")
     name = bname * ".vtu"
     isfile(name) && rm(name)
     n_points = 10
@@ -99,7 +99,7 @@ end
 @testitem "corrupt file offset marker" begin
     using Peridynamics.WriteVTK
 
-    bname = joinpath(@__DIR__, "vtk_test_2")
+    bname = joinpath(@__DIR__, "vtk_test_4")
     name = bname * ".vtu"
     isfile(name) && rm(name)
     n_points = 10
@@ -130,7 +130,7 @@ end
 @testitem "corrupt file appended data" begin
     using Peridynamics.WriteVTK
 
-    bname = joinpath(@__DIR__, "vtk_test_2")
+    bname = joinpath(@__DIR__, "vtk_test_5")
     name = bname * ".vtu"
     isfile(name) && rm(name)
     n_points = 10
@@ -160,7 +160,7 @@ end
 @testitem "read pvtu file" begin
     using Peridynamics.WriteVTK
 
-    root = joinpath(@__DIR__, "tempdir")
+    root = joinpath(@__DIR__, "tempdir_1")
     isdir(root) && rm(root; recursive=true, force=true)
     bname = joinpath(root, "vtk_test")
     name = bname * ".pvtu"
@@ -196,7 +196,7 @@ end
 @testitem "read pvtu files with nothing exported" begin
     using Peridynamics.WriteVTK
 
-    root = joinpath(@__DIR__, "tempdir")
+    root = joinpath(@__DIR__, "tempdir_2")
     isdir(root) && rm(root; recursive=true, force=true)
     bname = joinpath(root, "vtk_test")
     name = bname * ".pvtu"
@@ -220,7 +220,7 @@ end
 @testitem "read vtu files with nothing exported" begin
     using Peridynamics.WriteVTK
 
-    bname = joinpath(@__DIR__, "vtk_test_1")
+    bname = joinpath(@__DIR__, "vtk_test_6")
     name = bname * ".vtu"
     isfile(name) && rm(name)
     n_points = 10

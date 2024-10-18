@@ -67,26 +67,25 @@ function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     return (; Gc, εc)
 end
 
-function required_fields_fracture()
-    return (req_point_data_fields_fracture()..., req_data_fields_fracture()...)
+function required_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
+    fields = (req_point_data_fields_fracture(Material)...,
+              req_bond_data_fields_fracture(Material)...,
+              req_data_fields_fracture(Material)...)
+    return fields
 end
 
-function req_point_data_fields_fracture()
-    return (:damage, :n_active_bonds)
-end
+# function required_fields_fracture(::Any)
+#     return ()
+# end
 
-function req_data_fields_fracture()
+function req_point_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
     return ()
 end
 
-function req_storage_fields_fracture(::Type{Storage}) where {Storage}
-    parameters = fieldnames(Storage)
-    for req_field in required_fields_fracture()
-        if !in(req_field, parameters)
-            msg = "required field $req_field not found in $(Storage)!\n"
-            msg *= "The field is required for the fracture calculation!\n"
-            error(msg)
-        end
-    end
-    return nothing
+function req_bond_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
+    return ()
+end
+
+function req_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
+    return ()
 end

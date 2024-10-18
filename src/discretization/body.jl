@@ -229,7 +229,7 @@ end
     return getfield(b.point_params[b.params_map[i]], key)
 end
 
-@inline storage_type(b::AbstractBody, ts::AbstractTimeSolver) = storage_type(b.mat, ts)
+@inline storage_type(b::AbstractBody) = storage_type(b.mat)
 
 function log_msg_body(body::AbstractBody)
     msg = "BODY"

@@ -7,6 +7,16 @@ struct ChunkHandler <: AbstractChunkHandler
     localizer::Dict{Int,Int}
 end
 
+for __field in fieldnames(ChunkHandler)
+    local __funcname = Symbol("get_$(__field)")
+    local __accessor_func = quote
+        @inline function $(__funcname)(chunk_handler::ChunkHandler)
+            return chunk_handler.$(__field)
+        end
+    end
+    eval(__accessor_func)
+end
+
 function sort_halo_by_src!(halo_points::Vector{Int}, point_src::Dict{Int,Int},
                            n_loc_points::Int)
     halo_sources = [point_src[i] for i in halo_points]
@@ -73,18 +83,22 @@ function localized_point_sets(point_sets::Dict{Symbol,Vector{Int}}, ch::ChunkHan
     return loc_point_sets
 end
 
-@inline function each_point_idx(ch::ChunkHandler)
-    return eachindex(ch.loc_points)
+@inline function each_point_idx(chunk_handler::ChunkHandler)
+    return eachindex(chunk_handler.loc_points)
 end
 
-@inline function each_point_idx_pair(ch::ChunkHandler)
-    return enumerate(ch.loc_points)
+@inline function each_point_idx_pair(chunk_handler::ChunkHandler)
+    return enumerate(chunk_handler.loc_points)
 end
 
-@inline function get_loc_view(a::Matrix{T}, ch::ChunkHandler) where {T}
-    return view(a, :, 1:ch.n_loc_points)
+@inline function get_loc_view(a::Matrix{T}, chunk_handler::ChunkHandler) where {T}
+    return view(a, :, 1:chunk_handler.n_loc_points)
 end
 
-@inline function get_loc_view(a::Vector{T}, ch::ChunkHandler) where {T}
-    return view(a, 1:ch.n_loc_points)
+@inline function get_loc_view(a::Vector{T}, chunk_handler::ChunkHandler) where {T}
+    return view(a, 1:chunk_handler.n_loc_points)
+end
+
+@inline function get_n_points(chunk_handler::ChunkHandler)
+    return length(chunk_handler.point_ids)
 end

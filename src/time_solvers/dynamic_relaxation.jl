@@ -122,7 +122,7 @@ function _init_density_matrix!(chunk::AbstractBodyChunk, dr::DynamicRelaxation,
                                params::AbstractPointParameters)
     system = chunk.system
     density_matrix = chunk.storage.density_matrix
-    for i in each_point_idx(chunk.ch)
+    for i in each_point_idx(chunk)
         calc_density_matrix!(density_matrix, system, params, dr, i)
     end
     return nothing
@@ -132,7 +132,7 @@ function _init_density_matrix!(chunk::AbstractBodyChunk, dr::DynamicRelaxation,
                                paramsetup::AbstractParameterHandler)
     system = chunk.system
     density_matrix = chunk.storage.density_matrix
-    for i in each_point_idx(chunk.ch)
+    for i in each_point_idx(chunk)
         params = get_params(paramsetup, i)
         calc_density_matrix!(density_matrix, system, params, dr, i)
     end
@@ -196,7 +196,7 @@ function calc_damping(chunk::AbstractBodyChunk, Δt::Float64)
     s = chunk.storage
     cn1 = 0.0
     cn2 = 0.0
-    for i in each_point_idx(chunk.ch), d in 1:3
+    for i in each_point_idx(chunk), d in 1:3
         if s.velocity_half_old[d, i] != 0.0
             Δb_int = s.b_int[d, i] - s.b_int_old[d, i]
             temp = Δt * s.density_matrix[d, i] * s.velocity_half_old[d, i]
@@ -221,7 +221,7 @@ end
 
 function relaxation_first_step!(chunk::AbstractBodyChunk, Δt::Float64)
     s = chunk.storage
-    for i in each_point_idx(chunk.ch), d in 1:3
+    for i in each_point_idx(chunk), d in 1:3
         s.velocity_half[d, i] = 0.5 * Δt * (s.b_int[d, i] + s.b_ext[d, i]) /
                                 s.density_matrix[d, i]
         relaxation_updates!(s, d, i)
@@ -231,7 +231,7 @@ end
 
 function relaxation_step!(chunk::AbstractBodyChunk, Δt::Float64, cn::Float64)
     s = chunk.storage
-    for i in each_point_idx(chunk.ch), d in 1:3
+    for i in each_point_idx(chunk), d in 1:3
         a = (s.b_int[d, i] + s.b_ext[d, i]) / s.density_matrix[d, i]
         v½_old = s.velocity_half_old[d, i]
         s.velocity_half[d, i] = ((2 - cn * Δt) * v½_old + 2 * Δt * a) / (2 + cn * Δt)
@@ -247,13 +247,75 @@ function relaxation_updates!(s::AbstractStorage, d::Int, i::Int)
     return nothing
 end
 
-function req_point_data_fields_timesolver(::Type{DynamicRelaxation})
+function init_field_solver(::DynamicRelaxation, system::AbstractSystem, ::Val{:position})
+    return copy(system.position)
+end
+
+function init_field_solver(::DynamicRelaxation, system::AbstractSystem,
+                           ::Val{:displacement})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::DynamicRelaxation, system::AbstractSystem, ::Val{:velocity})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::DynamicRelaxation, system::AbstractSystem,
+                           ::Val{:velocity_half})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::DynamicRelaxation, system::AbstractSystem,
+                           ::Val{:velocity_half_old})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::AbstractTimeSolver, ::AbstractSystem,
+                           ::Val{:velocity_half_old})
+    return Array{Float64,2}(undef, 0, 0)
+end
+
+function init_field_solver(::DynamicRelaxation, system::AbstractSystem,
+                           ::Val{:acceleration})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::DynamicRelaxation, system::AbstractSystem, ::Val{:b_int})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::DynamicRelaxation, system::AbstractSystem, ::Val{:b_int_old})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:b_int_old})
+    return Array{Float64,2}(undef, 0, 0)
+end
+
+function init_field_solver(::DynamicRelaxation, system::AbstractSystem, ::Val{:b_ext})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::DynamicRelaxation, system::AbstractSystem,
+                           ::Val{:density_matrix})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:density_matrix})
+    return Array{Float64,2}(undef, 0, 0)
+end
+
+function req_point_data_fields_timesolver(::Type{<:DynamicRelaxation})
     fields = (:position, :displacement, :velocity, :velocity_half, :velocity_half_old,
-              :b_int, :b_int_old, :b_ext)
+              :b_int, :b_int_old, :b_ext, :density_matrix)
     return fields
 end
 
-function req_data_fields_timesolver(::Type{DynamicRelaxation})
+function req_bond_data_fields_timesolver(::Type{<:DynamicRelaxation})
+    return ()
+end
+
+function req_data_fields_timesolver(::Type{<:DynamicRelaxation})
     return ()
 end
 
@@ -266,3 +328,5 @@ function log_timesolver(options::AbstractJobOptions, dr::DynamicRelaxation)
     log_it(options, msg)
     return nothing
 end
+
+register_solver!(DynamicRelaxation)
