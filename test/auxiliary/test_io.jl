@@ -267,9 +267,9 @@ end
     n_chunks = 1
     Peridynamics.export_results(dh, options, chunk_id, n, t)
 
-    pvtu_file_ref = joinpath(temp_root, "vtk", "timestep_000000.pvtu")
+    pvtu_file_ref = joinpath(temp_root, "vtk", "timestep_0.pvtu")
     @test isfile(pvtu_file_ref)
-    pvtu_file_n = joinpath(temp_root, "vtk", "timestep_000001.pvtu")
+    pvtu_file_n = joinpath(temp_root, "vtk", "timestep_1.pvtu")
     @test isfile(pvtu_file_n)
 
     r0 = read_vtk(pvtu_file_ref)
@@ -327,13 +327,13 @@ end
     Peridynamics.export_results(dh_a, options, chunk_id, n, t)
     Peridynamics.export_results(dh_b, options, chunk_id, n, t)
 
-    pvtu_file_a_ref = joinpath(temp_root, "vtk", "a_timestep_000000.pvtu")
+    pvtu_file_a_ref = joinpath(temp_root, "vtk", "a_timestep_0.pvtu")
     @test isfile(pvtu_file_a_ref)
-    pvtu_file_a_n = joinpath(temp_root, "vtk", "a_timestep_000001.pvtu")
+    pvtu_file_a_n = joinpath(temp_root, "vtk", "a_timestep_1.pvtu")
     @test isfile(pvtu_file_a_n)
-    pvtu_file_b_ref = joinpath(temp_root, "vtk", "b_timestep_000000.pvtu")
+    pvtu_file_b_ref = joinpath(temp_root, "vtk", "b_timestep_0.pvtu")
     @test isfile(pvtu_file_b_ref)
-    pvtu_file_b_n = joinpath(temp_root, "vtk", "b_timestep_000001.pvtu")
+    pvtu_file_b_n = joinpath(temp_root, "vtk", "b_timestep_1.pvtu")
     @test isfile(pvtu_file_b_n)
 
     r_a = read_vtk(pvtu_file_a_ref)
