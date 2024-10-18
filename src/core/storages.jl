@@ -15,7 +15,7 @@ function init_field(material, solver, system, field)
     method_msg *= "::$(typeof(solver)), "
     method_msg *= "::$(typeof(system)), "
     method_msg *= "::$(typeof(field)))"
-    return throw(InterfaceError(M, method_msg))
+    return throw(InterfaceError(material, method_msg))
 end
 
 macro storage(material, storage)
@@ -214,8 +214,14 @@ macro lthfield(expr)
     return nothing
 end
 
-loc_to_halo_fields(::AbstractStorage) = ()
-halo_to_loc_fields(::AbstractStorage) = ()
+function loc_to_halo_fields(storage)
+    return throw(InterfaceError(storage, "loc_to_halo_fields"))
+end
+
+function halo_to_loc_fields(storage)
+    return throw(InterfaceError(storage, "halo_to_loc_fields"))
+end
+
 is_halo_field(::AbstractStorage, ::Val{F}) where {F} = false
 
 macro halo_fields(storage, fields...)
@@ -233,7 +239,7 @@ macro halo_fields(storage, fields...)
                              end
                              for _field in fields]
     # the checks have to come last; otherwise errors cannot be tested with @test_throws ...
-    return Expr(:block, _loc_to_halo_fields, _is_halo_fields..., _checks)
+    return Expr(:block, _is_halo_fields..., _checks)
 end
 
 function macrocheck_input_storage_type(storage)
@@ -251,12 +257,12 @@ function macrocheck_input_storage_struct(storage)
     return nothing
 end
 
-function macrocheck_input_timesolver(timesolver)
-    timesolver isa Symbol && return nothing
-    (timesolver isa Expr && timesolver.head === :.) && return nothing
-    msg = "argument `$timesolver` is not a valid time solver input!\n"
-    return throw(ArgumentError(msg))
-end
+# function macrocheck_input_timesolver(timesolver)
+#     timesolver isa Symbol && return nothing
+#     (timesolver isa Expr && timesolver.head === :.) && return nothing
+#     msg = "argument `$timesolver` is not a valid time solver input!\n"
+#     return throw(ArgumentError(msg))
+# end
 
 function macrocheck_input_fields(fields...)
     for field in fields

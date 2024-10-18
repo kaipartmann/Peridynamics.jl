@@ -29,29 +29,29 @@ function required_fields_timesolvers()
     return Tuple(unique(all_fields))
 end
 
-function required_point_data_fields_timesolvers()
-    all_fields = Vector{Symbol}()
-    for solver in registered_solvers()
-        push!(all_fields, req_point_data_fields_timesolver(solver)...)
-    end
-    return Tuple(unique(all_fields))
-end
+# function required_point_data_fields_timesolvers()
+#     all_fields = Vector{Symbol}()
+#     for solver in registered_solvers()
+#         push!(all_fields, req_point_data_fields_timesolver(solver)...)
+#     end
+#     return Tuple(unique(all_fields))
+# end
 
-function required_bond_data_fields_timesolvers()
-    all_fields = Vector{Symbol}()
-    for solver in registered_solvers()
-        push!(all_fields, req_bond_data_fields_timesolver(solver)...)
-    end
-    return Tuple(unique(all_fields))
-end
+# function required_bond_data_fields_timesolvers()
+#     all_fields = Vector{Symbol}()
+#     for solver in registered_solvers()
+#         push!(all_fields, req_bond_data_fields_timesolver(solver)...)
+#     end
+#     return Tuple(unique(all_fields))
+# end
 
-function required_data_fields_timesolvers()
-    all_fields = Vector{Symbol}()
-    for solver in registered_solvers()
-        push!(all_fields, req_data_fields_timesolver(solver)...)
-    end
-    return Tuple(unique(all_fields))
-end
+# function required_data_fields_timesolvers()
+#     all_fields = Vector{Symbol}()
+#     for solver in registered_solvers()
+#         push!(all_fields, req_data_fields_timesolver(solver)...)
+#     end
+#     return Tuple(unique(all_fields))
+# end
 
 function req_point_data_fields_timesolver(::Type{TS}) where {TS}
     return throw(InterfaceError(TS, "req_point_data_fields_timesolver"))
