@@ -21,7 +21,17 @@ end
 macro storage(material, storage)
     macrocheck_input_material(material)
     macrocheck_input_storage_struct(storage)
+    return __storage(material, storage)
+end
 
+macro storage(material, solver, storage)
+    macrocheck_input_material(material)
+    macrocheck_input_timesolver(solver)
+    macrocheck_input_storage_struct(storage)
+    return __storage(material, storage, solver)
+end
+
+function __storage(material, storage, timesolver=AbstractTimeSolver)
     local _storage_struct_data = get_storage_structdef(storage)
     local _storage_struct = _storage_struct_data.storage_struct
     local _storage_type = _storage_struct_data.storage_type
@@ -35,9 +45,8 @@ macro storage(material, storage)
     local _halo_field_names = (_htl_field_names..., _lth_field_names...)
 
     local _constructor = quote
-        function $(esc(_storage_type))(mat::$(esc(material)),
-                                 solver::Peridynamics.AbstractTimeSolver,
-                                 system::Peridynamics.AbstractSystem)
+        function $(esc(_storage_type))(mat::$(esc(material)), solver::$(esc(timesolver)),
+                                       system::Peridynamics.AbstractSystem)
             fields = Base.fieldnames($(esc(_storage_type)))
             args = (Peridynamics.init_field(mat, solver, system, Val(field))
                     for field in fields)
@@ -52,8 +61,7 @@ macro storage(material, storage)
     end
 
     local _get_storage = quote
-        function Peridynamics.get_storage(mat::$(esc(material)),
-                                          solver::Peridynamics.AbstractTimeSolver,
+        function Peridynamics.get_storage(mat::$(esc(material)), solver::$(esc(timesolver)),
                                           system::Peridynamics.AbstractSystem)
             return $(esc(_storage_type))(mat, solver, system)
         end
@@ -245,24 +253,24 @@ end
 function macrocheck_input_storage_type(storage)
     storage isa Symbol && return nothing
     (storage isa Expr && storage.head === :.) && return nothing
+    (storage isa Expr && storage.head === :escape) && return nothing
     msg = "argument `$storage` is not a valid storage input!\n"
     return throw(ArgumentError(msg))
 end
 
 function macrocheck_input_storage_struct(storage)
-    if !(storage isa Expr && storage.head === :struct)
-        msg = "specified input is not a valid point parameter struct expression!\n"
-        throw(ArgumentError(msg))
-    end
-    return nothing
+    (storage isa Expr && storage.head === :struct) && return nothing
+    (storage isa Expr && storage.head === :escape) && return nothing
+    msg = "specified input is not a valid point parameter struct expression!\n"
+    return throw(ArgumentError(msg))
 end
 
-# function macrocheck_input_timesolver(timesolver)
-#     timesolver isa Symbol && return nothing
-#     (timesolver isa Expr && timesolver.head === :.) && return nothing
-#     msg = "argument `$timesolver` is not a valid time solver input!\n"
-#     return throw(ArgumentError(msg))
-# end
+function macrocheck_input_timesolver(timesolver)
+    timesolver isa Symbol && return nothing
+    (timesolver isa Expr && timesolver.head === :.) && return nothing
+    msg = "argument `$timesolver` is not a valid time solver input!\n"
+    return throw(ArgumentError(msg))
+end
 
 function macrocheck_input_fields(fields...)
     for field in fields
