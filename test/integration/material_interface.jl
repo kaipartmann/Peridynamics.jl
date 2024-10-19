@@ -91,8 +91,9 @@ end
 end
 
 @testitem "Storage declaration" begin
-    import Peridynamics: AbstractBondSystemMaterial, NoCorrection,
-                         AbstractInteractionSystemMaterial, InterfaceError
+    import Peridynamics: @storage, AbstractBondSystemMaterial, NoCorrection,
+                         AbstractInteractionSystemMaterial, InterfaceError,
+                         AbstractTimeSolver, AbstractSystem
 
     struct Mat1 <: AbstractBondSystemMaterial{NoCorrection} end
     struct Mat2 <: AbstractInteractionSystemMaterial end
@@ -104,7 +105,7 @@ end
     struct StorageWrong1 <: Peridynamics.AbstractStorage end
     @test_throws InterfaceError Peridynamics.point_data_fields(StorageWrong1)
 
-    @test_throws ErrorException Peridynamics.@storage Mat1 struct StorageMissing1
+    @test_throws ErrorException @storage Mat1 struct StorageMissing1
         @lthfield position::Matrix{Float64}
         # @pointfield displacement::Matrix{Float64}
         @pointfield velocity::Matrix{Float64}
@@ -120,7 +121,7 @@ end
         @pointfield n_active_bonds::Vector{Int}
     end
 
-    @test_throws ErrorException Peridynamics.@storage Mat1 struct StorageMissing2
+    @test_throws ErrorException @storage Mat1 struct StorageMissing2
         @lthfield position::Matrix{Float64}
         @pointfield displacement::Matrix{Float64}
         @pointfield velocity::Matrix{Float64}
@@ -136,7 +137,7 @@ end
         # @pointfield n_active_bonds::Vector{Int}
     end
 
-    @test_throws ErrorException Peridynamics.@storage Mat2 struct StorageMissing3
+    @test_throws ErrorException @storage Mat2 struct StorageMissing3
         @lthfield position::Matrix{Float64}
         @pointfield displacement::Matrix{Float64}
         @pointfield velocity::Matrix{Float64}
@@ -154,7 +155,7 @@ end
 
     try
         eval(quote
-            Peridynamics.@storage Mat1 struct StorageUntyped1
+            @storage Mat1 struct StorageUntyped1
                 @lthfield position
                 @pointfield displacement::Matrix{Float64}
                 @pointfield velocity::Matrix{Float64}
@@ -178,7 +179,7 @@ end
 
     try
         eval(quote
-            Peridynamics.@storage Mat1 struct StorageUntyped1
+            @storage Mat1 struct StorageUntyped1
                 @lthfield position
                 @pointfield displacement::Matrix{Float64}
                 @pointfield velocity::Matrix{Float64}
@@ -202,7 +203,7 @@ end
 
     try
         eval(quote
-            Peridynamics.@storage Mat1 struct StorageUntyped1
+            @storage Mat1 struct StorageUntyped1
                 @lthfield position
                 @pointfield displacement::Matrix{Float64}
                 @pointfield velocity::Matrix{Float64}
@@ -226,7 +227,7 @@ end
 
     try
         eval(quote
-            Peridynamics.@storage Mat1 struct StorageUntyped1
+            @storage Mat1 struct StorageUntyped1
                 @lthfield position
                 @pointfield displacement::Matrix{Float64}
                 @pointfield velocity::Matrix{Float64}
@@ -248,7 +249,7 @@ end
         @test isa(e, LoadError)
     end
 
-    Peridynamics.@storage Mat1 struct Storage1 <: Peridynamics.AbstractStorage
+    @storage Mat1 VelocityVerlet struct Storage1 <: Peridynamics.AbstractStorage
         @lthfield position::Matrix{Float64}
         @pointfield displacement::Matrix{Float64}
         @pointfield velocity::Matrix{Float64}
@@ -266,17 +267,47 @@ end
     end
 
     @test hasmethod(Peridynamics.storage_type, Tuple{Mat1})
+    @test hasmethod(Storage1, Tuple{Mat1,VelocityVerlet,Peridynamics.AbstractSystem})
     mat, vv = Mat1(), VelocityVerlet(steps=1)
     @test Peridynamics.storage_type(mat) == Storage1
 
     @test hasmethod(Peridynamics.loc_to_halo_fields, Tuple{Storage1})
     @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:position}})
-    @test hasmethod(Peridynamics.is_halo_field,
-                    Tuple{Storage1,Val{:displacement}})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:displacement}})
 
     @test hasmethod(Peridynamics.halo_to_loc_fields, Tuple{Storage1})
     @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:b_int}})
     @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:b_ext}})
+
+    @storage Mat1 struct Storage2 <: Peridynamics.AbstractStorage
+        @lthfield position::Matrix{Float64}
+        @pointfield displacement::Matrix{Float64}
+        @pointfield velocity::Matrix{Float64}
+        @pointfield velocity_half::Matrix{Float64}
+        @pointfield velocity_half_old::Matrix{Float64}
+        @pointfield acceleration::Matrix{Float64}
+        @pointfield b_int::Matrix{Float64}
+        @pointfield b_int_old::Matrix{Float64}
+        @pointfield b_ext::Matrix{Float64}
+        @pointfield density_matrix::Matrix{Float64}
+        @pointfield damage::Vector{Float64}
+        bond_active::Vector{Bool}
+        @pointfield n_active_bonds::Vector{Int}
+        @pointfield mycustomfield::Vector{Float64}
+    end
+
+    @test hasmethod(Peridynamics.storage_type, Tuple{Mat1})
+    @test hasmethod(Storage2, Tuple{Mat1,AbstractTimeSolver,AbstractSystem})
+    mat, vv = Mat1(), VelocityVerlet(steps=1)
+    @test Peridynamics.storage_type(mat) == Storage2
+
+    @test hasmethod(Peridynamics.loc_to_halo_fields, Tuple{Storage2})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage2,Val{:position}})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage2,Val{:displacement}})
+
+    @test hasmethod(Peridynamics.halo_to_loc_fields, Tuple{Storage2})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage2,Val{:b_int}})
+    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage2,Val{:b_ext}})
 end
 
 @testitem "Custom Materials" begin
