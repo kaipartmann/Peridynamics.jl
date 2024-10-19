@@ -97,15 +97,15 @@ end
 end
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,
-                              mat::CKIMaterial, params::AbstractParameterSetup, i::Int)
-    force_density_point_one_ni!(storage, system, mat, params, i)
-    has_two_nis(params) && force_density_point_two_ni!(storage, system, mat, params, i)
-    has_three_nis(params) && force_density_point_three_ni!(storage, system, mat, params, i)
+                              mat::CKIMaterial, params::AbstractParameterSetup, t, Δt, i)
+    force_density_point_one_ni!(storage, system, mat, params, t, Δt, i)
+    has_two_nis(params) && force_density_point_two_ni!(storage, system, mat, params, t, Δt, i)
+    has_three_nis(params) && force_density_point_three_ni!(storage, system, mat, params, t, Δt, i)
     return nothing
 end
 
 function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSystem,
-                                     ::CKIMaterial, params::CKIPointParameters, i::Int)
+                                     ::CKIMaterial, params::CKIPointParameters, t, Δt, i)
     for one_ni_id in each_one_ni_idx(system, i)
         one_ni = system.one_nis[one_ni_id]
         j, L = one_ni.neighbor, one_ni.length
@@ -121,7 +121,7 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
 end
 
 function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSystem,
-                                     ::CKIMaterial, paramhandler::ParameterHandler, i::Int)
+                                     ::CKIMaterial, paramhandler::ParameterHandler, t, Δt, i)
     params_i = get_params(paramhandler, i)
     for one_ni_id in each_one_ni_idx(system, i)
         one_ni = system.one_nis[one_ni_id]
@@ -139,7 +139,7 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
 end
 
 function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSystem,
-                                     ::CKIMaterial, params::CKIPointParameters, i::Int)
+                                     ::CKIMaterial, params::CKIPointParameters, t, Δt, i)
     for two_ni_id in each_two_ni_idx(system, i)
         two_ni = system.two_nis[two_ni_id]
         oni_j_id, oni_k_id, surface_ref = two_ni.oni_j, two_ni.oni_k, two_ni.surface
@@ -176,7 +176,7 @@ function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSys
 end
 
 function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSystem,
-                                     ::CKIMaterial, paramhandler::ParameterHandler, i::Int)
+                                     ::CKIMaterial, paramhandler::ParameterHandler, t, Δt, i)
     params_i = get_params(paramhandler, i)
     for two_ni_id in each_two_ni_idx(system, i)
         two_ni = system.two_nis[two_ni_id]
@@ -216,7 +216,7 @@ function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSys
 end
 
 function force_density_point_three_ni!(storage::CKIStorage, system::InteractionSystem,
-                                       ::CKIMaterial, params::CKIPointParameters, i::Int)
+                                       ::CKIMaterial, params::CKIPointParameters, t, Δt, i)
     for three_ni_id in each_three_ni_idx(system, i)
         three_ni = system.three_nis[three_ni_id]
         oni_j_id = three_ni.oni_j
@@ -276,7 +276,7 @@ end
 
 function force_density_point_three_ni!(storage::CKIStorage, system::InteractionSystem,
                                        ::CKIMaterial, paramhandler::ParameterHandler,
-                                       i::Int)
+                                       t, Δt, i)
     params_i = get_params(paramhandler, i)
     for three_ni_id in each_three_ni_idx(system, i)
         three_ni = system.three_nis[three_ni_id]

@@ -40,7 +40,7 @@ function Peridynamics.init_field(::TestMaterial, ::Peridynamics.VelocityVerlet,
 end
 function Peridynamics.force_density_point!(storage::TestStorage,
                                            system::Peridynamics.BondSystem, ::TestMaterial,
-                                           params::TestPointParameters, i::Int)
+                                           params::TestPointParameters, t, Δt, i)
     for bond_id in Peridynamics.each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length

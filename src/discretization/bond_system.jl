@@ -196,17 +196,17 @@ function calc_timestep_point(bd::BondSystem, params::AbstractPointParameters, po
     return sqrt(2 * params.rho / dtsum)
 end
 
-function calc_force_density!(chunk::AbstractBodyChunk{S,M}) where {S<:BondSystem,M}
+function calc_force_density!(chunk::AbstractBodyChunk{<:BondSystem}, t, Δt)
     (; system, mat, paramsetup, storage) = chunk
     storage.b_int .= 0
     storage.n_active_bonds .= 0
     for point_id in each_point_idx(chunk)
-        force_density_point!(storage, system, mat, paramsetup, point_id)
+        force_density_point!(storage, system, mat, paramsetup, t, Δt, point_id)
     end
     return nothing
 end
 
-@inline function calc_damage!(chunk::AbstractBodyChunk{S,M}) where {S<:BondSystem,M}
+@inline function calc_damage!(chunk::AbstractBodyChunk{<:BondSystem})
     (; n_neighbors) = chunk.system
     (; n_active_bonds, damage) = chunk.storage
     for point_id in each_point_idx(chunk)

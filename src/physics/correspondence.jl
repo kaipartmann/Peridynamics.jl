@@ -124,14 +124,14 @@ function init_field(::CCMaterial, ::AbstractTimeSolver, system::BondSystem, ::Va
 end
 
 function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
-                              paramhandler::AbstractParameterHandler, i::Int)
+                              paramhandler::AbstractParameterHandler, t, Δt, i)
     params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, i)
+    force_density_point!(storage, system, mat, params, t, Δt, i)
     return nothing
 end
 
 function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
-                              params::CCPointParameters, i::Int)
+                              params::CCPointParameters, t, Δt, i)
     F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         kill_point!(storage, system, i)
@@ -167,12 +167,12 @@ function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMat
     return nothing
 end
 
-@inline function influence_function(::CCMaterial, params::CCPointParameters, L::Float64)
+@inline function influence_function(::CCMaterial, params::CCPointParameters, L)
     return params.δ / L
 end
 
-function calc_deformation_gradient(storage::CCStorage, system::BondSystem,
-                                   mat::CCMaterial, params::CCPointParameters, i::Int)
+function calc_deformation_gradient(storage::CCStorage, system::BondSystem, mat::CCMaterial,
+                                   params::CCPointParameters, i)
     K = zeros(SMatrix{3,3})
     _F = zeros(SMatrix{3,3})
     ω0 = 0.0
@@ -213,7 +213,7 @@ function containsnan(K::T) where {T<:AbstractArray}
     return false
 end
 
-function kill_point!(s::AbstractStorage, bd::BondSystem, i::Int)
+function kill_point!(s::AbstractStorage, bd::BondSystem, i)
     s.bond_active[each_bond_idx(bd, i)] .= false
     s.n_active_bonds[i] = 0
     return nothing

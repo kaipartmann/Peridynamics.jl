@@ -102,7 +102,7 @@ function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::V
 end
 
 function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::OSBPointParameters, i::Int)
+                              params::OSBPointParameters, t, Δt, i)
     wvol = calc_weighted_volume(storage, system, mat, params, i)
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, mat, params, wvol, i)
@@ -125,7 +125,7 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
 end
 
 function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              paramhandler::ParameterHandler, i::Int)
+                              paramhandler::ParameterHandler, t, Δt, i)
     params_i = get_params(paramhandler, i)
     wvol = calc_weighted_volume(storage, system, mat, params_i, i)
     iszero(wvol) && return nothing
@@ -149,12 +149,12 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
     return nothing
 end
 
-@inline function influence_function(::OSBMaterial, params::OSBPointParameters, L::Float64)
+@inline function influence_function(::OSBMaterial, params::OSBPointParameters, L)
     return params.δ / L
 end
 
 function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::OSBPointParameters, i::Int)
+                              params::OSBPointParameters, i)
     wvol = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
@@ -169,7 +169,7 @@ function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBM
 end
 
 function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                         params::OSBPointParameters, wvol::Float64, i::Int)
+                         params::OSBPointParameters, wvol, i)
     dil = 0.0
     c1 = 3.0 / wvol
     for bond_id in each_bond_idx(system, i)

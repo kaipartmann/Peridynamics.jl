@@ -108,7 +108,7 @@ end
 end
 
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
-                              params::BBPointParameters, i::Int)
+                              params::BBPointParameters, t, Δt, i)
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
@@ -125,7 +125,7 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
 end
 
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
-                              paramhandler::ParameterHandler, i::Int)
+                              paramhandler::ParameterHandler, t, Δt, i)
     params_i = get_params(paramhandler, i)
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]

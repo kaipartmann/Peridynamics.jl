@@ -175,7 +175,7 @@ function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
     end
     @threads :static for chunk_id in eachindex(dh.chunks)
         exchange_loc_to_halo!(dh, chunk_id)
-        calc_force_density!(dh.chunks[chunk_id])
+        calc_force_density!(dh.chunks[chunk_id], t, Δt)
     end
     @threads :static for chunk_id in eachindex(dh.chunks)
         exchange_halo_to_loc!(dh, chunk_id)
