@@ -10,7 +10,7 @@
     pos2, vol2 = uniform_box(1, 1, 1, 0.5; center=(-0.5, 0.5, 0.5))
     path_bb = joinpath(root, "BB")
     path_osb = joinpath(root, "OSB")
-    path_nosb = joinpath(root, "NOSB")
+    path_cc = joinpath(root, "CC")
     path_ms = joinpath(root, "MS")
 
     @compile_workload begin
@@ -43,7 +43,7 @@
         velocity_bc!(t -> -1, b2, :set_a, :x)
         velocity_bc!(t -> 1, b2, :set_b, 1)
 
-        b3 = Body(NOSBMaterial(), pos1, vol1)
+        b3 = Body(CCMaterial(), pos1, vol1)
         material!(b3; horizon=2, E=2.1e5, nu=0.25, rho=8e-6, Gc=2.7)
         point_set!(p -> p[1] ≤ 0.5, b3, :set_a)
         point_set!(x -> x > 0.5, b3, :set_b)
@@ -65,7 +65,7 @@
 
         submit(Job(b1, vv; path=path_bb, freq=1); quiet=true)
         submit(Job(b2, vv; path=path_osb, freq=1); quiet=true)
-        submit(Job(b3, vv; path=path_nosb, freq=1); quiet=true)
+        submit(Job(b3, vv; path=path_cc, freq=1); quiet=true)
         submit(Job(ms, vv; path=path_ms, freq=1); quiet=true)
     end
 

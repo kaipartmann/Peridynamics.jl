@@ -9,7 +9,7 @@ end
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, OSBMaterial, NOSBMaterial, CKIMaterial
+export BBMaterial, OSBMaterial, CCMaterial, CKIMaterial
 
 # Systems related types
 export NoCorrection, EnergySurfaceCorrection

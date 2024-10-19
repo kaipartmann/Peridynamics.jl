@@ -19,7 +19,7 @@ npyz = 4
 # With these parameters we now create a body, here using the non-ordinary state-based
 # correspondence formulation.
 pos, vol = uniform_box(lx, lyz, lyz, Δx)
-body = Body(NOSBMaterial(), pos, vol)
+body = Body(CCMaterial(), pos, vol)
 # Again, failure is not allowed in the whole body.
 failure_permit!(body, false)
 

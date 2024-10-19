@@ -209,17 +209,17 @@
     # setup
     bbb = Body(BBMaterial(), rand(3, 10), rand(10))
     bosb = Body(OSBMaterial(), rand(3, 10), rand(10))
-    bnosb = Body(NOSBMaterial(), rand(3, 10), rand(10))
-    ms = MultibodySetup(:a => bbb, :b => bosb, :c => bnosb)
+    bcc = Body(CCMaterial(), rand(3, 10), rand(10))
+    ms = MultibodySetup(:a => bbb, :b => bosb, :c => bcc)
     vv = VelocityVerlet(steps=1)
     dr = DynamicRelaxation(steps=1)
 
     tests_body_specific(bbb, vv)
     tests_body_specific(bosb, vv)
-    tests_body_specific(bnosb, vv)
+    tests_body_specific(bcc, vv)
     tests_body_specific(bbb, dr)
     tests_body_specific(bosb, dr)
-    tests_body_specific(bnosb, dr)
+    tests_body_specific(bcc, dr)
 
     tests_multibody_specific(ms, vv)
 
