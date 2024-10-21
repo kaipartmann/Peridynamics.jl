@@ -1,5 +1,5 @@
 """
-    CCMaterial(; maxdmg, maxjacobi, corr)
+    CCMaterial(; maxdmg, zem_fac)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
@@ -9,23 +9,20 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values.
     (default: `0.95`)
-- `maxjacobi::Float64`: Maximum value of the Jacobi determinant. If this value is exceeded,
-    all bonds of that point are broken.
-    (default: `1.03`)
-- `corr::Float64`: Correction factor used for zero-energy mode stabilization. The
+- `zem_fac::Float64`: Correction factor used for zero-energy mode stabilization. The
     stabilization algorithm of Silling (2017) is used.
     (default: `100.0`)
 
 !!! note "Stability of fracture simulations"
     This formulation is known to be not suitable for fracture simultations without
     stabilization of the zero-energy modes. Therefore be careful when doing fracture
-    simulations and try out different paremeters for `maxdmg`, `maxjacobi`, and `corr`.
+    simulations and try out different parameters for `maxdmg` and `zem_fac`.
 
 # Examples
 
 ```julia-repl
 julia> mat = CCMaterial()
-CCMaterial(maxdmg=0.95, maxjacobi=1.03, corr=100.0)
+CCMaterial(maxdmg=0.95, zem_fac=100.0)
 ```
 
 ---
@@ -40,9 +37,7 @@ non-ordinary state-based peridynamics.
 # Fields
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
     constructor docs for more informations.
-- `maxjacobi::Float64`: Maximum value of the Jacobi determinant. See the constructor docs
-    for more informations.
-- `corr::Float64`: Correction factor used for zero-energy mode stabilization. See the
+- `zem_fac::Float64`: Correction factor used for zero-energy mode stabilization. See the
     constructor docs for more informations.
 
 # Allowed material parameters
@@ -68,16 +63,26 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-Base.@kwdef struct CCMaterial <: AbstractBondSystemMaterial{NoCorrection}
-    maxdmg::Float64 = 0.95
-    maxjacobi::Float64 = 1.03
-    corr::Float64 = 100.0
+struct CCMaterial{CM,SI,ZEM} <: AbstractCorrespondenceMaterial{CM,SI,ZEM}
+    constitutive_model::CM
+    stress_integration::SI
+    zem_stabilization::ZEM
+    maxdmg::Float64
+    function CCMaterial(cm::CM, si::SI, zem::ZEM, maxdmg::Real) where {CM,SI,ZEM}
+        return new{CM,SI,ZEM}(cm, si, zem, maxdmg)
+    end
 end
 
 function Base.show(io::IO, @nospecialize(mat::CCMaterial))
     print(io, typeof(mat))
-    print(io, msg_fields_in_brackets(mat))
+    print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
     return nothing
+end
+
+function CCMaterial(; model::AbstractConstitutiveModel=NeoHookeNonlinear(),
+                    stressint::AbstractStressIntegration=NoRotation(),
+                    zem::AbstractZEMStabilization=NoZEMStabilization(), maxdmg::Real=0.85)
+    return CCMaterial(model, stressint, zem, maxdmg)
 end
 
 struct CCPointParameters <: AbstractPointParameters
@@ -154,10 +159,11 @@ function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMat
 
         # stabilization
         ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
-        Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
+        # Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
+        tzem = calc_zem_force_density(mat.zem_stabilization, ωij)
 
         # update of force density
-        tij = ωij * PKinv * ΔXij + Tij
+        tij = ωij * PKinv * ΔXij + tzem
         if containsnan(tij)
             tij = zero(SMatrix{3,3})
         end
@@ -197,7 +203,6 @@ function calc_first_piola_stress(F::SMatrix{3,3}, mat::CCMaterial,
                                  params::CCPointParameters)
     J = det(F)
     J < eps() && return zero(SMatrix{3,3})
-    J > mat.maxjacobi && return zero(SMatrix{3,3})
     C = F' * F
     Cinv = inv(C)
     S = params.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
