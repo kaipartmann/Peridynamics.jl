@@ -1,6 +1,6 @@
 import Pkg; Pkg.activate(@__DIR__)
 
-using BenchmarkTools, StatsPlots
+using BenchmarkTools
 using Peridynamics
 
 const SUITE = BenchmarkGroup()
