@@ -14,17 +14,19 @@ function apply_precracks!(b::AbstractBodyChunk, body::AbstractBody)
     return nothing
 end
 
-function apply_precrack!(b::AbstractBodyChunk, body::AbstractBody,
+function apply_precrack!(chunk::AbstractBodyChunk, body::AbstractBody,
                          crack::PointSetsPreCrack)
     filter_bonds(crack) && return nothing
-    set_a = filter(x -> in(x, b.ch.point_ids), body.point_sets[crack.set_a])
-    set_b = filter(x -> in(x, b.ch.point_ids), body.point_sets[crack.set_b])
-    localize!(set_a, b.ch.localizer)
-    localize!(set_b, b.ch.localizer)
+    point_ids = get_point_ids(chunk.system)
+    set_a = filter(x -> in(x, point_ids), body.point_sets[crack.set_a])
+    set_b = filter(x -> in(x, point_ids), body.point_sets[crack.set_b])
+    localizer = get_localizer(chunk.system)
+    localize!(set_a, localizer)
+    localize!(set_b, localizer)
     if isempty(set_a) || isempty(set_b)
         return nothing
     end
-    break_bonds!(b.storage, b.system, b.ch, set_a, set_b)
+    break_bonds!(chunk.storage, chunk.system, set_a, set_b)
     return nothing
 end
 

@@ -10,11 +10,11 @@
     pd = Peridynamics.PointDecomposition(body, 2)
 
     # 1
-    bd, ch = Peridynamics.BondSystem(body, pd, 1)
+    system = Peridynamics.BondSystem(body, pd, 1)
 
-    @test bd.position == position
-    @test bd.volume == volume
-    @test bd.bonds == [
+    @test system.position == position
+    @test system.volume == volume
+    @test system.bonds == [
         Peridynamics.Bond(2, 1.0, true),
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, 1.0, true),
@@ -22,9 +22,10 @@
         Peridynamics.Bond(3, √2, true),
         Peridynamics.Bond(4, √2, true),
     ]
-    @test bd.n_neighbors == [3, 3]
-    @test bd.bond_ids == [1:3, 4:6]
+    @test system.n_neighbors == [3, 3]
+    @test system.bond_ids == [1:3, 4:6]
 
+    ch = system.chunk_handler
     @test ch.point_ids == [1, 2, 3, 4]
     @test ch.loc_points == [1, 2]
     @test ch.halo_points == [3, 4]
@@ -35,11 +36,11 @@
     end
 
     # 2
-    bd, ch = Peridynamics.BondSystem(body, pd, 2)
+    system = Peridynamics.BondSystem(body, pd, 2)
 
-    @test bd.position == position[:, [3, 4, 1, 2]]
-    @test bd.volume == volume[[3, 4, 1, 2]]
-    @test bd.bonds == [
+    @test system.position == position[:, [3, 4, 1, 2]]
+    @test system.volume == volume[[3, 4, 1, 2]]
+    @test system.bonds == [
         Peridynamics.Bond(3, 1.0, true),
         Peridynamics.Bond(4, √2, true),
         Peridynamics.Bond(2, √2, true),
@@ -47,9 +48,10 @@
         Peridynamics.Bond(4, √2, true),
         Peridynamics.Bond(1, √2, true),
     ]
-    @test bd.n_neighbors == [3, 3]
-    @test bd.bond_ids == [1:3, 4:6]
+    @test system.n_neighbors == [3, 3]
+    @test system.bond_ids == [1:3, 4:6]
 
+    ch = system.chunk_handler
     @test ch.point_ids == [3, 4, 1, 2]
     @test ch.loc_points == [3, 4]
     @test ch.halo_points == [1, 2]

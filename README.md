@@ -23,6 +23,7 @@ A high-level Julia package for parallel peridynamics simulations
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 **Citation:**\
+[![DOI](https://proceedings.juliacon.org/papers/10.21105/jcon.00165/status.svg)](https://doi.org/10.21105/jcon.00165)
 [![DOI](https://zenodo.org/badge/503281781.svg)](https://zenodo.org/badge/latestdoi/503281781)
 
 ## Main Features
@@ -80,6 +81,17 @@ in the julia package manager. Please take a look at the [documentation](https://
     <td align="center">
       <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_cylinder/">
         <figcaption>Fragmenting cylinder</figcaption><br><img src="https://github.com/user-attachments/assets/58e11123-6143-4e13-8642-7e30c9e6c86d" width="300"/>
+   </a></td>
+  </tr>
+    <tr>
+    <td align="center">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_in_bar/">
+        <figcaption>Wave propagation</figcaption><br><img src="https://github.com/user-attachments/assets/7fa65fd4-38d8-46cb-833f-990417211d17" width="300"/><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_interface/">
+        <figcaption>Wave propagation across interface</figcaption><br><img src="https://github.com/user-attachments/assets/082f635f-caf2-40db-938e-e4a98e2f3915" width="300"/>
    </a></td>
   </tr>
 </table>

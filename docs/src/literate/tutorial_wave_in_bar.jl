@@ -1,13 +1,14 @@
-# # Wave propagation in a thin bar
+# # [Wave propagation in a thin bar](@id tut_wave)
 
 # In this tutorial, a cuboid bar is created.
 # A velocity pulse in the form of one period of a sine wave is applied to create
-# a pressure wave that propagates through the bar.
+# a displacement wave that propagates through the bar.
+# The behaviour of this wave was investigated in [Partmann2024AAM](@cite).
 #
 # First import the Peridynamics.jl package:
 using Peridynamics
 
-# To get started, some parameters used to for this simulation are defined.
+# To get started, some parameters used for this simulation are defined.
 # These are the length of the bar `lx`, the width and height `lyz` and the number of
 # points in the width `npyz`.
 
@@ -15,7 +16,7 @@ lx = 0.2
 lyz = 0.002
 npyz = 4
 
-# With these parameters the point spacing can be calculated:
+# With these parameters the point spacing `Δx` can be calculated:
 Δx = lyz / npyz
 # A cuboid body according to the ordinary state-based model with the specified dimensions
 # and point spacing is then created:

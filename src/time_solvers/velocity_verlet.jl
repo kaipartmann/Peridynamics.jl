@@ -152,12 +152,12 @@ function calc_stable_timestep(dh::MPIBodyDataHandler, safety_factor::Float64)
     return Δt * safety_factor
 end
 
-function calc_timestep(b::AbstractBodyChunk)
-    isempty(each_point_idx(b)) && return Inf
-    Δt = fill(Inf, length(each_point_idx(b.ch)))
-    for point_id in each_point_idx(b.ch)
-        pp = get_params(b, point_id)
-        Δt[point_id] = calc_timestep_point(b.system, pp, point_id)
+function calc_timestep(chunk::AbstractBodyChunk)
+    isempty(each_point_idx(chunk)) && return Inf
+    Δt = fill(Inf, length(each_point_idx(chunk)))
+    for point_id in each_point_idx(chunk)
+        pp = get_params(chunk, point_id)
+        Δt[point_id] = calc_timestep_point(chunk.system, pp, point_id)
     end
     return minimum(Δt)
 end
@@ -323,13 +323,46 @@ function _update_vel!(velocity, velocity_half, acceleration, Δt½, i)
     return nothing
 end
 
-function req_point_data_fields_timesolver(::Type{VelocityVerlet})
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:position})
+    return copy(system.position)
+end
+
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:displacement})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:velocity})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:velocity_half})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:acceleration})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:b_int})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:b_ext})
+    return zeros(3, get_n_loc_points(system))
+end
+
+function req_point_data_fields_timesolver(::Type{<:VelocityVerlet})
     fields = (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
               :b_ext)
     return fields
 end
 
-function req_data_fields_timesolver(::Type{VelocityVerlet})
+
+function req_bond_data_fields_timesolver(::Type{<:VelocityVerlet})
+    return ()
+end
+
+function req_data_fields_timesolver(::Type{<:VelocityVerlet})
     return ()
 end
 
@@ -342,3 +375,5 @@ function log_timesolver(options::AbstractJobOptions, vv::VelocityVerlet)
     log_it(options, msg)
     return nothing
 end
+
+register_solver!(VelocityVerlet)
