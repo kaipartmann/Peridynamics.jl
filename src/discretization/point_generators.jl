@@ -261,7 +261,7 @@ of the cylinder.
 # Examples
 
 ```julia-repl
-julia> position, volume = uniform_cylinder(5, 10, 2);
+julia> position, volume = round_cylinder(5, 10, 2);
 
 julia> position
 3×30 Matrix{Float64}:
@@ -281,6 +281,7 @@ julia> volume
  13.089969389957473
  13.089969389957473
  13.089969389957473
+```
 """
 function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center=(0, 0, 0))
     radius = diameter / 2
