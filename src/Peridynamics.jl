@@ -9,10 +9,10 @@ end
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, OSBMaterial, CCMaterial, CKIMaterial
+export BBMaterial, OSBMaterial, CCMaterial, CCNRMaterial, CKIMaterial
 
 # CCMaterial related types
-export NoRotation, FlanaganTaylorRotation, NeoHookeNonlinear, SaintVenantKirchhoff
+export NeoHookeNonlinear, SaintVenantKirchhoff, ZEMSilling
 
 # Systems related types
 export NoCorrection, EnergySurfaceCorrection
@@ -68,8 +68,7 @@ abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
-abstract type AbstractCorrespondenceMaterial{CM,SI,ZEM} <:
-              AbstractBondSystemMaterial{ZEM} end
+abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMaterial{ZEM} end
 abstract type AbstractConstitutiveModel end
 abstract type AbstractStressIntegration end
 abstract type AbstractZEMStabilization <: AbstractCorrection end
@@ -80,10 +79,13 @@ include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
 include("auxiliary/mpi.jl")
 include("auxiliary/errors.jl")
+include("auxiliary/static_arrays.jl")
+include("auxiliary/nans.jl")
 
 include("physics/boundary_conditions.jl")
 include("physics/initial_conditions.jl")
 include("physics/material_parameters.jl")
+include("physics/stress.jl")
 include("physics/fracture.jl")
 include("physics/short_range_force_contact.jl")
 
@@ -120,7 +122,6 @@ include("time_solvers/dynamic_relaxation.jl")
 include("physics/bond_based.jl")
 include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
-include("physics/stress_integration.jl")
 include("physics/constitutive_models.jl")
 include("physics/correspondence.jl")
 

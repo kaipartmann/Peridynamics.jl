@@ -1,5 +1,5 @@
 """
-    CCMaterial(; maxdmg, zem_fac)
+    CCMaterial(; maxdmg, zem)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
@@ -9,20 +9,20 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values.
     (default: `0.95`)
-- `zem_fac::Float64`: Correction factor used for zero-energy mode stabilization. The
-    stabilization algorithm of Silling (2017) is used.
-    (default: `100.0`)
+- `zem::AbstractZEMStabilization`: zero-energy mode stabilization. The
+    stabilization algorithm of Silling (2017) is used as default.
+    (default: `ZEMSilling()`)
 
 !!! note "Stability of fracture simulations"
     This formulation is known to be not suitable for fracture simultations without
     stabilization of the zero-energy modes. Therefore be careful when doing fracture
-    simulations and try out different parameters for `maxdmg` and `zem_fac`.
+    simulations and try out different parameters for `maxdmg` and `zem`.
 
 # Examples
 
 ```julia-repl
 julia> mat = CCMaterial()
-CCMaterial(maxdmg=0.95, zem_fac=100.0)
+CCMaterial(maxdmg=0.95, zem_fac=ZEMSilling())
 ```
 
 ---
@@ -63,13 +63,12 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct CCMaterial{CM,SI,ZEM} <: AbstractCorrespondenceMaterial{CM,SI,ZEM}
+struct CCMaterial{CM,ZEM} <: AbstractCorrespondenceMaterial{CM,ZEM}
     constitutive_model::CM
-    stress_integration::SI
     zem_stabilization::ZEM
     maxdmg::Float64
-    function CCMaterial(cm::CM, si::SI, zem::ZEM, maxdmg::Real) where {CM,SI,ZEM}
-        return new{CM,SI,ZEM}(cm, si, zem, maxdmg)
+    function CCMaterial(cm::CM, zem::ZEM, maxdmg::Real) where {CM,ZEM}
+        return new{CM,ZEM}(cm, zem, maxdmg)
     end
 end
 
@@ -80,9 +79,8 @@ function Base.show(io::IO, @nospecialize(mat::CCMaterial))
 end
 
 function CCMaterial(; model::AbstractConstitutiveModel=NeoHookeNonlinear(),
-                    stressint::AbstractStressIntegration=NoRotation(),
-                    zem::AbstractZEMStabilization=NoZEMStabilization(), maxdmg::Real=0.85)
-    return CCMaterial(model, stressint, zem, maxdmg)
+                    zem::AbstractZEMStabilization=ZEMSilling(), maxdmg::Real=0.85)
+    return CCMaterial(model, zem, maxdmg)
 end
 
 struct CCPointParameters <: AbstractPointParameters
@@ -108,7 +106,7 @@ end
 
 @params CCMaterial CCPointParameters
 
-@storage CCMaterial struct CCStorage <: AbstractStorage
+@storage CCMaterial struct CCStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
@@ -122,10 +120,26 @@ end
     @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
+    @pointfield stress::Matrix{Float64}
+    @pointfield von_mises_stress::Vector{Float64}
 end
 
 function init_field(::CCMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
     return zeros(3, get_n_points(system))
+end
+
+function init_field(::CCMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:velocity})
+    return zeros(3, get_n_points(system))
+end
+
+function init_field(::CCMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
+    return zeros(9, get_n_loc_points(system))
+end
+
+function init_field(::CCMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:von_mises_stress})
+    return zeros(get_n_loc_points(system))
 end
 
 function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
@@ -137,19 +151,61 @@ end
 
 function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
                               params::CCPointParameters, t, Δt, i)
-    F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
-    if storage.damage[i] > mat.maxdmg || containsnan(F)
-        kill_point!(storage, system, i)
-        return nothing
-    end
-    P = calc_first_piola_stress(F, mat, params)
-    if iszero(P) || containsnan(P)
-        kill_point!(storage, system, i)
-        return nothing
-    end
-    PKinv = P * Kinv
+    defgrad_res = calc_deformation_gradient(storage, system, mat, params, i)
+    too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
+    PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)
+    zem = mat.zem_stabilization
+    cc_force_density!(storage, system, mat, params, zem, PKinv, defgrad_res, i)
+    return nothing
+end
+
+@inline function influence_function(::CCMaterial, params::CCPointParameters, L)
+    return params.δ / L
+end
+
+function calc_deformation_gradient(storage::CCStorage, system::BondSystem,
+                                   mat::CCMaterial, params::CCPointParameters, i)
+    (; bonds, volume) = system
+    (; bond_active) = storage
+    K = zero(SMatrix{3,3,Float64,9})
+    _F = zero(SMatrix{3,3,Float64,9})
+    ω0 = 0.0
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        ΔXij = get_diff(system.position, i, j)
+        Δxij = get_diff(storage.position, i, j)
+        ωij = influence_function(mat, params, L) * bond_active[bond_id]
+        ω0 += ωij
+        temp = ωij * volume[j]
+        K += temp * (ΔXij * ΔXij')
+        _F += temp * (Δxij * ΔXij')
+    end
+    Kinv = inv(K)
+    F = _F * Kinv
+    return (; F, Kinv, ω0)
+end
+
+function calc_first_piola_kirchhoff!(storage::CCStorage, mat::CCMaterial,
+                                     params::CCPointParameters, defgrad_res, Δt, i)
+    (; F, Kinv) = defgrad_res
+    σ = cauchy_stress(mat.constitutive_model, storage, params, F)
+    update_tensor!(storage.stress, i, σ)
+    storage.von_mises_stress[i] = von_mises_stress(σ)
+    P = det(F) * σ * inv(F)'
+    PKinv = P * Kinv
+    return PKinv
+end
+
+function cc_force_density!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
+                           params::CCPointParameters, zem_correction::ZEMSilling,
+                           PKinv::SMatrix, defgrad_res, i)
+    (; bonds, volume) = system
+    (; bond_active) = storage
+    (; F, ω0) = defgrad_res
+    (; Cs) = zem_correction
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
         ΔXij = get_coordinates_diff(system, i, j)
         Δxij = get_coordinates_diff(storage, i, j)
@@ -158,68 +214,25 @@ function force_density_point!(storage::CCStorage, system::BondSystem, mat::CCMat
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
-        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
-        # Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
-        tzem = calc_zem_force_density(mat.zem_stabilization, ωij)
+        ωij = influence_function(mat, params, L) * bond_active[bond_id]
+        tzem = Cs .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
 
         # update of force density
         tij = ωij * PKinv * ΔXij + tzem
-        if containsnan(tij)
-            tij = zero(SMatrix{3,3})
-        end
-        update_add_b_int!(storage, i, tij .* system.volume[j])
-        update_add_b_int!(storage, j, -tij .* system.volume[i])
+        update_add_b_int!(storage, i, tij .* volume[j])
+        update_add_b_int!(storage, j, -tij .* volume[i])
     end
     return nothing
 end
 
-@inline function influence_function(::CCMaterial, params::CCPointParameters, L)
-    return params.δ / L
-end
-
-function calc_deformation_gradient(storage::CCStorage, system::BondSystem, mat::CCMaterial,
-                                   params::CCPointParameters, i)
-    K = zeros(SMatrix{3,3})
-    _F = zeros(SMatrix{3,3})
-    ω0 = 0.0
-    for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        ΔXij = get_coordinates_diff(system, i, j)
-        Δxij = get_coordinates_diff(storage, i, j)
-        Vj = system.volume[j]
-        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
-        ω0 += ωij
-        temp = ωij * Vj
-        K += temp * ΔXij * ΔXij'
-        _F += temp * Δxij * ΔXij'
-    end
-    Kinv = inv(K)
-    F = _F * Kinv
-    return F, Kinv, ω0
-end
-
-function calc_first_piola_stress(F::SMatrix{3,3}, mat::CCMaterial,
-                                 params::CCPointParameters)
-    J = det(F)
-    J < eps() && return zero(SMatrix{3,3})
-    C = F' * F
-    Cinv = inv(C)
-    S = params.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
-        params.K / 4 .* (J^2 - J^(-2)) .* Cinv
-    P = F * S
-    return P
-end
-
-function containsnan(K::T) where {T<:AbstractArray}
-    @simd for i in eachindex(K)
-        isnan(K[i]) && return true
+function too_much_damage!(storage::CCStorage, system::BondSystem, mat::CCMaterial,
+                          defgrad_res, i)
+    (; F) = defgrad_res
+    if storage.damage[i] > mat.maxdmg || containsnan(F)
+        # kill all bonds of this point
+        storage.bond_active[each_bond_idx(system, i)] .= false
+        storage.n_active_bonds[i] = 0
+        return true
     end
     return false
-end
-
-function kill_point!(s::AbstractStorage, bd::BondSystem, i)
-    s.bond_active[each_bond_idx(bd, i)] .= false
-    s.n_active_bonds[i] = 0
-    return nothing
 end

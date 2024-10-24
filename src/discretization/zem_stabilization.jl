@@ -1,12 +1,13 @@
-struct NoZEMStabilization <: AbstractZEMStabilization end
-
-function calc_zem_force_density(::NoZEMStabilization, args...)
-    return zeros(SVector{3})
+function get_correction(mat::AbstractBondSystemMaterial{<:AbstractZEMStabilization},
+                        ::Int, ::Int, ::Int)
+    return mat.zem_stabilization
 end
 
-function get_correction(::AbstractBondSystemMaterial{NoZEMStabilization},
-                        n_loc_points::Int, n_points::Int, n_bonds::Int)
-    return NoZEMStabilization()
-end
+"""
+    ZEMSilling(; Cs=0.0)
 
-struct SillingZEMStabilization <: AbstractZEMStabilization end
+TODO
+"""
+@kwdef struct ZEMSilling <: AbstractZEMStabilization
+    Cs::Float64 = 0.0
+end
