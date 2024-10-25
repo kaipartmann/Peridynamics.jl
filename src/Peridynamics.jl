@@ -9,7 +9,7 @@ end
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, OSBMaterial, CCMaterial, BACCMaterial, CKIMaterial
+export BBMaterial, OSBMaterial, CCMaterial, BACCMaterial, BARKCCMaterial, CKIMaterial
 
 # CCMaterial related types
 export NeoHookeNonlinear, SaintVenantKirchhoff, ZEMSilling
@@ -127,7 +127,8 @@ include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
 include("physics/constitutive_models.jl")
 include("physics/correspondence.jl")
-include("physics/bond_associated_correspondence.jl")
+include("physics/ba_correspondence.jl")
+include("physics/bark_correspondence.jl")
 
 include("VtkReader/VtkReader.jl")
 using .VtkReader
