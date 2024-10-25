@@ -128,11 +128,6 @@ function init_field(::CCMaterial, ::AbstractTimeSolver, system::BondSystem, ::Va
     return zeros(3, get_n_points(system))
 end
 
-function init_field(::CCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:velocity})
-    return zeros(3, get_n_points(system))
-end
-
 function init_field(::CCMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
     return zeros(9, get_n_loc_points(system))
 end

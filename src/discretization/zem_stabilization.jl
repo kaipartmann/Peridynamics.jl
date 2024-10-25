@@ -8,6 +8,9 @@ end
 
 TODO
 """
-@kwdef struct ZEMSilling <: AbstractZEMStabilization
-    Cs::Float64 = 0.0
+struct ZEMSilling <: AbstractZEMStabilization
+    Cs::Float64
+    function ZEMSilling(; Cs::Real=100.0)
+        return new(Cs)
+    end
 end
