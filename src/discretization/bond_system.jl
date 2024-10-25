@@ -4,7 +4,7 @@ struct Bond
     fail_permit::Bool
 end
 
-struct BondSystem{Correction<:AbstractCorrection} <: AbstractSystem
+struct BondSystem{Correction<:AbstractCorrection} <: AbstractBondSystem
     position::Matrix{Float64}
     volume::Vector{Float64}
     bonds::Vector{Bond}
@@ -157,7 +157,7 @@ function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})
     return halo_points
 end
 
-@inline each_bond_idx(bd::BondSystem, point_id::Int) = bd.bond_ids[point_id]
+@inline each_bond_idx(system::AbstractBondSystem, point_id::Int) = system.bond_ids[point_id]
 
 function localize!(bonds::Vector{Bond}, localizer::Dict{Int,Int})
     for i in eachindex(bonds)
@@ -167,8 +167,8 @@ function localize!(bonds::Vector{Bond}, localizer::Dict{Int,Int})
     return nothing
 end
 
-function break_bonds!(storage::AbstractStorage, system::BondSystem, set_a::Vector{Int},
-                      set_b::Vector{Int})
+function break_bonds!(storage::AbstractStorage, system::AbstractBondSystem,
+                      set_a::Vector{Int}, set_b::Vector{Int})
     storage.n_active_bonds .= 0
     for point_id in each_point_idx(system)
         for bond_id in each_bond_idx(system, point_id)
@@ -187,16 +187,17 @@ function break_bonds!(storage::AbstractStorage, system::BondSystem, set_a::Vecto
     return nothing
 end
 
-function calc_timestep_point(bd::BondSystem, params::AbstractPointParameters, point_id::Int)
+function calc_timestep_point(system::AbstractBondSystem, params::AbstractPointParameters,
+                             point_id::Int)
     dtsum = 0.0
-    for bond_id in each_bond_idx(bd, point_id)
-        bond = bd.bonds[bond_id]
-        dtsum += bd.volume[bond.neighbor] * params.bc / bond.length
+    for bond_id in each_bond_idx(system, point_id)
+        bond = system.bonds[bond_id]
+        dtsum += system.volume[bond.neighbor] * params.bc / bond.length
     end
     return sqrt(2 * params.rho / dtsum)
 end
 
-function calc_force_density!(chunk::AbstractBodyChunk{<:BondSystem}, t, Δt)
+function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem}, t, Δt)
     (; system, mat, paramsetup, storage) = chunk
     storage.b_int .= 0
     storage.n_active_bonds .= 0
@@ -206,7 +207,7 @@ function calc_force_density!(chunk::AbstractBodyChunk{<:BondSystem}, t, Δt)
     return nothing
 end
 
-@inline function calc_damage!(chunk::AbstractBodyChunk{<:BondSystem})
+@inline function calc_damage!(chunk::AbstractBodyChunk{<:AbstractBondSystem})
     (; n_neighbors) = chunk.system
     (; n_active_bonds, damage) = chunk.storage
     for point_id in each_point_idx(chunk)
@@ -215,7 +216,7 @@ end
     return nothing
 end
 
-@inline function stretch_based_failure!(storage::AbstractStorage, ::BondSystem,
+@inline function stretch_based_failure!(storage::AbstractStorage, ::AbstractBondSystem,
                                         bond::Bond, params::AbstractPointParameters,
                                         ε::Float64, i::Int, bond_id::Int)
     if ε > params.εc && bond.fail_permit
@@ -229,8 +230,8 @@ end
     return storage.bond_active[bond_id]
 end
 
-function log_system(::Type{B}, options::AbstractJobOptions,
-                    dh::AbstractDataHandler) where {B<:BondSystem}
+function log_system(::Type{System}, options::AbstractJobOptions,
+                    dh::AbstractDataHandler) where {System<:AbstractBondSystem}
     n_bonds = calc_n_bonds(dh)
     msg = "BOND SYSTEM"
     body_name = string(get_body_name(dh))
@@ -254,15 +255,15 @@ function calc_n_bonds(dh::AbstractMPIBodyDataHandler)
     return n_bonds
 end
 
-function init_field_system(system::BondSystem, ::Val{:bond_active})
+function init_field_system(system::AbstractBondSystem, ::Val{:bond_active})
     return ones(Bool, get_n_bonds(system))
 end
 
-function init_field_system(system::BondSystem, ::Val{:n_active_bonds})
+function init_field_system(system::AbstractBondSystem, ::Val{:n_active_bonds})
     return copy(system.n_neighbors)
 end
 
-function init_field_system(system::BondSystem, ::Val{:damage})
+function init_field_system(system::AbstractBondSystem, ::Val{:damage})
     return zeros(get_n_loc_points(system))
 end
 
@@ -290,4 +291,4 @@ function allowed_material_kwargs(::AbstractBondSystemMaterial)
     return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...)
 end
 
-@inline get_n_bonds(system::BondSystem) = length(system.bonds)
+@inline get_n_bonds(system::AbstractBondSystem) = length(system.bonds)

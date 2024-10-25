@@ -9,7 +9,7 @@ end
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, OSBMaterial, CCMaterial, CKIMaterial
+export BBMaterial, OSBMaterial, CCMaterial, BACCMaterial, CKIMaterial
 
 # CCMaterial related types
 export NeoHookeNonlinear, SaintVenantKirchhoff, ZEMSilling
@@ -53,6 +53,7 @@ abstract type AbstractTimeSolver end
 abstract type AbstractJob end
 abstract type AbstractJobOptions end
 abstract type AbstractSystem end
+abstract type AbstractBondSystem <: AbstractSystem end
 abstract type AbstractPredefinedCrack end
 abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
 abstract type AbstractParameterHandler <: AbstractParameterSetup end
@@ -69,6 +70,7 @@ abstract type AbstractStorage end
 abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMaterial{ZEM} end
+abstract type AbstractBondAssociatedSystemMaterial <: AbstractMaterial end
 abstract type AbstractConstitutiveModel end
 abstract type AbstractStressIntegration end
 abstract type AbstractZEMStabilization <: AbstractCorrection end
@@ -99,6 +101,7 @@ include("discretization/chunk_handler.jl")
 include("discretization/bond_system.jl")
 include("discretization/bond_system_corrections.jl")
 include("discretization/zem_stabilization.jl")
+include("discretization/bond_associated_system.jl")
 include("discretization/interaction_system.jl")
 include("discretization/body_chunk.jl")
 
@@ -124,6 +127,7 @@ include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
 include("physics/constitutive_models.jl")
 include("physics/correspondence.jl")
+include("physics/bond_associated_correspondence.jl")
 
 include("VtkReader/VtkReader.jl")
 using .VtkReader
