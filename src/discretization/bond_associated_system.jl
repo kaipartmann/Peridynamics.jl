@@ -80,24 +80,20 @@ end
 end
 
 function calc_hood_volumes!(chunk::AbstractBodyChunk{<:BondAssociatedSystem})
-    (; mat, paramsetup, system, storage) = chunk
+    (; system) = chunk
     (; volume, bonds, hood_volume, ba_hood_volume) = system
-    (; bond_active) = storage
 
     for i in each_point_idx(chunk)
-        _hood_volume = 0.0 # volume[i]
-        params = get_params(paramsetup, i)
+        _hood_volume = volume[i]
         for bond_idx in each_bond_idx(system, i)
             bond = bonds[bond_idx]
-            j, L = bond.neighbor, bond.length
-            ωij = influence_function(mat, params, L) * bond_active[bond_idx]
-            _hood_volume += ωij * volume[j]
+            j = bond.neighbor
+            _hood_volume += volume[j]
             _ba_hood_volume = 0.0
             for i_bond_idx in each_intersecting_bond_idx(system, i, bond_idx)
                 i_bond = bonds[i_bond_idx]
-                jj, LL = i_bond.neighbor, i_bond.length
-                ωijj = influence_function(mat, params, LL) * bond_active[i_bond_idx]
-                _ba_hood_volume += ωijj * volume[jj]
+                jj = i_bond.neighbor
+                _ba_hood_volume += volume[jj]
             end
             ba_hood_volume[bond_idx] = _ba_hood_volume
         end
@@ -106,6 +102,34 @@ function calc_hood_volumes!(chunk::AbstractBodyChunk{<:BondAssociatedSystem})
 
     return nothing
 end
+
+# function calc_hood_volumes!(chunk::AbstractBodyChunk{<:BondAssociatedSystem})
+#     (; mat, paramsetup, system, storage) = chunk
+#     (; volume, bonds, hood_volume, ba_hood_volume) = system
+#     (; bond_active) = storage
+
+#     for i in each_point_idx(chunk)
+#         _hood_volume = 0.0 # volume[i]
+#         params = get_params(paramsetup, i)
+#         for bond_idx in each_bond_idx(system, i)
+#             bond = bonds[bond_idx]
+#             j, L = bond.neighbor, bond.length
+#             ωij = influence_function(mat, params, L) * bond_active[bond_idx]
+#             _hood_volume += ωij * volume[j]
+#             _ba_hood_volume = 0.0
+#             for i_bond_idx in each_intersecting_bond_idx(system, i, bond_idx)
+#                 i_bond = bonds[i_bond_idx]
+#                 jj, LL = i_bond.neighbor, i_bond.length
+#                 ωijj = influence_function(mat, params, LL) * bond_active[i_bond_idx]
+#                 _ba_hood_volume += ωijj * volume[jj]
+#             end
+#             ba_hood_volume[bond_idx] = _ba_hood_volume
+#         end
+#         hood_volume[i] = _hood_volume
+#     end
+
+#     return nothing
+# end
 
 @inline get_hood_volume(chunk::AbstractBodyChunk) = chunk.system.hood_volume
 
