@@ -211,11 +211,8 @@ function calc_deformation_gradient(storage::BACCStorage, system::BondAssociatedS
         j, L = bond.neighbor, bond.length
         ΔXij = get_diff(system.position, i, j)
         Δxij = get_diff(storage.position, i, j)
-
-        temp = influence_function(mat, params, L) * volume[j]
-        K += temp * (ΔXij * ΔXij')
-
         temp = influence_function(mat, params, L) * bond_active[bond_id] * volume[j]
+        K += temp * (ΔXij * ΔXij')
         _F += temp * (Δxij * ΔXij')
     end
     Kinv = inv(K)

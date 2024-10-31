@@ -121,6 +121,7 @@ end
     @pointfield n_active_bonds::Vector{Int}
     @pointfield stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
+    @lthfield defgrad::Matrix{Float64}
 end
 
 function init_field(::BARKCCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
@@ -138,16 +139,79 @@ function init_field(::BARKCCMaterial, ::AbstractTimeSolver, system::BondAssociat
     return zeros(get_n_loc_points(system))
 end
 
-# function calc_force_density!(chunk::AbstractBodyChunk{S,M},
-#                              Δt::Float64) where {S<:BondAssociatedSystem,M<:BANOSBMaterial}
-#     (; system, mat, paramsetup, storage) = chunk
-#     storage.b_int .= 0
-#     storage.n_active_bonds .= 0
-#     for point_id in each_point_idx(chunk)
-#         force_density_point!(storage, system, mat, paramsetup, Δt, point_id)
-#     end
-#     return nothing
-# end
+function init_field(::BARKCCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
+                    ::Val{:defgrad})
+    return zeros(9, get_n_points(system))
+end
+
+# TODO: split the verlet timestep into 3 parts for threading, improve code reusability!
+function verlet_timestep!(dh::AbstractThreadsBodyDataHandler{Sys,M},
+                          options::AbstractJobOptions, Δt::Float64, Δt½::Float64,
+                          n::Int) where {Sys<:BondAssociatedSystem,M<:BARKCCMaterial}
+    t = n * Δt
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        update_vel_half!(chunk, Δt½)
+        apply_boundary_conditions!(chunk, t)
+        update_disp_and_pos!(chunk, Δt)
+    end
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        exchange_loc_to_halo!(dh, chunk_id, (:position,))
+        calc_deformation_gradient!(dh.chunks[chunk_id], t, Δt)
+    end
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        exchange_loc_to_halo!(dh, chunk_id, (:defgrad,))
+        calc_force_density!(dh.chunks[chunk_id], t, Δt)
+    end
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        exchange_halo_to_loc!(dh, chunk_id)
+        chunk = dh.chunks[chunk_id]
+        calc_damage!(chunk)
+        update_acc_and_vel!(chunk, Δt½)
+        export_results(dh, options, chunk_id, n, t)
+    end
+    return nothing
+end
+
+function calc_deformation_gradient!(chunk::AbstractBodyChunk{S,M}, t,
+                                    Δt) where {S<:BondAssociatedSystem,M<:BARKCCMaterial}
+    (; system, mat, paramsetup, storage) = chunk
+    for i in each_point_idx(chunk)
+        calc_deformation_gradient_point!(storage, system, mat, paramsetup, i)
+    end
+    return nothing
+end
+
+function calc_deformation_gradient_point!(storage::BARKCCStorage,
+                                          system::BondAssociatedSystem, mat::BARKCCMaterial,
+                                          paramhandler::AbstractParameterHandler, i)
+    params = get_params(paramhandler, i)
+    calc_deformation_gradient_point!(storage, system, mat, params, i)
+    return nothing
+end
+
+function calc_deformation_gradient_point!(storage::BARKCCStorage,
+                                          system::BondAssociatedSystem, mat::BARKCCMaterial,
+                                          params::BARKCCPointParameters, i)
+    (; bonds, volume) = system
+    (; bond_active) = storage
+    K = zero(SMatrix{3,3,Float64,9})
+    _F = zero(SMatrix{3,3,Float64,9})
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        ΔXij = get_diff(system.position, i, j)
+        Δxij = get_diff(storage.position, i, j)
+        ωij = influence_function(mat, params, L) * bond_active[bond_id]
+        temp = ωij * volume[j]
+        K += temp * (ΔXij * ΔXij')
+        _F += temp * (Δxij * ΔXij')
+    end
+    Kinv = inv(K)
+    F = _F * Kinv
+    update_tensor!(storage.defgrad, i, F)
+    return nothing
+end
 
 function force_density_point!(storage::BARKCCStorage, system::BondAssociatedSystem,
                               mat::BARKCCMaterial, paramhandler::AbstractParameterHandler,
@@ -168,7 +232,7 @@ end
 function force_density_bond!(storage::BARKCCStorage, system::BondAssociatedSystem,
                              mat::BARKCCMaterial, params::BARKCCPointParameters, t, Δt, i,
                              bond_idx)
-    defgrad_res = calc_deformation_gradient(storage, system, mat, params, i, bond_idx)
+    Fb = calc_deformation_gradient(storage, system, mat, params, i, bond_idx)
     (; F) = defgrad_res
     if containsnan(F) || storage.damage[i] > mat.maxdmg
         storage.bond_active[bond_idx] = false
@@ -202,25 +266,16 @@ end
 function calc_deformation_gradient(storage::BARKCCStorage, system::BondAssociatedSystem,
                                    mat::BARKCCMaterial, params::BARKCCPointParameters, i,
                                    bond_idx)
-    (; bonds, volume) = system
-    (; bond_active) = storage
-    K = zero(SMatrix{3,3,Float64,9})
-    _F = zero(SMatrix{3,3,Float64,9})
-    for bond_id in each_intersecting_bond_idx(system, i, bond_idx)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        ΔXij = get_diff(system.position, i, j)
-        Δxij = get_diff(storage.position, i, j)
-
-        temp = influence_function(mat, params, L) * volume[j]
-        K += temp * (ΔXij * ΔXij')
-
-        temp = influence_function(mat, params, L) * bond_active[bond_id] * volume[j]
-        _F += temp * (Δxij * ΔXij')
-    end
-    Kinv = inv(K)
-    F = _F * Kinv
-    return (; F, Kinv)
+    Fi = get_tensor(storage.defgrad, i)
+    bond = system.bonds[bond_idx]
+    j, L = bond.neighbor, bond.length
+    Fj = get_tensor(storage.defgrad, j)
+    F̂ = (Fi + Fj) ./ 2
+    ΔXij = get_coordinates_diff(system, i, j)
+    Δxij = get_coordinates_diff(storage, i, j)
+    ΔFij = (Δxij - F̂ * ΔXij) * ΔXij' ./ (L * L)
+    Fb = Fj + ΔFij
+    return Fb
 end
 
 function calc_first_piola_kirchhoff!(storage::BARKCCStorage, mat::BARKCCMaterial,

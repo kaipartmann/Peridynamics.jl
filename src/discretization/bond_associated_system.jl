@@ -50,8 +50,8 @@ end
 function find_intersection_bond_ids(body, loc_points, bonds, bond_ids)
     intersection_bond_ids = Vector{Vector{Int}}(undef, length(bonds))
     for (li, i) in enumerate(loc_points)
-        δ = get_point_param(body, :δ, i)
-        δ² = 1.1δ * 1.1δ
+        δ = 1.01 * get_point_param(body, :δ, i)
+        δ² = δ * δ
         bond_ids_of_i = bond_ids[li]
         for bond_id in bond_ids_of_i
             bond = bonds[bond_id]
