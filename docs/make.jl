@@ -82,6 +82,11 @@ makedocs(;
             joinpath("generated", "tutorial_logo.md"),
             joinpath("generated", "tutorial_cylinder.md"),
         ],
+        "Developers" => [
+            "dev_bodychunks.md",
+            "dev_datahandlers.md",
+            "dev_solvers.md",
+        ],
         "API Reference" => "api_reference.md",
     ],
 
