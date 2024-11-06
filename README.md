@@ -132,17 +132,6 @@ volume = {6},
 year = {2024}
 }
 ```
-Zenodo:
-```bibtex
-@software{Partmann_Peridynamics_jl_2023,
-author = {Partmann, Kai and Dienst, Manuel and Weinberg, Kerstin},
-doi = {10.5281/zenodo.8187477},
-month = jul,
-title = {{Peridynamics.jl}},
-url = {https://github.com/kaipartmann/Peridynamics.jl},
-year = {2023}
-}
-```
 
 ## Authors
 
