@@ -116,6 +116,34 @@ mpiexec -n 6 julia --project path/to/script.jl
 ```
 Please take a look at the [how-to guide on MPI](https://kaipartmann.github.io/Peridynamics.jl/dev/howto_mpi/) for more details.
 
+## Cite Us
+
+If you use Peridynamics.jl in your own research or write a paper using results obtained 
+with the help of Peridynamics.jl, please cite it as
+```bibtex
+@article{Partmann_Simulation_of_fracture_2024,
+author = {Partmann, Kai and Dienst, Manuel and Weinberg, Kerstin},
+doi = {10.21105/jcon.00165},
+journal = {Proceedings of the JuliaCon Conferences},
+pages = {165},
+title = {{Simulation of fracture and damage with Peridynamics.jl}},
+url = {https://doi.org/10.21105/jcon.00165},
+volume = {6},
+year = {2024}
+}
+```
+Zenodo:
+```bibtex
+@software{Partmann_Peridynamics_jl_2023,
+author = {Partmann, Kai and Dienst, Manuel and Weinberg, Kerstin},
+doi = {10.5281/zenodo.8187477},
+month = jul,
+title = {{Peridynamics.jl}},
+url = {https://github.com/kaipartmann/Peridynamics.jl},
+year = {2023}
+}
+```
+
 ## Authors
 
 - <a href="https://orcid.org/0000-0002-5238-4355">Kai Partmann (University of Siegen) <img alt="ORCID logo" src="https://info.orcid.org/wp-content/uploads/2019/11/orcid_16x16.png" width="16" height="16" /></a>
