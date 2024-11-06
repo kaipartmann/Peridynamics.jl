@@ -116,20 +116,30 @@ mpiexec -n 6 julia --project path/to/script.jl
 ```
 Please take a look at the [how-to guide on MPI](https://kaipartmann.github.io/Peridynamics.jl/dev/howto_mpi/) for more details.
 
+## Tutorials
+
+```@raw html
+<img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/728da1f0-4750-4ab6-a430-9b206e475577" width="300"/>
+```
+
+<a href="https://kaipartmann.github.io/Peridynamics.jl/stable/#Tutorials">
+  <figcaption>Tutorials</figcaption><br><img src="https://github.com/user-attachments/assets/7fa65fd4-38d8-46cb-833f-990417211d17"/><br>
+</a>
+
 ## Cite Us
 
 If you use Peridynamics.jl in your own research or write a paper using results obtained 
 with the help of Peridynamics.jl, please cite it as
 ```bibtex
 @article{Partmann_Simulation_of_fracture_2024,
-author = {Partmann, Kai and Dienst, Manuel and Weinberg, Kerstin},
-doi = {10.21105/jcon.00165},
-journal = {Proceedings of the JuliaCon Conferences},
-pages = {165},
-title = {{Simulation of fracture and damage with Peridynamics.jl}},
-url = {https://doi.org/10.21105/jcon.00165},
-volume = {6},
-year = {2024}
+  author = {Partmann, Kai and Dienst, Manuel and Weinberg, Kerstin},
+  doi = {10.21105/jcon.00165},
+  journal = {Proceedings of the JuliaCon Conferences},
+  pages = {165},
+  title = {{Simulation of fracture and damage with Peridynamics.jl}},
+  url = {https://doi.org/10.21105/jcon.00165},
+  volume = {6},
+  year = {2024}
 }
 ```
 
