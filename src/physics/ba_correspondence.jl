@@ -139,17 +139,6 @@ function init_field(::BACMaterial, ::AbstractTimeSolver, system::BondAssociatedS
     return zeros(get_n_loc_points(system))
 end
 
-# function calc_force_density!(chunk::AbstractBodyChunk{S,M},
-#                              Δt::Float64) where {S<:BondAssociatedSystem,M<:BANOSBMaterial}
-#     (; system, mat, paramsetup, storage) = chunk
-#     storage.b_int .= 0
-#     storage.n_active_bonds .= 0
-#     for point_id in each_point_idx(chunk)
-#         force_density_point!(storage, system, mat, paramsetup, Δt, point_id)
-#     end
-#     return nothing
-# end
-
 function force_density_point!(storage::BACStorage, system::BondAssociatedSystem,
                               mat::BACMaterial, paramhandler::AbstractParameterHandler,
                               t, Δt, i)
@@ -188,7 +177,6 @@ function force_density_bond!(storage::BACStorage, system::BondAssociatedSystem,
     ωij = influence_function(mat, params, L) * storage.bond_active[bond_idx]
     ϕi = volume_fraction_factor(system, i, bond_idx)
     tij = ϕi * ωij * PKinv * ΔXij
-    # tij = ωij * PKinv * ΔXij
     update_add_b_int!(storage, i, tij .* system.volume[j])
     update_add_b_int!(storage, j, -tij .* system.volume[i])
     return nothing

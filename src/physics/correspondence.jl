@@ -150,7 +150,7 @@ function force_density_point!(storage::CStorage, system::BondSystem, mat::CMater
     too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
     PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)
     zem = mat.zem_stabilization
-    cc_force_density!(storage, system, mat, params, zem, PKinv, defgrad_res, i)
+    c_force_density!(storage, system, mat, params, zem, PKinv, defgrad_res, i)
     return nothing
 end
 
@@ -192,7 +192,7 @@ function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
     return PKinv
 end
 
-function cc_force_density!(storage::CStorage, system::BondSystem, mat::CMaterial,
+function c_force_density!(storage::CStorage, system::BondSystem, mat::CMaterial,
                            params::CPointParameters, zem_correction::ZEMSilling,
                            PKinv::SMatrix, defgrad_res, i)
     (; bonds, volume) = system
