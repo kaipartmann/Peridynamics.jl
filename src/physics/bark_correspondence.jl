@@ -1,5 +1,5 @@
 """
-    BARKCCMaterial(; maxdmg, zem)
+    BARKCMaterial(; maxdmg, zem)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
@@ -21,14 +21,14 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 # Examples
 
 ```julia-repl
-julia> mat = CCMaterial()
-CCMaterial(maxdmg=0.95, zem_fac=ZEMSilling())
+julia> mat = CMaterial()
+CMaterial(maxdmg=0.95, zem_fac=ZEMSilling())
 ```
 
 ---
 
 ```julia
-CCMaterial
+CMaterial
 ```
 
 Material type for the local continuum consistent (correspondence) formulation of
@@ -41,7 +41,7 @@ non-ordinary state-based peridynamics.
     constructor docs for more informations.
 
 # Allowed material parameters
-When using [`material!`](@ref) on a [`Body`](@ref) with `CCMaterial`, then the following
+When using [`material!`](@ref) on a [`Body`](@ref) with `CMaterial`, then the following
 parameters are allowed:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
@@ -52,7 +52,7 @@ parameters are allowed:
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
-`CCMaterial`, the following fields are allowed:
+`CMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point
 - `displacement::Matrix{Float64}`: Displacement of each point
 - `velocity::Matrix{Float64}`: Velocity of each point
@@ -63,26 +63,26 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct BARKCCMaterial{CM} <: AbstractBondAssociatedSystemMaterial
+struct BARKCMaterial{CM} <: AbstractBondAssociatedSystemMaterial
     constitutive_model::CM
     maxdmg::Float64
-    function BARKCCMaterial(cm::CM, maxdmg::Real) where {CM}
+    function BARKCMaterial(cm::CM, maxdmg::Real) where {CM}
         return new{CM}(cm, maxdmg)
     end
 end
 
-function Base.show(io::IO, @nospecialize(mat::BARKCCMaterial))
+function Base.show(io::IO, @nospecialize(mat::BARKCMaterial))
     print(io, typeof(mat))
     print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
     return nothing
 end
 
-function BARKCCMaterial(; model::AbstractConstitutiveModel=NeoHookeNonlinear(),
+function BARKCMaterial(; model::AbstractConstitutiveModel=NeoHookeNonlinear(),
                           maxdmg::Real=0.85)
-    return BARKCCMaterial(model, maxdmg)
+    return BARKCMaterial(model, maxdmg)
 end
 
-struct BARKCCPointParameters <: AbstractPointParameters
+struct BARKCPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64
     E::Float64
@@ -96,16 +96,16 @@ struct BARKCCPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-function BARKCCPointParameters(mat::BARKCCMaterial, p::Dict{Symbol,Any})
+function BARKCPointParameters(mat::BARKCMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
     (; Gc, εc) = get_frac_params(p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
-    return BARKCCPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+    return BARKCPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@params BARKCCMaterial BARKCCPointParameters
+@params BARKCMaterial BARKCPointParameters
 
-@storage BARKCCMaterial struct BARKCCStorage
+@storage BARKCMaterial struct BARKCStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
@@ -124,22 +124,22 @@ end
     @lthfield defgrad::Matrix{Float64}
 end
 
-function init_field(::BARKCCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
+function init_field(::BARKCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
                     ::Val{:b_int})
     return zeros(3, get_n_points(system))
 end
 
-function init_field(::BARKCCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
+function init_field(::BARKCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
                     ::Val{:stress})
     return zeros(9, get_n_loc_points(system))
 end
 
-function init_field(::BARKCCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
+function init_field(::BARKCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
                     ::Val{:von_mises_stress})
     return zeros(get_n_loc_points(system))
 end
 
-function init_field(::BARKCCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
+function init_field(::BARKCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
                     ::Val{:defgrad})
     return zeros(9, get_n_points(system))
 end
@@ -147,7 +147,7 @@ end
 # TODO: split the verlet timestep into 3 parts for threading, improve code reusability!
 function verlet_timestep!(dh::AbstractThreadsBodyDataHandler{Sys,M},
                           options::AbstractJobOptions, Δt::Float64, Δt½::Float64,
-                          n::Int) where {Sys<:BondAssociatedSystem,M<:BARKCCMaterial}
+                          n::Int) where {Sys<:BondAssociatedSystem,M<:BARKCMaterial}
     t = n * Δt
     @threads :static for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
@@ -174,7 +174,7 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler{Sys,M},
 end
 
 function calc_deformation_gradient!(chunk::AbstractBodyChunk{S,M}, t,
-                                    Δt) where {S<:BondAssociatedSystem,M<:BARKCCMaterial}
+                                    Δt) where {S<:BondAssociatedSystem,M<:BARKCMaterial}
     (; system, mat, paramsetup, storage) = chunk
     for i in each_point_idx(chunk)
         calc_deformation_gradient_point!(storage, system, mat, paramsetup, i)
@@ -182,17 +182,17 @@ function calc_deformation_gradient!(chunk::AbstractBodyChunk{S,M}, t,
     return nothing
 end
 
-function calc_deformation_gradient_point!(storage::BARKCCStorage,
-                                          system::BondAssociatedSystem, mat::BARKCCMaterial,
+function calc_deformation_gradient_point!(storage::BARKCStorage,
+                                          system::BondAssociatedSystem, mat::BARKCMaterial,
                                           paramhandler::AbstractParameterHandler, i)
     params = get_params(paramhandler, i)
     calc_deformation_gradient_point!(storage, system, mat, params, i)
     return nothing
 end
 
-function calc_deformation_gradient_point!(storage::BARKCCStorage,
-                                          system::BondAssociatedSystem, mat::BARKCCMaterial,
-                                          params::BARKCCPointParameters, i)
+function calc_deformation_gradient_point!(storage::BARKCStorage,
+                                          system::BondAssociatedSystem, mat::BARKCMaterial,
+                                          params::BARKCPointParameters, i)
     (; bonds, volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
@@ -213,24 +213,24 @@ function calc_deformation_gradient_point!(storage::BARKCCStorage,
     return nothing
 end
 
-function force_density_point!(storage::BARKCCStorage, system::BondAssociatedSystem,
-                              mat::BARKCCMaterial, paramhandler::AbstractParameterHandler,
+function force_density_point!(storage::BARKCStorage, system::BondAssociatedSystem,
+                              mat::BARKCMaterial, paramhandler::AbstractParameterHandler,
                               t, Δt, i)
     params = get_params(paramhandler, i)
     force_density_point!(storage, system, mat, params, t, Δt, i)
     return nothing
 end
 
-function force_density_point!(storage::BARKCCStorage, system::BondAssociatedSystem,
-                              mat::BARKCCMaterial, params::BARKCCPointParameters, t, Δt, i)
+function force_density_point!(storage::BARKCStorage, system::BondAssociatedSystem,
+                              mat::BARKCMaterial, params::BARKCPointParameters, t, Δt, i)
     for bond_idx in each_bond_idx(system, i)
         force_density_bond!(storage, system, mat, params, t, Δt, i, bond_idx)
     end
     return nothing
 end
 
-function force_density_bond!(storage::BARKCCStorage, system::BondAssociatedSystem,
-                             mat::BARKCCMaterial, params::BARKCCPointParameters, t, Δt, i,
+function force_density_bond!(storage::BARKCStorage, system::BondAssociatedSystem,
+                             mat::BARKCMaterial, params::BARKCPointParameters, t, Δt, i,
                              bond_idx)
     Fb = calc_deformation_gradient(storage, system, mat, params, i, bond_idx)
     (; F) = defgrad_res
@@ -258,13 +258,13 @@ function force_density_bond!(storage::BARKCCStorage, system::BondAssociatedSyste
 end
 
 
-@inline function influence_function(::BARKCCMaterial, params::BARKCCPointParameters,
+@inline function influence_function(::BARKCMaterial, params::BARKCPointParameters,
                                     L::Float64)
     return params.δ / L
 end
 
-function calc_deformation_gradient(storage::BARKCCStorage, system::BondAssociatedSystem,
-                                   mat::BARKCCMaterial, params::BARKCCPointParameters, i,
+function calc_deformation_gradient(storage::BARKCStorage, system::BondAssociatedSystem,
+                                   mat::BARKCMaterial, params::BARKCPointParameters, i,
                                    bond_idx)
     Fi = get_tensor(storage.defgrad, i)
     bond = system.bonds[bond_idx]
@@ -278,8 +278,8 @@ function calc_deformation_gradient(storage::BARKCCStorage, system::BondAssociate
     return Fb
 end
 
-function calc_first_piola_kirchhoff!(storage::BARKCCStorage, mat::BARKCCMaterial,
-                                     params::BARKCCPointParameters, defgrad_res, Δt, i,
+function calc_first_piola_kirchhoff!(storage::BARKCStorage, mat::BARKCMaterial,
+                                     params::BARKCPointParameters, defgrad_res, Δt, i,
                                      bond_idx)
     (; F, Kinv) = defgrad_res
     σ = cauchy_stress(mat.constitutive_model, storage, params, F)

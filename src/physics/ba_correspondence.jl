@@ -1,5 +1,5 @@
 """
-    CCMaterial(; maxdmg, zem)
+    CMaterial(; maxdmg, zem)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
@@ -21,14 +21,14 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 # Examples
 
 ```julia-repl
-julia> mat = CCMaterial()
-CCMaterial(maxdmg=0.95, zem_fac=ZEMSilling())
+julia> mat = CMaterial()
+CMaterial(maxdmg=0.95, zem_fac=ZEMSilling())
 ```
 
 ---
 
 ```julia
-CCMaterial
+CMaterial
 ```
 
 Material type for the local continuum consistent (correspondence) formulation of
@@ -41,7 +41,7 @@ non-ordinary state-based peridynamics.
     constructor docs for more informations.
 
 # Allowed material parameters
-When using [`material!`](@ref) on a [`Body`](@ref) with `CCMaterial`, then the following
+When using [`material!`](@ref) on a [`Body`](@ref) with `CMaterial`, then the following
 parameters are allowed:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
@@ -52,7 +52,7 @@ parameters are allowed:
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
-`CCMaterial`, the following fields are allowed:
+`CMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point
 - `displacement::Matrix{Float64}`: Displacement of each point
 - `velocity::Matrix{Float64}`: Velocity of each point
@@ -63,26 +63,26 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct BACCMaterial{CM} <: AbstractBondAssociatedSystemMaterial
+struct BACMaterial{CM} <: AbstractBondAssociatedSystemMaterial
     constitutive_model::CM
     maxdmg::Float64
-    function BACCMaterial(cm::CM, maxdmg::Real) where {CM}
+    function BACMaterial(cm::CM, maxdmg::Real) where {CM}
         return new{CM}(cm, maxdmg)
     end
 end
 
-function Base.show(io::IO, @nospecialize(mat::BACCMaterial))
+function Base.show(io::IO, @nospecialize(mat::BACMaterial))
     print(io, typeof(mat))
     print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
     return nothing
 end
 
-function BACCMaterial(; model::AbstractConstitutiveModel=NeoHookeNonlinear(),
+function BACMaterial(; model::AbstractConstitutiveModel=NeoHookeNonlinear(),
                       maxdmg::Real=0.85)
-    return BACCMaterial(model, maxdmg)
+    return BACMaterial(model, maxdmg)
 end
 
-struct BACCPointParameters <: AbstractPointParameters
+struct BACPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64
     E::Float64
@@ -96,16 +96,17 @@ struct BACCPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-function BACCPointParameters(mat::BACCMaterial, p::Dict{Symbol,Any})
+function BACPointParameters(mat::BACMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
     (; Gc, εc) = get_frac_params(p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
-    return BACCPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+    return BACPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@params BACCMaterial BACCPointParameters
 
-@storage BACCMaterial struct BACCStorage
+@params BACMaterial BACPointParameters
+
+@storage BACMaterial struct BACStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
@@ -123,17 +124,17 @@ end
     @pointfield von_mises_stress::Vector{Float64}
 end
 
-function init_field(::BACCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
+function init_field(::BACMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
                     ::Val{:b_int})
     return zeros(3, get_n_points(system))
 end
 
-function init_field(::BACCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
+function init_field(::BACMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
                     ::Val{:stress})
     return zeros(9, get_n_loc_points(system))
 end
 
-function init_field(::BACCMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
+function init_field(::BACMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
                     ::Val{:von_mises_stress})
     return zeros(get_n_loc_points(system))
 end
@@ -149,24 +150,24 @@ end
 #     return nothing
 # end
 
-function force_density_point!(storage::BACCStorage, system::BondAssociatedSystem,
-                              mat::BACCMaterial, paramhandler::AbstractParameterHandler,
+function force_density_point!(storage::BACStorage, system::BondAssociatedSystem,
+                              mat::BACMaterial, paramhandler::AbstractParameterHandler,
                               t, Δt, i)
     params = get_params(paramhandler, i)
     force_density_point!(storage, system, mat, params, t, Δt, i)
     return nothing
 end
 
-function force_density_point!(storage::BACCStorage, system::BondAssociatedSystem,
-                              mat::BACCMaterial, params::BACCPointParameters, t, Δt, i)
+function force_density_point!(storage::BACStorage, system::BondAssociatedSystem,
+                              mat::BACMaterial, params::BACPointParameters, t, Δt, i)
     for bond_idx in each_bond_idx(system, i)
         force_density_bond!(storage, system, mat, params, t, Δt, i, bond_idx)
     end
     return nothing
 end
 
-function force_density_bond!(storage::BACCStorage, system::BondAssociatedSystem,
-                             mat::BACCMaterial, params::BACCPointParameters, t, Δt, i,
+function force_density_bond!(storage::BACStorage, system::BondAssociatedSystem,
+                             mat::BACMaterial, params::BACPointParameters, t, Δt, i,
                              bond_idx)
     defgrad_res = calc_deformation_gradient(storage, system, mat, params, i, bond_idx)
     (; F) = defgrad_res
@@ -194,13 +195,13 @@ function force_density_bond!(storage::BACCStorage, system::BondAssociatedSystem,
 end
 
 
-@inline function influence_function(::BACCMaterial, params::BACCPointParameters,
+@inline function influence_function(::BACMaterial, params::BACPointParameters,
                                     L::Float64)
     return params.δ / L
 end
 
-function calc_deformation_gradient(storage::BACCStorage, system::BondAssociatedSystem,
-                                   mat::BACCMaterial, params::BACCPointParameters, i,
+function calc_deformation_gradient(storage::BACStorage, system::BondAssociatedSystem,
+                                   mat::BACMaterial, params::BACPointParameters, i,
                                    bond_idx)
     (; bonds, volume) = system
     (; bond_active) = storage
@@ -220,8 +221,8 @@ function calc_deformation_gradient(storage::BACCStorage, system::BondAssociatedS
     return (; F, Kinv)
 end
 
-function calc_first_piola_kirchhoff!(storage::BACCStorage, mat::BACCMaterial,
-                                     params::BACCPointParameters, defgrad_res, Δt, i,
+function calc_first_piola_kirchhoff!(storage::BACStorage, mat::BACMaterial,
+                                     params::BACPointParameters, defgrad_res, Δt, i,
                                      bond_idx)
     (; F, Kinv) = defgrad_res
     σ = cauchy_stress(mat.constitutive_model, storage, params, F)

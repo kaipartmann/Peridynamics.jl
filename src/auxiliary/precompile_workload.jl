@@ -43,7 +43,7 @@
         velocity_bc!(t -> -1, b2, :set_a, :x)
         velocity_bc!(t -> 1, b2, :set_b, 1)
 
-        b3 = Body(CCMaterial(), pos1, vol1)
+        b3 = Body(CMaterial(), pos1, vol1)
         material!(b3; horizon=2, E=2.1e5, nu=0.25, rho=8e-6, Gc=2.7)
         point_set!(p -> p[1] ≤ 0.5, b3, :set_a)
         point_set!(x -> x > 0.5, b3, :set_b)

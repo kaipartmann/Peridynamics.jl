@@ -4,7 +4,7 @@
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
     volume = [1.1, 1.2, 1.3, 1.4]
-    mat = BACCMaterial()
+    mat = BACMaterial()
     body = Body(mat, position, volume)
     material!(body, horizon=2, rho=1, E=1, nu=0.25, Gc=1)
     pd = Peridynamics.PointDecomposition(body, 1)
@@ -35,7 +35,7 @@ end
 
 @testitem "intersection bond ids" begin
     pos, vol = uniform_box(1, 0.25, 0.25, 0.25)
-    body = Body(BACCMaterial(), pos, vol)
+    body = Body(BACMaterial(), pos, vol)
     material!(body, horizon=0.5, rho=1, E=1, nu=0.25, Gc=1)
 
     pd = Peridynamics.PointDecomposition(body, 1)
@@ -58,14 +58,14 @@ end
     @test bond_ids == [1:2, 3:5, 6:8, 9:10]
     @test intersection_bond_ids == [[2], [1], [], [3], [2], [2], [1], [], [2], [1]]
 
-    for i in Peridynamics.each_point_idx(system)
-        for bond_idx in Peridynamics.each_bond_idx(system, i)
-            # bond = bonds[bond_idx]
-            # j = bond.neighbor
-            for babond_idx in Peridynamics.each_intersecting_bond_idx(system, i, bond_idx)
+    # for i in Peridynamics.each_point_idx(system)
+    #     for bond_idx in Peridynamics.each_bond_idx(system, i)
+    #         # bond = bonds[bond_idx]
+    #         # j = bond.neighbor
+    #         for babond_idx in Peridynamics.each_intersecting_bond_idx(system, i, bond_idx)
 
-            end
-        end
-    end
+    #         end
+    #     end
+    # end
 
 end

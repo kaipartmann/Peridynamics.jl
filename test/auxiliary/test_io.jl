@@ -209,7 +209,7 @@
     # setup
     bbb = Body(BBMaterial(), rand(3, 10), rand(10))
     bosb = Body(OSBMaterial(), rand(3, 10), rand(10))
-    bcc = Body(CCMaterial(), rand(3, 10), rand(10))
+    bcc = Body(CMaterial(), rand(3, 10), rand(10))
     ms = MultibodySetup(:a => bbb, :b => bosb, :c => bcc)
     vv = VelocityVerlet(steps=1)
     dr = DynamicRelaxation(steps=1)
