@@ -50,8 +50,8 @@ end
 function find_intersection_bond_ids(body, loc_points, bonds, bond_ids)
     intersection_bond_ids = Vector{Vector{Int}}(undef, length(bonds))
     for (li, i) in enumerate(loc_points)
-        δ = 1.01 * get_point_param(body, :δ, i)
-        δ² = δ * δ
+        δb = get_point_param(body, :δb, i)
+        δb² = δb * δb
         bond_ids_of_i = bond_ids[li]
         for bond_id in bond_ids_of_i
             bond = bonds[bond_id]
@@ -64,7 +64,7 @@ function find_intersection_bond_ids(body, loc_points, bonds, bond_ids)
                 Xjj = get_coordinates(body, jj)
                 ΔX = Xj - Xjj
                 L² = dot(ΔX, ΔX)
-                if L² < δ²
+                if L² < δb²
                     push!(intersecting_bonds, ibond_id)
                 end
             end
@@ -169,14 +169,28 @@ function req_data_fields_fracture(::Type{<:AbstractBondAssociatedSystemMaterial}
 end
 
 function required_point_parameters(::Type{<:AbstractBondAssociatedSystemMaterial})
-    return (:δ, :rho, elasticity_parameters()...)
+    return (:δ, :δb, :rho, elasticity_parameters()...)
 end
 
 function get_required_point_parameters(::AbstractBondAssociatedSystemMaterial,
                                        p::Dict{Symbol,Any})
-    return (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)
+    δ_params = get_horizon(p)
+    δb_params = get_bond_horizon(p, δ_params.δ)
+    return (; δ_params..., δb_params..., get_density(p)..., get_elastic_params(p)...)
+end
+
+function get_bond_horizon(p::Dict{Symbol,Any}, δ::Float64)
+    δb::Float64 = float(get(p, :bond_horizon, δ))
+    if δb ≤ 0
+        throw(ArgumentError("`bond_horizon` should be larger than zero!\n"))
+    end
+    if δb < δ
+        @warn "a small bond horizon < δ will possibly lead to numerical instabilities!"
+    end
+    return (; δb)
 end
 
 function allowed_material_kwargs(::AbstractBondAssociatedSystemMaterial)
-    return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...)
+    return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...,
+            :bond_horizon)
 end
