@@ -9,7 +9,7 @@ end
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, OSBMaterial, CMaterial, BACMaterial, BARKCMaterial, CKIMaterial
+export BBMaterial, OSBMaterial, CMaterial, BACMaterial, CKIMaterial
 
 # CMaterial related types
 export NeoHookeNonlinear, SaintVenantKirchhoff, ZEMSilling
