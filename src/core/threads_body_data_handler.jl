@@ -157,6 +157,17 @@ function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsBodyDataHandler
     return nothing
 end
 
+function calc_force_density!(dh::ThreadsBodyDataHandler, Δt, t)
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        exchange_loc_to_halo!(dh, chunk_id)
+        calc_force_density!(dh.chunks[chunk_id], t, Δt)
+    end
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        exchange_halo_to_loc!(dh, chunk_id)
+    end
+    return nothing
+end
+
 function export_results(dh::ThreadsBodyDataHandler, options::AbstractJobOptions,
                         chunk_id::Int, timestep::Int, time::Float64)
     options.export_allowed || return nothing

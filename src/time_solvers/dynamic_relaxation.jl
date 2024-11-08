@@ -165,20 +165,15 @@ end
 end
 
 function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
-                              options::AbstractJobOptions,
-                              Δt::Float64, n::Int)
+                              options::AbstractJobOptions, Δt, n)
     t = n * Δt
     @threads :static for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
         apply_boundary_conditions!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
+    calc_force_density!(dh, Δt, t)
     @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_loc_to_halo!(dh, chunk_id)
-        calc_force_density!(dh.chunks[chunk_id], t, Δt)
-    end
-    @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_halo_to_loc!(dh, chunk_id)
         chunk = dh.chunks[chunk_id]
         calc_damage!(chunk)
         cn = calc_damping(chunk, Δt)
@@ -189,6 +184,24 @@ function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
         end
         export_results(dh, options, chunk_id, n, t)
     end
+    return nothing
+end
+
+function relaxation_timestep!(dh::AbstractMPIBodyDataHandler,
+                              options::AbstractJobOptions, Δt, n)
+    t = n * Δt
+    (; chunk) = dh
+    @timeit_debug TO "apply_boundary_conditions!" apply_boundary_conditions!(chunk, t)
+    @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
+    calc_force_density!(dh, Δt, t)
+    @timeit_debug TO "calc_damage!" calc_damage!(chunk)
+    @timeit_debug TO "relaxation_step!" if n == 1
+        relaxation_first_step!(chunk, Δt)
+    else
+        cn = calc_damping(chunk, Δt)
+        relaxation_step!(chunk, Δt, cn)
+    end
+    @timeit_debug TO "export_results" export_results(dh, options, chunk_id, n, t)
     return nothing
 end
 

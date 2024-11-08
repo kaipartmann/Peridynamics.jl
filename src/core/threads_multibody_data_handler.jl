@@ -33,6 +33,17 @@ end
 @inline each_body_name(dh::ThreadsMultibodyDataHandler) = dh.body_names
 @inline each_body_idx(dh::ThreadsMultibodyDataHandler) = eachindex(dh.body_dhs)
 
+function calc_force_density!(dh::ThreadsMultibodyDataHandler, Δt, t)
+    for body_idx in each_body_idx(dh)
+        body_dh = get_body_dh(dh, body_idx)
+        @threads :static for chunk_id in eachindex(body_dh.chunks)
+            exchange_loc_to_halo!(body_dh, chunk_id)
+            calc_force_density!(body_dh.chunks[chunk_id], t, Δt)
+        end
+    end
+    return nothing
+end
+
 function update_caches!(dh::ThreadsMultibodyDataHandler)
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
