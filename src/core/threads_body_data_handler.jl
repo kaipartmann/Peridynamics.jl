@@ -157,7 +157,7 @@ function exchange_halo_to_loc!(get_field_function::F, dh::ThreadsBodyDataHandler
     return nothing
 end
 
-function calc_force_density!(dh::ThreadsBodyDataHandler, Δt, t)
+function calc_force_density!(dh::ThreadsBodyDataHandler, t, Δt)
     @threads :static for chunk_id in eachindex(dh.chunks)
         exchange_loc_to_halo!(dh, chunk_id)
         calc_force_density!(dh.chunks[chunk_id], t, Δt)

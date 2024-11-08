@@ -33,7 +33,7 @@ end
 @inline each_body_name(dh::ThreadsMultibodyDataHandler) = dh.body_names
 @inline each_body_idx(dh::ThreadsMultibodyDataHandler) = eachindex(dh.body_dhs)
 
-function calc_force_density!(dh::ThreadsMultibodyDataHandler, Δt, t)
+function calc_force_density!(dh::ThreadsMultibodyDataHandler, t, Δt)
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
         @threads :static for chunk_id in eachindex(body_dh.chunks)

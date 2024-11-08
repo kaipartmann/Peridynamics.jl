@@ -209,7 +209,7 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
             update_disp_and_pos!(chunk, Δt)
         end
     end
-    calc_force_density!(dh, Δt, t)
+    calc_force_density!(dh, t, Δt)
     update_caches!(dh)
     calc_contact_force_densities!(dh)
     for body_idx in each_body_idx(dh)
@@ -233,7 +233,7 @@ function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractJobOp
     @timeit_debug TO "update_vel_half!" update_vel_half!(chunk, Δt½)
     @timeit_debug TO "apply_boundary_conditions!" apply_boundary_conditions!(chunk, t)
     @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
-    calc_force_density!(dh, Δt, t)
+    calc_force_density!(dh, t, Δt)
     @timeit_debug TO "calc_damage!" calc_damage!(chunk)
     @timeit_debug TO "update_acc_and_vel!" update_acc_and_vel!(chunk, Δt½)
     @timeit_debug TO "export_results" export_results(dh, options, n, t)
