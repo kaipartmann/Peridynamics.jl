@@ -201,7 +201,7 @@ function relaxation_timestep!(dh::AbstractMPIBodyDataHandler,
         cn = calc_damping(chunk, Δt)
         relaxation_step!(chunk, Δt, cn)
     end
-    @timeit_debug TO "export_results" export_results(dh, options, chunk_id, n, t)
+    @timeit_debug TO "export_results" export_results(dh, options, n, t)
     return nothing
 end
 
