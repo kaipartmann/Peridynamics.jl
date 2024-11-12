@@ -226,18 +226,6 @@ function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:RKCMaterial},
     return nothing
 end
 
-# function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem,<:RKCMaterial},
-#                              t, Δt)
-#     (; system, mat, paramsetup, storage) = chunk
-#     storage.b_int .= 0
-#     storage.n_active_bonds .= 0
-#     calc_gradient_weights!(storage, system, mat, paramsetup)
-#     for point_id in each_point_idx(chunk)
-#         force_density_point!(storage, system, mat, paramsetup, t, Δt, point_id)
-#     end
-#     return nothing
-# end
-
 function calc_weights_and_defgrad!(chunk::BodyChunk{<:BondSystem,<:RKCMaterial}, t, Δt)
     (; system, mat, paramsetup, storage) = chunk
     calc_gradient_weights!(storage, system, mat, paramsetup)
@@ -266,9 +254,10 @@ function calc_gradient_weights!(storage::RKCStorage, system::BondSystem, mat::RK
                 bond = bonds[bond_id]
                 j, L = bond.neighbor, bond.length
                 ΔXij = get_diff(system.position, i, j)
-                Q = get_q_matrix(accuracy_order, ΔXij, δ)
+                Q = get_q_vector(accuracy_order, ΔXij, δ)
                 ωij = influence_function(mat, params, L) * bond_active[bond_id]
                 temp = ωij * volume[j]
+                # M += temp * (Q * Q') / δ
                 M += temp * (Q * Q')
                 wi += temp
             end
@@ -280,7 +269,8 @@ function calc_gradient_weights!(storage::RKCStorage, system::BondSystem, mat::RK
             # Minv = inv(M)
             U, S, V = svd(M)
             threshold = 1e-6 * δ * δ * δ
-            Sinv = Diagonal([s > threshold ? 1/s : 0 for s in S])
+            _S_ = SVector{q_dim,Float64}((s > threshold ? s : 0) for s in S)
+            Sinv = Diagonal{Float64,SVector{9,Float64}}(_S_)
             Minv = V * Sinv * U'
 
             # calculate gradient weights Φ
@@ -288,7 +278,7 @@ function calc_gradient_weights!(storage::RKCStorage, system::BondSystem, mat::RK
                 bond = bonds[bond_id]
                 j, L = bond.neighbor, bond.length
                 ΔXij = get_diff(system.position, i, j)
-                Q = get_q_matrix(accuracy_order, ΔXij, δ)
+                Q = get_q_vector(accuracy_order, ΔXij, δ)
                 ωij = influence_function(mat, params, L) * bond_active[bond_id]
                 MinvQ = Minv * Q
                 Φ = ωij * (Q∇ᵀ * MinvQ)
@@ -323,9 +313,9 @@ end
 
 @inline get_q_dim(accuracy_order) = length(each_monomial(accuracy_order))
 
-@inline get_q_matrix(N::Int, ΔX::AbstractArray, δ::Real) = get_q_matrix(Val(N), ΔX, δ)
+@inline get_q_vector(N::Int, ΔX::AbstractArray, δ::Real) = get_q_vector(Val(N), ΔX, δ)
 
-@inline function get_q_matrix(n::Val{N}, ΔX::AbstractArray, δ::Real) where {N}
+@inline function get_q_vector(n::Val{N}, ΔX::AbstractArray, δ::Real) where {N}
     a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
     _Q = (a1^p1 * a2^p2 * a3^p3 for (p1, p2, p3) in each_monomial(n))
     q_dims = get_q_dim(n)
@@ -333,19 +323,20 @@ end
     return Q
 end
 
-# @inline function get_q_matrix(::Val{1}, ΔX::AbstractArray, δ::Real)
-#     a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
-#     Q = SVector{3}(a1, a2, a3)
-#     return Q
-# end
+@inline function get_q_vector(::Val{1}, ΔX::AbstractArray, δ::Real)
+    a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
+    Q = SVector{3}(a1, a2, a3)
+    return Q
+end
 
-# @inline function get_q_matrix(::Val{2}, ΔX::AbstractArray, δ::Real)
-#     a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
-#     Q = SVector{9}(a1, a2, a3, a1*a1, a1*a2, a1*a3, a2*a2, a2*a3, a3*a3)
-#     return Q
-# end
+@inline function get_q_vector(::Val{2}, ΔX::AbstractArray, δ::Real)
+    a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
+    Q = SVector{9}(a1, a2, a3, a1*a1, a1*a2, a1*a3, a2*a2, a2*a3, a3*a3)
+    # Q = SVector{9}(a1, a2, a3, a1*a1, a2*a2, a3*a3, a1*a2, a1*a3, a2*a3)
+    return Q
+end
 
-# function get_q_matrix2(accuracy_order::Int, ΔX::AbstractArray, δ::Real)
+# function get_q_vector2(accuracy_order::Int, ΔX::AbstractArray, δ::Real)
 #     q_dim = get_q_dim(accuracy_order)
 #     Q = @MVector zeros(Float64, q_dim)
 #     counter = 1
@@ -412,8 +403,7 @@ function calc_deformation_gradients!(storage::RKCStorage, system::BondSystem, ::
             Δxij = get_vector_diff(storage.position, i, j)
             ΔUij = Δxij - ΔXij
             Φij = get_vector(gradient_weight, bond_id)
-            # F += (ΔUij * Φij') * volume[j]
-            F += (Φij * ΔUij') * volume[j]
+            F += (ΔUij * Φij') * volume[j]
         end
         update_tensor!(defgrad, i, F)
     end
@@ -432,8 +422,18 @@ function force_density_point!(storage::RKCStorage, system::BondSystem, mat::RKCM
     (; bonds, volume) = system
     (; gradient_weight, defgrad, bond_active, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
-    too_much_damage!(storage, system, mat, Fi, i) && return nothing
+    # println("Deformation gradient Fi at point $i:")
+    # display(Fi)
+
+    # too_much_damage!(storage, system, mat, Fi, i) && return nothing
+    if too_much_damage!(storage, system, mat, Fi, i)
+        # println("Too much damage at point $i")
+        return nothing
+    end
+
     Pi = calc_first_piola_kirchhoff(storage, mat, params, Fi)
+    # println("First Piola Kirchhoff stress tensor Pi at point $i:")
+    # display(Pi)
 
     # Standard RK
     for bond_id in each_bond_idx(system, i)
@@ -449,7 +449,7 @@ function force_density_point!(storage::RKCStorage, system::BondSystem, mat::RKCM
             Fj = get_tensor(defgrad, j)
             Pj = calc_first_piola_kirchhoff(storage, mat, params, Fj)
             ΔPij = Pj - Pi
-            tij = 1e1 * (ΔPij * Φij) * volume[j]
+            tij = (ΔPij * Φij) * volume[j]
             update_add_b_int!(storage, i, tij)
         # end
     end
