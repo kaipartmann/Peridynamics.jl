@@ -213,10 +213,7 @@ function calc_first_piola_kirchhoff!(storage::BACStorage, mat::BACMaterial,
                                      params::BACPointParameters, defgrad_res, Δt, i,
                                      bond_idx)
     (; F, Kinv) = defgrad_res
-    σ = cauchy_stress(mat.constitutive_model, storage, params, F)
-    # update_tensor!(storage.stress, i, σ)
-    # storage.von_mises_stress[i] = von_mises_stress(σ)
-    P = det(F) * σ * inv(F)'
+    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
     PKinv = P * Kinv
     return PKinv
 end

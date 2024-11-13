@@ -7,3 +7,9 @@ function von_mises_stress(σ)
     σvm = √(a + b + c)
     return σvm
 end
+
+function cauchy_stress(P, F)
+    J = det(F)
+    σ = 1/J .* P * F'
+    return σ
+end
