@@ -105,6 +105,14 @@ To install `Peridynamics.jl`, follow these steps:
 ```
 
 ```@raw html
+<div class="tutorial-element">
+   <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_brazilian_test/">
+      <figcaption>Brazilian test</figcaption><br><img src="https://github.com/user-attachments/assets/2f78a983-98d5-42eb-bc32-4fb270238ceb" style="width: 90% !important;"/>
+   </a>
+</div>
+```
+
+```@raw html
 </div>
 ```
 
