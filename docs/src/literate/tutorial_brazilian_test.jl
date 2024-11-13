@@ -53,3 +53,5 @@ vv = VelocityVerlet(steps=6000)
 #md # job = Job(cyl, vv; path="results/brazilian_bb_uniform")
 #md # submit(job)
 #md # ```
+
+# ![](https://github.com/user-attachments/assets/2f78a983-98d5-42eb-bc32-4fb270238ceb)
