@@ -63,12 +63,13 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct CMaterial{CM,ZEM} <: AbstractCorrespondenceMaterial{CM,ZEM}
+struct CMaterial{CM,ZEM,K} <: AbstractCorrespondenceMaterial{CM,ZEM}
+    kernel::K
     constitutive_model::CM
     zem_stabilization::ZEM
     maxdmg::Float64
-    function CMaterial(cm::CM, zem::ZEM, maxdmg::Real) where {CM,ZEM}
-        return new{CM,ZEM}(cm, zem, maxdmg)
+    function CMaterial(kernel::K, cm::CM, zem::ZEM, maxdmg::Real) where {CM,ZEM,K}
+        return new{CM,ZEM,K}(kernel, cm, zem, maxdmg)
     end
 end
 
@@ -78,9 +79,10 @@ function Base.show(io::IO, @nospecialize(mat::CMaterial))
     return nothing
 end
 
-function CMaterial(; model::AbstractConstitutiveModel=NeoHookeNonlinear(),
+function CMaterial(; kernel::Function=linear_kernel,
+                    model::AbstractConstitutiveModel=NeoHookeNonlinear(),
                     zem::AbstractZEMStabilization=ZEMSilling(), maxdmg::Real=0.85)
-    return CMaterial(model, zem, maxdmg)
+    return CMaterial(kernel, model, zem, maxdmg)
 end
 
 struct CPointParameters <: AbstractPointParameters
@@ -154,10 +156,6 @@ function force_density_point!(storage::CStorage, system::BondSystem, mat::CMater
     return nothing
 end
 
-@inline function influence_function(::CMaterial, params::CPointParameters, L)
-    return params.δ / L
-end
-
 function calc_deformation_gradient(storage::CStorage, system::BondSystem,
                                    mat::CMaterial, params::CPointParameters, i)
     (; bonds, volume) = system
@@ -170,7 +168,7 @@ function calc_deformation_gradient(storage::CStorage, system::BondSystem,
         j, L = bond.neighbor, bond.length
         ΔXij = get_diff(system.position, i, j)
         Δxij = get_diff(storage.position, i, j)
-        ωij = influence_function(mat, params, L) * bond_active[bond_id]
+        ωij = kernel(system, bond_id) * bond_active[bond_id]
         ω0 += ωij
         temp = ωij * volume[j]
         K += temp * (ΔXij * ΔXij')
@@ -209,7 +207,7 @@ function c_force_density!(storage::CStorage, system::BondSystem, mat::CMaterial,
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
-        ωij = influence_function(mat, params, L) * bond_active[bond_id]
+        ωij = kernel(system, bond_id) * bond_active[bond_id]
         tzem = Cs .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
 
         # update of force density

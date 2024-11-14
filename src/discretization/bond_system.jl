@@ -10,6 +10,7 @@ struct BondSystem{Correction<:AbstractCorrection} <: AbstractBondSystem
     bonds::Vector{Bond}
     n_neighbors::Vector{Int}
     bond_ids::Vector{UnitRange{Int}}
+    kernels::Vector{Float64}
     correction::Correction
     chunk_handler::ChunkHandler
 end
@@ -23,7 +24,8 @@ function BondSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     position, volume = get_pos_and_vol_chunk(body, chunk_handler.point_ids)
     correction = get_correction(body.mat, chunk_handler.n_loc_points,
                                 length(chunk_handler.point_ids), length(bonds))
-    system = BondSystem(position, volume, bonds, n_neighbors, bond_ids, correction,
+    kernels = find_kernels(body, chunk_handler, bonds, bond_ids)
+    system = BondSystem(position, volume, bonds, n_neighbors, bond_ids, kernels, correction,
                         chunk_handler)
     return system
 end
@@ -144,6 +146,29 @@ function get_chunk_handler(bonds::Vector{Bond}, pd::PointDecomposition, chunk_id
     localizer = find_localizer(point_ids)
     return ChunkHandler(n_loc_points, point_ids, loc_points, halo_points, hidxs_by_src,
                         localizer)
+end
+
+function find_kernels(body::AbstractBody, chunk_handler::ChunkHandler, bonds::Vector{Bond},
+                      bond_ids::Vector{UnitRange{Int}})
+    hasproperty(body.mat, :kernel) || return Vector{Float64}()
+    kernels = zeros(length(bonds))
+    for i in each_point_idx(chunk_handler)
+        params = get_point_param(body, i)
+        for bond_id in bond_ids[i]
+            bond = bonds[bond_id]
+            kernels[bond_id] = get_kernel(body.mat, params, bond.length)
+        end
+    end
+    return kernels
+end
+
+function get_kernel(mat::AbstractMaterial, params::AbstractPointParameters, L)
+    ω = mat.kernel(params.δ, L)
+    return ω
+end
+
+@inline function kernel(system::AbstractBondSystem, bond_id::Int)
+    return system.kernels[bond_id]
 end
 
 function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})

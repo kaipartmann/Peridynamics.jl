@@ -54,9 +54,15 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct OSBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
+struct OSBMaterial{Correction,K} <: AbstractBondSystemMaterial{Correction}
+    kernel::K
+    function OSBMaterial{Correction}(kernel::K) where {Correction,K}
+        return new{Correction,K}(kernel)
+    end
+end
 
-OSBMaterial() = OSBMaterial{NoCorrection}()
+OSBMaterial{C}(; kernel::F=linear_kernel) where{C,F} = OSBMaterial{C}(kernel)
+OSBMaterial(; kwargs...) = OSBMaterial{NoCorrection}(; kwargs...)
 
 struct OSBPointParameters <: AbstractPointParameters
     δ::Float64
@@ -115,7 +121,7 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
         l = norm(Δxij)
         ε = (l - L) / L
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
-        p_int = influence_function(mat, params, L) * bond_failure(storage, bond_id) *
+        p_int = kernel(system, bond_id) * bond_failure(storage, bond_id) *
                 surface_correction_factor(system.correction, bond_id) *
                 (c2 * L + c1 * (l - L)) / l .* Δxij
         update_add_b_int!(storage, i, p_int .* system.volume[j])
@@ -140,17 +146,13 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
         params_j = get_params(paramhandler, j)
         c1 = 15.0 * (params_i.G + params_j.G) / (2 * wvol)
         c2 = dil * (3.0 * (params_i.K + params_j.K) / (2 * wvol) - c1 / 3.0)
-        p_int = influence_function(mat, params_i, L) * bond_failure(storage, bond_id) *
+        p_int = kernel(system, bond_id) * bond_failure(storage, bond_id) *
                 surface_correction_factor(system.correction, bond_id) *
                 (c2 * L + c1 * (l - L)) / l .* Δxij
         update_add_b_int!(storage, i, p_int .* system.volume[j])
         update_add_b_int!(storage, j, -p_int .* system.volume[i])
     end
     return nothing
-end
-
-@inline function influence_function(::OSBMaterial, params::OSBPointParameters, L)
-    return params.δ / L
 end
 
 function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
@@ -162,7 +164,7 @@ function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBM
         ΔXij = get_coordinates_diff(system, i, j)
         ΔXij_sq = dot(ΔXij, ΔXij)
         scfactor = surface_correction_factor(system.correction, bond_id)
-        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id] * scfactor
+        ωij = kernel(system, bond_id) * storage.bond_active[bond_id] * scfactor
         wvol += ωij * ΔXij_sq * system.volume[j]
     end
     return wvol
@@ -178,7 +180,7 @@ function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMateri
         Δxij = get_coordinates_diff(storage, i, j)
         l = norm(Δxij)
         scfactor = surface_correction_factor(system.correction, bond_id)
-        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id] * scfactor
+        ωij = kernel(system, bond_id) * storage.bond_active[bond_id] * scfactor
         dil += ωij * c1 * L * (l - L) * system.volume[j]
     end
     return dil

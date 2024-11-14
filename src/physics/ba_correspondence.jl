@@ -63,11 +63,12 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct BACMaterial{CM} <: AbstractBondAssociatedSystemMaterial
+struct BACMaterial{CM,K} <: AbstractBondAssociatedSystemMaterial
+    kernel::K
     constitutive_model::CM
     maxdmg::Float64
-    function BACMaterial(cm::CM, maxdmg::Real) where {CM}
-        return new{CM}(cm, maxdmg)
+    function BACMaterial(kernel::K, cm::CM, maxdmg::Real) where {K,CM}
+        return new{CM,K}(kernel, cm, maxdmg)
     end
 end
 
@@ -77,9 +78,10 @@ function Base.show(io::IO, @nospecialize(mat::BACMaterial))
     return nothing
 end
 
-function BACMaterial(; model::AbstractConstitutiveModel=NeoHookeNonlinear(),
-                      maxdmg::Real=0.85)
-    return BACMaterial(model, maxdmg)
+function BACMaterial(; kernel::Function=linear_kernel,
+                     model::AbstractConstitutiveModel=NeoHookeNonlinear(),
+                     maxdmg::Real=0.85)
+    return BACMaterial(kernel, model, maxdmg)
 end
 
 struct BACPointParameters <: AbstractPointParameters
@@ -174,18 +176,12 @@ function force_density_bond!(storage::BACStorage, system::BondAssociatedSystem,
     ε = (l - L) / L
     stretch_based_failure!(storage, system, bond, params, ε, i, bond_idx)
 
-    ωij = influence_function(mat, params, L) * storage.bond_active[bond_idx]
+    ωij = kernel(system, bond_idx) * storage.bond_active[bond_idx]
     ϕi = volume_fraction_factor(system, i, bond_idx)
     tij = ϕi * ωij * PKinv * ΔXij
     update_add_b_int!(storage, i, tij .* system.volume[j])
     update_add_b_int!(storage, j, -tij .* system.volume[i])
     return nothing
-end
-
-
-@inline function influence_function(::BACMaterial, params::BACPointParameters,
-                                    L::Float64)
-    return params.δ / L
 end
 
 function calc_deformation_gradient(storage::BACStorage, system::BondAssociatedSystem,
@@ -200,7 +196,7 @@ function calc_deformation_gradient(storage::BACStorage, system::BondAssociatedSy
         j, L = bond.neighbor, bond.length
         ΔXij = get_diff(system.position, i, j)
         Δxij = get_diff(storage.position, i, j)
-        temp = influence_function(mat, params, L) * bond_active[bond_id] * volume[j]
+        temp = kernel(system, bond_id) * bond_active[bond_id] * volume[j]
         K += temp * (ΔXij * ΔXij')
         _F += temp * (Δxij * ΔXij')
     end

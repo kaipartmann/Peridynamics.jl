@@ -8,6 +8,7 @@ struct BondAssociatedSystem <: AbstractBondSystem
     intersection_bond_ids::Vector{Vector{Int}}
     hood_volume::Vector{Float64}
     ba_hood_volume::Vector{Float64}
+    kernels::Vector{Float64}
     chunk_handler::ChunkHandler
 end
 
@@ -22,8 +23,9 @@ function BondAssociatedSystem(body::AbstractBody, pd::PointDecomposition, chunk_
     position, volume = get_pos_and_vol_chunk(body, chunk_handler.point_ids)
     hood_volume = zeros(get_n_points(chunk_handler))
     ba_hood_volume = zeros(length(bonds))
+    kernels = find_kernels(body, chunk_handler, bonds, bond_ids)
     bas = BondAssociatedSystem(position, volume, bonds, n_neighbors, bond_ids,
-                               intersection_bond_ids, hood_volume, ba_hood_volume,
+                               intersection_bond_ids, hood_volume, ba_hood_volume, kernels,
                                chunk_handler)
     return bas
 end
