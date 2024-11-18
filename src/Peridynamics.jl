@@ -9,7 +9,8 @@ end
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, OSBMaterial, CMaterial, BACMaterial, RKCMaterial, CKIMaterial
+export BBMaterial, OSBMaterial, CMaterial, BACMaterial, RKCMaterial, NSCMaterial,
+       CKIMaterial
 
 # CMaterial related types
 export NeoHookeNonlinear, SaintVenantKirchhoff, ZEMSilling
@@ -98,6 +99,7 @@ include("discretization/body.jl")
 include("discretization/multibody_setup.jl")
 include("discretization/decomposition.jl")
 include("discretization/chunk_handler.jl")
+include("discretization/kernels.jl")
 include("discretization/bond_system.jl")
 include("discretization/bond_system_corrections.jl")
 include("discretization/zem_stabilization.jl")
@@ -127,6 +129,7 @@ include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
 include("physics/constitutive_models.jl")
 include("physics/correspondence.jl")
+include("physics/ns_correspondence.jl")
 include("physics/ba_correspondence.jl")
 include("physics/rk_correspondence.jl")
 
