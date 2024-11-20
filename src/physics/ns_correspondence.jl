@@ -58,7 +58,7 @@ struct NSCMaterial{CM,K} <: AbstractCorrespondenceMaterial{CM,NoCorrection}
     constitutive_model::CM
     maxdmg::Float64
     function NSCMaterial(kernel::K, cm::CM, maxdmg::Real) where {CM,K}
-        return new{CM,K}(cm, maxdmg)
+        return new{CM,K}(kernel, cm, maxdmg)
     end
 end
 
@@ -117,6 +117,7 @@ end
     @lthfield defgrad::Matrix{Float64}
     @lthfield weighted_volume::Vector{Float64}
     gradient_weight::Matrix{Float64}
+    first_piola_kirchhoff::Matrix{Float64}
 end
 
 function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
@@ -150,6 +151,11 @@ end
 function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:gradient_weight})
     return zeros(3, get_n_bonds(system))
+end
+
+function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:first_piola_kirchhoff})
+    return zeros(9, get_n_bonds(system))
 end
 
 function initialize!(chunk::BodyChunk{<:BondSystem,<:NSCMaterial})
@@ -186,7 +192,7 @@ function calc_force_density!(dh::ThreadsBodyDataHandler{<:BondSystem,<:NSCMateri
     @threads :static for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
         calc_force_density!(chunk, t, Δt)
-        # nancheck(chunk, t)
+        nancheck(chunk, t)
     end
     @threads :static for chunk_id in eachindex(dh.chunks)
         exchange_halo_to_loc!(dh, chunk_id)
@@ -252,23 +258,12 @@ function calc_weights_and_defgrad!(storage::NSCStorage, system::BondSystem,
         j = bond.neighbor
         ΔXij = get_diff(system.position, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
-        temp = ωij * volume[j]
+        temp = ωij
         Ψ = temp * (Kinv * ΔXij)
         update_vector!(gradient_weight, bond_id, Ψ)
     end
 
     return nothing
-end
-
-@inline function influence_function(::NSCMaterial, params::NSCPointParameters, L)
-    ξ = L / params.δ
-    if 0 < ξ ≤ 0.5
-        return 2/3 - 4 * ξ^2 + 4 * ξ^3
-    elseif 0.5 < ξ ≤ 1
-        return 4/3 - 4 * ξ + 4 * ξ^2 - 4/3 * ξ^3
-    else
-        return 0
-    end
 end
 
 function force_density_point!(storage::NSCStorage, system::BondSystem, mat::NSCMaterial,
@@ -280,10 +275,11 @@ end
 
 function force_density_point!(storage::NSCStorage, system::BondSystem, mat::NSCMaterial,
                               params::NSCPointParameters, t, Δt, i)
-    Fi = get_tensor(storage.defgrad, i)
-    too_much_damage!(storage, system, mat, Fi, i) && return nothing
-    P = calc_first_piola_kirchhoff!(storage, mat, params, Fi, Δt, i)
-    nsc_force_density!(storage, system, mat, params, P, i)
+    # Fi = get_tensor(storage.defgrad, i)
+    # too_much_damage!(storage, system, mat, Fi, i) && return nothing
+    # P = calc_first_piola_kirchhoff!(storage, mat, params, Fi, Δt, i)
+    # nsc_force_density!(storage, system, mat, params, P, i)
+    nsc_force_density!(storage, system, mat, params, i)
     return nothing
 end
 
@@ -303,22 +299,102 @@ function calc_first_piola_kirchhoff(storage::NSCStorage, mat::NSCMaterial,
 end
 
 # Working version!!!
+# function nsc_force_density!(storage::NSCStorage, system::BondSystem, mat::NSCMaterial,
+#                             params::NSCPointParameters, P::SMatrix, i)
+#     (; bonds, volume) = system
+#     (; bond_active, gradient_weight) = storage
+#     for bond_id in each_bond_idx(system, i)
+#         bond = bonds[bond_id]
+#         j, L = bond.neighbor, bond.length
+#         Δxij = get_coordinates_diff(storage, i, j)
+#         l = norm(Δxij)
+#         ε = (l - L) / L
+#         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+#         if bond_active[bond_id]
+#             Ψ = get_vector(gradient_weight, bond_id)
+#             tij = P * Ψ
+#             update_add_b_int!(storage, i, tij .* volume[j])
+#             update_add_b_int!(storage, j, -tij .* volume[i])
+#         end
+#     end
+#     return nothing
+# end
+
+# function nsc_force_density!(storage::NSCStorage, system::BondSystem, mat::NSCMaterial,
+#                             params::NSCPointParameters, i)
+#     (; bonds, volume) = system
+#     (; bond_active, gradient_weight, defgrad) = storage
+#     Fi = get_tensor(defgrad, i)
+#     too_much_damage!(storage, system, mat, Fi, i) && return nothing
+#     for bond_id in each_bond_idx(system, i)
+#         bond = bonds[bond_id]
+#         j, L = bond.neighbor, bond.length
+#         Δxij = get_coordinates_diff(storage, i, j)
+#         l = norm(Δxij)
+#         ε = (l - L) / L
+#         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+#         if bond_active[bond_id]
+#             Fj = get_tensor(defgrad, j)
+#             Fb = 0.5 * (Fi + Fj)
+#             ΔXij = get_coordinates_diff(system, i, j)
+#             ΔFij = (Δxij - Fb * ΔXij) * ΔXij' / (L * L)
+#             Fij = Fb + ΔFij
+#             P = calc_first_piola_kirchhoff(storage, mat, params, Fij)
+#             Ψ = get_vector(gradient_weight, bond_id)
+#             tij = P * Ψ
+#             update_add_b_int!(storage, i, tij .* volume[j])
+#             update_add_b_int!(storage, j, -tij .* volume[i])
+#         end
+#     end
+#     return nothing
+# end
+
 function nsc_force_density!(storage::NSCStorage, system::BondSystem, mat::NSCMaterial,
-                            params::NSCPointParameters, P::SMatrix, i)
+                            params::NSCPointParameters, i)
     (; bonds, volume) = system
-    (; bond_active, gradient_weight) = storage
+    (; bond_active, gradient_weight, defgrad, weighted_volume) = storage
+
+    Fi = get_tensor(defgrad, i)
+    too_much_damage!(storage, system, mat, Fi, i) && return nothing
+
+    # Stress integral SI
+    wi = weighted_volume[i]
+    SI = SMatrix{3,3,Float64,9}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
+        ΔXij = get_coordinates_diff(system, i, j)
         Δxij = get_coordinates_diff(storage, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+
         if bond_active[bond_id]
-            Ψ = get_vector(gradient_weight, bond_id)
-            tij = (P * Ψ) / volume[j]
-            update_add_b_int!(storage, i, tij .* volume[j])
-            update_add_b_int!(storage, j, -tij .* volume[i])
+            Fj = get_tensor(defgrad, j)
+            Fb = 0.5 * (Fi + Fj)
+            ΔFij = (Δxij - Fb * ΔXij) * ΔXij' / (L * L)
+            Fij = Fb + ΔFij
+            Pij = calc_first_piola_kirchhoff(storage, mat, params, Fij)
+            update_tensor!(storage.first_piola_kirchhoff, bond_id, Pij)
+            Tempij = I - (ΔXij * ΔXij') / (L * L)
+            ωij = kernel(system, bond_id)
+            wj = weighted_volume[j]
+            ϕ = volume[j] * ωij * (0.5 / wi + 0.5 / wj)
+            SI += ϕ * (Pij * Tempij)
+        end
+    end
+
+    for bond_id in each_bond_idx(system, i)
+        if bond_active[bond_id]
+            bond = bonds[bond_id]
+            j, L = bond.neighbor, bond.length
+            ΔXij = get_coordinates_diff(system, i, j)
+            Pij = get_tensor(storage.first_piola_kirchhoff, bond_id)
+            Φij = get_vector(gradient_weight, bond_id)
+            ωij = kernel(system, bond_id)
+            tij = ωij / (wi * L * L) * (Pij * ΔXij) + SI * Φij
+            update_add_b_int!(storage, i, tij * volume[j])
+            update_add_b_int!(storage, j, -tij * volume[i])
         end
     end
     return nothing
