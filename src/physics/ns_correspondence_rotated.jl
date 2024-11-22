@@ -277,7 +277,7 @@ function calc_weights_and_defgrad!(storage::NSCRStorage, system::BondSystem,
         _Ḟ += temp * (Δvij * ΔXij')
         wi += temp
     end
-    Kinv = inv(K)
+    Kinv = invreg(K)
     F = _F * Kinv
     Ḟ = _Ḟ * Kinv
     update_tensor!(storage.defgrad, i, F)
@@ -346,7 +346,10 @@ function force_density_point!(storage::NSCRStorage, system::BondSystem, mat::NSC
             Ḟij = Ḟb + ΔḞij
             Pij = calc_first_piola_kirchhoff!(storage, mat, params, Fij, Ḟij, Δt, bond_id)
             Tempij = I - ΔXij * ΔXijLL
-            ω̃ij = kernel(system, bond_id) * (0.5 / wi + 0.5 / weighted_volume[j])
+            # ω̃ij = kernel(system, bond_id) * (0.5 / wi + 0.5 / weighted_volume[j])
+            wj = weighted_volume[j]
+            ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
+            ω̃ij = kernel(system, bond_id) * ϕ
             ∑P += ω̃ij * (Pij * Tempij)
         end
     end
@@ -358,7 +361,10 @@ function force_density_point!(storage::NSCRStorage, system::BondSystem, mat::NSC
             ΔXij = get_coordinates_diff(system, i, j)
             Pij = get_tensor(storage.first_piola_kirchhoff, bond_id)
             Φij = get_vector(gradient_weight, bond_id)
-            ω̃ij = kernel(system, bond_id) * (0.5 / wi + 0.5 / weighted_volume[j])
+            # ω̃ij = kernel(system, bond_id) * (0.5 / wi + 0.5 / weighted_volume[j])
+            wj = weighted_volume[j]
+            ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
+            ω̃ij = kernel(system, bond_id) * ϕ
             tij = ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij
             update_add_b_int!(storage, i, tij * volume[j])
             update_add_b_int!(storage, j, -tij * volume[i])

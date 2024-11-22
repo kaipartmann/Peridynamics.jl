@@ -34,3 +34,11 @@ end
     V = SVector{3}(M[1, j] - M[1, i], M[2, j] - M[2, i], M[3, j] - M[3, i])
     return V
 end
+
+function invreg(M::StaticMatrix{N,N,T}, threshold::Real=eps()) where {N,T}
+    U, S, V = svd(M)
+    Sinvreg = SVector{N,T}((s > threshold ? 1/s : 0) for s in S)
+    Sinv = Diagonal{T,SVector{N,T}}(Sinvreg)
+    Minv = V * Sinv * U'
+    return Minv
+end
