@@ -1,20 +1,24 @@
 """
-    CMaterial(; maxdmg, zem)
+    CMaterial(; kernel, model, zem, maxdmg)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
 
 # Keywords
+- `kernel::Function`: Kernel function used for weighting the interactions between points.
+    (default: `linear_kernel`)
+- `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
+    (default: `NeoHookeNonlinear()`)
+- `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
+    stabilization algorithm of Silling (2017) is used as default.
+    (default: `ZEMSilling()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values.
-    (default: `0.95`)
-- `zem::AbstractZEMStabilization`: zero-energy mode stabilization. The
-    stabilization algorithm of Silling (2017) is used as default.
-    (default: `ZEMSilling()`)
+    (default: `0.85`)
 
 !!! note "Stability of fracture simulations"
-    This formulation is known to be not suitable for fracture simultations without
+    This formulation is known to be not suitable for fracture simulations without
     stabilization of the zero-energy modes. Therefore be careful when doing fracture
     simulations and try out different parameters for `maxdmg` and `zem`.
 
@@ -22,7 +26,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 
 ```julia-repl
 julia> mat = CMaterial()
-CMaterial(maxdmg=0.95, zem_fac=ZEMSilling())
+CMaterial(maxdmg=0.85, zem=ZEMSilling())
 ```
 
 ---
@@ -35,9 +39,13 @@ Material type for the local continuum consistent (correspondence) formulation of
 non-ordinary state-based peridynamics.
 
 # Fields
+- `kernel::Function`: Kernel function used for weighting the interactions between points.
+    See the constructor docs for more informations.
+- `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. See
+    the constructor docs for more informations.
+- `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. See the constructor docs
+    for more informations.
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
-    constructor docs for more informations.
-- `zem_fac::Float64`: Correction factor used for zero-energy mode stabilization. See the
     constructor docs for more informations.
 
 # Allowed material parameters
@@ -191,8 +199,8 @@ function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
 end
 
 function c_force_density!(storage::CStorage, system::BondSystem, mat::CMaterial,
-                           params::CPointParameters, zem_correction::ZEMSilling,
-                           PKinv::SMatrix, defgrad_res, i)
+                          params::CPointParameters, zem_correction::ZEMSilling,
+                          PKinv::SMatrix, defgrad_res, i)
     (; bonds, volume) = system
     (; bond_active) = storage
     (; F, ω0) = defgrad_res
