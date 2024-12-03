@@ -229,6 +229,7 @@ function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem}, t, 
     for point_id in each_point_idx(chunk)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, point_id)
     end
+    nancheck(chunk, t)
     return nothing
 end
 

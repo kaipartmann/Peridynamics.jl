@@ -1,5 +1,5 @@
 """
-    CMaterial(; kernel, model, zem, maxdmg)
+    CRMaterial(; kernel, model, zem, maxdmg)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
@@ -25,14 +25,14 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 # Examples
 
 ```julia-repl
-julia> mat = CMaterial()
-CMaterial(maxdmg=0.85, zem=ZEMSilling())
+julia> mat = CRMaterial()
+CRMaterial(maxdmg=0.85, zem=ZEMSilling())
 ```
 
 ---
 
 ```julia
-CMaterial
+CRMaterial
 ```
 
 Material type for the local continuum consistent (correspondence) formulation of
@@ -71,29 +71,31 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct CMaterial{CM,ZEM,K} <: AbstractCorrespondenceMaterial{CM,ZEM}
+struct CRMaterial{CM,ZEM,K} <: AbstractCorrespondenceMaterial{CM,ZEM}
     kernel::K
     constitutive_model::CM
     zem_stabilization::ZEM
     maxdmg::Float64
-    function CMaterial(kernel::K, cm::CM, zem::ZEM, maxdmg::Real) where {CM,ZEM,K}
+    function CRMaterial(kernel::K, cm::CM, zem::ZEM, maxdmg::Real) where {CM,ZEM,K}
         return new{CM,ZEM,K}(kernel, cm, zem, maxdmg)
     end
 end
 
-function Base.show(io::IO, @nospecialize(mat::CMaterial))
+function Base.show(io::IO, @nospecialize(mat::CRMaterial))
     print(io, typeof(mat))
     print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
     return nothing
 end
 
-function CMaterial(; kernel::Function=linear_kernel,
+function CRMaterial(; kernel::Function=linear_kernel,
                     model::AbstractConstitutiveModel=NeoHookeNonlinear(),
                     zem::AbstractZEMStabilization=ZEMSilling(), maxdmg::Real=0.85)
-    return CMaterial(kernel, model, zem, maxdmg)
+    return CRMaterial(kernel, model, zem, maxdmg)
 end
 
-struct CPointParameters <: AbstractPointParameters
+# TODO: remove the function `material_type` from `@params` macro, then point parameters can
+# be reused by other material types
+struct CRPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64
     E::Float64
@@ -107,19 +109,19 @@ struct CPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-function CPointParameters(mat::CMaterial, p::Dict{Symbol,Any})
+function CRPointParameters(mat::CRMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
     (; Gc, εc) = get_frac_params(p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
-    return CPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+    return CRPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@params CMaterial CPointParameters
+@params CRMaterial CRPointParameters
 
-@storage CMaterial struct CStorage
+@storage CRMaterial struct CRStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
+    @lthfield velocity::Matrix{Float64}
     @pointfield velocity_half::Matrix{Float64}
     @pointfield velocity_half_old::Matrix{Float64}
     @pointfield acceleration::Matrix{Float64}
@@ -132,111 +134,81 @@ end
     @pointfield n_active_bonds::Vector{Int}
     @pointfield stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
+    @pointfield left_stretch::Matrix{Float64}
+    @pointfield rotation::Matrix{Float64}
 end
 
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:velocity})
     return zeros(3, get_n_points(system))
 end
 
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
+    return zeros(3, get_n_points(system))
+end
+
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
     return zeros(9, get_n_loc_points(system))
 end
 
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem,
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:von_mises_stress})
     return zeros(get_n_loc_points(system))
 end
 
-function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
-                              mat::AbstractCorrespondenceMaterial,
-                              paramhandler::AbstractParameterHandler, t, Δt, i)
-    params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, t, Δt, i)
-    return nothing
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:left_stretch})
+    V = zeros(9, get_n_loc_points(system))
+    V[[1, 5, 9], :] .= 1.0
+    return V
 end
 
-function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
-                              mat::AbstractCorrespondenceMaterial,
-                              params::AbstractPointParameters, t, Δt, i)
-    defgrad_res = calc_deformation_gradient(storage, system, mat, params, i)
-    too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
-    PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)
-    zem = mat.zem_stabilization
-    c_force_density!(storage, system, mat, params, zem, PKinv, defgrad_res, i)
-    return nothing
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:rotation})
+    R = zeros(9, get_n_loc_points(system))
+    R[[1, 5, 9], :] .= 1.0
+    return R
 end
 
-function calc_deformation_gradient(storage::CStorage, system::BondSystem, ::CMaterial,
-                                   ::CPointParameters, i)
+function calc_deformation_gradient(storage::CRStorage, system::BondSystem,
+                                   ::CRMaterial, ::CRPointParameters, i)
     (; bonds, volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
+    _Ḟ = zero(SMatrix{3,3,Float64,9})
     ω0 = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_diff(system.position, i, j)
         Δxij = get_diff(storage.position, i, j)
+        Δvij = get_diff(storage.velocity, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
         ω0 += ωij
         temp = ωij * volume[j]
         ΔXijt = ΔXij'
         K += temp * (ΔXij * ΔXijt)
         _F += temp * (Δxij * ΔXijt)
+        _Ḟ += temp * (Δvij * ΔXijt)
     end
     Kinv = inv(K)
     F = _F * Kinv
-    return (; F, Kinv, ω0)
+    Ḟ = _Ḟ * Kinv
+    return (; F, Ḟ, Kinv, ω0)
 end
 
-function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
-                                     params::CPointParameters, defgrad_res, Δt, i)
-    (; F, Kinv) = defgrad_res
-    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+function calc_first_piola_kirchhoff!(storage::CRStorage, mat::CRMaterial,
+                                     params::CRPointParameters, defgrad_res, Δt, i)
+    (; F, Ḟ, Kinv) = defgrad_res
+    _P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+    _σ = cauchy_stress(_P, F)
+    init_stress_rotation!(storage, F, Ḟ, Δt, i)
+    T = rotate_stress(storage, _σ, i)
+    P = first_piola_kirchhoff(T, F)
     PKinv = P * Kinv
     σ = cauchy_stress(P, F)
     update_tensor!(storage.stress, i, σ)
     storage.von_mises_stress[i] = von_mises_stress(σ)
     return PKinv
-end
-
-function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
-                          ::AbstractCorrespondenceMaterial, params::AbstractPointParameters,
-                          zem_correction::ZEMSilling, PKinv, defgrad_res, i)
-    (; bonds, volume) = system
-    (; bond_active) = storage
-    (; F, ω0) = defgrad_res
-    (; Cs) = zem_correction
-    for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        ΔXij = get_coordinates_diff(system, i, j)
-        Δxij = get_coordinates_diff(storage, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
-
-        # stabilization
-        ωij = kernel(system, bond_id) * bond_active[bond_id]
-        tzem = Cs .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
-
-        # update of force density
-        tij = ωij * PKinv * ΔXij + tzem
-        update_add_b_int!(storage, i, tij .* volume[j])
-        update_add_b_int!(storage, j, -tij .* volume[i])
-    end
-    return nothing
-end
-
-function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
-                          mat::AbstractCorrespondenceMaterial, defgrad_res, i)
-    (; F) = defgrad_res
-    if storage.damage[i] > mat.maxdmg || containsnan(F)
-        # kill all bonds of this point
-        storage.bond_active[each_bond_idx(system, i)] .= false
-        storage.n_active_bonds[i] = 0
-        return true
-    end
-    return false
 end
