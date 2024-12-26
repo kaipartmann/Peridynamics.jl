@@ -69,6 +69,35 @@ end
     return nothing
 end
 
+struct VBC <: AbstractCondition
+    mbc::AbstractMatrix
+    field::Symbol
+    point_set::Symbol
+    dims::Vector{UInt8}
+end
+
+function Base.show(io::IO, @nospecialize(bc::VBC))
+    print(io, "BC on ", field_to_name(bc.field), ": ")
+    print(io, msg_fields_inline(bc, (:point_set)))
+    return nothing
+end
+
+function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}}, bc::VBC, all_point_ids::Vector{Int})
+    apply_sdbc!(get_point_data(s, bc.field), bc, psets[bc.point_set], all_point_ids)
+    return nothing
+end
+
+@inline function apply_sdbc!(field::Matrix{Float64}, bc::VBC, point_ids::Vector{Int}, all_point_ids::Vector{Int})
+    @simd for i in point_ids
+        for j in eachindex(bc.dims)
+            value = bc.mbc[j, all_point_ids[i]]
+            dim = bc.dims[j]
+            field[dim, i] = value
+        end
+    end
+    return nothing
+end
+
 function apply_boundary_conditions!(b::AbstractBodyChunk, time::Float64)
     for bc in b.sdbcs
         apply_bc!(b.storage, b.psets, bc, time)
@@ -76,8 +105,12 @@ function apply_boundary_conditions!(b::AbstractBodyChunk, time::Float64)
     for bc in b.pdsdbcs
         apply_bc!(b.storage, b.psets, bc, b.system.position, time)
     end
+    for bc in b.vbcs
+        apply_bc!(b.storage, b.psets, bc, b.system.chunk_handler.point_ids)
+    end
     return nothing
 end
+
 
 function wrong_dim_err_msg(dim)
     msg = "unknown dimension `$(dim)`!\n"
@@ -216,6 +249,38 @@ julia> body
     BC on velocity: point_set=all_points, dim=3
     Pos.-dep. BC on velocity: point_set=all_points, dim=2
 ```
+
+# A new method to apply velocity boundary conditions
+
+velocity_bc!(v_matrix, body, set_name, dims)
+
+Specifies velocity boundary conditions for points of the set `set_name` in `body`.
+
+The value of the boundary condition is assigned by reading the corresponding positions
+    in the matrix(`v_matrix`). 
+
+Multiple dimensions can be handled at once.
+
+More importantly, if we cannot describe the evolution of boundary conditions over time
+    using a function, and can only obtain the boundary values directly 
+    (e.g., in fluid-structure interaction problems), 
+    or if the boundary changes—such as when the original boundary disappears and a new one forms 
+    (e.g., in cases of surface ablation or melting)—we can simply update the corresponding values
+    in the `v_matrix` at each iteration to implement this.
+
+Of course, this method of application is more suitable for pressure boundaries
+    from a physical perspective.  
+
+# Example
+julia> dims = UInt8[1, 2, 3] 
+julia> v_matrix = zeros(3, body.n_points)
+julia> velocity_bc!(v_matrix, body, :all_points, dims)
+
+Here, the elements of dims are of type UInt8.     
+    -  x-direction: `1`
+    -  y-direction: `2`
+    -  z-direction: `3`
+
 """
 function velocity_bc!(f::F, body::AbstractBody, point_set::Symbol,
                       dimension::Union{Integer,Symbol}) where {F<:Function}
@@ -229,6 +294,12 @@ function velocity_bc!(f::F, body::AbstractBody, point_set::Symbol,
         pdsdbc = PosDepSingleDimBC(f, :velocity_half, point_set, dim)
         add_boundary_condition!(body, body.posdep_single_dim_bcs, pdsdbc)
     end
+    return nothing
+end
+
+function velocity_bc!(f::Matrix, b::AbstractBody, name::Symbol, dims::Vector{UInt8})
+    vbc = VBC(f, :velocity_half, name, dims)
+    add_boundary_condition!(b, b.v_bcs, vbc)
     return nothing
 end
 
@@ -284,6 +355,38 @@ julia> body
     BC on force density: point_set=all_points, dim=3
     Pos.-dep. BC on force density: point_set=all_points, dim=2
 ```
+
+# A new method to apply forcedensity boundary conditions
+
+forcedensity_bc!(f_matrix, body, set_name, dims)
+
+Specifies forcedensity boundary conditions for points of the set `set_name` in `body`.
+
+The value of the boundary condition is assigned by reading the corresponding positions
+    in the matrix(`f_matrix`). 
+
+Multiple dimensions can be handled at once.
+
+More importantly, if we cannot describe the evolution of boundary conditions over time
+    using a function, and can only obtain the boundary values directly 
+    (e.g., in fluid-structure interaction problems), 
+    or if the boundary changes—such as when the original boundary disappears and a new one forms 
+    (e.g., in cases of surface ablation or melting)—we can simply update the corresponding values
+    in the `v_matrix` at each iteration to implement this. 
+
+By applying the boundary conditions through the matrix, we can adjust the conditions for each PD node
+    at every step, offering greater flexibility and control.
+
+# Example
+julia> dims = UInt8[1, 2, 3] 
+julia> f_matrix = zeros(3, body.n_points)
+julia> forcedensity_bc!(f_matrix, body, :all_points, dims)
+
+Here, the elements of dims are of type UInt8.     
+    -  x-direction: `1`
+    -  y-direction: `2`
+    -  z-direction: `3`
+
 """
 function forcedensity_bc!(f::F, body::AbstractBody, point_set::Symbol,
                           dimension::Union{Integer,Symbol}) where {F<:Function}
@@ -297,5 +400,11 @@ function forcedensity_bc!(f::F, body::AbstractBody, point_set::Symbol,
         pdsdbc = PosDepSingleDimBC(f, :b_ext, point_set, dim)
         add_boundary_condition!(body, body.posdep_single_dim_bcs, pdsdbc)
     end
+    return nothing
+end
+
+function forcedensity_bc!(f::Matrix, b::AbstractBody, name::Symbol, dims::Vector{UInt8})
+    vbc = VBC(f, :b_ext, name, dims)
+    add_boundary_condition!(b, b.v_bcs, vbc)
     return nothing
 end

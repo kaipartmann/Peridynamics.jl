@@ -76,6 +76,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     posdep_single_dim_bcs::Vector{PosDepSingleDimBC}
     single_dim_ics::Vector{SingleDimIC}
     posdep_single_dim_ics::Vector{PosDepSingleDimIC}
+    v_bcs::Vector{VBC}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
     function Body(mat::M, position::AbstractMatrix, volume::AbstractVector) where {M}
@@ -93,10 +94,11 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
         posdep_single_dim_bcs = Vector{PosDepSingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         posdep_single_dim_ics = Vector{PosDepSingleDimIC}()
+        v_bcs = Vector{VBC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
         new{M,P}(name, mat, n_points, position, volume, fail_permit, point_sets,
-                 point_params, params_map, single_dim_bcs, posdep_single_dim_bcs,
+                 point_params, params_map, single_dim_bcs, posdep_single_dim_bcs, v_bcs,
                  single_dim_ics, posdep_single_dim_ics, point_sets_precracks)
     end
 end
@@ -325,7 +327,7 @@ end
 @inline has_params(body::AbstractBody) = !isempty(body.point_params)
 
 @inline function n_bcs(body::AbstractBody)
-    return length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
+    return length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs) + length(body.v_bcs)
 end
 @inline function n_ics(body::AbstractBody)
     return length(body.single_dim_ics) + length(body.posdep_single_dim_ics)
