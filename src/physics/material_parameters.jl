@@ -57,6 +57,7 @@ function material!(b::AbstractBody, name::Symbol; kwargs...)
     params = get_point_params(b.mat, p)
 
     _material!(b, points, params)
+    set_failure_permissions!(b, name, params)
 
     return nothing
 end
@@ -71,6 +72,8 @@ function material!(b::AbstractBody; kwargs...)
     params = get_point_params(b.mat, p)
 
     _material!(b, points, params)
+    set_failure_permissions!(b, :all_points, params)
+
     return nothing
 end
 
