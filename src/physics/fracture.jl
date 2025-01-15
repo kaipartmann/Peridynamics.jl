@@ -59,12 +59,29 @@ function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
         msg *= "Define either Gc or epsilon_c, not both!\n"
         throw(ArgumentError(msg))
     else
-        msg = "insufficient keywords for calculation of fracture parameters!\n"
-        msg *= "Define either Gc or epsilon_c!\n"
-        throw(ArgumentError(msg))
+        Gc = 0.0;
+        εc = 0.0;
     end
 
     return (; Gc, εc)
+end
+
+function set_failure_permissions!(body::AbstractBody, set_name::Symbol,
+                                  params::AbstractPointParameters)
+    if has_fracture(body.mat, params)
+        failure_permit!(body, set_name, true)
+    else
+        failure_permit!(body, set_name, false)
+    end
+    return nothing
+end
+
+function has_fracture(mat::AbstractMaterial, params::AbstractPointParameters)
+    if isapprox(params.Gc, 0; atol=eps()) || isapprox(params.εc, 0; atol=eps())
+        return false
+    else
+        return true
+    end
 end
 
 function required_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
