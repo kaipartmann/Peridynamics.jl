@@ -77,9 +77,16 @@ struct BBPointParameters <: AbstractPointParameters
 end
 
 function BBPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
-    if haskey(p, :nu) && !isapprox(p[:nu], 0.25)
+    par = get_given_elastic_params(p)
+    (; E, nu, G, K, λ, μ) = par
+    if isfinite(nu) && !isapprox(nu, 0.25)
         msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
         msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
+        throw(ArgumentError(msg))
+    elseif !isfinite(nu) && length(findall(isfinite, par)) >1
+        msg =  "Too many material parameters defined!\n"
+        msg *= "In Bond-based peridynamics, the Poisson's ratio is limited to nu=0.25!\n"
+        msg *= "Please define only one more elastic parameter!\n"
         throw(ArgumentError(msg))
     end
     p[:nu] = 0.25

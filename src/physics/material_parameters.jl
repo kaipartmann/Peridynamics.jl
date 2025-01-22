@@ -106,7 +106,9 @@ function get_density(p::Dict{Symbol,Any})
 end
 
 function get_elastic_params(p::Dict{Symbol,Any})
-    (; E, nu)= get_E_and_nu(p)
+    par = get_given_elastic_params(p)
+    check_elastic_params(par)
+    (; E, nu)= get_E_and_nu(par)
 
     G = E / (2 * (1 + nu))
     K = E / (3 * (1 - 2 * nu))
@@ -116,7 +118,7 @@ function get_elastic_params(p::Dict{Symbol,Any})
     return (; E, nu, G, K, λ, μ)
 end
 
-function get_E_and_nu(p::Dict{Symbol,Any})
+function get_given_elastic_params(p::Dict{Symbol,Any})
     # get elastic parameters from dictionary
     if haskey(p, :E)
         E::Float64 = float(p[:E])
@@ -154,8 +156,11 @@ function get_E_and_nu(p::Dict{Symbol,Any})
     else
         μ = NaN
     end
-    par = (; E, nu, G, K, λ, μ)
+    return (; E, nu, G, K, λ, μ)
+end
 
+function check_elastic_params(par)
+    (; G, μ) = par
     # check if exactly 2 keywords out of {E, nu, G, K, λ, μ} are provided
         # Caution: μ & G are not independet parameters!
     if isfinite(G) && isfinite(μ)
@@ -169,7 +174,11 @@ function get_E_and_nu(p::Dict{Symbol,Any})
         msg *= "To characterize the material, only two parameters are required!\n"
         throw(ArgumentError(msg))
     end
+    return nothing
+end
 
+function get_E_and_nu(par)
+    (; E, nu, G, K, λ, μ) = par
     # check which 2 parameters are provided & calculate E & nu
 
     if isfinite(E) && isfinite(nu)
