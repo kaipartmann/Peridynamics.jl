@@ -6,7 +6,7 @@
     @test Peridynamics.required_point_parameters(TestMaterial1) === (:δ, :rho, :E, :nu, :G,
            :K, :λ, :μ)
     @test Peridynamics.allowed_material_kwargs(TestMaterial1()) === (:horizon, :rho, :E,
-           :nu, :Gc, :epsilon_c)
+           :nu, :G, :K, :lambda, :mu, :Gc, :epsilon_c)
 
     struct WrongTestMaterial end
     @test_throws ArgumentError Peridynamics.typecheck_material(WrongTestMaterial)
