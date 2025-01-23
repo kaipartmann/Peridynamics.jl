@@ -47,6 +47,11 @@ Fracture parameters:
     To enable fracture in a simulation, define one of the allowed fracture parameters.
     If none are defined, fracture is disabled.
 
+!!! danger "Overwriting failure permission with `material!` and `failure_permit!`"
+    The function `material!` calls `failure_permit!` to enable or disable failure.
+    If `failure_permit!` is called in particular,
+    previously set failure permissions might be overwritten!
+
 # Throws
 
 - Errors if a kwarg is not eligible for specification with the body material.
