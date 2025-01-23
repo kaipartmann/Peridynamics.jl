@@ -28,6 +28,10 @@ The default material keywords are:
 - `Gc::Float64`: Critical energy release rate
 - `epsilon_c::Float64`: Critical strain
 
+!!! note "Fracture parameters"
+    To enable fracture in a simulation, define one of the allowed fracture parameters.
+    If none are defined, fracture is disabled.
+
 # Throws
 
 - Errors if a kwarg is not eligible for specification with the body material.
