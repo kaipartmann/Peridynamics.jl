@@ -6,6 +6,12 @@ Constructs a `Body` for a peridynamics simulation.
 
 # Arguments
 - `material::AbstractMaterial`: The material which is defined for the whole body.
+    Available material models:
+    - [`BBMaterial`](@ref): Bond-based peridynamics
+    - [`OSBMaterial`](@ref): Ordinary state-based peridynamics
+    - [`NOSBMaterial`](@ref): Correspondence formulation of non-ordinary state-based
+        peridynamics
+    - [`CKIMaterial`](@ref): Continuum-kinematics-inspired peridynamics
 - `position::AbstractMatrix`: A `3×n` matrix with the point position of the `n` points.
 - `volume::AbstractVector`: A vector with the volume of each point.
 - `inp_file::AbstractString`: An Abaqus input file containing meshes, imported with
