@@ -15,6 +15,10 @@ points of the body.
 - `fail_permit::Bool`: If `true`, failure is allowed, and if `false` then no bonds of this
     point are allowed to break during the simulation.
 
+!!! danger "Overwriting failure permission with `material!` and `failure_permit!`"
+    The function `material!` calls `failure_permit!`, so if it is used afterwards,
+    previously set failure permissions might be overwritten!
+
 # Throws
 
 - Errors if the body does not contain a set with `set_name`.
