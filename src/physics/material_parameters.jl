@@ -43,6 +43,10 @@ Fracture parameters:
     As an exception, the bond-based formulation has a limitation of the Poisson's ratio
     to `nu=0.25`! Only one additional elastic parameter is required here.
 
+!!! note "Fracture parameters"
+    To enable fracture in a simulation, define one of the allowed fracture parameters.
+    If none are defined, fracture is disabled.
+
 # Throws
 
 - Errors if a kwarg is not eligible for specification with the body material.
