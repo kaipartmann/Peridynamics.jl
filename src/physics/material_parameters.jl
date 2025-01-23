@@ -21,12 +21,27 @@ Allowed keywords depend on the selected material model. Please look at the docum
 of the material you specified when creating the body.
 The default material keywords are:
 
+Material parameters:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
+Elastic parameters:
 - `E::Float64`: Young's modulus
 - `nu::Float64`: Poisson's ratio
+- `G::Float64`: Shear modulus
+- `K::Float64`: Bulk modulus
+- `lambda::Float64`: 1st Lamé parameter
+- `mu::Float64`: 2nd Lamé parameter
+Fracture parameters:
 - `Gc::Float64`: Critical energy release rate
 - `epsilon_c::Float64`: Critical strain
+
+!!! note "Elastic parameters"
+    Note that exactly two elastic parameters are required to specify a material.
+    Please choose two out of the six allowed elastic parameters.
+
+!!! note "Elastic parameters in bond-based peridynamics"
+    As an exception, the bond-based formulation has a limitation of the Poisson's ratio
+    to `nu=0.25`! Only one additional elastic parameter is required here.
 
 # Throws
 
