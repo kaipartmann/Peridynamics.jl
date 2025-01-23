@@ -22,24 +22,36 @@ Material type for the continuum-kinematics-inspired peridynamics framework.
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `CKIMaterial`, then the following
 parameters are allowed:
+Material parameters:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
+Elastic parameters:
 - `E::Float64`: Young's modulus
 - `nu::Float64`: Poisson's ratio
+- `G::Float64`: Shear modulus
+- `K::Float64`: Bulk modulus
+- `lambda::Float64`: 1st Lamé parameter
+- `mu::Float64`: 2nd Lamé parameter
+Fracture parameters:
 - `Gc::Float64`: Critical energy release rate
 - `epsilon_c::Float64`: Critical strain
+Interaction parameters:
 - `C1::Float64`: One-neighbor interaction parameter (default: `0.0`)
 - `C2::Float64`: Two-neighbor interaction parameter (default: `0.0`)
 - `C3::Float64`: Two-neighbor interaction parameter (default: `0.0`)
 
 !!! warning "Specification of interaction parameters"
-    If any of the interaction parameters is used with [`material!`](@ref), the the Young's
+    If any of the interaction parameters is used with [`material!`](@ref), the Young's
     modulus and Poisson's ratio are ignored and only the specified interaction parameters
     will influence the force density calculated from that interaction.
 
     If no interaction parameter is specified, then the Young's modulus and Poisson's ratio
     are used to calculate these parameters accordingly to Ekiz, Steinmann, and Javili
     (2022).
+
+!!! note "Elastic parameters"
+    Note that exactly two elastic parameters are required to specify a material.
+    Please choose two out of the six allowed elastic parameters.
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
