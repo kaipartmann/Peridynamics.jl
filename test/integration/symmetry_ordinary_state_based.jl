@@ -69,7 +69,7 @@ end
     vol = fill(Δx^3, n_points)
     body = Body(OSBMaterial(), pos, vol)
     failure_permit!(body, false)
-    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.25, Gc=1)
+    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.25)
     point_set!(z -> z > width/2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width/2 + 0.6Δx, body, :set_b)
     forcedensity_bc!(t -> 1e10, body, :set_a, :z)
