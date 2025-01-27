@@ -10,8 +10,7 @@
     vol = fill(Δx^3, n_points)
     body = Body(CKIMaterial(), pos, vol)
     failure_permit!(body, false)
-    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.3, Gc=1, C1=1e11, C2=1e11,
-              C3=1e11)
+    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.3, C1=1e11, C2=1e11, C3=1e11)
     point_set!(z -> z > width / 2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width / 2 + 0.6Δx, body, :set_b)
     velocity_bc!(t -> 100, body, :set_a, :z)
@@ -76,8 +75,7 @@ end
     vol = fill(Δx^3, n_points)
     body = Body(CKIMaterial(), pos, vol)
     failure_permit!(body, false)
-    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.3, Gc=1, C1=1e11, C2=1e11,
-              C3=1e11)
+    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.3, C1=1e11, C2=1e11, C3=1e11)
     point_set!(z -> z > width / 2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width / 2 + 0.6Δx, body, :set_b)
     forcedensity_bc!(t -> 1e10, body, :set_a, :z)
