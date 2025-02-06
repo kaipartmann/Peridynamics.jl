@@ -84,7 +84,10 @@ makedocs(;
             joinpath("generated", "tutorial_cylinder.md"),
             joinpath("generated", "tutorial_brazilian_test.md"),
         ],
-        "API Reference" => "api_reference.md",
+        "API Reference" => [
+            "public_api_reference.md",
+            "private_api_reference.md",
+        ]
     ],
 
     # ONLY DURING EARLY DEVELOPMENT:

@@ -1,11 +1,11 @@
-# Peridynamics.jl public API
+# Public API
 
 ```@meta
 
 ```
 
 ```@contents
-Pages = ["api_reference.md"]
+Pages = ["public_api_reference.md"]
 ```
 
 ## Material models
