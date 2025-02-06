@@ -23,6 +23,12 @@ end
 function init_stress_rotation!(storage::AbstractStorage, F, Ḟ, Δt, i)
     # inverse of the deformation gradient
     F⁻¹ = inv(F)
+    if containsnan(F⁻¹)
+        OTensor = zero(SMatrix{3,3,Float64,9})
+        update_tensor!(storage.rotation, i, OTensor)
+        update_tensor!(storage.left_stretch, i, OTensor)
+        return OTensor
+    end
 
     # Eulerian velocity gradient [FT87, eq. (3)]
     L = Ḟ * F⁻¹
@@ -79,10 +85,14 @@ function init_stress_rotation!(storage::AbstractStorage, F, Ḟ, Δt, i)
     # compute step 5 of [FT87]
     Vₙ₊₁ = V + Δt * V̇
 
+    # compute the unrotated rate of deformation
+    Dᵣ = Rₙ₊₁' * D * Rₙ₊₁
+
     # update rotation and left stretch
     update_tensor!(storage.rotation, i, Rₙ₊₁)
     update_tensor!(storage.left_stretch, i, Vₙ₊₁)
-    return nothing
+    # update_tensor!(storage.unrot_rate_of_deformation, i, Dᵣ)
+    return Dᵣ
 end
 
 function rotate_stress(storage::AbstractStorage, σ, i)

@@ -207,6 +207,7 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
             update_vel_half!(chunk, Δt½)
             apply_boundary_conditions!(chunk, t)
             update_disp_and_pos!(chunk, Δt)
+            calc_damage!(chunk)
         end
     end
     calc_force_density!(dh, t, Δt)
@@ -214,11 +215,11 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
     calc_contact_force_densities!(dh)
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
-        body_name = get_body_name(dh, body_idx)
+        # body_name = get_body_name(dh, body_idx)
         @threads :static for chunk_id in eachindex(body_dh.chunks)
             exchange_halo_to_loc!(body_dh, chunk_id)
             chunk = body_dh.chunks[chunk_id]
-            calc_damage!(chunk)
+            # calc_damage!(chunk)
             update_acc_and_vel!(chunk, Δt½)
             export_results(body_dh, options, chunk_id, n, t)
         end

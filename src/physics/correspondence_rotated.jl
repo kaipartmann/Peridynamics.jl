@@ -121,8 +121,8 @@ end
 @storage CRMaterial struct CRStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
-    @lthfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
+    @pointfield velocity::Matrix{Float64}
+    @lthfield velocity_half::Matrix{Float64}
     @pointfield velocity_half_old::Matrix{Float64}
     @pointfield acceleration::Matrix{Float64}
     @htlfield b_int::Matrix{Float64}
@@ -139,7 +139,7 @@ end
 end
 
 function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:velocity})
+                    ::Val{:velocity_half})
     return zeros(3, get_n_points(system))
 end
 
@@ -183,7 +183,7 @@ function calc_deformation_gradient(storage::CRStorage, system::BondSystem,
         j = bond.neighbor
         ΔXij = get_diff(system.position, i, j)
         Δxij = get_diff(storage.position, i, j)
-        Δvij = get_diff(storage.velocity, i, j)
+        Δvij = get_diff(storage.velocity_half, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
         ω0 += ωij
         temp = ωij * volume[j]
@@ -198,17 +198,38 @@ function calc_deformation_gradient(storage::CRStorage, system::BondSystem,
     return (; F, Ḟ, Kinv, ω0)
 end
 
-function calc_first_piola_kirchhoff!(storage::CRStorage, mat::CRMaterial,
+# function calc_first_piola_kirchhoff!(storage::CRStorage, mat::CRMaterial,
+#                                      params::CRPointParameters, defgrad_res, Δt, i)
+#     (; F, Ḟ, Kinv) = defgrad_res
+#     _P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+#     _σ = cauchy_stress(_P, F)
+#     init_stress_rotation!(storage, F, Ḟ, Δt, i)
+#     T = rotate_stress(storage, _σ, i)
+#     P = first_piola_kirchhoff(T, F)
+#     PKinv = P * Kinv
+#     σ = cauchy_stress(P, F)
+#     update_tensor!(storage.stress, i, σ)
+#     storage.von_mises_stress[i] = von_mises_stress(σ)
+#     return PKinv
+# end
+
+function calc_first_piola_kirchhoff!(storage::CRStorage, ::CRMaterial,
                                      params::CRPointParameters, defgrad_res, Δt, i)
     (; F, Ḟ, Kinv) = defgrad_res
-    _P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
-    _σ = cauchy_stress(_P, F)
-    init_stress_rotation!(storage, F, Ḟ, Δt, i)
-    T = rotate_stress(storage, _σ, i)
+    D = init_stress_rotation!(storage, F, Ḟ, Δt, i)
+    if iszero(D)
+        storage.von_mises_stress[i] = 0.0
+        return zero(SMatrix{3,3,Float64,9})
+    end
+    Δε = D * Δt
+    Δθ = tr(Δε)
+    Δεᵈᵉᵛ = Δε - Δθ / 3 * I
+    σ = get_tensor(storage.stress, i)
+    σₙ₊₁ = σ + 2 * params.G * Δεᵈᵉᵛ + params.K * Δθ * I
+    update_tensor!(storage.stress, i, σₙ₊₁)
+    T = rotate_stress(storage, σₙ₊₁, i)
+    storage.von_mises_stress[i] = von_mises_stress(T)
     P = first_piola_kirchhoff(T, F)
     PKinv = P * Kinv
-    σ = cauchy_stress(P, F)
-    update_tensor!(storage.stress, i, σ)
-    storage.von_mises_stress[i] = von_mises_stress(σ)
     return PKinv
 end

@@ -158,11 +158,24 @@ end
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
                               mat::AbstractCorrespondenceMaterial,
                               params::AbstractPointParameters, t, Δt, i)
+    calc_failure_point!(storage, system, mat, params, i)
     defgrad_res = calc_deformation_gradient(storage, system, mat, params, i)
     too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
     PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)
     zem = mat.zem_stabilization
     c_force_density!(storage, system, mat, params, zem, PKinv, defgrad_res, i)
+    return nothing
+end
+
+function calc_failure_point!(storage, system, mat, params, i)
+    for bond_id in each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        Δxij = get_coordinates_diff(storage, i, j)
+        l = norm(Δxij)
+        ε = (l - L) / L
+        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+    end
     return nothing
 end
 
@@ -213,9 +226,9 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
         j, L = bond.neighbor, bond.length
         ΔXij = get_coordinates_diff(system, i, j)
         Δxij = get_coordinates_diff(storage, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+        # l = norm(Δxij)
+        # ε = (l - L) / L
+        # stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
         ωij = kernel(system, bond_id) * bond_active[bond_id]
@@ -232,6 +245,13 @@ end
 function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
                           mat::AbstractCorrespondenceMaterial, defgrad_res, i)
     (; F) = defgrad_res
+    # @infiltrate storage.n_active_bonds[i] ≤ 3
+    # if storage.n_active_bonds[i] ≤ 3 || storage.damage[i] > mat.maxdmg || containsnan(F)
+    #     # kill all bonds of this point
+    #     storage.bond_active[each_bond_idx(system, i)] .= false
+    #     storage.n_active_bonds[i] = 0
+    #     return true
+    # end
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         # kill all bonds of this point
         storage.bond_active[each_bond_idx(system, i)] .= false

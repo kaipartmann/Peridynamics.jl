@@ -193,12 +193,13 @@ function calc_deformation_gradient(storage::BACStorage, system::BondAssociatedSy
     _F = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_intersecting_bond_idx(system, i, bond_idx)
         bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        j = bond.neighbor
         ΔXij = get_diff(system.position, i, j)
         Δxij = get_diff(storage.position, i, j)
-        temp = kernel(system, bond_id) * bond_active[bond_id] * volume[j]
-        K += temp * (ΔXij * ΔXij')
-        _F += temp * (Δxij * ΔXij')
+        ωijV = kernel(system, bond_id) * volume[j]
+        ωijωDV = ωijV * bond_active[bond_id]
+        K += ωijV * (ΔXij * ΔXij')
+        _F += ωijωDV * (Δxij * ΔXij')
     end
     Kinv = inv(K)
     F = _F * Kinv

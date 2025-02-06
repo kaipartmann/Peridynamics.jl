@@ -180,18 +180,44 @@ function initialize!(chunk::BodyChunk{<:BondSystem,<:RKCMaterial})
     return nothing
 end
 
+# @inline function calc_damage!(chunk::BodyChunk{<:BondSystem,<:RKCMaterial})
+#     (; n_neighbors) = chunk.system
+#     (; n_active_bonds, damage, damage_changed) = chunk.storage
+#     for point_id in each_point_idx(chunk)
+#         old_damage = damage[point_id]
+#         new_damage = 1 - n_active_bonds[point_id] / n_neighbors[point_id]
+#         if new_damage > old_damage
+#             damage_changed[point_id] = true
+#         else
+#             damage_changed[point_id] = false
+#         end
+#         damage[point_id] = new_damage
+#     end
+#     return nothing
+# end
+
 @inline function calc_damage!(chunk::BodyChunk{<:BondSystem,<:RKCMaterial})
-    (; n_neighbors) = chunk.system
-    (; n_active_bonds, damage, damage_changed) = chunk.storage
-    for point_id in each_point_idx(chunk)
-        old_damage = damage[point_id]
-        new_damage = 1 - n_active_bonds[point_id] / n_neighbors[point_id]
+    (; system, storage, paramsetup) = chunk
+    (; n_neighbors, bonds) = system
+    (; n_active_bonds, damage, damage_changed) = storage
+    for i in each_point_idx(chunk)
+        # params = get_params(paramsetup, i)
+        # for bond_id in each_bond_idx(system, i)
+        #     bond = bonds[bond_id]
+        #     j, L = bond.neighbor, bond.length
+        #     Δxij = get_coordinates_diff(storage, i, j)
+        #     l = norm(Δxij)
+        #     ε = (l - L) / L
+        #     stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+        # end
+        old_damage = damage[i]
+        new_damage = 1 - n_active_bonds[i] / n_neighbors[i]
         if new_damage > old_damage
-            damage_changed[point_id] = true
+            damage_changed[i] = true
         else
-            damage_changed[point_id] = false
+            damage_changed[i] = false
         end
-        damage[point_id] = new_damage
+        damage[i] = new_damage
     end
     return nothing
 end
@@ -219,7 +245,7 @@ end
 
 function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:RKCMaterial}, t, Δt)
     (; chunk) = dh
-    exchange_loc_to_halo!(dh)
+    exchange_loc_to_halo!(dh, (:position,))
     calc_weights_and_defgrad!(chunk, t, Δt)
     exchange_loc_to_halo!(dh, (:defgrad, :weighted_volume))
     calc_force_density!(chunk, t, Δt)
@@ -257,23 +283,16 @@ function calc_gradient_weights!(storage::RKCStorage, system::BondSystem, mat::RK
                 j = bond.neighbor
                 ΔXij = get_diff(system.position, i, j)
                 Q = get_monomial_vector(accuracy_order, ΔXij, δ)
-                ωij = kernel(system, bond_id) * bond_active[bond_id]
+                ωij = kernel(system, bond_id) #* bond_active[bond_id]
                 temp = ωij * volume[j]
                 M += temp * (Q * Q')
                 wi += temp
             end
             weighted_volume[i] = wi
-            # @infiltrate
 
             # calculate inverse of moment matrix, must be a full rank matrix!
-            # regularization_term = 1e-6 * δ * δ * δ
-            # M += regularization_term * I
-            # Minv = inv(M)
-            U, S, V = svd(M)
             threshold = 1e-6 * δ * δ * δ
-            _S_ = SVector{q_dim,Float64}((s > threshold ? s : 0) for s in S)
-            Sinv = Diagonal{Float64,SVector{q_dim,Float64}}(_S_)
-            Minv = V * Sinv * U'
+            Minv = invreg(M, threshold)
 
             # calculate gradient weights Φ
             for bond_id in each_bond_idx(system, i)
@@ -282,10 +301,22 @@ function calc_gradient_weights!(storage::RKCStorage, system::BondSystem, mat::RK
                 ΔXij = get_diff(system.position, i, j)
                 Q = get_monomial_vector(accuracy_order, ΔXij, δ)
                 ωij = kernel(system, bond_id) * bond_active[bond_id]
-                # temp = ωij * volume[j]
                 temp = ωij / δ * volume[j]
                 MinvQ = Minv * Q
                 Φ = temp * (Q∇ᵀ * MinvQ)
+                #---
+                # Φ1 = 0.0
+                # Φ2 = 0.0
+                # Φ3 = 0.0
+                # for m in 1:q_dim
+                #     Φ1 += temp * Minv[1, m] * Q[m]
+                #     Φ2 += temp * Minv[2, m] * Q[m]
+                #     Φ3 += temp * Minv[3, m] * Q[m]
+                # end
+                # Φm = SVector{3,Float64}(Φ1, Φ2, Φ3)
+                # @assert isapprox(Φ, Φm)
+                # @show Φ, Φm
+                #---
                 update_vector!(gradient_weight, bond_id, Φ)
             end
         end
@@ -336,8 +367,6 @@ end
 @inline function get_monomial_vector(::Val{2}, ΔX::AbstractArray, δ::Real)
     a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
     Q = SVector{9,eltype(ΔX)}(a1, a2, a3, a1*a1, a1*a2, a1*a3, a2*a2, a2*a3, a3*a3)
-    # a1, a2, a3 = ΔX[1], ΔX[2], ΔX[3]
-    # Q = SVector{9}(a1, a2, a3, a1*a1, a2*a2, a3*a3, a1*a2, a1*a3, a2*a3)
     return Q
 end
 
@@ -368,17 +397,23 @@ function get_q_triangle(::Val{N}) where {N}
     return throw(ArgumentError(msg))
 end
 
+# function invert_moment_matrix(M::StaticMatrix{N,N,T}, threshold::Real) where {N,T}
+#     U, S, V = svd(M)
+#     Sinvreg = SVector{N,T}((s > threshold ? 1/s : 0) for s in S)
+#     Sinv = Diagonal{T,SVector{N,T}}(Sinvreg)
+#     Minv = V * Sinv * U'
+#     return Minv
+# end
+
 function calc_deformation_gradients!(storage::RKCStorage, system::BondSystem, ::RKCMaterial,
                                      ::AbstractParameterSetup, t, Δt)
     (; bonds, volume) = system
     (; gradient_weight, defgrad, bond_active) = storage
 
     for i in each_point_idx(system)
-        ## RK
         F = SMatrix{3,3,Float64,9}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
-        # F = MMatrix{3,3,Float64,9}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
         for bond_id in each_bond_idx(system, i)
-            if bond_active[bond_id]
+            # if bond_active[bond_id]
                 bond = bonds[bond_id]
                 j = bond.neighbor
                 ΔXij = get_vector_diff(system.position, i, j)
@@ -386,35 +421,9 @@ function calc_deformation_gradients!(storage::RKCStorage, system::BondSystem, ::
                 ΔUij = Δxij - ΔXij
                 Φij = get_vector(gradient_weight, bond_id)
                 F += (ΔUij * Φij') * volume[j]
-                # #--
-                # for m ∈ axes(F, 1)
-                #     for n ∈ axes(F, 2)
-                #         F[n, m] += ΔUij[m] * Φij[n] * volume[j]
-                #     end
-                # end
-                #--
-            end
+            # end
         end
-        # _F = SMatrix{3,3,Float64,9}(F)
-        # update_tensor!(defgrad, i, _F)
         update_tensor!(defgrad, i, F)
-
-        ## correspondence
-        # K = zero(SMatrix{3,3,Float64,9})
-        # _F = zero(SMatrix{3,3,Float64,9})
-        # for bond_id in each_bond_idx(system, i)
-        #     bond = bonds[bond_id]
-        #     j = bond.neighbor
-        #     ΔXij = get_vector_diff(system.position, i, j)
-        #     Δxij = get_vector_diff(storage.position, i, j)
-        #     ωij = kernel(system, bond_id) #* storage.bond_active[bond_id]
-        #     temp = ωij * volume[j]
-        #     K += temp * (ΔXij * ΔXij')
-        #     _F += temp * (Δxij * ΔXij')
-        # end
-        # Kinv = inv(K)
-        # F = _F * Kinv
-        # update_tensor!(defgrad, i, F)
     end
 
     return nothing
@@ -429,11 +438,11 @@ end
 
 function force_density_point!(storage::RKCStorage, system::BondSystem, mat::RKCMaterial,
                               params::RKCPointParameters, t, Δt, i)
-    (; bonds, volume) = system
-    (; gradient_weight, defgrad, bond_active, weighted_volume) = storage
-    (; first_piola_kirchhoff) = storage
-    Fi = get_tensor(defgrad, i)
-    too_much_damage!(storage, system, mat, Fi, i) && return nothing
+    # (; bonds, volume) = system
+    # (; gradient_weight, defgrad, bond_active, weighted_volume) = storage
+    # (; first_piola_kirchhoff) = storage
+    # Fi = get_tensor(defgrad, i)
+    # too_much_damage!(storage, system, mat, Fi, i) && return nothing
     # Pi = calc_first_piola_kirchhoff(storage, mat, params, Fi)
 
     # Standard RK
@@ -445,16 +454,18 @@ function force_density_point!(storage::RKCStorage, system::BondSystem, mat::RKCM
     #     ε = (l - L) / L
     #     stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
-    #     # if bond_active[bond_id]
+    #     if bond_active[bond_id]
+    #         Fj = get_tensor(defgrad, j)
+    #         Fb = 0.5 * (Fi + Fj)
+    #         ΔXij = get_coordinates_diff(system, i, j)
+    #         ΔFij = (Δxij - Fb * ΔXij) * ΔXij' / (L * L)
+    #         Fij = Fb + ΔFij
+    #         Pij = calc_first_piola_kirchhoff(storage, mat, params, Fij)
     #         Φij = get_vector(gradient_weight, bond_id)
-    #         # Fj = get_tensor(defgrad, j)
-    #         # Pj = calc_first_piola_kirchhoff(storage, mat, params, Fj)
-    #         # ΔPij = Pj - Pi
-    #         # tij = (ΔPij * Φij) * volume[j] #* bond_active[bond_id]
-    #         tij = (Pi * Φij) / volume[j] #* bond_active[bond_id]
+    #         tij = Pij * Φij
     #         update_add_b_int!(storage, i, tij * volume[j])
     #         update_add_b_int!(storage, j, -tij * volume[i])
-    #     # end
+    #     end
     # end
 
     # BA-Stabilized RK
@@ -479,65 +490,116 @@ function force_density_point!(storage::RKCStorage, system::BondSystem, mat::RKCM
     # end
 
     # Nodal quadrature peridigm
-    # Stress integral SI
-    wi = weighted_volume[i]
-    SI = SMatrix{3,3,Float64,9}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    # (; bonds, volume) = system
+    # (; bond_active, gradient_weight, defgrad, weighted_volume) = storage
+
+    # Fi = get_tensor(defgrad, i)
+    # # too_much_damage!(storage, system, mat, Fi, i) && return nothing
+
+    # # Stress integral
+    # wi = weighted_volume[i]
+    # ∑P = SMatrix{3,3,Float64,9}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    # for bond_id in each_bond_idx(system, i)
+    #     bond = bonds[bond_id]
+    #     j, L = bond.neighbor, bond.length
+    #     ΔXij = get_coordinates_diff(system, i, j)
+    #     Δxij = get_coordinates_diff(storage, i, j)
+    #     l = norm(Δxij)
+    #     ε = (l - L) / L
+    #     stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+
+    #     if bond_active[bond_id]
+    #         Fj = get_tensor(defgrad, j)
+    #         Fb = 0.5 * (Fi + Fj)
+    #         ΔXijLL = ΔXij' / (L * L)
+    #         ΔFij = (Δxij - Fb * ΔXij) * ΔXijLL
+    #         Fij = Fb + ΔFij
+    #         Pij = calc_first_piola_kirchhoff(storage, mat, params, Fij)
+    #         update_tensor!(storage.first_piola_kirchhoff, bond_id, Pij)
+    #         Tempij = I - ΔXij * ΔXijLL
+    #         # ω̃ij = kernel(system, bond_id) * (0.5 / wi + 0.5 / weighted_volume[j])
+    #         wj = weighted_volume[j]
+    #         ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
+    #         ω̃ij = kernel(system, bond_id) * ϕ
+    #         ∑Pij = ω̃ij * (Pij * Tempij)
+    #         ∑P += ∑Pij
+    #     end
+    # end
+
+    # for bond_id in each_bond_idx(system, i)
+    #     if bond_active[bond_id]
+    #         bond = bonds[bond_id]
+    #         j, L = bond.neighbor, bond.length
+    #         ΔXij = get_coordinates_diff(system, i, j)
+    #         Pij = get_tensor(storage.first_piola_kirchhoff, bond_id)
+    #         Φij = get_vector(gradient_weight, bond_id)
+    #         # ω̃ij = kernel(system, bond_id) * (0.5 / wi + 0.5 / weighted_volume[j])
+    #         wj = weighted_volume[j]
+    #         ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
+    #         ω̃ij = kernel(system, bond_id) * ϕ
+    #         tij = ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij
+    #         update_add_b_int!(storage, i, tij * volume[j])
+    #         update_add_b_int!(storage, j, -tij * volume[i])
+    #     end
+    # end
+    # return nothing
+
+
+    ## My understanding of the equations
+    # wi = weighted_volume[i]
+    # Vi = volume[i]
+    # ∑ωPV = SMatrix{3,3,Float64,9}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    # ∑ωPcorr = SMatrix{3,3,Float64,9}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    # for bond_id in each_bond_idx(system, i)
+    #     bond = bonds[bond_id]
+    #     j, L = bond.neighbor, bond.length
+    #     Δxij = get_coordinates_diff(storage, i, j)
+    #     l = norm(Δxij)
+    #     ε = (l - L) / L
+    #     stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+
+    #     if bond_active[bond_id]
+    #         Vj = volume[j]
+    #         ΔXij = get_coordinates_diff(system, i, j)
+    #         Fj = get_tensor(defgrad, j)
+    #         Fb = 0.5 * (Fi + Fj)
+    #         ΔFij = (Δxij - Fb * ΔXij) * ΔXij' / (L * L)
+    #         Fij = Fb + ΔFij
+    #         Pij = calc_first_piola_kirchhoff(storage, mat, params, Fij)
+    #         update_tensor!(first_piola_kirchhoff, bond_id, Pij)
+
+    #         ωij = kernel(system, bond_id)
+    #         ωPV = ωij * Pij * Vj
+    #         ∑ωPV += ωPV
+    #         ∑ωPcorr += ωPV * (ΔXij * ΔXij') / (L * L)
+    #         # wj = weighted_volume[j]
+    #         # ϕ = volume[j] * ωij * (0.5 / wi + 0.5 / wj)
+    #         # SI += ϕ * (Pij * Tempij)
+    #     end
+    # end
+
+    ### my newest approach
+    (; bonds, volume) = system
+    (; gradient_weight, defgrad, bond_active, weighted_volume) = storage
+    Fi = get_tensor(defgrad, i)
+    Pi = calc_first_piola_kirchhoff(storage, mat, params, Fi)
+
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        ΔXij = get_coordinates_diff(system, i, j)
-        Δxij = get_coordinates_diff(storage, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
-
+        j = bond.neighbor
         # if bond_active[bond_id]
             Fj = get_tensor(defgrad, j)
-            Fb = 0.5 * (Fi + Fj)
-            ΔFij = (Δxij - Fb * ΔXij) * ΔXij' / (L * L)
-            Fij = Fb + ΔFij
-            Pij = calc_first_piola_kirchhoff(storage, mat, params, Fij)
-            update_tensor!(first_piola_kirchhoff, bond_id, Pij)
-            Tempij = (I - ΔXij * ΔXij') / (L * L)
-            ωij = kernel(system, bond_id) * bond_active[bond_id]
-            wj = weighted_volume[j]
-            ϕ = volume[j] * ωij * (0.5 / wi + 0.5 / wj)
-            SI += ϕ * (Pij * Tempij)
-        # end
-    end
-    # @show SI
-
-    for bond_id in each_bond_idx(system, i)
-        if bond_active[bond_id]
-            bond = bonds[bond_id]
-            j, L = bond.neighbor, bond.length
-            ΔXij = get_coordinates_diff(system, i, j)
-            Pij = get_tensor(first_piola_kirchhoff, bond_id)
+            Pj = calc_first_piola_kirchhoff(storage, mat, params, Fj)
             Φij = get_vector(gradient_weight, bond_id)
-            ωij = kernel(system, bond_id) * bond_active[bond_id]
-            tij = SI * Φij + ωij / (wi * L * L) * (Pij * ΔXij)
+            tij = (Pj - Pi) * Φij
+            # tij = Pi * Φij
             update_add_b_int!(storage, i, tij * volume[j])
             update_add_b_int!(storage, j, -tij * volume[i])
-        end
+        # end
     end
 
     return nothing
 end
-
-# function calc_deformation_gradient(storage::RKCStorage, system::BondSystem,
-#                                    mat::RKCMaterial, params::RKCPointParameters, i)
-#     (; bonds, volume) = system
-#     (; displacement, gradient_weight) = storage
-#     F = zero(SMatrix{3,3,Float64,9})
-#     for bond_id in each_bond_idx(system, i)
-#         bond = bonds[bond_id]
-#         j = bond.neighbor
-#         Δuij = get_vector_diff(displacement, i, j)
-#         Φij = get_vector(gradient_weight, bond_id)
-#         F += (Δuij * Φij') * volume[j]
-#     end
-#     return F
-# end
 
 function calc_first_piola_kirchhoff(storage::RKCStorage, mat::RKCMaterial,
                                     params::RKCPointParameters, F)

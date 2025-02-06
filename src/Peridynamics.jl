@@ -6,6 +6,8 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, Progres
     using ThreadPinning
 end
 
+using Infiltrator
+
 import LibGit2, Dates
 
 # Material models

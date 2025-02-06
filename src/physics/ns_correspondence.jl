@@ -258,6 +258,7 @@ function calc_weights_and_defgrad!(storage::NSCStorage, system::BondSystem,
         j = bond.neighbor
         ΔXij = get_diff(system.position, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
+        # temp = ωij
         temp = ωij * volume[j]
         Ψ = temp * (Kinv * ΔXij)
         update_vector!(gradient_weight, bond_id, Ψ)
@@ -355,7 +356,7 @@ function nsc_force_density!(storage::NSCStorage, system::BondSystem, mat::NSCMat
     (; bond_active, gradient_weight, defgrad, weighted_volume) = storage
 
     Fi = get_tensor(defgrad, i)
-    too_much_damage!(storage, system, mat, Fi, i) && return nothing
+    # too_much_damage!(storage, system, mat, Fi, i) && return nothing
 
     # Stress integral SI
     wi = weighted_volume[i]
@@ -378,8 +379,11 @@ function nsc_force_density!(storage::NSCStorage, system::BondSystem, mat::NSCMat
             Pij = calc_first_piola_kirchhoff(storage, mat, params, Fij)
             update_tensor!(storage.first_piola_kirchhoff, bond_id, Pij)
             Tempij = I - ΔXij * ΔXijLL
-            ω̃ij = kernel(system, bond_id) * (0.5 / wi + 0.5 / weighted_volume[j])
-            ∑P += ω̃ij * (Pij * Tempij)
+            wj = weighted_volume[j]
+            ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
+            ω̃ij = kernel(system, bond_id) * ϕ
+            ∑Pij = ω̃ij * (Pij * Tempij)
+            ∑P += ∑Pij
         end
     end
 
@@ -390,7 +394,9 @@ function nsc_force_density!(storage::NSCStorage, system::BondSystem, mat::NSCMat
             ΔXij = get_coordinates_diff(system, i, j)
             Pij = get_tensor(storage.first_piola_kirchhoff, bond_id)
             Φij = get_vector(gradient_weight, bond_id)
-            ω̃ij = kernel(system, bond_id) * (0.5 / wi + 0.5 / weighted_volume[j])
+            wj = weighted_volume[j]
+            ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
+            ω̃ij = kernel(system, bond_id) * ϕ
             tij = ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij
             update_add_b_int!(storage, i, tij * volume[j])
             update_add_b_int!(storage, j, -tij * volume[i])
@@ -398,6 +404,7 @@ function nsc_force_density!(storage::NSCStorage, system::BondSystem, mat::NSCMat
     end
     return nothing
 end
+
 
 # NODALLY STABLIZIED VERSION!!! WORKING, BUT NOT SURE IF CORRECT!
 # function nsc_force_density!(storage::NSCStorage, system::BondSystem, mat::NSCMaterial,

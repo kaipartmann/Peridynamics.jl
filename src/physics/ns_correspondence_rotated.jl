@@ -100,8 +100,8 @@ end
 @storage NSCRMaterial struct NSCRStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
-    @lthfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
+    @pointfield velocity::Matrix{Float64}
+    @lthfield velocity_half::Matrix{Float64}
     @pointfield velocity_half_old::Matrix{Float64}
     @pointfield acceleration::Matrix{Float64}
     @htlfield b_int::Matrix{Float64}
@@ -112,19 +112,21 @@ end
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
     @pointfield damage_changed::Vector{Bool}
-    @pointfield stress::Matrix{Float64}
-    @pointfield von_mises_stress::Vector{Float64}
+    # @pointfield stress::Matrix{Float64}
+    # @pointfield von_mises_stress::Vector{Float64}
     @lthfield defgrad::Matrix{Float64}
     @lthfield defgrad_dot::Matrix{Float64}
     @lthfield weighted_volume::Vector{Float64}
     gradient_weight::Matrix{Float64}
     rotation::Matrix{Float64}
     left_stretch::Matrix{Float64}
+    unrot_rate_of_deformation::Matrix{Float64}
+    bond_stress::Matrix{Float64}
     first_piola_kirchhoff::Matrix{Float64}
 end
 
 function init_field(::NSCRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:velocity})
+                    ::Val{:velocity_half})
     return zeros(3, get_n_points(system))
 end
 
@@ -162,6 +164,11 @@ function init_field(::NSCRMaterial, ::AbstractTimeSolver, system::BondSystem,
 end
 
 function init_field(::NSCRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:unrot_rate_of_deformation})
+    return zeros(9, get_n_bonds(system))
+end
+
+function init_field(::NSCRMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:defgrad})
     return zeros(9, get_n_points(system))
 end
@@ -186,30 +193,45 @@ function init_field(::NSCRMaterial, ::AbstractTimeSolver, system::BondSystem,
     return zeros(9, get_n_bonds(system))
 end
 
+function init_field(::NSCRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:bond_stress})
+    return zeros(9, get_n_bonds(system))
+end
+
 function initialize!(chunk::BodyChunk{<:BondSystem,<:NSCRMaterial})
     chunk.storage.damage_changed .= true
     return nothing
 end
 
 @inline function calc_damage!(chunk::BodyChunk{<:BondSystem,<:NSCRMaterial})
-    (; n_neighbors) = chunk.system
-    (; n_active_bonds, damage, damage_changed) = chunk.storage
-    for point_id in each_point_idx(chunk)
-        old_damage = damage[point_id]
-        new_damage = 1 - n_active_bonds[point_id] / n_neighbors[point_id]
-        if new_damage > old_damage
-            damage_changed[point_id] = true
-        else
-            damage_changed[point_id] = false
+    (; system, storage, paramsetup) = chunk
+    (; n_neighbors, bonds) = system
+    (; n_active_bonds, damage, damage_changed) = storage
+    for i in each_point_idx(chunk)
+        params = get_params(paramsetup, i)
+        for bond_id in each_bond_idx(system, i)
+            bond = bonds[bond_id]
+            j, L = bond.neighbor, bond.length
+            Δxij = get_coordinates_diff(storage, i, j)
+            l = norm(Δxij)
+            ε = (l - L) / L
+            stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
         end
-        damage[point_id] = new_damage
+        old_damage = damage[i]
+        new_damage = 1 - n_active_bonds[i] / n_neighbors[i]
+        if new_damage > old_damage
+            damage_changed[i] = true
+        else
+            damage_changed[i] = false
+        end
+        damage[i] = new_damage
     end
     return nothing
 end
 
 function calc_force_density!(dh::ThreadsBodyDataHandler{<:BondSystem,<:NSCRMaterial}, t, Δt)
     @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_loc_to_halo!(dh, chunk_id, (:position, :velocity))
+        exchange_loc_to_halo!(dh, chunk_id, (:position, :velocity_half))
     end
     @threads :static for chunk_id in eachindex(dh.chunks)
         calc_weights_and_defgrad!(dh.chunks[chunk_id], t, Δt)
@@ -230,7 +252,7 @@ end
 
 function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:NSCRMaterial}, t, Δt)
     (; chunk) = dh
-    exchange_loc_to_halo!(dh, (:position, :velocity))
+    exchange_loc_to_halo!(dh, (:position, :velocity_half))
     calc_weights_and_defgrad!(chunk, t, Δt)
     exchange_loc_to_halo!(dh, (:defgrad, :defgrad_dot, :weighted_volume))
     calc_force_density!(chunk, t, Δt)
@@ -242,14 +264,15 @@ end
 function calc_weights_and_defgrad!(chunk::BodyChunk{<:BondSystem,<:NSCRMaterial}, t, Δt)
     (; system, mat, paramsetup, storage) = chunk
     for i in each_point_idx(system)
+        calc_failure_point!(storage, system, mat, paramsetup, i)
         calc_weights_and_defgrad!(storage, system, mat, paramsetup, t, Δt, i)
     end
     return nothing
 end
 
 function calc_weights_and_defgrad!(storage::NSCRStorage, system::BondSystem,
-                                   mat::NSCRMaterial, paramhandler::AbstractParameterHandler,
-                                   t, Δt, i)
+                                   mat::NSCRMaterial,
+                                   paramhandler::AbstractParameterHandler, t, Δt, i)
     params = get_params(paramhandler, i)
     calc_weights_and_defgrad!(storage, system, mat, params, t, Δt, i)
     return nothing
@@ -269,7 +292,7 @@ function calc_weights_and_defgrad!(storage::NSCRStorage, system::BondSystem,
         j = bond.neighbor
         ΔXij = get_diff(system.position, i, j)
         Δxij = get_diff(storage.position, i, j)
-        Δvij = get_diff(storage.velocity, i, j)
+        Δvij = get_diff(storage.velocity_half, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
         temp = ωij * volume[j]
         K += temp * (ΔXij * ΔXij')
@@ -277,7 +300,7 @@ function calc_weights_and_defgrad!(storage::NSCRStorage, system::BondSystem,
         _Ḟ += temp * (Δvij * ΔXij')
         wi += temp
     end
-    Kinv = invreg(K)
+    Kinv = inv(K)
     F = _F * Kinv
     Ḟ = _Ḟ * Kinv
     update_tensor!(storage.defgrad, i, F)
@@ -328,13 +351,13 @@ function force_density_point!(storage::NSCRStorage, system::BondSystem, mat::NSC
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
         Δxij = get_coordinates_diff(storage, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+        # l = norm(Δxij)
+        # ε = (l - L) / L
+        # stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         if bond_active[bond_id]
             ΔXij = get_coordinates_diff(system, i, j)
-            Δvij = get_diff(storage.velocity, i, j)
+            Δvij = get_diff(storage.velocity_half, i, j)
             Fj = get_tensor(defgrad, j)
             Ḟj = get_tensor(defgrad_dot, j)
             Fb = 0.5 * (Fi + Fj)
@@ -375,24 +398,155 @@ function force_density_point!(storage::NSCRStorage, system::BondSystem, mat::NSC
 end
 
 # function calc_first_piola_kirchhoff!(storage::NSCRStorage, mat::NSCRMaterial,
-#                                      params::NSCRPointParameters, F, Δt, i)
+#                                      params::NSCRPointParameters, F, Ḟ, Δt, i)
 #     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
 #     σ = cauchy_stress(P, F)
-#     update_tensor!(storage.stress, i, σ)
-#     storage.von_mises_stress[i] = von_mises_stress(σ)
+#     init_stress_rotation!(storage, F, Ḟ, Δt, i)
+#     T = rotate_stress(storage, σ, i)
+#     P = first_piola_kirchhoff(T, F)
+#     update_tensor!(storage.first_piola_kirchhoff, i, P)
 #     return P
 # end
 
-function calc_first_piola_kirchhoff!(storage::NSCRStorage, mat::NSCRMaterial,
-                                     params::NSCRPointParameters, F, Ḟ, Δt, i)
-    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
-    σ = cauchy_stress(P, F)
-    init_stress_rotation!(storage, F, Ḟ, Δt, i)
-    T = rotate_stress(storage, σ, i)
+function calc_first_piola_kirchhoff!(storage::NSCRStorage, ::NSCRMaterial,
+                                     params::NSCRPointParameters, F, Ḟ, Δt, bond_id)
+    D = init_stress_rotation!(storage, F, Ḟ, Δt, bond_id)
+    Δε = D * Δt
+    Δθ = tr(Δε)
+    Δεᵈᵉᵛ = Δε - Δθ / 3 * I
+    σ = get_tensor(storage.bond_stress, bond_id)
+    σₙ₊₁ = σ + 2 * params.G * Δεᵈᵉᵛ + params.K * Δθ * I
+    update_tensor!(storage.bond_stress, bond_id, σₙ₊₁)
+    T = rotate_stress(storage, σₙ₊₁, bond_id)
     P = first_piola_kirchhoff(T, F)
-    update_tensor!(storage.first_piola_kirchhoff, i, P)
+    update_tensor!(storage.first_piola_kirchhoff, bond_id, P)
     return P
 end
+
+# function calc_first_piola_kirchhoff!(storage, mat, params, F, Ḟ, Δt, i)
+#     𝐋 = @MMatrix zeros(3,3)
+#     RoD = @MMatrix zeros(3,3)
+#     Spin = @MMatrix zeros(3,3)
+#     left_stretch = @MMatrix zeros(3,3)
+#     z = @MVector zeros(3)
+#     w = @MVector zeros(3)
+#     𝛀Tens = @MMatrix zeros(3,3)
+#     Qmatrix = @MMatrix zeros(3,3)
+#     rot_tens_ = @MMatrix zeros(3,3)
+#     𝛔_unrot = @MMatrix zeros(3,3)
+#     tempVec = @MMatrix zeros(3,3)
+#     𝐅 = F
+#     𝐅dot = Ḟ
+#     𝐋 = 𝐅dot * inv(𝐅)
+#     RoD = 1/2 * (𝐋 + transpose(𝐋))
+#     Spin = 1/2 * (𝐋 - transpose(𝐋))
+#     left_stretch[1,1] = storage.left_stretch[1,i]
+#     left_stretch[1,2] = storage.left_stretch[2,i]
+#     left_stretch[1,3] = storage.left_stretch[3,i]
+#     left_stretch[2,1] = storage.left_stretch[4,i]
+#     left_stretch[2,2] = storage.left_stretch[5,i]
+#     left_stretch[2,3] = storage.left_stretch[6,i]
+#     left_stretch[3,1] = storage.left_stretch[7,i]
+#     left_stretch[3,2] = storage.left_stretch[8,i]
+#     left_stretch[3,3] = storage.left_stretch[9,i]
+#     z[1] = - storage.left_stretch[3, i] * RoD[4] - storage.left_stretch[6, i] * RoD[5] -
+#              storage.left_stretch[9, i] * RoD[6] + storage.left_stretch[2, i] * RoD[7] +
+#              storage.left_stretch[5, i] * RoD[8] + storage.left_stretch[8, i] * RoD[9];
+#     z[2] =   storage.left_stretch[3, i] * RoD[1] + storage.left_stretch[6, i] * RoD[2] +
+#              storage.left_stretch[9, i] * RoD[3] - storage.left_stretch[1, i] * RoD[7] -
+#              storage.left_stretch[4, i] * RoD[8] - storage.left_stretch[7, i] * RoD[9];
+#     z[3] = - storage.left_stretch[2, i] * RoD[1] - storage.left_stretch[5, i] * RoD[2] -
+#              storage.left_stretch[8, i] * RoD[3] + storage.left_stretch[1, i] * RoD[4] +
+#              storage.left_stretch[4, i] * RoD[5] + storage.left_stretch[7, i] * RoD[6];
+#     w[1] = 0.5 * (Spin[3,2] - Spin[2,3])
+#     w[2] = 0.5 * (Spin[1,3] - Spin[3,1])
+#     w[3] = 0.5 * (Spin[2,1] - Spin[1,2])
+#     traceV = storage.left_stretch[1, i] + storage.left_stretch[5, i] + storage.left_stretch[9, i]
+#     omega = w + inv(traceV * I - left_stretch) * z
+#     𝛀Tens[1,1] = 0.0
+#     𝛀Tens[1,2] = -omega[3]
+#     𝛀Tens[1,3] = omega[2]
+#     𝛀Tens[2,1] = omega[3]
+#     𝛀Tens[2,2] = 0.0
+#     𝛀Tens[2,3] = -omega[1]
+#     𝛀Tens[3,1] = -omega[2]
+#     𝛀Tens[3,2] = omega[1]
+#     𝛀Tens[3,3] = 0.0
+#     ΩSq = omega[1]^2 + omega[2]^2 + omega[3]^2
+#     Ω = sqrt(ΩSq)
+#     if ΩSq > 1e-16 && Ω !== Inf
+#         scfac1 = sin(Δt * Ω) / Ω
+#         scfac2 = -(1 - cos(Δt * Ω)) / ΩSq
+#         𝛀TensSq = 𝛀Tens * 𝛀Tens
+#         Qmatrix = I + scfac1 * 𝛀Tens + scfac2 * 𝛀TensSq
+#     else
+#         Qmatrix .= 0.
+#         Qmatrix[1,1] = 1.0
+#         Qmatrix[2,2] = 1.0
+#         Qmatrix[3,3] = 1.0
+#     end
+#     rot_tens_[1,1] = storage.rotation[1,i]
+#     rot_tens_[1,2] = storage.rotation[2,i]
+#     rot_tens_[1,3] = storage.rotation[3,i]
+#     rot_tens_[2,1] = storage.rotation[4,i]
+#     rot_tens_[2,2] = storage.rotation[5,i]
+#     rot_tens_[2,3] = storage.rotation[6,i]
+#     rot_tens_[3,1] = storage.rotation[7,i]
+#     rot_tens_[3,2] = storage.rotation[8,i]
+#     rot_tens_[3,3] = storage.rotation[9,i]
+#     rot_tens = Qmatrix * rot_tens_
+#     storage.rotation[1,i] = rot_tens[1,1]
+#     storage.rotation[2,i] = rot_tens[1,2]
+#     storage.rotation[3,i] = rot_tens[1,3]
+#     storage.rotation[4,i] = rot_tens[2,1]
+#     storage.rotation[5,i] = rot_tens[2,2]
+#     storage.rotation[6,i] = rot_tens[2,3]
+#     storage.rotation[7,i] = rot_tens[3,1]
+#     storage.rotation[8,i] = rot_tens[3,2]
+#     storage.rotation[9,i] = rot_tens[3,3]
+#     Vdot = 𝐋 * left_stretch - left_stretch * 𝛀Tens
+#     storage.left_stretch[1,i] += Δt * Vdot[1,1]
+#     storage.left_stretch[2,i] += Δt * Vdot[1,2]
+#     storage.left_stretch[3,i] += Δt * Vdot[1,3]
+#     storage.left_stretch[4,i] += Δt * Vdot[2,1]
+#     storage.left_stretch[5,i] += Δt * Vdot[2,2]
+#     storage.left_stretch[6,i] += Δt * Vdot[2,3]
+#     storage.left_stretch[7,i] += Δt * Vdot[3,1]
+#     storage.left_stretch[8,i] += Δt * Vdot[3,2]
+#     storage.left_stretch[9,i] += Δt * Vdot[3,3]
+#     tempVec = RoD * rot_tens
+#     UnRotRoD = transpose(rot_tens) * tempVec
+#     strainInc = UnRotRoD * Δt
+#     deviatoricStrain = copy(strainInc)
+#     dilatation = strainInc[1,1] + strainInc[2,2] + strainInc[3,3]
+#     deviatoricStrain[1,1] -= dilatation/3
+#     deviatoricStrain[2,2] -= dilatation/3
+#     deviatoricStrain[3,3] -= dilatation/3
+#     storage.bond_stress[1,i] += deviatoricStrain[1,1] * 2 * params.G + params.K * dilatation
+#     storage.bond_stress[2,i] += deviatoricStrain[1,2] * 2 * params.G
+#     storage.bond_stress[3,i] += deviatoricStrain[1,3] * 2 * params.G
+#     storage.bond_stress[4,i] += deviatoricStrain[2,1] * 2 * params.G
+#     storage.bond_stress[5,i] += deviatoricStrain[2,2] * 2 * params.G + params.K * dilatation
+#     storage.bond_stress[6,i] += deviatoricStrain[2,3] * 2 * params.G
+#     storage.bond_stress[7,i] += deviatoricStrain[3,1] * 2 * params.G
+#     storage.bond_stress[8,i] += deviatoricStrain[3,2] * 2 * params.G
+#     storage.bond_stress[9,i] += deviatoricStrain[3,3] * 2 * params.G + params.K * dilatation
+#     𝛔_unrot[1,1] = storage.bond_stress[1,i]
+#     𝛔_unrot[1,2] = storage.bond_stress[2,i]
+#     𝛔_unrot[1,3] = storage.bond_stress[3,i]
+#     𝛔_unrot[2,1] = storage.bond_stress[4,i]
+#     𝛔_unrot[2,2] = storage.bond_stress[5,i]
+#     𝛔_unrot[2,3] = storage.bond_stress[6,i]
+#     𝛔_unrot[3,1] = storage.bond_stress[7,i]
+#     𝛔_unrot[3,2] = storage.bond_stress[8,i]
+#     𝛔_unrot[3,3] = storage.bond_stress[9,i]
+#     tempVec = 𝛔_unrot * transpose(rot_tens)
+#     T = rot_tens * tempVec
+#     J = det(F)
+#     P = J * T * inv(F)'
+#     update_tensor!(storage.first_piola_kirchhoff, i, SMatrix{3,3,Float64,9}(P))
+#     return P
+# end
 
 # Working version!!!
 # function nsc_force_density!(storage::NSCRStorage, system::BondSystem, mat::NSCRMaterial,

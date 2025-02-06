@@ -1,4 +1,4 @@
-@testitem "Internal force density correspondence" begin
+@testitem "Internal force density rk-correspondence" begin
     # using Peridynamics, Test
     ref_position = [0.0 1.0 0.0
                     0.0 0.0 1.0
@@ -14,7 +14,7 @@
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 2)
     chunk1 = dh.chunks[1]
-    (; mat, storage, system, paramsetup) = chunk
+    (; mat, storage, system, paramsetup) = chunk1
     params = paramsetup
     (; position) = storage
     position[1, 1] = -0.0015
@@ -32,7 +32,7 @@
     # # Point 2 with v_z = 1 m/s with Δt = 0.0015 s
     # position[1, 2] = 1.0015
 
-    Peridynamics.calc_force_density!(dh, 0, 0)
+    # Peridynamics.calc_force_density!(dh, 0, 0)
 
     # @test defgrad ≈ 0
 
