@@ -37,7 +37,7 @@ forcedensity_bc!(t -> 3e11, body, :top, 1)
 
 #-
 # Do not allow failure in the entire body:
-failure_permit!(body, false)
+no_failure!(body)
 
 #-
 # We set the number of time steps for the dynamic relaxation algorithm to 500 time steps.

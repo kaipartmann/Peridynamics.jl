@@ -23,7 +23,7 @@ npyz = 4
 pos, vol = uniform_box(lx, lyz, lyz, Δx)
 body = Body(OSBMaterial(), pos, vol)
 # Failure is prohibited throughout the body:
-failure_permit!(body, false)
+no_failure!(body)
 # Following material parameters are specified:
 
 # | material parameter | value |
