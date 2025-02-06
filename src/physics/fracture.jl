@@ -1,12 +1,11 @@
 @inline fracture_kwargs() = (:Gc, :epsilon_c)
 
 """
-    failure_permit!(body, fail_permit)
     failure_permit!(body, set_name, fail_permit)
 
-Set the failure permission for points of a `body`. By default, failure is allowed for
-all points. If no `set_name` is specified, then the permission `fail_permit` is set for all
-points of the body.
+$(internal_api_warning())
+
+Set the failure permission for points of the set `set_name` of a `body`.
 
 # Arguments
 
@@ -21,30 +20,67 @@ points of the body.
 
 # Throws
 
-- Errors if the body does not contain a set with `set_name`.
+- Error if the body does not contain a set with `set_name`.
+"""
+function failure_permit! end
+
+function failure_permit!(body::AbstractBody, set_name::Symbol, fail_permit::Bool)
+    check_if_set_is_defined(body.point_sets, set_name)
+    body.fail_permit[body.point_sets[set_name]] .= fail_permit
+    return nothing
+end
+
+"""
+    no_failure!(body::AbstractBody, set_name::Symbol)
+    no_failure!(body::AbstractBody)
+
+Disallow failure for all points of the point set `set_name` of the `body`.
+If no `set_name` is specified, failure is prohibited for the whole `body`.
+
+# Arguments
+
+- `body::AbstractBody`: [`Body`](@ref) for which failure is prohibited.
+- `set_name::Symbol`: The name of a point set of this body.
+
+!!! danger "Overwriting failure permission with `material!` and `no_failure!`"
+    The function `material!` sets failure permissions due to the provided input parameters,
+    so if it is used afterwards, previously set failure prohibitions might be overwritten!
+
+# Throws
+
+- Error if the body does not contain a set with `set_name`.
 
 # Examples
 
 ```julia-repl
-julia> failure_permit!(body, false)
+julia> no_failure!(body)
 
 julia> body
 1000-point Body{BBMaterial{NoCorrection}}:
   1 point set(s):
     1000-point set `all_points`
-  1000 points with no failure permission
+  1000 points with failure prohibited
 ```
 """
-function failure_permit! end
+function no_failure! end
 
-function failure_permit!(body::AbstractBody, fail_permit::Bool)
-    body.fail_permit .= fail_permit
+function no_failure!(body::AbstractBody, set_name::Symbol)
+    check_if_set_is_defined(body.point_sets, set_name)
+    points_without_material = findfirst(x -> x == 0,
+                                        body.params_map[body.point_sets[set_name]])
+    if points_without_material !== nothing
+        msg = string("Not all points of point set \":", set_name,
+                     "\" have material parameters!\n")
+        msg *= "Please use the `material!` function to define them before prohibiting "
+        msg *= "failure, otherwise failure permissions might be overwritten!\n"
+        throw(ArgumentError(msg))
+    end
+    failure_permit!(body, set_name, false)
     return nothing
 end
 
-function failure_permit!(body::AbstractBody, set_name::Symbol, fail_permit::Bool)
-    check_if_set_is_defined(body.point_sets, set_name)
-    body.fail_permit[body.point_sets[set_name]] .= fail_permit
+function no_failure!(body::AbstractBody)
+    no_failure!(body, :all_points)
     return nothing
 end
 
