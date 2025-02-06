@@ -22,8 +22,6 @@ npyz = 4
 # and point spacing is then created:
 pos, vol = uniform_box(lx, lyz, lyz, Δx)
 body = Body(OSBMaterial(), pos, vol)
-# Failure is prohibited throughout the body:
-no_failure!(body)
 # Following material parameters are specified:
 
 # | material parameter | value |
@@ -32,8 +30,9 @@ no_failure!(body)
 # | Density $ρ$ | $ 7850\,\mathrm{kg}\,\mathrm{m}^{-3}$ |
 # | Young's modulus $E$ | $ 210 \, \mathrm{GPa}$ |
 # | Poisson's ratio $ν$ | $0.25$ |
-# | critical strain $ε_c$ | $0.01$ |
-material!(body, horizon=3.015Δx, rho=7850.0, E=210e9, nu=0.25, epsilon_c=0.01)
+material!(body, horizon=3.015Δx, rho=7850.0, E=210e9, nu=0.25)
+# Failure is prohibited throughout the body:
+no_failure!(body)
 # Point set `:left` including the first row of points in x-direction is created:
 point_set!(x -> x < -lx / 2 + 1.2Δx, body, :left)
 # The velocity boundary condition of the form
