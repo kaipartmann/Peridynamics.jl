@@ -36,7 +36,7 @@ Body
 MultibodySetup
 point_set!
 point_sets
-failure_permit!
+no_failure!
 material!
 velocity_bc!
 velocity_ic!

@@ -21,7 +21,7 @@ export linear_kernel, cubic_b_spline_kernel
 export NoCorrection, EnergySurfaceCorrection
 
 # Discretization
-export Body, point_set!, point_sets, failure_permit!, material!, velocity_bc!, velocity_ic!,
+export Body, point_set!, point_sets, no_failure!, material!, velocity_bc!, velocity_ic!,
        forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box, uniform_sphere,
        uniform_cylinder, round_sphere, round_cylinder, n_points
 
@@ -80,6 +80,7 @@ abstract type AbstractZEMStabilization <: AbstractCorrection end
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
 
 include("auxiliary/function_arguments.jl")
+include("auxiliary/docs.jl")
 include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
 include("auxiliary/mpi.jl")
