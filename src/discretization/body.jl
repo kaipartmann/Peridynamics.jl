@@ -49,7 +49,7 @@ Body{Material,PointParameters}
 - `volume::Vector{Float64}`: A vector with the volume of each point.
 - `fail_permit::Vector{Bool}`: A vector that describes if failure is allowed for each point.
 - `point_sets::Dict{Symbol,Vector{Int}}`: A dictionary containing point sets.
-- `point_params::Vector{PointParameters}`: A vector containing all point parameters.
+- `point_params::Vector{PointParameters}`: A vector containing all point parameter sets.
 - `params_map::Vector{Int}`: A vector that maps parameters in `point_params` to each point.
 - `single_dim_bcs::Vector{SingleDimBC}`: A vector with boundary conditions on a single
     dimension.
@@ -161,7 +161,8 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(body::AbstractBody)
     end
     n_failure_permit_false = body.n_points - sum(body.fail_permit)
     if n_failure_permit_false > 0
-        print(io, "\n  ", n_failure_permit_false, " points with no failure permission")
+        print(io, "\n  ", n_failure_permit_false,
+              " points with failure prohibited")
     end
     return nothing
 end
