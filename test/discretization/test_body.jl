@@ -165,6 +165,26 @@ end
     @test body.fail_permit == [1, 1, 0, 0]
 end
 
+@testitem "no_failure!" begin
+    # setup
+    n_points = 4
+    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
+    body = Body(mat, position, volume)
+    point_set!(body, :a, 1:2)
+
+    # whole body
+    material!(body; horizon=1, E=1, rho=1, Gc=1)
+    no_failure!(body)
+    @test body.fail_permit == [0, 0, 0, 0]
+
+    # point set
+    material!(body; horizon=1, E=1, rho=1, Gc=1)
+    @test body.fail_permit == [1, 1, 1, 1]
+    no_failure!(body, :a)
+    @test body.fail_permit == [0, 0, 1, 1]
+
+end
+
 @testitem "velocity_bc!" begin
     # setup
     n_points = 4
@@ -522,7 +542,7 @@ end
     msg = String(take!(io))
     @test contains(msg, "1 predefined crack(s)")
 
-    failure_permit!(body, :a, false)
+    no_failure!(body, :a)
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
     msg = String(take!(io))
@@ -530,7 +550,7 @@ end
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
-    @test contains(msg, "2 points with no failure permission")
+    @test contains(msg, "2 points with failure prohibited")
 
     Peridynamics.change_name!(body, :testbody)
 
@@ -557,7 +577,7 @@ end
     forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
     point_set!(body, :b, 3:4)
     precrack!(body, :a, :b)
-    failure_permit!(body, :a, false)
+    no_failure!(body, :a)
     Peridynamics.change_name!(body, :testbody)
 
     msg = Peridynamics.log_msg_body(body)
