@@ -21,7 +21,7 @@ npyz = 4
 pos, vol = uniform_box(lx, lyz, lyz, Δx)
 body = Body(NOSBMaterial(), pos, vol)
 # Again, failure is not allowed in the whole body.
-failure_permit!(body, false)
+no_failure!(body)
 
 # Then the material parameters for one half of the body are assigned to the whole body
 # first.
