@@ -209,17 +209,17 @@
     # setup
     bbb = Body(BBMaterial(), rand(3, 10), rand(10))
     bosb = Body(OSBMaterial(), rand(3, 10), rand(10))
-    bnosb = Body(NOSBMaterial(), rand(3, 10), rand(10))
-    ms = MultibodySetup(:a => bbb, :b => bosb, :c => bnosb)
+    bcc = Body(CMaterial(), rand(3, 10), rand(10))
+    ms = MultibodySetup(:a => bbb, :b => bosb, :c => bcc)
     vv = VelocityVerlet(steps=1)
     dr = DynamicRelaxation(steps=1)
 
     tests_body_specific(bbb, vv)
     tests_body_specific(bosb, vv)
-    tests_body_specific(bnosb, vv)
+    tests_body_specific(bcc, vv)
     tests_body_specific(bbb, dr)
     tests_body_specific(bosb, dr)
-    tests_body_specific(bnosb, dr)
+    tests_body_specific(bcc, dr)
 
     tests_multibody_specific(ms, vv)
 
@@ -244,8 +244,7 @@
 end
 
 @testitem "export_results Body" begin
-    temp_root = joinpath(@__DIR__, "temp_root_export_results_test_body")
-    rm(temp_root; recursive=true, force=true)
+    temp_root = mktempdir()
 
     pos, vol = uniform_box(1, 1, 1, 0.5)
     body = Body(BBMaterial(), pos, vol)
@@ -283,13 +282,10 @@ end
     @test r[:displacement] ≈ u_rand
     @test r[:damage] == zeros(8)
     @test r[:time] == [t]
-
-    rm(temp_root; recursive=true, force=true)
 end
 
 @testitem "export_results MultibodySetup" begin
-    temp_root = joinpath(@__DIR__, "temp_root_export_results_test_multibody")
-    rm(temp_root; recursive=true, force=true)
+    temp_root = mktempdir()
 
     pos_a, vol_a = uniform_box(1, 1, 1, 0.5)
     body_a = Body(BBMaterial(), pos_a, vol_a)
@@ -359,6 +355,4 @@ end
     @test r_b[:displacement] ≈ u_rand_b
     @test r_b[:damage] == zeros(8)
     @test r_b[:time] == [t]
-
-    rm(temp_root; recursive=true, force=true)
 end

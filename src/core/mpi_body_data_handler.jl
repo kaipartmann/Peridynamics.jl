@@ -341,6 +341,14 @@ function recv_htl!(get_field_function::F, dh::MPIBodyDataHandler,
     return nothing
 end
 
+function calc_force_density!(dh::MPIBodyDataHandler, t, Δt)
+    (; chunk) = dh
+    @timeit_debug TO "exchange_loc_to_halo!" exchange_loc_to_halo!(dh)
+    @timeit_debug TO "calc_force_density!" calc_force_density!(chunk, t, Δt)
+    @timeit_debug TO "exchange_halo_to_loc!" exchange_halo_to_loc!(dh)
+    return nothing
+end
+
 function export_results(dh::MPIBodyDataHandler, options::AbstractJobOptions, n::Int,
                         t::Float64)
     options.export_allowed || return nothing

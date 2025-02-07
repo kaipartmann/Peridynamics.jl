@@ -1,3 +1,4 @@
+using Peridynamics
 
 function mode_i(mat, npyz)
     l, Δx, δ, a = 1.0, 1/npyz, 3.015/npyz, 0.5
@@ -13,6 +14,7 @@ function mode_i(mat, npyz)
     velocity_bc!(t -> -30, body, :set_bottom, :y)
     velocity_bc!(t -> 30, body, :set_top, :y)
     vv = VelocityVerlet(steps=2000)
-    job = Job(body, vv; path=joinpath(@__DIR__, "results", "mode_i-BB-npyz$(npyz)"))
-    return @benchmarkable submit($job)
+    path = joinpath(@__DIR__, "results", "mode_i")
+    job = Job(body, vv; path)
+    return job
 end

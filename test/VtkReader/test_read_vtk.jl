@@ -3,9 +3,9 @@
 @testitem "read complete results" begin
     using Peridynamics.WriteVTK
 
-    bname = joinpath(@__DIR__, "vtk_test_1")
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_1")
     name = bname * ".vtu"
-    isfile(name) && rm(name)
     n_points = 10
     position = rand(3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
@@ -26,17 +26,15 @@
     @test result[:Time] == [time]
     @test result[:Damage] == damage
     @test result[:Displacement] == displacement
-
-    rm(name)
 end
 
 #-- read incomplete results
 @testitem "read incomplete results" begin
     using Peridynamics.WriteVTK
 
-    bname = joinpath(@__DIR__, "vtk_test_2")
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_2")
     name = bname * ".vtu"
-    isfile(name) && rm(name)
     n_points = 10
     position = rand(3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
@@ -58,8 +56,6 @@ end
     @test result[:damage] == damage
     @test result[:random_point_data] == random_point_data
     @test result[:random_field_data] == random_field_data
-
-    rm(name)
 end
 
 @testitem "wrong file type" begin
@@ -69,9 +65,9 @@ end
 @testitem "corrupt file raw encoding" begin
     using Peridynamics.WriteVTK
 
-    bname = joinpath(@__DIR__, "vtk_test_3")
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_3")
     name = bname * ".vtu"
-    isfile(name) && rm(name)
     n_points = 10
     position = rand(3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
@@ -92,16 +88,14 @@ end
     end
 
     @test_throws ErrorException read_vtk(name)
-
-    rm(name)
 end
 
 @testitem "corrupt file offset marker" begin
     using Peridynamics.WriteVTK
 
-    bname = joinpath(@__DIR__, "vtk_test_4")
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_4")
     name = bname * ".vtu"
-    isfile(name) && rm(name)
     n_points = 10
     position = rand(3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
@@ -122,17 +116,15 @@ end
     end
 
     @test_throws ErrorException read_vtk(name)
-
-    rm(name)
 end
 
 #-- corrupt file </AppendedData>
 @testitem "corrupt file appended data" begin
     using Peridynamics.WriteVTK
 
-    bname = joinpath(@__DIR__, "vtk_test_5")
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_5")
     name = bname * ".vtu"
-    isfile(name) && rm(name)
     n_points = 10
     position = rand(3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
@@ -153,18 +145,14 @@ end
     end
 
     @test_throws ErrorException read_vtk(name)
-
-    rm(name)
 end
 
 @testitem "read pvtu file" begin
     using Peridynamics.WriteVTK
 
-    root = joinpath(@__DIR__, "tempdir_1")
-    isdir(root) && rm(root; recursive=true, force=true)
+    root = mktempdir()
     bname = joinpath(root, "vtk_test")
     name = bname * ".pvtu"
-    isfile(name) && rm(name)
     n_points = 10
     n_parts = 3
     position = [rand(3, n_points) for _ in 1:n_parts]
@@ -189,18 +177,14 @@ end
     @test result[:displacement] ≈ reduce(hcat, displacement)
     @test result[:integer_test] ≈ reduce(vcat, integer_test)
     @test result[:time] ≈ [time]
-
-    rm(root; recursive=true, force=true)
 end
 
 @testitem "read pvtu files with nothing exported" begin
     using Peridynamics.WriteVTK
 
-    root = joinpath(@__DIR__, "tempdir_2")
-    isdir(root) && rm(root; recursive=true, force=true)
+    root = mktempdir()
     bname = joinpath(root, "vtk_test")
     name = bname * ".pvtu"
-    isfile(name) && rm(name)
     n_points = 10
     n_parts = 3
     position = [rand(3, n_points) for _ in 1:n_parts]
@@ -213,16 +197,14 @@ end
     result = read_vtk(name)
 
     @test result[:position] ≈ reduce(hcat, position)
-
-    rm(root; recursive=true, force=true)
 end
 
 @testitem "read vtu files with nothing exported" begin
     using Peridynamics.WriteVTK
 
-    bname = joinpath(@__DIR__, "vtk_test_6")
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_6")
     name = bname * ".vtu"
-    isfile(name) && rm(name)
     n_points = 10
     position = rand(3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
@@ -232,6 +214,4 @@ end
 
     @test typeof(result) == Dict{Symbol,VecOrMat{Float64}}
     @test result[:position] == position
-
-    rm(name)
 end

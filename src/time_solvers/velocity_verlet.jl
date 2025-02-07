@@ -187,12 +187,8 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJ
         apply_boundary_conditions!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
+    calc_force_density!(dh, t, Δt)
     @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_loc_to_halo!(dh, chunk_id)
-        calc_force_density!(dh.chunks[chunk_id])
-    end
-    @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_halo_to_loc!(dh, chunk_id)
         chunk = dh.chunks[chunk_id]
         calc_damage!(chunk)
         update_acc_and_vel!(chunk, Δt½)
@@ -202,7 +198,7 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJ
 end
 
 function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
-                          options::AbstractJobOptions, Δt::Float64, Δt½::Float64, n::Int)
+                          options::AbstractJobOptions, Δt, Δt½, n)
     t = n * Δt
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
@@ -212,16 +208,12 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
             apply_boundary_conditions!(chunk, t)
             update_disp_and_pos!(chunk, Δt)
         end
-        @threads :static for chunk_id in eachindex(body_dh.chunks)
-            exchange_loc_to_halo!(body_dh, chunk_id)
-            calc_force_density!(body_dh.chunks[chunk_id])
-        end
     end
+    calc_force_density!(dh, t, Δt)
     update_caches!(dh)
     calc_contact_force_densities!(dh)
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
-        body_name = get_body_name(dh, body_idx)
         @threads :static for chunk_id in eachindex(body_dh.chunks)
             exchange_halo_to_loc!(body_dh, chunk_id)
             chunk = body_dh.chunks[chunk_id]
@@ -240,9 +232,7 @@ function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractJobOp
     @timeit_debug TO "update_vel_half!" update_vel_half!(chunk, Δt½)
     @timeit_debug TO "apply_boundary_conditions!" apply_boundary_conditions!(chunk, t)
     @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
-    @timeit_debug TO "exchange_loc_to_halo!" exchange_loc_to_halo!(dh)
-    @timeit_debug TO "calc_force_density!" calc_force_density!(chunk)
-    @timeit_debug TO "exchange_halo_to_loc!" exchange_halo_to_loc!(dh)
+    calc_force_density!(dh, t, Δt)
     @timeit_debug TO "calc_damage!" calc_damage!(chunk)
     @timeit_debug TO "update_acc_and_vel!" update_acc_and_vel!(chunk, Δt½)
     @timeit_debug TO "export_results" export_results(dh, options, n, t)

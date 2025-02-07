@@ -48,6 +48,7 @@ function macrocheck_input_material(material)
     material isa Symbol && return nothing
     (material isa Expr && material.head === :.) && return nothing
     (material isa Expr && material.head === :escape) && return nothing
+    (material isa Expr && material.head === :curly) && return nothing
     return throw(ArgumentError("argument `$material` is not a valid material input!\n"))
 end
 
