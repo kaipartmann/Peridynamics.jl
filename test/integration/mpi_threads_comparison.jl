@@ -1,5 +1,5 @@
 @testitem "MPI-Threads comparison BBMaterial{NoCorrection}" begin
-    root = joinpath(@__DIR__, "temp_mpi_threads_comparison_bbnc")
+    root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
     path_mpi = joinpath(root, "results_mpi")
@@ -61,12 +61,10 @@
             @test res_threads[key] ≈ res_mpi[key]
         end
     end
-
-    rm(root; recursive=true, force=true)
 end
 
 @testitem "MPI-Threads comparison BBMaterial{NoCorrection} DynamicRelaxation" begin
-    root = joinpath(@__DIR__, "temp_mpi_threads_comparison_bbncdr")
+    root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
     path_mpi = joinpath(root, "results_mpi")
@@ -135,12 +133,10 @@ end
             @test Δe < 0.03
         end
     end
-
-    rm(root; recursive=true, force=true)
 end
 
 @testitem "MPI-Threads comparison BBMaterial{EnergySurfaceCorrection}" begin
-    root = joinpath(@__DIR__, "temp_mpi_threads_comparison_bbesc")
+    root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
     path_mpi = joinpath(root, "results_mpi")
@@ -202,12 +198,10 @@ end
             @test res_threads[key] ≈ res_mpi[key]
         end
     end
-
-    rm(root; recursive=true, force=true)
 end
 
 @testitem "MPI-Threads comparison OSBMaterial" begin
-    root = joinpath(@__DIR__, "temp_mpi_threads_comparison_osb")
+    root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
     path_mpi = joinpath(root, "results_mpi")
@@ -269,12 +263,10 @@ end
             @test res_threads[key] ≈ res_mpi[key]
         end
     end
-
-    rm(root; recursive=true, force=true)
 end
 
 @testitem "MPI-Threads comparison CMaterial" begin
-    root = joinpath(@__DIR__, "temp_mpi_threads_comparison_cc")
+    root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
     path_mpi = joinpath(root, "results_mpi")
@@ -336,6 +328,4 @@ end
             @test res_threads[key] ≈ res_mpi[key]
         end
     end
-
-    rm(root; recursive=true, force=true)
 end

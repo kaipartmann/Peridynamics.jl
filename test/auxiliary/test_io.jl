@@ -244,8 +244,7 @@
 end
 
 @testitem "export_results Body" begin
-    temp_root = joinpath(@__DIR__, "temp_root_export_results_test_body")
-    rm(temp_root; recursive=true, force=true)
+    temp_root = mktempdir()
 
     pos, vol = uniform_box(1, 1, 1, 0.5)
     body = Body(BBMaterial(), pos, vol)
@@ -283,13 +282,10 @@ end
     @test r[:displacement] ≈ u_rand
     @test r[:damage] == zeros(8)
     @test r[:time] == [t]
-
-    rm(temp_root; recursive=true, force=true)
 end
 
 @testitem "export_results MultibodySetup" begin
-    temp_root = joinpath(@__DIR__, "temp_root_export_results_test_multibody")
-    rm(temp_root; recursive=true, force=true)
+    temp_root = mktempdir()
 
     pos_a, vol_a = uniform_box(1, 1, 1, 0.5)
     body_a = Body(BBMaterial(), pos_a, vol_a)
@@ -359,6 +355,4 @@ end
     @test r_b[:displacement] ≈ u_rand_b
     @test r_b[:damage] == zeros(8)
     @test r_b[:time] == [t]
-
-    rm(temp_root; recursive=true, force=true)
 end

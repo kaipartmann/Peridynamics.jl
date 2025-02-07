@@ -5,7 +5,7 @@
         msg *= "Trigger package precompilation manually and then restart the mpirun!\n"
         error(msg)
     end
-    root = joinpath(@__DIR__, "temp_precompilation")
+    root = mktempdir()
     pos1, vol1 = uniform_box(1, 1, 1, 0.5; center=(0.5, 0.5, 0.5))
     pos2, vol2 = uniform_box(1, 1, 1, 0.5; center=(-0.5, 0.5, 0.5))
     path_bb = joinpath(root, "BB")
@@ -68,6 +68,4 @@
         submit(Job(b3, vv; path=path_cc, freq=1); quiet=true)
         submit(Job(ms, vv; path=path_ms, freq=1); quiet=true)
     end
-
-    rm(root; recursive=true, force=true)
 end
