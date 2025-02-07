@@ -22,6 +22,12 @@ CKIMaterial
 NoCorrection
 EnergySurfaceCorrection
 ZEMSilling
+LinearElastic
+NeoHooke
+MooneyRivlin
+SaintVenantKirchhoff
+linear_kernel
+cubic_b_spline_kernel
 ```
 
 ## Discretization

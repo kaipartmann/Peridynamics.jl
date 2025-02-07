@@ -5,16 +5,24 @@ A material type used to assign the material of a [`Body`](@ref) with the local c
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
 
 # Keywords
-- `kernel::Function`: Kernel function used for weighting the interactions between points.
-    (default: `linear_kernel`)
-- `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
-    (default: `LinearElastic()`)
+- `kernel::Function`: Kernel function used for weighting the interactions between points. \\
+    (default: `linear_kernel`) \\
+    The following kernels can be used:
+    - [`linear_kernel`](@ref)
+    - [`cubic_b_spline_kernel`](@ref)
+- `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
+    (default: `LinearElastic()`) \\
+    The following models can be used:
+    - [`LinearElastic`](@ref)
+    - [`NeoHooke`](@ref)
+    - [`MooneyRivlin`](@ref)
+    - [`SaintVenantKirchhoff`](@ref)
 - `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
-    stabilization algorithm of Silling (2017) is used as default.
+    stabilization algorithm of Silling (2017) is used as default. \\
     (default: `ZEMSilling()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
-    possibly contain `NaN` values.
+    possibly contain `NaN` values. \\
     (default: `0.85`)
 
 !!! note "Stability of fracture simulations"
