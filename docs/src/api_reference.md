@@ -13,13 +13,15 @@ Pages = ["api_reference.md"]
 BBMaterial
 OSBMaterial
 CMaterial
+BACMaterial
 CKIMaterial
 ```
 
-## System related types
+## System or material related types
 ```@docs
 NoCorrection
 EnergySurfaceCorrection
+ZEMSilling
 ```
 
 ## Discretization
