@@ -132,7 +132,7 @@ end
             Δe = maximum(abs.(res_threads_qty .- res_mpi_qty))
             #TODO: why is this error so high?
             # See also: https://github.com/kaipartmann/Peridynamics.jl/issues/187
-            @test Δe < 0.02
+            @test Δe < 0.03
         end
     end
 

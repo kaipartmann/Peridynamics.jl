@@ -6,13 +6,10 @@ using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, Progres
     using ThreadPinning
 end
 
-using Infiltrator
-
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, OSBMaterial, CMaterial, CRMaterial, BACMaterial, RKCMaterial,
-       NSCMaterial, NSCRMaterial, CKIMaterial
+export BBMaterial, OSBMaterial, CMaterial, BACMaterial, CKIMaterial
 
 # CMaterial related types
 export NeoHookeNonlinear, SaintVenantKirchhoff, ZEMSilling
@@ -131,11 +128,7 @@ include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
 include("physics/constitutive_models.jl")
 include("physics/correspondence.jl")
-include("physics/correspondence_rotated.jl")
-include("physics/ns_correspondence.jl")
-include("physics/ns_correspondence_rotated.jl")
 include("physics/ba_correspondence.jl")
-include("physics/rk_correspondence.jl")
 
 include("VtkReader/VtkReader.jl")
 using .VtkReader

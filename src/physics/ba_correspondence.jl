@@ -1,47 +1,46 @@
 """
-    CMaterial(; maxdmg, zem)
+    BACMaterial(; kernel, model, maxdmg)
 
-A material type used to assign the material of a [`Body`](@ref) with the local continuum
-consistent (correspondence) formulation of non-ordinary state-based peridynamics.
+A material type used to assign the material of a [`Body`](@ref) with the bond-associated
+correspondence formulation of Chen and Spencer (2019).
 
 # Keywords
+- `kernel::Function`: Kernel function used for weighting the interactions between points.
+    (default: `linear_kernel`)
+- `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
+    (default: `LinearElastic()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values.
-    (default: `0.95`)
-- `zem::AbstractZEMStabilization`: zero-energy mode stabilization. The
-    stabilization algorithm of Silling (2017) is used as default.
-    (default: `ZEMSilling()`)
-
-!!! note "Stability of fracture simulations"
-    This formulation is known to be not suitable for fracture simultations without
-    stabilization of the zero-energy modes. Therefore be careful when doing fracture
-    simulations and try out different parameters for `maxdmg` and `zem`.
+    (default: `0.85`)
 
 # Examples
 
 ```julia-repl
-julia> mat = CMaterial()
+julia> mat = BACMaterial()
 CMaterial(maxdmg=0.95, zem_fac=ZEMSilling())
 ```
 
 ---
 
 ```julia
-CMaterial
+BACMaterial{CM,K}
 ```
 
-Material type for the local continuum consistent (correspondence) formulation of
-non-ordinary state-based peridynamics.
+Material type for the bond-associated correspondence formulation of Chen and Spencer (2019).
+
+# Type Parameters
+- `CM`: A constitutive model type. See the constructor docs for more informations.
+- `K`: A kernel function type. See the constructor docs for more informations.
 
 # Fields
+- `kernel::Function`: Kernel function used for weighting the interactions between points.
+- `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
-    constructor docs for more informations.
-- `zem_fac::Float64`: Correction factor used for zero-energy mode stabilization. See the
     constructor docs for more informations.
 
 # Allowed material parameters
-When using [`material!`](@ref) on a [`Body`](@ref) with `CMaterial`, then the following
+When using [`material!`](@ref) on a [`Body`](@ref) with `BACMaterial`, then the following
 parameters are allowed:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
@@ -52,7 +51,7 @@ parameters are allowed:
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
-`CMaterial`, the following fields are allowed:
+`BACMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point
 - `displacement::Matrix{Float64}`: Displacement of each point
 - `velocity::Matrix{Float64}`: Velocity of each point
@@ -79,7 +78,7 @@ function Base.show(io::IO, @nospecialize(mat::BACMaterial))
 end
 
 function BACMaterial(; kernel::Function=linear_kernel,
-                     model::AbstractConstitutiveModel=NeoHookeNonlinear(),
+                     model::AbstractConstitutiveModel=LinearElastic(),
                      maxdmg::Real=0.85)
     return BACMaterial(kernel, model, maxdmg)
 end

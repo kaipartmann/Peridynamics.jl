@@ -8,7 +8,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 - `kernel::Function`: Kernel function used for weighting the interactions between points.
     (default: `linear_kernel`)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
-    (default: `NeoHookeNonlinear()`)
+    (default: `LinearElastic()`)
 - `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
     stabilization algorithm of Silling (2017) is used as default.
     (default: `ZEMSilling()`)
@@ -32,11 +32,17 @@ CMaterial(maxdmg=0.85, zem=ZEMSilling())
 ---
 
 ```julia
-CMaterial
+CMaterial{CM,ZEM,K}
 ```
 
 Material type for the local continuum consistent (correspondence) formulation of
 non-ordinary state-based peridynamics.
+
+# Type Parameters
+- `CM`: A constitutive model type. See the constructor docs for more informations.
+- `ZEM`: A zero-energy mode stabilization type. See the constructor docs for more
+         informations.
+- `K`: A kernel function type. See the constructor docs for more informations.
 
 # Fields
 - `kernel::Function`: Kernel function used for weighting the interactions between points.
@@ -88,7 +94,7 @@ function Base.show(io::IO, @nospecialize(mat::CMaterial))
 end
 
 function CMaterial(; kernel::Function=linear_kernel,
-                    model::AbstractConstitutiveModel=NeoHookeNonlinear(),
+                    model::AbstractConstitutiveModel=LinearElastic(),
                     zem::AbstractZEMStabilization=ZEMSilling(), maxdmg::Real=0.85)
     return CMaterial(kernel, model, zem, maxdmg)
 end
@@ -158,24 +164,11 @@ end
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
                               mat::AbstractCorrespondenceMaterial,
                               params::AbstractPointParameters, t, Δt, i)
-    calc_failure_point!(storage, system, mat, params, i)
     defgrad_res = calc_deformation_gradient(storage, system, mat, params, i)
     too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
     PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)
     zem = mat.zem_stabilization
     c_force_density!(storage, system, mat, params, zem, PKinv, defgrad_res, i)
-    return nothing
-end
-
-function calc_failure_point!(storage, system, mat, params, i)
-    for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_coordinates_diff(storage, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
-    end
     return nothing
 end
 
@@ -226,9 +219,9 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
         j, L = bond.neighbor, bond.length
         ΔXij = get_coordinates_diff(system, i, j)
         Δxij = get_coordinates_diff(storage, i, j)
-        # l = norm(Δxij)
-        # ε = (l - L) / L
-        # stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
+        l = norm(Δxij)
+        ε = (l - L) / L
+        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
         ωij = kernel(system, bond_id) * bond_active[bond_id]
@@ -245,13 +238,7 @@ end
 function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
                           mat::AbstractCorrespondenceMaterial, defgrad_res, i)
     (; F) = defgrad_res
-    # @infiltrate storage.n_active_bonds[i] ≤ 3
     # if storage.n_active_bonds[i] ≤ 3 || storage.damage[i] > mat.maxdmg || containsnan(F)
-    #     # kill all bonds of this point
-    #     storage.bond_active[each_bond_idx(system, i)] .= false
-    #     storage.n_active_bonds[i] = 0
-    #     return true
-    # end
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         # kill all bonds of this point
         storage.bond_active[each_bond_idx(system, i)] .= false
