@@ -14,3 +14,22 @@ title: "Peridynamics.jl"
 doi: 10.5281/zenodo.8187477
 date-released: 2023-07-26
 url: "https://github.com/kaipartmann/Peridynamics.jl"
+preferred-citation:
+  title: "Simulation of fracture and damage with Peridynamics.jl"
+  type: article
+  authors:
+  - family-names: "Partmann"
+    given-names: "Kai"
+  - family-names: "Dienst"
+    given-names: "Manuel"
+  - family-names: "Weinberg"
+    given-names: "Kerstin"
+  doi: "10.21105/jcon.00165"
+  journal: "Proceedings of the JuliaCon Conferences"
+  start: 165 # First page number
+  end: 165 # Last page number
+  volume: 6
+  number: 64
+  publisher: "The Open Journal"
+  url: "https://doi.org/10.21105/jcon.00165"
+  year: 2024

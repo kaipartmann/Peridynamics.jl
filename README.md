@@ -41,63 +41,8 @@ add Peridynamics
 ```
 in the julia package manager. Please take a look at the [documentation](https://kaipartmann.github.io/Peridynamics.jl/stable/index#Installation) for more details on the installation.
 
-## Tutorials
-
-<table align="center" border="0">
-  <tr>
-  </tr>
-  <tr>
-    <td align="center">
-      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_static/">
-        <figcaption>Tensile test quasi-static</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/ac69d8aa-526d-436a-aa0c-820a1f42bcca" width="200"/>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac/">
-        <figcaption>Tensile test dynamic</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/dda2b7b3-d44b-41a9-b133-6d1b548df1c1" width="200"/>
-      </a>
-    </td>
-  </tr>
-  <tr>
-  </tr>
-  <tr>
-    <td align="center">
-      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_precrack/">
-        <figcaption>Tension with predefined crack</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/9f627d2d-44b5-43a3-94cd-9d34894fd142" width="240"/>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_logo/">
-        <figcaption>The old logo</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/5439e112-9088-49a3-bb01-aff541adc0f8" width="240"/>
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_kalthoff-winkler_dynfrac/">
-        <figcaption>Kalthoff Winkler</figcaption><br><img src="https://github.com/kaipartmann/Peridynamics.jl/assets/68582683/6dc362ef-4997-4327-9bc1-41350fac2dc1" width="300"/><br>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_cylinder/">
-        <figcaption>Fragmenting cylinder</figcaption><br><img src="https://github.com/user-attachments/assets/58e11123-6143-4e13-8642-7e30c9e6c86d" width="300"/>
-   </a></td>
-  </tr>
-    <tr>
-    <td align="center">
-      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_in_bar/">
-        <figcaption>Wave propagation</figcaption><br><img src="https://github.com/user-attachments/assets/7fa65fd4-38d8-46cb-833f-990417211d17" width="300"/><br>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_wave_interface/">
-        <figcaption>Wave propagation across interface</figcaption><br><img src="https://github.com/user-attachments/assets/082f635f-caf2-40db-938e-e4a98e2f3915" width="300"/>
-   </a></td>
-  </tr>
-</table>
-
 ## Usage
-To run the dynamic tensile test simulation shown above, just 7 lines of code are needed:
+To run the [dynamic tensile test simulation](https://kaipartmann.github.io/Peridynamics.jl/stable/generated/tutorial_tension_dynfrac), just 7 lines of code are needed:
 ```julia
 body = Body(BBMaterial(), "TensileTestMesh.inp")
 material!(body; horizon=0.01, rho=2700, E=70e9, Gc=100)
@@ -115,6 +60,31 @@ To use MPI, you can create a script containing the **same code without changes**
 mpiexec -n 6 julia --project path/to/script.jl
 ```
 Please take a look at the [how-to guide on MPI](https://kaipartmann.github.io/Peridynamics.jl/dev/howto_mpi/) for more details.
+
+## Tutorials
+
+Please click the image below to see the [Tutorial overview](https://github.com/user-attachments/assets/f69ec7f5-2deb-4328-bfab-05cc15508af2) in the documentation.
+
+<a href="https://kaipartmann.github.io/Peridynamics.jl/stable/#Tutorials">
+  <img src="https://github.com/user-attachments/assets/f69ec7f5-2deb-4328-bfab-05cc15508af2"/><br>
+</a>
+
+## Cite Us
+
+If you use Peridynamics.jl in your own research or write a paper using results obtained 
+with the help of Peridynamics.jl, please cite it as
+```bibtex
+@article{Partmann2024JuliaCon,
+  author = {Partmann, Kai and Dienst, Manuel and Weinberg, Kerstin},
+  doi = {10.21105/jcon.00165},
+  journal = {Proceedings of the JuliaCon Conferences},
+  pages = {165},
+  title = {{Simulation of fracture and damage with Peridynamics.jl}},
+  url = {https://doi.org/10.21105/jcon.00165},
+  volume = {6},
+  year = {2024}
+}
+```
 
 ## Authors
 
