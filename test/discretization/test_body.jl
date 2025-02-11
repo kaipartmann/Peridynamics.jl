@@ -172,6 +172,13 @@ end
     body = Body(mat, position, volume)
     point_set!(body, :a, 1:2)
 
+    # no material parameters defined
+    @test_throws ArgumentError no_failure!(body)
+
+    # not all points have material parameters
+    material!(body, :a; horizon=1, E=1, rho=1, Gc=1)
+    @test_throws ArgumentError no_failure!(body)
+
     # whole body
     material!(body; horizon=1, E=1, rho=1, Gc=1)
     no_failure!(body)
@@ -182,6 +189,7 @@ end
     @test body.fail_permit == [1, 1, 1, 1]
     no_failure!(body, :a)
     @test body.fail_permit == [0, 0, 1, 1]
+
 
 end
 
