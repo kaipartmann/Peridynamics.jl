@@ -43,8 +43,7 @@ material!(body, :set1, horizon=3.015Δx, rho=7850.0, E=105e9, nu=0.25)
 # | Young's modulus $E_{II}$ | $ 210 \, \mathrm{GPa}$ |
 # | Poisson's ratio $ν$ | $0.25$ |
 
-# Again, failure is not allowed in the whole body.
-no_failure!(body)
+# Again, failure is not allowed in the whole body since no fracture parameters are specified.
 
 # To employ the boundary conditions creating a displacement wave, the point set `:left` is
 # created:
