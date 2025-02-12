@@ -50,7 +50,7 @@ Body{Material,PointParameters}
 - `fail_permit::Vector{Bool}`: A vector that describes if failure is allowed for each point.
 - `point_sets::Dict{Symbol,Vector{Int}}`: A dictionary containing point sets.
 - `point_params::Vector{PointParameters}`: A vector containing all different point parameter instances of the body. Each point can have its own `PointParameters` instance.
-- `params_map::Vector{Int}`: A vector that maps parameters in `point_params` to each point.
+- `params_map::Vector{Int}`: A vector that maps each point index to a parameter instance in `point_params`.
 - `single_dim_bcs::Vector{SingleDimBC}`: A vector with boundary conditions on a single
     dimension.
 - `posdep_single_dim_bcs::Vector{PosDepSingleDimBC}`: A vector with position dependent
