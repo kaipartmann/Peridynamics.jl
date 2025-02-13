@@ -34,9 +34,16 @@ Material type for the bond-based peridynamics formulation.
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `BBMaterial`, then the following
 parameters are allowed:
+Material parameters:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
+Elastic parameters
 - `E::Float64`: Young's modulus
+- `G::Float64`: Shear modulus
+- `K::Float64`: Bulk modulus
+- `lambda::Float64`: 1st Lamé parameter
+- `mu::Float64`: 2nd Lamé parameter
+Fracture parameters:
 - `Gc::Float64`: Critical energy release rate
 - `epsilon_c::Float64`: Critical strain
 
@@ -44,6 +51,7 @@ parameters are allowed:
     In bond-based peridynamics, the Poisson's ratio is limited to 1/4 for 3D simulations.
     Therefore the specification of this keyword is not allowed when using `material!`, as it
     is hardcoded to `nu = 1/4`.
+    Therefore, only one additional elastic parameter is required.
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
@@ -77,13 +85,23 @@ struct BBPointParameters <: AbstractPointParameters
 end
 
 function BBPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
-    if haskey(p, :nu) && !isapprox(p[:nu], 0.25)
+    par = get_given_elastic_params(p)
+    (; E, nu, G, K, λ, μ) = par
+    if isfinite(nu) && !isapprox(nu, 0.25)
         msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
         msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
         throw(ArgumentError(msg))
+    elseif !isfinite(nu) && length(findall(isfinite, par)) == 1
+        p[:nu] = 0.25
     end
-    p[:nu] = 0.25
     (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
+    if !isapprox(nu, 0.25)
+        msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
+        msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
+        msg *= "The submitted parameter combination results in an illegal value for nu!\n"
+        msg *= "Please define only one or two fitting elastic parameters!\n"
+        throw(ArgumentError(msg))
+    end
     (; Gc, εc) = get_frac_params(p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
     return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)

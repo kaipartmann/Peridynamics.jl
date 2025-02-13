@@ -34,12 +34,23 @@ Material type for the ordinary state-based peridynamics formulation.
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `OSBMaterial`, then the following
 parameters are allowed:
+Material parameters:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
+Elastic parameters:
 - `E::Float64`: Young's modulus
 - `nu::Float64`: Poisson's ratio
+- `G::Float64`: Shear modulus
+- `K::Float64`: Bulk modulus
+- `lambda::Float64`: 1st Lamé parameter
+- `mu::Float64`: 2nd Lamé parameter
+Fracture parameters:
 - `Gc::Float64`: Critical energy release rate
 - `epsilon_c::Float64`: Critical strain
+
+!!! note "Elastic parameters"
+    Note that exactly two elastic parameters are required to specify a material.
+    Please choose two out of the six allowed elastic parameters.
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
