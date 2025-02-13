@@ -72,6 +72,9 @@ end
     point_set!(body, :a, 1:2)
     @test body.point_sets == Dict(:all_points => 1:4, :a => 1:2)
 
+    # try adding point set with identical name
+    @test_throws ErrorException point_set!(body, :a, 3:4)
+
     # add another point set via function definition
     point_set!(x -> x > 0.5, body, :b)
     @test body.point_sets == Dict(:all_points => 1:4, :a => 1:2, :b => [2])
@@ -84,6 +87,9 @@ end
 
     # point_set!
     @test_throws BoundsError point_set!(body, :d, 1:5)
+
+    #
+    @test_throws ErrorException Peridynamics.check_if_set_is_defined(body.point_sets, :d)
 end
 
 @testitem "material!" begin
