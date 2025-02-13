@@ -39,9 +39,9 @@ Fracture parameters:
     Note that exactly two elastic parameters are required to specify a material.
     Please choose two out of the six allowed elastic parameters.
 
-!!! note "Elastic parameters in bond-based peridynamics"
-    As an exception, the bond-based formulation has a limitation of the Poisson's ratio
-    to `nu=0.25`! Only one additional elastic parameter is required here.
+!!! note "Fracture parameters"
+    To enable fracture in a simulation, define one of the allowed fracture parameters.
+    If none are defined, fracture is disabled.
 
 # Throws
 
@@ -62,30 +62,26 @@ julia> body
 """
 function material! end
 
-function material!(b::AbstractBody, name::Symbol; kwargs...)
-    check_if_set_is_defined(b.point_sets, name)
+function material!(body::AbstractBody, set_name::Symbol; kwargs...)
+    check_if_set_is_defined(body.point_sets, set_name)
 
     p = Dict{Symbol,Any}(kwargs)
-    check_material_kwargs(b.mat, p)
+    check_material_kwargs(body.mat, p)
 
-    points = b.point_sets[name]
-    params = get_point_params(b.mat, p)
+    points = body.point_sets[set_name]
+    params = get_point_params(body.mat, p)
 
-    _material!(b, points, params)
+    _material!(body, points, params)
+    set_failure_permissions!(body, set_name, params)
 
     return nothing
 end
 
-function material!(b::AbstractBody; kwargs...)
-    p = Dict{Symbol,Any}(kwargs)
-    check_material_kwargs(b.mat, p)
+function material!(body::AbstractBody; kwargs...)
+    isempty(body.point_params) || empty!(body.point_params)
 
-    isempty(b.point_params) || empty!(b.point_params)
+    material!(body, :all_points; kwargs...)
 
-    points = 1:b.n_points
-    params = get_point_params(b.mat, p)
-
-    _material!(b, points, params)
     return nothing
 end
 
