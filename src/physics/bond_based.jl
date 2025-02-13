@@ -93,7 +93,7 @@ function BBPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
         throw(ArgumentError(msg))
     elseif !isfinite(nu) && length(findall(isfinite, par)) >1
         msg =  "Too many material parameters defined!\n"
-        msg *= "In Bond-based peridynamics, the Poisson's ratio is limited to nu=0.25!\n"
+        msg *= "In bond-based peridynamics, the Poisson's ratio is limited to nu=0.25!\n"
         msg *= "Please define only one more elastic parameter!\n"
         throw(ArgumentError(msg))
     end
