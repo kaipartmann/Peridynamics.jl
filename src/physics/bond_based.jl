@@ -91,14 +91,17 @@ function BBPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
         msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
         msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
         throw(ArgumentError(msg))
-    elseif !isfinite(nu) && length(findall(isfinite, par)) > 1
-        msg =  "Too many material parameters defined!\n"
-        msg *= "In bond-based peridynamics, the Poisson's ratio is limited to nu=0.25!\n"
-        msg *= "Please define only one more elastic parameter!\n"
+    elseif !isfinite(nu) && length(findall(isfinite, par)) == 1
+        p[:nu] = 0.25
+    end
+    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
+    if !isapprox(nu, 0.25)
+        msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
+        msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
+        msg *= "The submitted parameter combination results in an illegal value for nu!\n"
+        msg *= "Please define only one or two fitting elastic parameters!\n"
         throw(ArgumentError(msg))
     end
-    p[:nu] = 0.25
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
     (; Gc, εc) = get_frac_params(p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
     return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
