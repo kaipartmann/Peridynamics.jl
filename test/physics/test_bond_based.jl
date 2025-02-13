@@ -144,4 +144,7 @@ end
      @test μ ≈ 0.4
      @test Gc ≈ 1.0
      @test εc ≈ 0.6454972243679028
+
+     # parameters that lead to nu ≠ 0.25
+     @test_throws ArgumentError material!(body, horizon=2, rho=1, E=1, G=1, Gc=1)
 end
