@@ -68,7 +68,7 @@ velocity_bc!(t -> t < 0.0001 ? -32.0 : NaN, body, :set_top, :y)
 
 # A layer of 3 points at the uncracked boundary is not allowed to obtain failure.
 point_set!(y -> y < -w / 2 + 3Δx, body, :no_fail_zone)
-failure_permit!(body, :no_fail_zone, false)
+no_failure!(body, :no_fail_zone)
 
 # ## Simulation
 #

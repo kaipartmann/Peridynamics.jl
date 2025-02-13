@@ -5,7 +5,7 @@
     E = 210e9
     body = Body(OSBMaterial(), ref_position, volume)
     material!(body, horizon=δ, rho=1, E=E, nu=0.25, Gc=1.0)
-    failure_permit!(body, false)
+    no_failure!(body)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     chunk = dh.chunks[1]
@@ -38,7 +38,7 @@ end
     point_set!(body, :b, [2])
     material!(body, :a, horizon=δ, rho=1, E=Ea, nu=0.25, Gc=1.0)
     material!(body, :b, horizon=δ, rho=1, E=Eb, nu=0.25, Gc=1.0)
-    failure_permit!(body, false)
+    no_failure!(body)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     chunk = dh.chunks[1]

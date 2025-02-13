@@ -1,11 +1,11 @@
-# Peridynamics.jl public API
+# Public API
 
 ```@meta
 
 ```
 
 ```@contents
-Pages = ["api_reference.md"]
+Pages = ["public_api_reference.md"]
 ```
 
 ## Material models
@@ -28,7 +28,7 @@ Body
 MultibodySetup
 point_set!
 point_sets
-failure_permit!
+no_failure!
 material!
 velocity_bc!
 velocity_ic!
