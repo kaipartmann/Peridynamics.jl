@@ -2,7 +2,7 @@
     Body(material, position, volume)
     Body(material, inp_file)
 
-Constructs a `Body` for a peridynamics simulation.
+Construct a `Body` for a peridynamics simulation.
 
 # Arguments
 - `material::AbstractMaterial`: The material which is defined for the whole body.
@@ -348,7 +348,7 @@ end
 """
     n_points(body)
 
-Returns the total number of points in a body.
+Return the total number of points in a body.
 
 # Arguments
 - `body::Body`: [`Body`](@ref).
@@ -371,7 +371,7 @@ julia> n_points(body)
 
     n_points(multibody_setup)
 
-Returns the total number of points in a multibody setup.
+Return the total number of points in a multibody setup.
 
 # Arguments
 - `multibody_setup::MultibodySetup`: [`MultibodySetup`](@ref).
