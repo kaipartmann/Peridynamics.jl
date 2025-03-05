@@ -46,4 +46,8 @@ job = Job(body, vv; path="results/fragmenting_cylinder", freq=10)
 #md # submit(job)
 #md # ```
 
-# ![](https://github.com/user-attachments/assets/58e11123-6143-4e13-8642-7e30c9e6c86d)
+# ```@raw html
+#     <video controls loop="true">
+#         <source src="https://github.com/user-attachments/assets/91a274dc-7e45-4a21-9283-414b86199e48" />
+#     </video>
+# ```
