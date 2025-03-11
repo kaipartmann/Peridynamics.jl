@@ -62,6 +62,6 @@ job = Job(body, vv; path="results/xwave")
 
 # ```@raw html
 #     <video controls loop="true">
-#         <source src="https://github.com/user-attachments/assets/a2594777-5d0b-4c5a-acd4-da1e357a06e3" />
+#         <source src="https://github.com/user-attachments/assets/b9839787-f265-43f4-9d57-a33375ad9610" />
 #     </video>
 # ```

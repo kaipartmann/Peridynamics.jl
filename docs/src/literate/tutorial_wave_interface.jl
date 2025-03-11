@@ -70,11 +70,8 @@ vv = VelocityVerlet(steps=2000)
 #md # submit(job)
 #md # ```
 
-# The following video shows the results for the displacement in x-direction $u_x$ and the
-# first entry of the
-# stress tensor, i.e. the normal stress in x-direction $\sigma_{11}$.
 # ```@raw html
 #     <video controls loop="true">
-#         <source src="https://github.com/user-attachments/assets/d7e600ee-cad8-40f9-99f4-e96ac05585d6" />
+#         <source src="https://github.com/user-attachments/assets/45513e03-fde0-44ad-ac90-ca181d59933c" />
 #     </video>
 # ```
