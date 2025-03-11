@@ -164,6 +164,19 @@ end
     return nothing
 end
 
+@inline function calc_density_matrix!(density_matrix::Matrix{Float64},
+                                      system::BondAssociatedSystem,
+                                      params::AbstractPointParameters,
+                                      dr::DynamicRelaxation, i::Int)
+    n_bonds = system.n_neighbors[i]
+    k = 5π * params.δ^2 * params.bc
+    Λ = dr.Λ * 1 / 4 * dr.Δt^2 * n_bonds * k
+    density_matrix[1, i] = Λ
+    density_matrix[2, i] = Λ
+    density_matrix[3, i] = Λ
+    return nothing
+end
+
 function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
                               options::AbstractJobOptions, Δt, n)
     t = n * Δt
