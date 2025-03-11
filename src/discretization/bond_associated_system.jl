@@ -58,12 +58,12 @@ function find_intersection_bond_ids(body, loc_points, bonds, bond_ids)
         for bond_id in bond_ids_of_i
             bond = bonds[bond_id]
             j = bond.neighbor
-            Xj = get_coordinates(body, j)
+            Xj = get_vector(body.position, j)
             intersecting_bonds = Vector{Int}()
             for (ibond_id, bond_id) in enumerate(bond_ids_of_i)
                 bond = bonds[bond_id]
                 jj = bond.neighbor
-                Xjj = get_coordinates(body, jj)
+                Xjj = get_vector(body.position, jj)
                 ΔX = Xj - Xjj
                 L² = dot(ΔX, ΔX)
                 if L² < δb²

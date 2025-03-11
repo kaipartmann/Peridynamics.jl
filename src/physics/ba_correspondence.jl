@@ -169,8 +169,8 @@ function force_density_bond!(storage::BACStorage, system::BondAssociatedSystem,
 
     bond = system.bonds[bond_idx]
     j, L = bond.neighbor, bond.length
-    ΔXij = get_coordinates_diff(system, i, j)
-    Δxij = get_coordinates_diff(storage, i, j)
+    ΔXij = get_vector_diff(system.position, i, j)
+    Δxij = get_vector_diff(storage.position, i, j)
     l = norm(Δxij)
     ε = (l - L) / L
     stretch_based_failure!(storage, system, bond, params, ε, i, bond_idx)
@@ -178,8 +178,8 @@ function force_density_bond!(storage::BACStorage, system::BondAssociatedSystem,
     ωij = kernel(system, bond_idx) * storage.bond_active[bond_idx]
     ϕi = volume_fraction_factor(system, i, bond_idx)
     tij = ϕi * ωij * PKinv * ΔXij
-    update_add_b_int!(storage, i, tij .* system.volume[j])
-    update_add_b_int!(storage, j, -tij .* system.volume[i])
+    update_add_vector!(storage.b_int, i, tij .* system.volume[j])
+    update_add_vector!(storage.b_int, j, -tij .* system.volume[i])
     return nothing
 end
 
@@ -193,8 +193,8 @@ function calc_deformation_gradient(storage::BACStorage, system::BondAssociatedSy
     for bond_id in each_intersecting_bond_idx(system, i, bond_idx)
         bond = bonds[bond_id]
         j = bond.neighbor
-        ΔXij = get_diff(system.position, i, j)
-        Δxij = get_diff(storage.position, i, j)
+        ΔXij = get_vector_diff(system.position, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
         ωijV = kernel(system, bond_id) * volume[j]
         ωijωDV = ωijV * bond_active[bond_id]
         K += ωijV * (ΔXij * ΔXij')

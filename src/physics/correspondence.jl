@@ -203,8 +203,8 @@ function calc_deformation_gradient(storage::CStorage, system::BondSystem, ::CMat
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
-        ΔXij = get_diff(system.position, i, j)
-        Δxij = get_diff(storage.position, i, j)
+        ΔXij = get_vector_diff(system.position, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
         ω0 += ωij
         temp = ωij * volume[j]
@@ -238,8 +238,8 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        ΔXij = get_coordinates_diff(system, i, j)
-        Δxij = get_coordinates_diff(storage, i, j)
+        ΔXij = get_vector_diff(system.position, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
@@ -250,8 +250,8 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
 
         # update of force density
         tij = ωij * PKinv * ΔXij + tzem
-        update_add_b_int!(storage, i, tij .* volume[j])
-        update_add_b_int!(storage, j, -tij .* volume[i])
+        update_add_vector!(storage.b_int, i, tij .* volume[j])
+        update_add_vector!(storage.b_int, j, -tij .* volume[i])
     end
     return nothing
 end

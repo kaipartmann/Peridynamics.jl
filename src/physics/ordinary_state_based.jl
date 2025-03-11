@@ -128,15 +128,15 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_coordinates_diff(storage, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
         p_int = kernel(system, bond_id) * bond_failure(storage, bond_id) *
                 surface_correction_factor(system.correction, bond_id) *
                 (c2 * L + c1 * (l - L)) / l .* Δxij
-        update_add_b_int!(storage, i, p_int .* system.volume[j])
-        update_add_b_int!(storage, j, -p_int .* system.volume[i])
+        update_add_vector!(storage.b_int, i, p_int .* system.volume[j])
+        update_add_vector!(storage.b_int, j, -p_int .* system.volume[i])
     end
     return nothing
 end
@@ -150,7 +150,7 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_coordinates_diff(storage, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
         stretch_based_failure!(storage, system, bond, params_i, ε, i, bond_id)
@@ -160,8 +160,8 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
         p_int = kernel(system, bond_id) * bond_failure(storage, bond_id) *
                 surface_correction_factor(system.correction, bond_id) *
                 (c2 * L + c1 * (l - L)) / l .* Δxij
-        update_add_b_int!(storage, i, p_int .* system.volume[j])
-        update_add_b_int!(storage, j, -p_int .* system.volume[i])
+        update_add_vector!(storage.b_int, i, p_int .* system.volume[j])
+        update_add_vector!(storage.b_int, j, -p_int .* system.volume[i])
     end
     return nothing
 end
@@ -172,7 +172,7 @@ function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBM
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        ΔXij = get_coordinates_diff(system, i, j)
+        ΔXij = get_vector_diff(system.position, i, j)
         ΔXij_sq = dot(ΔXij, ΔXij)
         scfactor = surface_correction_factor(system.correction, bond_id)
         ωij = kernel(system, bond_id) * storage.bond_active[bond_id] * scfactor
@@ -188,7 +188,7 @@ function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMateri
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_coordinates_diff(storage, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
         scfactor = surface_correction_factor(system.correction, bond_id)
         ωij = kernel(system, bond_id) * storage.bond_active[bond_id] * scfactor

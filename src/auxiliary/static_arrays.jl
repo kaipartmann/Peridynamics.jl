@@ -19,8 +19,7 @@ end
 end
 
 @inline function get_vector(M::AbstractMatrix, i::Int)
-    V = SVector{3}(M[1, i], M[2, i], M[3, i])
-    return V
+    return SVector{3}(M[1, i], M[2, i], M[3, i])
 end
 
 @inline function update_vector!(Mₙ::AbstractMatrix, i::Int, Vₙ₊₁::SVector{3})
@@ -30,9 +29,15 @@ end
     return nothing
 end
 
+@inline function update_add_vector!(Mₙ::AbstractMatrix, i::Int, Vₙ₊₁::SVector{3})
+    Mₙ[1, i] += Vₙ₊₁[1]
+    Mₙ[2, i] += Vₙ₊₁[2]
+    Mₙ[3, i] += Vₙ₊₁[3]
+    return nothing
+end
+
 @inline function get_vector_diff(M::AbstractMatrix, i::Int, j::Int)
-    V = SVector{3}(M[1, j] - M[1, i], M[2, j] - M[2, i], M[3, j] - M[3, i])
-    return V
+    return SVector{3}(M[1, j] - M[1, i], M[2, j] - M[2, i], M[3, j] - M[3, i])
 end
 
 function invreg(M::StaticMatrix{N,N,T}, threshold::Real=eps()) where {N,T}
