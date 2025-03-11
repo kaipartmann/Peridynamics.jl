@@ -37,11 +37,6 @@ Fracture parameters:
 
 !!! note "Elastic parameters"
     Note that exactly two elastic parameters are required to specify a material.
-    Please choose two out of the six allowed elastic parameters.
-
-!!! note "Elastic parameters in bond-based peridynamics"
-    As an exception, the bond-based formulation has a limitation of the Poisson's ratio
-    to `nu=0.25`! Only one additional elastic parameter is required here.
 
 !!! note "Fracture parameters"
     To enable fracture in a simulation, define one of the allowed fracture parameters.
