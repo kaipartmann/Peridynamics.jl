@@ -40,7 +40,7 @@ function apply_ic!(chunk::AbstractBodyChunk, ic::PosDepSingleDimIC)
     (; system, storage, psets) = chunk
     field = get_point_data(storage, ic.field)
     @simd for point_id in psets[ic.point_set]
-        value = ic(get_coordinates(system, point_id))
+        value = ic(get_vector(system.position, point_id))
         if !isnan(value)
             @inbounds setindex!(field, value, ic.dim, point_id)
         end

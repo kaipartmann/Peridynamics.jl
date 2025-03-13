@@ -12,14 +12,22 @@ Pages = ["public_api_reference.md"]
 ```@docs
 BBMaterial
 OSBMaterial
-NOSBMaterial
+CMaterial
+BACMaterial
 CKIMaterial
 ```
 
-## System related types
+## System or material related types
 ```@docs
 NoCorrection
 EnergySurfaceCorrection
+ZEMSilling
+LinearElastic
+NeoHooke
+MooneyRivlin
+SaintVenantKirchhoff
+linear_kernel
+cubic_b_spline_kernel
 ```
 
 ## Discretization

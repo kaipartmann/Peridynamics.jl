@@ -37,7 +37,6 @@ Fracture parameters:
 
 !!! note "Elastic parameters"
     Note that exactly two elastic parameters are required to specify a material.
-    Please choose two out of the six allowed elastic parameters.
 
 !!! note "Fracture parameters"
     To enable fracture in a simulation, define one of the allowed fracture parameters.
