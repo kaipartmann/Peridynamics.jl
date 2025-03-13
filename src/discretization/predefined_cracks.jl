@@ -1,3 +1,18 @@
+"""
+    PointSetsPreCrack
+
+$(internal_api_warning())
+
+Type describing a predefined crack in a peridynamic body.
+
+# Fields
+
+- `set_a::Symbol`: Point set containing points on one side of the crack
+- `set_b::Symbol`: Point set with points on other side of the crack
+- `filter_bonds::Bool`: If true, the involved bonds are filtered out so no damage is
+    present at the beginning of the simulation. Else, all involved bonds are marked broken
+    from the beginning.
+"""
 struct PointSetsPreCrack <: AbstractPredefinedCrack
     set_a::Symbol
     set_b::Symbol

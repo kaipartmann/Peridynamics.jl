@@ -1,3 +1,30 @@
+"""
+    BodyChunk{System, Material, Params, Storage}
+
+$(internal_api_warning())
+
+A type for a body chunk used for multithreading and MPI
+
+# Type Parameters
+
+- `System<:AbstractSystem`: Type of the system
+- `Material<:AbstractMaterial`: Type of the material model of the system
+- `Params<:AbstractParameterSetup`: Material parameters of the points in the body chunk
+- `Storage<:AbstractStorage`: Storage of all information that changes during the simulation
+
+# Fields
+
+- `body_name::Symbol`: Name of the body in multibody simulations
+- `system::System`: System with all information that is known before the simulation
+- `mat::Material`: Material model of the system
+- `paramsetup::Params`: Material parameters of the points in the body chunk
+- `storage::Storage`: Storage of all information that changes during the simulation
+- `psets::Dict{Symbol,Vector{Int}}`: Point sets of the chunk with local indices
+- `sdbcs::Vector{SingleDimBC}`: Single dimension boundary conditions
+- `pdsdbcs::Vector{PosDepSingleDimBC}`: Position dependent single dimension boundary
+    conditions
+- `cells::Vector{MeshCell{VTKCellType,Tuple{Int64}}}`: Cells for vtk export
+"""
 struct BodyChunk{System<:AbstractSystem,
                  Material<:AbstractMaterial,
                  Params<:AbstractParameterSetup,

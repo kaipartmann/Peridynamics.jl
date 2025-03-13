@@ -44,7 +44,7 @@ Fracture parameters:
 
 # Throws
 
-- Errors if a kwarg is not eligible for specification with the body material.
+- Error if a kwarg is not eligible for specification with the body material.
 
 # Example
 

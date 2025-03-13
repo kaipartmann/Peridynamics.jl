@@ -18,6 +18,18 @@ function init_field(material, solver, system, field)
     return throw(InterfaceError(material, method_msg))
 end
 
+"""
+    @storage material storage
+    @storage material solver storage
+
+$(internal_api_warning())
+
+A macro ...
+
+TODO
+"""
+macro storage end
+
 macro storage(material, storage)
     macrocheck_input_material(material)
     macrocheck_input_storage_struct(storage)
