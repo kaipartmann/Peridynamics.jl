@@ -34,7 +34,7 @@ Peridynamics.BBPointParameters
 Peridynamics.SingleDimBC
 Peridynamics.PosDepSingleDimBC
 Peridynamics.CKIPointParameters
-Peridynamics.NOSBPointParameters
+Peridynamics.CPointParameters
 Peridynamics.SingleDimIC
 Peridynamics.PosDepSingleDimIC
 Peridynamics.OSBPointParameters
