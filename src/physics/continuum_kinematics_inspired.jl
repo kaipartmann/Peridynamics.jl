@@ -68,6 +68,30 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 """
 struct CKIMaterial <: AbstractInteractionSystemMaterial end
 
+"""
+    CKIPointParameters
+
+$(internal_api_warning())
+
+Type containing the material parameters for a continuum-kinematics-inspired peridynamics
+    model.
+
+# Fields
+
+- `δ::Float64`: Horizon
+- `rho::Float64`: Density
+- `E::Float64`: Young's modulus
+- `nu::Float64`: Poisson's ratio
+- `G::Float64`: Shear modulus
+- `K::Float64`: Bulk modulus
+- `λ::Float64`: 1st Lamé parameter
+- `μ::Float64`: 2nd Lamé parameter
+- `Gc::Float64`: Critical energy release rate
+- `εc::Float64`: Critical strain
+- `C1::Float64`: Material constant for one-neighbor interactions
+- `C2::Float64`: Material constant for two-neighbor interactions
+- `C3::Float64`: Material constant for three-neighbor interactions
+"""
 struct CKIPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64

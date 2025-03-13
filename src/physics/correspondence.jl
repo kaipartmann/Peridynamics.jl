@@ -91,6 +91,28 @@ function Base.show(io::IO, @nospecialize(mat::NOSBMaterial))
     return nothing
 end
 
+"""
+    NOSBPointParameters
+
+$(internal_api_warning())
+
+Type containing the material parameters for a non-ordinary state-based peridynamics model
+    using the Correspondence formulation.
+
+# Fields
+
+- `δ::Float64`: Horizon
+- `rho::Float64`: Density
+- `E::Float64`: Young's modulus
+- `nu::Float64`: Poisson's ratio
+- `G::Float64`: Shear modulus
+- `K::Float64`: Bulk modulus
+- `λ::Float64`: 1st Lamé parameter
+- `μ::Float64`: 2nd Lamé parameter
+- `Gc::Float64`: Critical energy release rate
+- `εc::Float64`: Critical strain
+- `bc::Float64`: Bond constant
+"""
 struct NOSBPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64

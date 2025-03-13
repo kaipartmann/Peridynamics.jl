@@ -1,3 +1,21 @@
+"""
+    SingleDimBC{F}
+
+$(internal_api_warning())
+
+Type for a boundary condition in a single dimension for a peridynamic simulation
+
+# Type Parameters
+
+- `F<:Function`: Time dependent function which describes the boundary condition
+
+# Fields
+
+- `fun::F`: Time dependent function which describes the boundary condition
+- `field::Symbol`: Field of the condition (e.g. velocity, force density)
+- `point_set::Symbol`: point set on which the condition is applied
+- `dim::UInt8`: dimension in which the condition is applied
+"""
 struct SingleDimBC{F<:Function} <: AbstractCondition
     fun::F
     field::Symbol
@@ -32,6 +50,26 @@ end
     return nothing
 end
 
+"""
+    PosDepSingleDimBC{F}
+
+$(internal_api_warning())
+
+Type for a position dependent boundary condition in a single dimension for a peridynamic
+    simulation
+
+# Type Parameters
+
+- `F<:Function`: Position and time dependent function which describes the boundary
+    condition
+
+# Fields
+
+- `fun::F`: Position and time dependent function which describes the boundary condition
+- `field::Symbol`: Field of the condition (e.g. velocity, force density)
+- `point_set::Symbol`: point set on which the condition is applied
+- `dim::UInt8`: dimension in which the condition is applied
+"""
 struct PosDepSingleDimBC{F<:Function} <: AbstractCondition
     fun::F
     field::Symbol

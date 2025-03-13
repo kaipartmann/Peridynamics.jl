@@ -1,3 +1,17 @@
+"""
+    SingleDimIC
+
+$(internal_api_warning())
+
+Type for an initial condition in a single dimension for a peridynamic simulation
+
+# Fields
+
+- `value::Float64`: Value of the condition
+- `field::Symbol`: Field of the condition (e.g. velocity, force density)
+- `point_set::Symbol`: point set on which the condition is applied
+- `dim::UInt8`: dimension in which the condition is applied
+"""
 struct SingleDimIC <: AbstractCondition
     value::Float64
     field::Symbol
@@ -18,6 +32,25 @@ function apply_ic!(chunk::AbstractBodyChunk, ic::SingleDimIC)
     return nothing
 end
 
+"""
+    PosDepSingleDimIC{F}
+
+$(internal_api_warning())
+
+Type for a position dependent initial condition in a single dimension for a peridynamic
+    simulation
+
+# Type Parameters
+
+- `F<:Function`: Position dependent function which describes the initial condition
+
+# Fields
+
+- `fun::F`: Position dependent function which describes the initial condition
+- `field::Symbol`: Field of the condition (e.g. velocity, force density)
+- `point_set::Symbol`: point set on which the condition is applied
+- `dim::UInt8`: dimension in which the condition is applied
+"""
 struct PosDepSingleDimIC{F<:Function} <: AbstractCondition
     fun::F
     field::Symbol

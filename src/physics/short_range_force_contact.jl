@@ -1,5 +1,24 @@
 const CONTACT_KWARGS = (:radius, :penalty_factor)
 
+"""
+    ShortRangeForceContact
+
+$(internal_api_warning())
+
+A type for contact simulations
+
+# Type Parameters
+
+- `N`: Neighborhood search object used by `PointNeighbors.jl`
+
+# Fields
+
+- `body_id_a::Symbol`: Index of a body of the contact
+- `body_id_b::Symbol`: Index of a body of the contact
+- `radius::Float64`: Search radius for contact
+- `penalty_factor::Float64`: Penalty factor for the contact simulation
+- `nhs::N`: Neighborhood search object used by `PointNeighbors.jl`
+"""
 struct ShortRangeForceContact{N}
     body_id_a::Symbol
     body_id_b::Symbol

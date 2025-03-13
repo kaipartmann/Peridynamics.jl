@@ -1,3 +1,26 @@
+"""
+    ThreadsBodyDataHandler
+
+$(internal_api_warning())
+
+A type for handling bodies in multithreading
+
+# Type Parameters
+
+- `Sys`: Type of system of the body
+- `M`: Type of the material model
+- `P`: Material parameter type
+- `S`: Storage type of the system
+
+# Fields
+
+- `n_chunks::Int`: Number of chunks of the body
+- `chunks::Vector{BodyChunk{Sys,M,P,S}}`: All body chunks of the body
+- `lth_exs::Vector{Vector{HaloExchange}}`: All local-to-halo-exchanges of each body chunk
+    of the body
+- `htl_exs::Vector{Vector{HaloExchange}}`: All halo-to-local-exchanges of each body chunk
+    of the body
+"""
 struct ThreadsBodyDataHandler{Sys,M,P,S} <: AbstractThreadsBodyDataHandler{Sys,M,P,S}
     n_chunks::Int
     chunks::Vector{BodyChunk{Sys,M,P,S}}
