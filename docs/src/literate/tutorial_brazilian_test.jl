@@ -17,8 +17,10 @@ l = 0.015 # [m]
 b = 0.017 # [m]
 
 # With the diameter, length and point spacing, we create the cylindrical body.
+# The peridynamics model we employ is a bond-based model applying the energy based surface
+# correction method of Le and Bobaru [Bobaru2018](@cite).
 pos, vol = uniform_cylinder(Ø, l, Δx)
-cyl = Body(BBMaterial(), pos, vol)
+cyl = Body(BBMaterial{EnergySurfaceCorrection}(), pos, vol)
 
 # The horizon is specified in relation to the point spacing.
 δ = 3.015Δx
@@ -54,4 +56,8 @@ vv = VelocityVerlet(steps=6000)
 #md # submit(job)
 #md # ```
 
-# ![](https://github.com/user-attachments/assets/2f78a983-98d5-42eb-bc32-4fb270238ceb)
+# ```@raw html
+#     <video controls loop="true">
+#         <source src="https://github.com/user-attachments/assets/dea25e90-34e1-4faf-9241-a5161a741c68" />
+#     </video>
+# ```
