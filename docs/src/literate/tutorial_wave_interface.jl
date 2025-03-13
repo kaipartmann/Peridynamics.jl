@@ -19,7 +19,7 @@ npyz = 4
 # With these parameters we now create a body, here using the non-ordinary state-based
 # correspondence formulation.
 pos, vol = uniform_box(lx, lyz, lyz, Δx)
-body = Body(NOSBMaterial(), pos, vol)
+body = Body(CMaterial(), pos, vol)
 
 # Then the material parameters for one half of the body are assigned to the whole body
 # first.

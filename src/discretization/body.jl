@@ -232,6 +232,10 @@ function pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
     return nothing
 end
 
+@inline function get_point_param(b::AbstractBody, i::Int)
+    return b.point_params[b.params_map[i]]
+end
+
 @inline function get_point_param(b::AbstractBody, key::Symbol, i::Int)
     return getfield(b.point_params[b.params_map[i]], key)
 end

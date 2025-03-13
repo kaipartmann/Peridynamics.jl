@@ -1,6 +1,5 @@
 @testitem "process_each_export" begin
-    root = joinpath(@__DIR__, "temp_root_proc_each_export")
-    isdir(root) && rm(root; recursive=true, force=true)
+    root = mktempdir()
     root_post_threads = joinpath(root, "post_threads")
     mkpath(root_post_threads)
     root_post_serial = joinpath(root, "post_serial")
@@ -83,17 +82,12 @@
     file_3_mpi = joinpath(root_post_mpi, "max_displacement_3.txt")
     @test isfile(file_3_mpi)
     @test contains(read(file_3_mpi, String), "maximum displacement x: 2.4")
-
-    rm(root; recursive=true, force=true)
 end
 
 @testitem "find_vtk_files" begin
-    root = joinpath(@__DIR__, "temp_root_find_vtk_files")
-    isdir(root) && rm(root; recursive=true, force=true)
-
+    root = mktempdir()
     vtk_files_unsorted = ["timestep_123.pvtu", "abcd_timestep_000005.pvtu",
                           "timestep_02.pvtu", "_1.pvtu"]
-    mkpath(root)
     for file in vtk_files_unsorted
         open(joinpath(root, file), "w+") do io
             write(io, "")
@@ -103,6 +97,4 @@ end
     vtk_files = Peridynamics.find_vtk_files(root)
     @test basename.(vtk_files) == ["_1.pvtu", "timestep_02.pvtu",
                                    "abcd_timestep_000005.pvtu", "timestep_123.pvtu"]
-
-    rm(root; recursive=true, force=true)
 end

@@ -15,8 +15,7 @@
     velocity_bc!(t -> 100, body, :set_a, :z)
     velocity_bc!(t -> -100, body, :set_b, :z)
     vv = VelocityVerlet(steps=20)
-    temp_root = joinpath(@__DIR__, "temp_root_symmetry_test_cki_vv")
-    rm(temp_root; recursive=true, force=true)
+    temp_root = mktempdir()
     job = Job(body, vv; path=temp_root, freq=10)
     dh = Peridynamics.submit_threads(job, 1)
 
@@ -57,9 +56,6 @@
             @test abs(end_displacement[d, i]) > 0
         end
     end
-
-    # delete all simulation files
-    rm(temp_root; recursive=true, force=true)
 end
 
 @testitem "symmetry CKIMaterial DynamicRelaxation" begin
@@ -79,8 +75,7 @@ end
     forcedensity_bc!(t -> 1e10, body, :set_a, :z)
     forcedensity_bc!(t -> -1e10, body, :set_b, :z)
     dr = DynamicRelaxation(steps=20)
-    temp_root = joinpath(@__DIR__, "temp_root_symmetry_test_cki_dr")
-    rm(temp_root; recursive=true, force=true)
+    temp_root = mktempdir()
     job = Job(body, dr; path=temp_root, freq=10)
     dh = Peridynamics.submit_threads(job, 1)
 
@@ -121,7 +116,4 @@ end
             @test abs(end_displacement[d, i]) > 0
         end
     end
-
-    # delete all simulation files
-    rm(temp_root; recursive=true, force=true)
 end

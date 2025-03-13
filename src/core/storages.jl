@@ -414,24 +414,3 @@ function get_loc_point_data(storage::AbstractStorage, system::AbstractSystem, fi
     is_halo_field(storage, val_field) || return point_data_field(storage, val_field)
     return get_loc_view(point_data_field(storage, val_field), system)
 end
-
-@inline function get_coordinates(s, i)
-    return SVector{3}(s.position[1, i], s.position[2, i], s.position[3, i])
-end
-
-@inline function get_coordinates_diff(s, i, j)
-    return SVector{3}(s.position[1, j] - s.position[1, i],
-                      s.position[2, j] - s.position[2, i],
-                      s.position[3, j] - s.position[3, i])
-end
-
-@inline function get_diff(a, i, j)
-    return SVector{3}(a[1, j] - a[1, i], a[2, j] - a[2, i], a[3, j] - a[3, i])
-end
-
-@inline function update_add_b_int!(storage::AbstractStorage, i::Int, b::SVector{3})
-    storage.b_int[1, i] += b[1]
-    storage.b_int[2, i] += b[2]
-    storage.b_int[3, i] += b[3]
-    return nothing
-end
