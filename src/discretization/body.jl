@@ -9,7 +9,7 @@ Construct a `Body` for a peridynamics simulation.
     Available material models:
     - [`BBMaterial`](@ref): Bond-based peridynamics
     - [`OSBMaterial`](@ref): Ordinary state-based peridynamics
-    - [`CMaterial`](@ref): Correspondence formulation of non-ordinary state-based
+    - [`NOSBMaterial`](@ref): Correspondence formulation of non-ordinary state-based
         peridynamics
     - [`CKIMaterial`](@ref): Continuum-kinematics-inspired peridynamics
 - `position::AbstractMatrix`: A `3×n` matrix with the point position of the `n` points.
