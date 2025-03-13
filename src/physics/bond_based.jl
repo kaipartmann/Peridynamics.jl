@@ -49,9 +49,9 @@ Fracture parameters:
 
 !!! note "Poisson's ratio and bond-based peridynamics"
     In bond-based peridynamics, the Poisson's ratio is limited to 1/4 for 3D simulations.
-    Therefore the specification of this keyword is not allowed when using `material!`, as it
-    is hardcoded to `nu = 1/4`.
     Therefore, only one additional elastic parameter is required.
+    Optionally, the specification of a second keyword is allowed, if the parameter
+    combination results in `nu = 1/4`.
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
@@ -120,7 +120,7 @@ function BBPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
         msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
         msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
         msg *= "The submitted parameter combination results in an illegal value for nu!\n"
-        msg *= "Please define only one or two fitting elastic parameters!\n"
+        msg *= "Please define either only one or two fitting elastic parameters!\n"
         throw(ArgumentError(msg))
     end
     (; Gc, εc) = get_frac_params(p, δ, K)
