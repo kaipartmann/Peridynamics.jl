@@ -11,6 +11,11 @@ Pages = ["private_api_reference.md"]
 ```@docs
 Peridynamics.failure_permit!
 Peridynamics.check_if_sets_intersect
+Peridynamics.check_if_set_is_defined
+Peridynamics.find_points
+Peridynamics.apply_precracks!
+Peridynamics.apply_precrack!
+Peridynamics.point_sets_intersect
 
 Peridynamics.InterfaceError
 Peridynamics.HaloExchange
@@ -36,6 +41,7 @@ Peridynamics.SingleDimBC
 Peridynamics.PosDepSingleDimBC
 Peridynamics.CKIPointParameters
 Peridynamics.CPointParameters
+Peridynamics.BACPointParameters
 Peridynamics.SingleDimIC
 Peridynamics.PosDepSingleDimIC
 Peridynamics.OSBPointParameters
