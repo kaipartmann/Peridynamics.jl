@@ -3,14 +3,14 @@
 
 $(internal_api_warning())
 
-A type that describes how a body is divided into multiple body chunks
+A type that describes how a body is divided into multiple body chunks.
 
 # Fields
 
-- `n_chunks::Int`: Number of body chunks
-- `decomp::Vector{UnitRange{Int}}`: Indices of the points belonging to each chunk
+- `n_chunks::Int`: Number of body chunks.
+- `decomp::Vector{UnitRange{Int}}`: Indices of the points belonging to each chunk.
 - `point_src::Dict{Int,Int}`: Dict that assigns all point indices to the chunk they belong
-    to
+    to.
 """
 struct PointDecomposition
     n_chunks::Int

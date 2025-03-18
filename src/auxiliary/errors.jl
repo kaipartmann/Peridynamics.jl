@@ -8,8 +8,8 @@ correctly.
 
 # Fields
 
-- `type::DataType`: Type that is used
-- `func::String`: Function that is used
+- `type::DataType`: Type that is used.
+- `func::String`: Function that is used.
 """
 struct InterfaceError <: Exception
     type::DataType

@@ -3,14 +3,14 @@
 
 $(internal_api_warning())
 
-Type for an initial condition in a single dimension for a peridynamic simulation
+Type for an initial condition in a single dimension for a peridynamic simulation.
 
 # Fields
 
-- `value::Float64`: Value of the condition
-- `field::Symbol`: Field of the condition (e.g. velocity, force density)
-- `point_set::Symbol`: point set on which the condition is applied
-- `dim::UInt8`: dimension in which the condition is applied
+- `value::Float64`: Value of the condition.
+- `field::Symbol`: Field of the condition (e.g. velocity, force density).
+- `point_set::Symbol`: Point set on which the condition is applied.
+- `dim::UInt8`: Dimension in which the condition is applied.
 """
 struct SingleDimIC <: AbstractCondition
     value::Float64
@@ -38,18 +38,18 @@ end
 $(internal_api_warning())
 
 Type for a position dependent initial condition in a single dimension for a peridynamic
-simulation
+simulation.
 
 # Type Parameters
 
-- `F<:Function`: Position dependent function which describes the initial condition
+- `F<:Function`: Position dependent function which describes the initial condition.
 
 # Fields
 
-- `fun::F`: Position dependent function which describes the initial condition
-- `field::Symbol`: Field of the condition (e.g. velocity, force density)
-- `point_set::Symbol`: point set on which the condition is applied
-- `dim::UInt8`: dimension in which the condition is applied
+- `fun::F`: Position dependent function which describes the initial condition.
+- `field::Symbol`: Field of the condition (e.g. velocity, force density).
+- `point_set::Symbol`: Point set on which the condition is applied.
+- `dim::UInt8`: Dimension in which the condition is applied.
 """
 struct PosDepSingleDimIC{F<:Function} <: AbstractCondition
     fun::F
@@ -132,7 +132,7 @@ end
     velocity_ic!(body, set_name, dim, value)
     velocity_ic!(fun, body, set_name, dim)
 
-Specifies velocity initial conditions for points of the set `set_name` in `body`.
+Specify velocity initial condition for points of the set `set_name` in `body`.
 The `value` of the initial condition is specified before time integration.
 If a function `fun` is specified, then the value is with that function.
 
@@ -156,9 +156,9 @@ If a function `fun` is specified, then the value is with that function.
 
 # Throws
 
-- Errors if the body does not contain a set with `set_name`.
-- Errors if the direction is not correctly specified.
-- Errors if function is not suitable as condition function and has the wrong arguments.
+- Error if the body does not contain a set with `set_name`.
+- Error if the direction is not correctly specified.
+- Error if function is not suitable as condition function and has the wrong arguments.
 
 # Example
 

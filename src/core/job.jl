@@ -91,18 +91,18 @@ A type that contains the options of a job.
 
 # Type Parameters
 
-- `F`: Type for fields of simulation
-- `V`: Type for basename of vtk-files
+- `F`: Type for fields of simulation.
+- `V`: Type for basename of vtk-files.
 
 # Fields
 
-- `export_allowed::Bool`: Specify if data is exported for the job
-- `root::String`: Path of the folder where all data is saved
-- `vtk::String`: Path of the folder where vtk-files are saved
-- `logfile::String`: Complete path of the logfile
-- `freq::Int`: Frequency of exported time steps
-- `fields::F`: Exported fields of the job
-- `vtk_filebase::V`: Basename of exported vtk-files
+- `export_allowed::Bool`: Specify if data is exported for the job.
+- `root::String`: Path of the folder where all data is saved.
+- `vtk::String`: Path of the folder where vtk-files are saved.
+- `logfile::String`: Complete path of the logfile.
+- `freq::Int`: Frequency of exported time steps.
+- `fields::F`: Exported fields of the job.
+- `vtk_filebase::V`: Basename of exported vtk-files.
 """
 struct JobOptions{F,V} <: AbstractJobOptions
     export_allowed::Bool

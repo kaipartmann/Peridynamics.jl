@@ -22,18 +22,18 @@ of the material you specified when creating the body.
 The default material keywords are:
 
 Material parameters:
-- `horizon::Float64`: Radius of point interactions
-- `rho::Float64`: Density
+- `horizon::Float64`: Radius of point interactions.
+- `rho::Float64`: Density.
 Elastic parameters:
-- `E::Float64`: Young's modulus
-- `nu::Float64`: Poisson's ratio
-- `G::Float64`: Shear modulus
-- `K::Float64`: Bulk modulus
-- `lambda::Float64`: 1st Lamé parameter
-- `mu::Float64`: 2nd Lamé parameter
+- `E::Float64`: Young's modulus.
+- `nu::Float64`: Poisson's ratio.
+- `G::Float64`: Shear modulus.
+- `K::Float64`: Bulk modulus.
+- `lambda::Float64`: 1st Lamé parameter.
+- `mu::Float64`: 2nd Lamé parameter.
 Fracture parameters:
-- `Gc::Float64`: Critical energy release rate
-- `epsilon_c::Float64`: Critical strain
+- `Gc::Float64`: Critical energy release rate.
+- `epsilon_c::Float64`: Critical strain.
 
 !!! note "Elastic parameters"
     Note that exactly two elastic parameters are required to specify a material.

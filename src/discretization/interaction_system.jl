@@ -3,13 +3,13 @@
 
 $(internal_api_warning())
 
-Type for two-neighbor interactions
+Type for two-neighbor interactions.
 
 # Fields
 
-- `oni_j::Int`: One-neighbor interaction of considered point with point j
-- `oni_k::Int`: One-neighbor interaction of considered point with point k
-- `surface::Float64`: Surface spread by this two-neighbor interaction
+- `oni_j::Int`: One-neighbor interaction of considered point with point j.
+- `oni_k::Int`: One-neighbor interaction of considered point with point k.
+- `surface::Float64`: Surface spread by this two-neighbor interaction.
 """
 struct TwoNeighborInteraction
     oni_j::Int
@@ -22,14 +22,14 @@ end
 
 $(internal_api_warning())
 
-Type for three-neighbor interactions
+Type for three-neighbor interactions.
 
 # Fields
 
-- `oni_j::Int`: One-neighbor interaction of considered point with point j
-- `oni_k::Int`: One-neighbor interaction of considered point with point k
-- `oni_l::Int`: One-neighbor interaction of considered point with point l
-- `volume::Float64`: Volume spread by this three-neighbor interaction
+- `oni_j::Int`: One-neighbor interaction of considered point with point j.
+- `oni_k::Int`: One-neighbor interaction of considered point with point k.
+- `oni_l::Int`: One-neighbor interaction of considered point with point l.
+- `volume::Float64`: Volume spread by this three-neighbor interaction.
 """
 struct ThreeNeighborInteraction
     oni_j::Int
@@ -44,33 +44,33 @@ end
 $(internal_api_warning())
 
 A peridynamic system type that is mainly designed for continuum-kinematics-inspired
-    peridynamics [Javili2019](@cite)
+peridynamics [Javili2019](@cite).
 
 # Fields
 
-- `position::Matrix{Float64}`: Positions of all points of the system
+- `position::Matrix{Float64}`: Positions of all points of the system.
 - `one_nis::Vector{Bond}`: Vector containing all one-neighbor interactions (bonds) of the
-    system
+    system.
 - `two_nis::Vector{TwoNeighborInteraction}`: Vector containing all two-neighbor
-    interactions of the system
+    interactions of the system.
 - `three_nis::Vector{ThreeNeighborInteraction}`: Vector containing all three-neighbor
-    interactions of the system
-- `volume::Vector{Float64}`: Volumes of the points of the system
-- `volume_one_nis::Vector{Float64}`: Effective volumes of one-neighbor interactions
-- `volume_two_nis::Vector{Float64}`: Effective volumes of two-neighbor interactions
-- `volume_three_nis::Vector{Float64}`: Effective volumes of three-neighbor interactions
+    interactions of the system.
+- `volume::Vector{Float64}`: Volumes of the points of the system.
+- `volume_one_nis::Vector{Float64}`: Effective volumes of one-neighbor interactions.
+- `volume_two_nis::Vector{Float64}`: Effective volumes of two-neighbor interactions.
+- `volume_three_nis::Vector{Float64}`: Effective volumes of three-neighbor interactions.
 - `n_one_nis::Vector{Int}`: Number of one-neighbor interactions for each point of the
-    system
+    system.
 - `n_two_nis::Vector{Int}`: Number of two-neighbor interactions for each point of the
-    system
+    system.
 - `n_three_nis::Vector{Int}`: Number of three-neighbor interactions for each point of the
-    system
+    system.
 - `one_ni_idxs::Vector{UnitRange{Int}}`: Range of the one-neighbor interactions vector
-    containing interactions of considered point
+    containing interactions of considered point.
 - `two_ni_idxs::Vector{UnitRange{Int}}`: Range of the two-neighbor interactions vector
-    containing interactions of considered point
+    containing interactions of considered point.
 - `three_ni_idxs::Vector{UnitRange{Int}}`: Range of the three-neighbor interactions vector
-    containing interactions of considered point
+    containing interactions of considered point.
 - `chunk_handler::ChunkHandler`: Type to handle the chunks for the simulation.
     See [`ChunkHandler`](@ref).
 """

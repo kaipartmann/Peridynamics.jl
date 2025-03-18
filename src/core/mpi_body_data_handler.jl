@@ -3,16 +3,16 @@
 
 $(internal_api_warning())
 
-A type providing information about the halo points of body chunks
+A type providing information about the halo points of body chunks.
 
 # Fields
 
-- `point_ids::Dict{Int,Vector{Int}}`: Indices of local and halo points of each chunk
-- `halos_points::Dict{Int,Vector{Int}}`: Indices of halo points of each chunk
+- `point_ids::Dict{Int,Vector{Int}}`: Indices of local and halo points of each chunk.
+- `halos_points::Dict{Int,Vector{Int}}`: Indices of halo points of each chunk.
 - `localizers::Dict{Int,Dict{Int,Int}}`: Localizes global indices to local indices in the
-    corresponding chunks
+    corresponding chunks.
 - `hidxs_by_src::Dict{Int,Dict{Int,Vector{Int}}}`: Dict specifying for each chunk the
-    indices of halo points but depending on the chunk they belong to
+    indices of halo points but depending on the chunk they belong to.
 """
 struct MPIHaloInfo
     point_ids::Dict{Int,Vector{Int}}
@@ -26,41 +26,41 @@ end
 
 $(internal_api_warning())
 
-A type for handling information and communication for a body chunk in MPI
+A type for handling information and communication for a body chunk in MPI.
 
 # Type Parameters
 
-- `Sys`: Type of system of the body
-- `M`: Type of the material model
-- `P`: Material parameter type
-- `S`: Storage type of the system
-- `Bufs`: Type for buffers
+- `Sys`: Type of system of the body.
+- `M`: Type of the material model.
+- `P`: Material parameter type.
+- `S`: Storage type of the system.
+- `Bufs`: Type for buffers.
 
 # Fields
 
-- `chunk::BodyChunk{Sys,M,P,S}`: Body chunk of the body
+- `chunk::BodyChunk{Sys,M,P,S}`: Body chunk of the body.
 - `n_halo_fields::Int`: Number of chunks in communication with this chunk due to existing
-    halo points
+    halo points.
 - `lth_exs_send::Vector{HaloExchange}`: Local-to-halo-exchanges of the body chunk that
-    send information
+    send information.
 - `lth_exs_recv::Vector{HaloExchange}`: Local-to-halo-exchanges of the body chunk that
-    receive information
+    receive information.
 - `htl_exs_send::Vector{HaloExchange}`: Halo-to-local-exchanges of the body chunk that
-    send information
+    send information.
 - `htl_exs_recv::Vector{HaloExchange}`: Halo-to-local-exchanges of the body chunk that
-    receive information
-- `lth_send_bufs::Vector{Bufs}`: Buffers for local-to-halo-exchanges that send information
+    receive information.
+- `lth_send_bufs::Vector{Bufs}`: Buffers for local-to-halo-exchanges that send information.
 - `lth_recv_bufs::Vector{Bufs}`: Buffers for local-to-halo-exchanges that receive
-    information
-- `htl_send_bufs::Vector{Bufs}`: Buffers for halo-to-local-exchanges that send information
+    information.
+- `htl_send_bufs::Vector{Bufs}`: Buffers for halo-to-local-exchanges that send information.
 - `htl_recv_bufs::Vector{Bufs}`: Buffers for halo-to-local-exchanges that receive
-    information
+    information.
 - `field_to_buf::Dict{Symbol,Int}`: Dict specifying the index in the buffer of each field
-    of the simulation
+    of the simulation.
 - `lth_reqs::Vector{Vector{MPI.Request}}`: Pre-allocated buffer for requests for
-    local-to-halo-exchanges
+    local-to-halo-exchanges.
 - `htl_reqs::Vector{Vector{MPI.Request}}`: Pre-allocated buffer for requests for
-    halo-to-local-exchanges
+    halo-to-local-exchanges.
 """
 struct MPIBodyDataHandler{Sys,M,P,S,Bufs} <: AbstractMPIBodyDataHandler{Sys,M,P,S}
     chunk::BodyChunk{Sys,M,P,S}

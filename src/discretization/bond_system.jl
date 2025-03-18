@@ -7,9 +7,9 @@ Type that describes a bond of two points in a peridynamics body.
 
 # Fields
 
-- `neighbor::Int`: The index of the neighbor point with which the bond is formed
-- `length::Float64`: The length of the bond
-- `fail_permit::Bool`: Describes whether failure is allowed or not for this bond
+- `neighbor::Int`: The index of the neighbor point with which the bond is formed.
+- `length::Float64`: The length of the bond.
+- `fail_permit::Bool`: Describes whether failure is allowed or not for this bond.
 """
 struct Bond
     neighbor::Int
@@ -23,21 +23,21 @@ end
 $(internal_api_warning())
 
 A type for a system for all peridynamic formulations that work with just bonds of two
-    points
+points.
 
 # Type Parameters
 
-- `Correction<:AbstractCorrection`: Applied surface correction
+- `Correction<:AbstractCorrection`: Applied surface correction.
 
 # Fields
 
-- `position::Matrix{Float64}`: Positions of all points of the system
-- `volume::Vector{Float64}`: Volumes of the points of the system
-- `bonds::Vector{Bond}`: Vector containing all bonds of the bond system
-- `n_neighbors::Vector{Int}`: Number of neighbors for each point of the system
+- `position::Matrix{Float64}`: Positions of all points of the system.
+- `volume::Vector{Float64}`: Volumes of the points of the system.
+- `bonds::Vector{Bond}`: Vector containing all bonds of the bond system.
+- `n_neighbors::Vector{Int}`: Number of neighbors for each point of the system.
 - `bond_ids::Vector{UnitRange{Int}}`: Range of the bonds vector containing bonds of
-    considered point
-- `correction::Correction`: Applied surface correction
+    considered point.
+- `correction::Correction`: Applied surface correction.
 - `chunk_handler::ChunkHandler`: Type to handle the chunks for the simulation.
     See [`ChunkHandler`](@ref).
 """

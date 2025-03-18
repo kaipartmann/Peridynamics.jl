@@ -12,9 +12,9 @@ simulations.
     (default: `1.0`)
 
 # Throws
-- Errors if `steps < 0`.
-- Errors if `stepsize < 0`.
-- Errors if `damping_factor < 0`.
+- Error if `steps < 0`.
+- Error if `stepsize < 0`.
+- Error if `damping_factor < 0`.
 
 # Example
 

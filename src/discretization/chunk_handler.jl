@@ -3,17 +3,17 @@
 
 $(internal_api_warning())
 
-A type to handle a body chunk and its communication to other chunks
+A type to handle a body chunk and its communication to other chunks.
 
 # Fields
 
-- `n_loc_points::Int`: Number of local points that belong to the body chunk
-- `point_ids::Vector{Int}`: Indices of all local and halo points of the chunk
-- `loc_points::UnitRange{Int}`: Indices of local points of the chunk
-- `halo_points::Vector{Int}`: Indices of halo points of the chunk
+- `n_loc_points::Int`: Number of local points that belong to the body chunk.
+- `point_ids::Vector{Int}`: Indices of all local and halo points of the chunk.
+- `loc_points::UnitRange{Int}`: Indices of local points of the chunk.
+- `halo_points::Vector{Int}`: Indices of halo points of the chunk.
 - `hidxs_by_src::Dict{Int,UnitRange{Int}}`: Dict specifying the indices of halo Points
-    depending on the body chunk they belong to
-- `localizer::Dict{Int,Int}`: Localizes global indices to local indices in this chunk
+    depending on the body chunk they belong to.
+- `localizer::Dict{Int,Int}`: Localizes global indices to local indices in this chunk.
 """
 struct ChunkHandler <: AbstractChunkHandler
     n_loc_points::Int

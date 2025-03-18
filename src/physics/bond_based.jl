@@ -35,17 +35,17 @@ Material type for the bond-based peridynamics formulation.
 When using [`material!`](@ref) on a [`Body`](@ref) with `BBMaterial`, then the following
 parameters are allowed:
 Material parameters:
-- `horizon::Float64`: Radius of point interactions
-- `rho::Float64`: Density
+- `horizon::Float64`: Radius of point interactions.
+- `rho::Float64`: Density.
 Elastic parameters
-- `E::Float64`: Young's modulus
-- `G::Float64`: Shear modulus
-- `K::Float64`: Bulk modulus
-- `lambda::Float64`: 1st Lamé parameter
-- `mu::Float64`: 2nd Lamé parameter
+- `E::Float64`: Young's modulus.
+- `G::Float64`: Shear modulus.
+- `K::Float64`: Bulk modulus.
+- `lambda::Float64`: 1st Lamé parameter.
+- `mu::Float64`: 2nd Lamé parameter.
 Fracture parameters:
-- `Gc::Float64`: Critical energy release rate
-- `epsilon_c::Float64`: Critical strain
+- `Gc::Float64`: Critical energy release rate.
+- `epsilon_c::Float64`: Critical strain.
 
 !!! note "Poisson's ratio and bond-based peridynamics"
     In bond-based peridynamics, the Poisson's ratio is limited to 1/4 for 3D simulations.
@@ -56,15 +56,15 @@ Fracture parameters:
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 `BBMaterial`, the following fields are allowed:
-- `position::Matrix{Float64}`: Position of each point
-- `displacement::Matrix{Float64}`: Displacement of each point
-- `velocity::Matrix{Float64}`: Velocity of each point
-- `velocity_half::Matrix{Float64}`: Velocity parameter for Verlet time solver
-- `acceleration::Matrix{Float64}`: Acceleration of each point
-- `b_int::Matrix{Float64}`: Internal force density of each point
-- `b_ext::Matrix{Float64}`: External force density of each point
-- `damage::Vector{Float64}`: Damage of each point
-- `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
+- `position::Matrix{Float64}`: Position of each point.
+- `displacement::Matrix{Float64}`: Displacement of each point.
+- `velocity::Matrix{Float64}`: Velocity of each point.
+- `velocity_half::Matrix{Float64}`: Velocity parameter for Verlet time solver.
+- `acceleration::Matrix{Float64}`: Acceleration of each point.
+- `b_int::Matrix{Float64}`: Internal force density of each point.
+- `b_ext::Matrix{Float64}`: External force density of each point.
+- `damage::Vector{Float64}`: Damage of each point.
+- `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
 """
 struct BBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
 
@@ -79,17 +79,17 @@ Type containing the material parameters for a bond-based peridynamics model.
 
 # Fields
 
-- `δ::Float64`: Horizon
-- `rho::Float64`: Density
-- `E::Float64`: Young's modulus
-- `nu::Float64`: Poisson's ratio
-- `G::Float64`: Shear modulus
-- `K::Float64`: Bulk modulus
-- `λ::Float64`: 1st Lamé parameter
-- `μ::Float64`: 2nd Lamé parameter
-- `Gc::Float64`: Critical energy release rate
-- `εc::Float64`: Critical strain
-- `bc::Float64`: Bond constant
+- `δ::Float64`: Horizon.
+- `rho::Float64`: Density.
+- `E::Float64`: Young's modulus.
+- `nu::Float64`: Poisson's ratio.
+- `G::Float64`: Shear modulus.
+- `K::Float64`: Bulk modulus.
+- `λ::Float64`: 1st Lamé parameter.
+- `μ::Float64`: 2nd Lamé parameter.
+- `Gc::Float64`: Critical energy release rate.
+- `εc::Float64`: Critical strain.
+- `bc::Float64`: Bond constant.
 """
 struct BBPointParameters <: AbstractPointParameters
     δ::Float64

@@ -18,9 +18,9 @@ Construct a `Body` for a peridynamics simulation.
     [`read_inp`](@ref).
 
 # Throws
-- Errors if the number of points is not larger than zero
-- Errors if `position` is not a `3×n` matrix and has the same length as `volume`
-- Errors if `position` or `volume` contain `NaN` values
+- Error if the number of points is not larger than zero.
+- Error if `position` is not a `3×n` matrix and has the same length as `volume`.
+- Error if `position` or `volume` contain `NaN` values.
 
 # Example
 
@@ -44,8 +44,8 @@ Body{Material,PointParameters}
 
 # Type Parameters
 
-- `Material <: AbstractMaterial`: Type of the specified material model
-- `PointParameters <: AbstractPointParameters`: Type of the point parameters
+- `Material <: AbstractMaterial`: Type of the specified material model.
+- `PointParameters <: AbstractPointParameters`: Type of the point parameters.
 
 # Fields
 
@@ -55,8 +55,10 @@ Body{Material,PointParameters}
 - `volume::Vector{Float64}`: A vector with the volume of each point.
 - `fail_permit::Vector{Bool}`: A vector that describes if failure is allowed for each point.
 - `point_sets::Dict{Symbol,Vector{Int}}`: A dictionary containing point sets.
-- `point_params::Vector{PointParameters}`: A vector containing all different point parameter instances of the body. Each point can have its own `PointParameters` instance.
-- `params_map::Vector{Int}`: A vector that maps each point index to a parameter instance in `point_params`.
+- `point_params::Vector{PointParameters}`: A vector containing all different point parameter
+    instances of the body. Each point can have its own `PointParameters` instance.
+- `params_map::Vector{Int}`: A vector that maps each point index to a parameter instance in
+    `point_params`.
 - `single_dim_bcs::Vector{SingleDimBC}`: A vector with boundary conditions on a single
     dimension.
 - `posdep_single_dim_bcs::Vector{PosDepSingleDimBC}`: A vector with position dependent
