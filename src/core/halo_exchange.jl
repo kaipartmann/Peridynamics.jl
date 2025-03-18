@@ -3,7 +3,7 @@
 
 $(internal_api_warning())
 
-A type used for communication between body chunks in MPI
+A type used for communication between body chunks in MPI.
 
 # Fields
 
