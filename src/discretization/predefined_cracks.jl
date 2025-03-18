@@ -96,6 +96,13 @@ function precrack!(b::AbstractBody, set_a::Symbol, set_b::Symbol; update_dmg::Bo
     return nothing
 end
 
+"""
+    check_if_sets_intersect(point_sets, key_a, key_b)
+
+$(internal_api_warning())
+
+Throw error if two sets chosen for `precrack!` have common points.
+"""
 function check_if_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Symbol,
                                  key_b::Symbol)
     if point_sets_intersect(point_sets, key_a, key_b)

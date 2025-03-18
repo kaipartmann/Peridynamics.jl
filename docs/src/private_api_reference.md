@@ -10,6 +10,7 @@ Pages = ["private_api_reference.md"]
 
 ```@docs
 Peridynamics.failure_permit!
+Peridynamics.check_if_sets_intersect
 
 Peridynamics.InterfaceError
 Peridynamics.HaloExchange
