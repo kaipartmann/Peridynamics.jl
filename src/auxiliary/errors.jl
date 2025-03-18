@@ -4,7 +4,7 @@
 $(internal_api_warning())
 
 A type for a customized error that is thrown when a material model is not implemented
-    correctly
+correctly.
 
 # Fields
 
