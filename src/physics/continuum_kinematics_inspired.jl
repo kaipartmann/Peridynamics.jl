@@ -74,7 +74,7 @@ struct CKIMaterial <: AbstractInteractionSystemMaterial end
 $(internal_api_warning())
 
 Type containing the material parameters for a continuum-kinematics-inspired peridynamics
-    model.
+model.
 
 # Fields
 
