@@ -22,24 +22,36 @@ Material type for the continuum-kinematics-inspired peridynamics framework.
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `CKIMaterial`, then the following
 parameters are allowed:
+Material parameters:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
+Elastic parameters:
 - `E::Float64`: Young's modulus
 - `nu::Float64`: Poisson's ratio
+- `G::Float64`: Shear modulus
+- `K::Float64`: Bulk modulus
+- `lambda::Float64`: 1st Lamé parameter
+- `mu::Float64`: 2nd Lamé parameter
+Fracture parameters:
 - `Gc::Float64`: Critical energy release rate
 - `epsilon_c::Float64`: Critical strain
+Interaction parameters:
 - `C1::Float64`: One-neighbor interaction parameter (default: `0.0`)
 - `C2::Float64`: Two-neighbor interaction parameter (default: `0.0`)
 - `C3::Float64`: Two-neighbor interaction parameter (default: `0.0`)
 
 !!! warning "Specification of interaction parameters"
-    If any of the interaction parameters is used with [`material!`](@ref), the the Young's
+    If any of the interaction parameters is used with [`material!`](@ref), the Young's
     modulus and Poisson's ratio are ignored and only the specified interaction parameters
     will influence the force density calculated from that interaction.
 
     If no interaction parameter is specified, then the Young's modulus and Poisson's ratio
     are used to calculate these parameters accordingly to Ekiz, Steinmann, and Javili
     (2022).
+
+!!! note "Elastic parameters"
+    Note that exactly two elastic parameters are required to specify a material.
+    Please choose two out of the six allowed elastic parameters.
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
@@ -97,49 +109,49 @@ end
 end
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,
-                              mat::CKIMaterial, params::AbstractParameterSetup, i::Int)
-    force_density_point_one_ni!(storage, system, mat, params, i)
-    has_two_nis(params) && force_density_point_two_ni!(storage, system, mat, params, i)
-    has_three_nis(params) && force_density_point_three_ni!(storage, system, mat, params, i)
+                              mat::CKIMaterial, params::AbstractParameterSetup, t, Δt, i)
+    force_density_point_one_ni!(storage, system, mat, params, t, Δt, i)
+    has_two_nis(params) && force_density_point_two_ni!(storage, system, mat, params, t, Δt, i)
+    has_three_nis(params) && force_density_point_three_ni!(storage, system, mat, params, t, Δt, i)
     return nothing
 end
 
 function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSystem,
-                                     ::CKIMaterial, params::CKIPointParameters, i::Int)
+                                     ::CKIMaterial, params::CKIPointParameters, t, Δt, i)
     for one_ni_id in each_one_ni_idx(system, i)
         one_ni = system.one_nis[one_ni_id]
         j, L = one_ni.neighbor, one_ni.length
-        Δxij = get_coordinates_diff(storage, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
         stretch_based_failure!(storage, system, one_ni, params, ε, i, one_ni_id)
         b_int = one_ni_failure(storage, one_ni_id) * params.C1 * (1 / L - 1 / l) *
                 system.volume_one_nis[i] .* Δxij
-        update_add_b_int!(storage, i, b_int)
+        update_add_vector!(storage.b_int, i, b_int)
     end
     return nothing
 end
 
 function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSystem,
-                                     ::CKIMaterial, paramhandler::ParameterHandler, i::Int)
+                                     ::CKIMaterial, paramhandler::ParameterHandler, t, Δt, i)
     params_i = get_params(paramhandler, i)
     for one_ni_id in each_one_ni_idx(system, i)
         one_ni = system.one_nis[one_ni_id]
         j, L = one_ni.neighbor, one_ni.length
-        Δxij = get_coordinates_diff(storage, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
         stretch_based_failure!(storage, system, one_ni, params_i, ε, i, one_ni_id)
         params_j = get_params(paramhandler, j)
         b_int = one_ni_failure(storage, one_ni_id) * (params_i.C1 + params_j.C1) / 2 *
                 (1 / L - 1 / l) * system.volume_one_nis[i] .* Δxij
-        update_add_b_int!(storage, i, b_int)
+        update_add_vector!(storage.b_int, i, b_int)
     end
     return nothing
 end
 
 function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSystem,
-                                     ::CKIMaterial, params::CKIPointParameters, i::Int)
+                                     ::CKIMaterial, params::CKIPointParameters, t, Δt, i)
     for two_ni_id in each_two_ni_idx(system, i)
         two_ni = system.two_nis[two_ni_id]
         oni_j_id, oni_k_id, surface_ref = two_ni.oni_j, two_ni.oni_k, two_ni.surface
@@ -176,7 +188,7 @@ function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSys
 end
 
 function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSystem,
-                                     ::CKIMaterial, paramhandler::ParameterHandler, i::Int)
+                                     ::CKIMaterial, paramhandler::ParameterHandler, t, Δt, i)
     params_i = get_params(paramhandler, i)
     for two_ni_id in each_two_ni_idx(system, i)
         two_ni = system.two_nis[two_ni_id]
@@ -216,7 +228,7 @@ function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSys
 end
 
 function force_density_point_three_ni!(storage::CKIStorage, system::InteractionSystem,
-                                       ::CKIMaterial, params::CKIPointParameters, i::Int)
+                                       ::CKIMaterial, params::CKIPointParameters, t, Δt, i)
     for three_ni_id in each_three_ni_idx(system, i)
         three_ni = system.three_nis[three_ni_id]
         oni_j_id = three_ni.oni_j
@@ -276,7 +288,7 @@ end
 
 function force_density_point_three_ni!(storage::CKIStorage, system::InteractionSystem,
                                        ::CKIMaterial, paramhandler::ParameterHandler,
-                                       i::Int)
+                                       t, Δt, i)
     params_i = get_params(paramhandler, i)
     for three_ni_id in each_three_ni_idx(system, i)
         three_ni = system.three_nis[three_ni_id]

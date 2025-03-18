@@ -1,4 +1,4 @@
-@testitem "symmetry OSBMaterial VelocityVerlet" begin
+@testitem "symmetry BACMaterial VelocityVerlet" begin
     # simulation
     Δx = 0.2
     width = 1
@@ -8,12 +8,12 @@
     pos = hcat(([x;y;z] for x in grid for y in grid for z in grid)...)
     n_points = size(pos, 2)
     vol = fill(Δx^3, n_points)
-    body = Body(OSBMaterial(), pos, vol)
+    body = Body(BACMaterial(model=MooneyRivlin()), pos, vol)
     material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.25)
     point_set!(z -> z > width/2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width/2 + 0.6Δx, body, :set_b)
-    velocity_bc!(t -> 100, body, :set_a, :z)
-    velocity_bc!(t -> -100, body, :set_b, :z)
+    velocity_bc!(t -> 10, body, :set_a, :z)
+    velocity_bc!(t -> -10, body, :set_b, :z)
     vv = VelocityVerlet(steps=100)
     temp_root = mktempdir()
     job = Job(body, vv; path=temp_root, freq=10)
@@ -52,7 +52,7 @@
     end
 end
 
-@testitem "symmetry OSBMaterial DynamicRelaxation" begin
+@testitem "symmetry BACMaterial DynamicRelaxation" begin
     # simulation
     Δx = 0.2
     width = 1
@@ -62,7 +62,7 @@ end
     pos = hcat(([x;y;z] for x in grid for y in grid for z in grid)...)
     n_points = size(pos, 2)
     vol = fill(Δx^3, n_points)
-    body = Body(OSBMaterial(), pos, vol)
+    body = Body(BACMaterial(), pos, vol)
     material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.25)
     point_set!(z -> z > width/2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width/2 + 0.6Δx, body, :set_b)

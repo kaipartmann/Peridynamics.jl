@@ -55,8 +55,8 @@ Body{Material,PointParameters}
 - `volume::Vector{Float64}`: A vector with the volume of each point.
 - `fail_permit::Vector{Bool}`: A vector that describes if failure is allowed for each point.
 - `point_sets::Dict{Symbol,Vector{Int}}`: A dictionary containing point sets.
-- `point_params::Vector{PointParameters}`: A vector containing all point parameters.
-- `params_map::Vector{Int}`: A vector that maps parameters in `point_params` to each point.
+- `point_params::Vector{PointParameters}`: A vector containing all different point parameter instances of the body. Each point can have its own `PointParameters` instance.
+- `params_map::Vector{Int}`: A vector that maps each point index to a parameter instance in `point_params`.
 - `single_dim_bcs::Vector{SingleDimBC}`: A vector with boundary conditions on a single
     dimension.
 - `posdep_single_dim_bcs::Vector{PosDepSingleDimBC}`: A vector with position dependent
@@ -167,7 +167,8 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(body::AbstractBody)
     end
     n_failure_permit_false = body.n_points - sum(body.fail_permit)
     if n_failure_permit_false > 0
-        print(io, "\n  ", n_failure_permit_false, " points with no failure permission")
+        print(io, "\n  ", n_failure_permit_false,
+              " points with failure prohibited")
     end
     return nothing
 end
@@ -229,6 +230,10 @@ function pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
         end
     end
     return nothing
+end
+
+@inline function get_point_param(b::AbstractBody, i::Int)
+    return b.point_params[b.params_map[i]]
 end
 
 @inline function get_point_param(b::AbstractBody, key::Symbol, i::Int)

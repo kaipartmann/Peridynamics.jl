@@ -5,7 +5,7 @@
     E = 210e9
     body = Body(OSBMaterial(), ref_position, volume)
     material!(body, horizon=δ, rho=1, E=E, nu=0.25, Gc=1.0)
-    failure_permit!(body, false)
+    no_failure!(body)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     chunk = dh.chunks[1]
@@ -20,7 +20,7 @@
     # Point 2 with v_z = 1 m/s with Δt = 0.0015 s
     position[1, 2] = 1.0015
 
-    Peridynamics.calc_force_density!(chunk)
+    Peridynamics.calc_force_density!(chunk, 0, 0)
 
     b12 = 3.780000000000143e9
     @test b_int ≈ [b12 -b12; 0.0 0.0; 0.0 0.0]
@@ -38,7 +38,7 @@ end
     point_set!(body, :b, [2])
     material!(body, :a, horizon=δ, rho=1, E=Ea, nu=0.25, Gc=1.0)
     material!(body, :b, horizon=δ, rho=1, E=Eb, nu=0.25, Gc=1.0)
-    failure_permit!(body, false)
+    no_failure!(body)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     chunk = dh.chunks[1]
@@ -51,7 +51,7 @@ end
     # Point 2 with v_z = 1 m/s with Δt = 0.0015 s
     position[1, 2] = 1.0015
 
-    Peridynamics.calc_force_density!(chunk)
+    Peridynamics.calc_force_density!(chunk, 0, 0)
 
     b1 = 4.252500000000161e9
     b2 = 2.1262500000000806e9

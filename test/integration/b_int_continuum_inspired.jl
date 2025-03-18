@@ -6,7 +6,7 @@
     δ = 1.5
     body = Body(CKIMaterial(), ref_position, volume)
     material!(body, horizon=δ, rho=1, E=1, nu=0.25, Gc=1.0, C1=1e11, C2=1e11, C3=1e11)
-    failure_permit!(body, false)
+    no_failure!(body)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     chunk = dh.chunks[1]
@@ -21,7 +21,7 @@
     # Point 2 with v_z = 1 m/s with Δt = 0.0015 s
     position[1, 2] = 1.0015
 
-    Peridynamics.calc_force_density!(chunk)
+    Peridynamics.calc_force_density!(chunk, 0, 0)
 
     @test b_int[:,1] ≈ [1.0000000000000625e9, 4.0060000000002503e8, 4.0060000000002503e8]
     @test b_int[:,2] ≈ [-1.449731150462047e9, 2.245287820579052e8, 2.245287820579052e8]
@@ -41,7 +41,7 @@ end
     point_set!(body, :b, [2,3,4,5])
     material!(body, :a, horizon=δ, rho=1, E=1, nu=0.25, Gc=1.0, C1=1e11, C2=1e11, C3=1e11)
     material!(body, :b, horizon=δ, rho=1, E=1, nu=0.25, Gc=1.0, C1=1e11, C2=1e11, C3=1e11)
-    failure_permit!(body, false)
+    no_failure!(body)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     chunk = dh.chunks[1]
@@ -54,7 +54,7 @@ end
     # Point 2 with v_z = 1 m/s with Δt = 0.0015 s
     position[1, 2] = 1.0015
 
-    Peridynamics.calc_force_density!(chunk)
+    Peridynamics.calc_force_density!(chunk, 0, 0)
 
     @test b_int[:,1] ≈ [1.0000000000000625e9, 4.0060000000002503e8, 4.0060000000002503e8]
     @test b_int[:,2] ≈ [-1.449731150462047e9, 2.245287820579052e8, 2.245287820579052e8]

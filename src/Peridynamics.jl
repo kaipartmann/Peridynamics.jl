@@ -9,13 +9,19 @@ end
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, OSBMaterial, NOSBMaterial, CKIMaterial
+export BBMaterial, OSBMaterial, CMaterial, BACMaterial, CKIMaterial
+
+# CMaterial related types
+export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling
+
+# Kernels
+export linear_kernel, cubic_b_spline_kernel
 
 # Systems related types
 export NoCorrection, EnergySurfaceCorrection
 
 # Discretization
-export Body, point_set!, point_sets, failure_permit!, material!, velocity_bc!, velocity_ic!,
+export Body, point_set!, point_sets, no_failure!, material!, velocity_bc!, velocity_ic!,
        forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box, uniform_sphere,
        uniform_cylinder, round_sphere, round_cylinder, n_points
 
@@ -50,6 +56,7 @@ abstract type AbstractTimeSolver end
 abstract type AbstractJob end
 abstract type AbstractJobOptions end
 abstract type AbstractSystem end
+abstract type AbstractBondSystem <: AbstractSystem end
 abstract type AbstractPredefinedCrack end
 abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
 abstract type AbstractParameterHandler <: AbstractParameterSetup end
@@ -65,17 +72,26 @@ abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
+abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMaterial{ZEM} end
+abstract type AbstractBondAssociatedSystemMaterial <: AbstractMaterial end
+abstract type AbstractConstitutiveModel end
+abstract type AbstractStressIntegration end
+abstract type AbstractZEMStabilization <: AbstractCorrection end
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
 
 include("auxiliary/function_arguments.jl")
+include("auxiliary/docs.jl")
 include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
 include("auxiliary/mpi.jl")
 include("auxiliary/errors.jl")
+include("auxiliary/static_arrays.jl")
+include("auxiliary/nans.jl")
 
 include("physics/boundary_conditions.jl")
 include("physics/initial_conditions.jl")
 include("physics/material_parameters.jl")
+include("physics/stress.jl")
 include("physics/fracture.jl")
 include("physics/short_range_force_contact.jl")
 
@@ -86,8 +102,11 @@ include("discretization/body.jl")
 include("discretization/multibody_setup.jl")
 include("discretization/decomposition.jl")
 include("discretization/chunk_handler.jl")
+include("discretization/kernels.jl")
 include("discretization/bond_system.jl")
 include("discretization/bond_system_corrections.jl")
+include("discretization/zem_stabilization.jl")
+include("discretization/bond_associated_system.jl")
 include("discretization/interaction_system.jl")
 include("discretization/body_chunk.jl")
 
@@ -111,7 +130,9 @@ include("time_solvers/dynamic_relaxation.jl")
 include("physics/bond_based.jl")
 include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
+include("physics/constitutive_models.jl")
 include("physics/correspondence.jl")
+include("physics/ba_correspondence.jl")
 
 include("VtkReader/VtkReader.jl")
 using .VtkReader

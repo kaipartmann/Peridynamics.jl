@@ -1,25 +1,33 @@
-# Peridynamics.jl public API
+# Public API
 
 ```@meta
 
 ```
 
 ```@contents
-Pages = ["api_reference.md"]
+Pages = ["public_api_reference.md"]
 ```
 
 ## Material models
 ```@docs
 BBMaterial
 OSBMaterial
-NOSBMaterial
+CMaterial
+BACMaterial
 CKIMaterial
 ```
 
-## System related types
+## System or material related types
 ```@docs
 NoCorrection
 EnergySurfaceCorrection
+ZEMSilling
+LinearElastic
+NeoHooke
+MooneyRivlin
+SaintVenantKirchhoff
+linear_kernel
+cubic_b_spline_kernel
 ```
 
 ## Discretization
@@ -28,7 +36,7 @@ Body
 MultibodySetup
 point_set!
 point_sets
-failure_permit!
+no_failure!
 material!
 velocity_bc!
 velocity_ic!

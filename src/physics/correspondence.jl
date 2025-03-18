@@ -1,63 +1,91 @@
 """
-    NOSBMaterial(; maxdmg, maxjacobi, corr)
+    CMaterial(; kernel, model, zem, maxdmg)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
 
 # Keywords
+- `kernel::Function`: Kernel function used for weighting the interactions between points. \\
+    (default: `linear_kernel`) \\
+    The following kernels can be used:
+    - [`linear_kernel`](@ref)
+    - [`cubic_b_spline_kernel`](@ref)
+- `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
+    (default: `LinearElastic()`) \\
+    The following models can be used:
+    - [`LinearElastic`](@ref)
+    - [`NeoHooke`](@ref)
+    - [`MooneyRivlin`](@ref)
+    - [`SaintVenantKirchhoff`](@ref)
+- `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
+    stabilization algorithm of Silling (2017) is used as default. \\
+    (default: `ZEMSilling()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
-    possibly contain `NaN` values.
-    (default: `0.95`)
-- `maxjacobi::Float64`: Maximum value of the Jacobi determinant. If this value is exceeded,
-    all bonds of that point are broken.
-    (default: `1.03`)
-- `corr::Float64`: Correction factor used for zero-energy mode stabilization. The
-    stabilization algorithm of Silling (2017) is used.
-    (default: `100.0`)
+    possibly contain `NaN` values. \\
+    (default: `0.85`)
 
 !!! note "Stability of fracture simulations"
-    This formulation is known to be not suitable for fracture simultations without
+    This formulation is known to be not suitable for fracture simulations without
     stabilization of the zero-energy modes. Therefore be careful when doing fracture
-    simulations and try out different paremeters for `maxdmg`, `maxjacobi`, and `corr`.
+    simulations and try out different parameters for `maxdmg` and `zem`.
 
 # Examples
 
 ```julia-repl
-julia> mat = NOSBMaterial()
-NOSBMaterial(maxdmg=0.95, maxjacobi=1.03, corr=100.0)
+julia> mat = CMaterial()
+CMaterial(maxdmg=0.85, zem=ZEMSilling())
 ```
 
 ---
 
 ```julia
-NOSBMaterial
+CMaterial{CM,ZEM,K}
 ```
 
 Material type for the local continuum consistent (correspondence) formulation of
 non-ordinary state-based peridynamics.
 
+# Type Parameters
+- `CM`: A constitutive model type. See the constructor docs for more informations.
+- `ZEM`: A zero-energy mode stabilization type. See the constructor docs for more
+         informations.
+- `K`: A kernel function type. See the constructor docs for more informations.
+
 # Fields
-- `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
-    constructor docs for more informations.
-- `maxjacobi::Float64`: Maximum value of the Jacobi determinant. See the constructor docs
+- `kernel::Function`: Kernel function used for weighting the interactions between points.
+    See the constructor docs for more informations.
+- `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. See
+    the constructor docs for more informations.
+- `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. See the constructor docs
     for more informations.
-- `corr::Float64`: Correction factor used for zero-energy mode stabilization. See the
+- `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
     constructor docs for more informations.
 
 # Allowed material parameters
-When using [`material!`](@ref) on a [`Body`](@ref) with `NOSBMaterial`, then the following
+When using [`material!`](@ref) on a [`Body`](@ref) with `CMaterial`, then the following
 parameters are allowed:
+Material parameters:
 - `horizon::Float64`: Radius of point interactions
 - `rho::Float64`: Density
+Elastic parameters:
 - `E::Float64`: Young's modulus
 - `nu::Float64`: Poisson's ratio
+- `G::Float64`: Shear modulus
+- `K::Float64`: Bulk modulus
+- `lambda::Float64`: 1st Lamé parameter
+- `mu::Float64`: 2nd Lamé parameter
+Fracture parameters:
 - `Gc::Float64`: Critical energy release rate
 - `epsilon_c::Float64`: Critical strain
 
+!!! note "Elastic parameters"
+    Note that exactly two elastic parameters are required to specify a material.
+    Please choose two out of the six allowed elastic parameters.
+
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
-`NOSBMaterial`, the following fields are allowed:
+`CMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point
 - `displacement::Matrix{Float64}`: Displacement of each point
 - `velocity::Matrix{Float64}`: Velocity of each point
@@ -67,20 +95,32 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `b_ext::Matrix{Float64}`: External force density of each point
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
+- `stress::Matrix{Float64}`: Stress tensor of each point
+- `von_mises_stress::Vector{Float64}`: Von Mises stress of each point
 """
-Base.@kwdef struct NOSBMaterial <: AbstractBondSystemMaterial{NoCorrection}
-    maxdmg::Float64 = 0.95
-    maxjacobi::Float64 = 1.03
-    corr::Float64 = 100.0
+struct CMaterial{CM,ZEM,K} <: AbstractCorrespondenceMaterial{CM,ZEM}
+    kernel::K
+    constitutive_model::CM
+    zem_stabilization::ZEM
+    maxdmg::Float64
+    function CMaterial(kernel::K, cm::CM, zem::ZEM, maxdmg::Real) where {CM,ZEM,K}
+        return new{CM,ZEM,K}(kernel, cm, zem, maxdmg)
+    end
 end
 
-function Base.show(io::IO, @nospecialize(mat::NOSBMaterial))
+function Base.show(io::IO, @nospecialize(mat::CMaterial))
     print(io, typeof(mat))
-    print(io, msg_fields_in_brackets(mat))
+    print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
     return nothing
 end
 
-struct NOSBPointParameters <: AbstractPointParameters
+function CMaterial(; kernel::Function=linear_kernel,
+                    model::AbstractConstitutiveModel=LinearElastic(),
+                    zem::AbstractZEMStabilization=ZEMSilling(), maxdmg::Real=0.85)
+    return CMaterial(kernel, model, zem, maxdmg)
+end
+
+struct CPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64
     E::Float64
@@ -94,16 +134,16 @@ struct NOSBPointParameters <: AbstractPointParameters
     bc::Float64
 end
 
-function NOSBPointParameters(mat::NOSBMaterial, p::Dict{Symbol,Any})
+function CPointParameters(mat::CMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
     (; Gc, εc) = get_frac_params(p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
-    return NOSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+    return CPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@params NOSBMaterial NOSBPointParameters
+@params CMaterial CPointParameters
 
-@storage NOSBMaterial struct NOSBStorage <: AbstractStorage
+@storage CMaterial struct CStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
@@ -117,104 +157,114 @@ end
     @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
+    @pointfield stress::Matrix{Float64}
+    @pointfield von_mises_stress::Vector{Float64}
 end
 
-function init_field(::NOSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
+function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
     return zeros(3, get_n_points(system))
 end
 
-function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
-                              paramhandler::AbstractParameterHandler, i::Int)
+function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
+    return zeros(9, get_n_loc_points(system))
+end
+
+function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:von_mises_stress})
+    return zeros(get_n_loc_points(system))
+end
+
+function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
+                              mat::AbstractCorrespondenceMaterial,
+                              paramhandler::AbstractParameterHandler, t, Δt, i)
     params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, i)
+    force_density_point!(storage, system, mat, params, t, Δt, i)
     return nothing
 end
 
-function force_density_point!(storage::NOSBStorage, system::BondSystem, mat::NOSBMaterial,
-                              params::NOSBPointParameters, i::Int)
-    F, Kinv, ω0 = calc_deformation_gradient(storage, system, mat, params, i)
-    if storage.damage[i] > mat.maxdmg || containsnan(F)
-        kill_point!(storage, system, i)
-        return nothing
-    end
-    P = calc_first_piola_stress(F, mat, params)
-    if iszero(P) || containsnan(P)
-        kill_point!(storage, system, i)
-        return nothing
-    end
-    PKinv = P * Kinv
+function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
+                              mat::AbstractCorrespondenceMaterial,
+                              params::AbstractPointParameters, t, Δt, i)
+    defgrad_res = calc_deformation_gradient(storage, system, mat, params, i)
+    too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
+    PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)
+    zem = mat.zem_stabilization
+    c_force_density!(storage, system, mat, params, zem, PKinv, defgrad_res, i)
+    return nothing
+end
+
+function calc_deformation_gradient(storage::CStorage, system::BondSystem, ::CMaterial,
+                                   ::CPointParameters, i)
+    (; bonds, volume) = system
+    (; bond_active) = storage
+    K = zero(SMatrix{3,3,Float64,9})
+    _F = zero(SMatrix{3,3,Float64,9})
+    ω0 = 0.0
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
+        bond = bonds[bond_id]
+        j = bond.neighbor
+        ΔXij = get_vector_diff(system.position, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
+        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        ω0 += ωij
+        temp = ωij * volume[j]
+        ΔXijt = ΔXij'
+        K += temp * (ΔXij * ΔXijt)
+        _F += temp * (Δxij * ΔXijt)
+    end
+    Kinv = inv(K)
+    F = _F * Kinv
+    return (; F, Kinv, ω0)
+end
+
+function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
+                                     params::CPointParameters, defgrad_res, Δt, i)
+    (; F, Kinv) = defgrad_res
+    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+    PKinv = P * Kinv
+    σ = cauchy_stress(P, F)
+    update_tensor!(storage.stress, i, σ)
+    storage.von_mises_stress[i] = von_mises_stress(σ)
+    return PKinv
+end
+
+function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
+                          ::AbstractCorrespondenceMaterial, params::AbstractPointParameters,
+                          zem_correction::ZEMSilling, PKinv, defgrad_res, i)
+    (; bonds, volume) = system
+    (; bond_active) = storage
+    (; F, ω0) = defgrad_res
+    (; Cs) = zem_correction
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        ΔXij = get_coordinates_diff(system, i, j)
-        Δxij = get_coordinates_diff(storage, i, j)
+        ΔXij = get_vector_diff(system.position, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
         stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
-        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
-        Tij = mat.corr .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
+        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        tzem = Cs .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
 
         # update of force density
-        tij = ωij * PKinv * ΔXij + Tij
-        if containsnan(tij)
-            tij = zero(SMatrix{3,3})
-        end
-        update_add_b_int!(storage, i, tij .* system.volume[j])
-        update_add_b_int!(storage, j, -tij .* system.volume[i])
+        tij = ωij * PKinv * ΔXij + tzem
+        update_add_vector!(storage.b_int, i, tij .* volume[j])
+        update_add_vector!(storage.b_int, j, -tij .* volume[i])
     end
     return nothing
 end
 
-@inline function influence_function(::NOSBMaterial, params::NOSBPointParameters, L::Float64)
-    return params.δ / L
-end
-
-function calc_deformation_gradient(storage::NOSBStorage, system::BondSystem,
-                                   mat::NOSBMaterial, params::NOSBPointParameters, i::Int)
-    K = zeros(SMatrix{3,3})
-    _F = zeros(SMatrix{3,3})
-    ω0 = 0.0
-    for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        ΔXij = get_coordinates_diff(system, i, j)
-        Δxij = get_coordinates_diff(storage, i, j)
-        Vj = system.volume[j]
-        ωij = influence_function(mat, params, L) * storage.bond_active[bond_id]
-        ω0 += ωij
-        temp = ωij * Vj
-        K += temp * ΔXij * ΔXij'
-        _F += temp * Δxij * ΔXij'
-    end
-    Kinv = inv(K)
-    F = _F * Kinv
-    return F, Kinv, ω0
-end
-
-function calc_first_piola_stress(F::SMatrix{3,3}, mat::NOSBMaterial,
-                                 params::NOSBPointParameters)
-    J = det(F)
-    J < eps() && return zero(SMatrix{3,3})
-    J > mat.maxjacobi && return zero(SMatrix{3,3})
-    C = F' * F
-    Cinv = inv(C)
-    S = params.G .* (I - 1 / 3 .* tr(C) .* Cinv) .* J^(-2 / 3) .+
-        params.K / 4 .* (J^2 - J^(-2)) .* Cinv
-    P = F * S
-    return P
-end
-
-function containsnan(K::T) where {T<:AbstractArray}
-    @simd for i in eachindex(K)
-        isnan(K[i]) && return true
+function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
+                          mat::AbstractCorrespondenceMaterial, defgrad_res, i)
+    (; F) = defgrad_res
+    # if storage.n_active_bonds[i] ≤ 3 || storage.damage[i] > mat.maxdmg || containsnan(F)
+    if storage.damage[i] > mat.maxdmg || containsnan(F)
+        # kill all bonds of this point
+        storage.bond_active[each_bond_idx(system, i)] .= false
+        storage.n_active_bonds[i] = 0
+        return true
     end
     return false
-end
-
-function kill_point!(s::AbstractStorage, bd::BondSystem, i::Int)
-    s.bond_active[each_bond_idx(bd, i)] .= false
-    s.n_active_bonds[i] = 0
-    return nothing
 end

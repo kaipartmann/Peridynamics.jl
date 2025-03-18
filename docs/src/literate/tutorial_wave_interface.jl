@@ -19,19 +19,17 @@ npyz = 4
 # With these parameters we now create a body, here using the non-ordinary state-based
 # correspondence formulation.
 pos, vol = uniform_box(lx, lyz, lyz, Δx)
-body = Body(NOSBMaterial(), pos, vol)
-# Again, failure is not allowed in the whole body.
-failure_permit!(body, false)
+body = Body(CMaterial(), pos, vol)
 
 # Then the material parameters for one half of the body are assigned to the whole body
 # first.
-material!(body, horizon=3.015Δx, rho=7850.0, E=210e9, nu=0.25, epsilon_c=0.01)
+material!(body, horizon=3.015Δx, rho=7850.0, E=210e9, nu=0.25)
 
 # Now a point set containing the other half of all points is created.
 point_set!(x -> x < 0, body, :set1)
 # ![](https://github.com/user-attachments/assets/c589ab03-e7f5-4b71-b0c2-0f05eb3cdddc)
 # The parameters for this point set are then overwritten with their new parameters.
-material!(body, :set1, horizon=3.015Δx, rho=7850.0, E=105e9, nu=0.25, epsilon_c=0.01)
+material!(body, :set1, horizon=3.015Δx, rho=7850.0, E=105e9, nu=0.25)
 
 # Except for the Young's modulus, these are the same in both sections:
 #
@@ -42,8 +40,8 @@ material!(body, :set1, horizon=3.015Δx, rho=7850.0, E=105e9, nu=0.25, epsilon_c
 # | Young's modulus $E_I$ | $ 105 \, \mathrm{GPa}$ |
 # | Young's modulus $E_{II}$ | $ 210 \, \mathrm{GPa}$ |
 # | Poisson's ratio $ν$ | $0.25$ |
-# | critical strain $ε_c$ | $0.01$ |
 
+# Again, failure is not allowed in the whole body since no fracture parameters are specified.
 
 # To employ the boundary conditions creating a displacement wave, the point set `:left` is
 # created:
@@ -70,11 +68,8 @@ vv = VelocityVerlet(steps=2000)
 #md # submit(job)
 #md # ```
 
-# The following video shows the results for the displacement in x-direction $u_x$ and the
-# first entry of the
-# stress tensor, i.e. the normal stress in x-direction $\sigma_{11}$.
 # ```@raw html
 #     <video controls loop="true">
-#         <source src="https://github.com/user-attachments/assets/d7e600ee-cad8-40f9-99f4-e96ac05585d6" />
+#         <source src="https://github.com/user-attachments/assets/45513e03-fde0-44ad-ac90-ca181d59933c" />
 #     </video>
 # ```

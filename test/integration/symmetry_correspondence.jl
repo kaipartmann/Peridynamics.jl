@@ -1,4 +1,4 @@
-@testitem "symmetry NOSBMaterial VelocityVerlet" begin
+@testitem "symmetry CMaterial VelocityVerlet" begin
     # simulation
     Δx = 0.2
     width = 1
@@ -8,16 +8,14 @@
     pos = hcat(([x;y;z] for x in grid for y in grid for z in grid)...)
     n_points = size(pos, 2)
     vol = fill(Δx^3, n_points)
-    body = Body(NOSBMaterial(), pos, vol)
-    failure_permit!(body, false)
-    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.25, Gc=1)
+    body = Body(CMaterial(model=MooneyRivlin()), pos, vol)
+    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.25)
     point_set!(z -> z > width/2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width/2 + 0.6Δx, body, :set_b)
-    velocity_bc!(t -> 100, body, :set_a, :z)
-    velocity_bc!(t -> -100, body, :set_b, :z)
+    velocity_bc!(t -> 10, body, :set_a, :z)
+    velocity_bc!(t -> -10, body, :set_b, :z)
     vv = VelocityVerlet(steps=100)
-    temp_root = joinpath(@__DIR__, "temp_root_symmetry_test_cc_vv")
-    rm(temp_root; recursive=true, force=true)
+    temp_root = mktempdir()
     job = Job(body, vv; path=temp_root, freq=10)
     dh = Peridynamics.submit_threads(job, 1)
 
@@ -52,12 +50,9 @@
             @test abs(end_displacement[d, i]) > 0
         end
     end
-
-    # delete all simulation files
-    rm(temp_root; recursive=true, force=true)
 end
 
-@testitem "symmetry NOSBMaterial DynamicRelaxation" begin
+@testitem "symmetry CMaterial DynamicRelaxation" begin
     # simulation
     Δx = 0.2
     width = 1
@@ -67,16 +62,14 @@ end
     pos = hcat(([x;y;z] for x in grid for y in grid for z in grid)...)
     n_points = size(pos, 2)
     vol = fill(Δx^3, n_points)
-    body = Body(NOSBMaterial(), pos, vol)
-    failure_permit!(body, false)
-    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.25, Gc=1)
+    body = Body(CMaterial(), pos, vol)
+    material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.25)
     point_set!(z -> z > width/2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width/2 + 0.6Δx, body, :set_b)
     forcedensity_bc!(t -> 1e10, body, :set_a, :z)
     forcedensity_bc!(t -> -1e10, body, :set_b, :z)
     dr = DynamicRelaxation(steps=100)
-    temp_root = joinpath(@__DIR__, "temp_root_symmetry_test_cc_dr")
-    rm(temp_root; recursive=true, force=true)
+    temp_root = mktempdir()
     job = Job(body, dr; path=temp_root, freq=10)
     dh = Peridynamics.submit_threads(job, 1)
 
@@ -111,7 +104,4 @@ end
             @test abs(end_displacement[d, i]) > 0
         end
     end
-
-    # delete all simulation files
-    rm(temp_root; recursive=true, force=true)
 end

@@ -95,7 +95,7 @@ function stendens_point(system::BondSystem{C}, params::AbstractPointParameters,
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_diff(defposition, i, j)
+        Δxij = get_vector_diff(defposition, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
         failure = bond_failure(storage, bond_id)
@@ -113,7 +113,7 @@ function stendens_point(system::BondSystem{C}, paramhandler::AbstractParameterHa
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_diff(defposition, i, j)
+        Δxij = get_vector_diff(defposition, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
         params_j = get_params(paramhandler, j)

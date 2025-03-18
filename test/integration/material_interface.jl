@@ -6,7 +6,7 @@
     @test Peridynamics.required_point_parameters(TestMaterial1) === (:δ, :rho, :E, :nu, :G,
            :K, :λ, :μ)
     @test Peridynamics.allowed_material_kwargs(TestMaterial1()) === (:horizon, :rho, :E,
-           :nu, :Gc, :epsilon_c)
+           :nu, :G, :K, :lambda, :mu, :Gc, :epsilon_c)
 
     struct WrongTestMaterial end
     @test_throws ArgumentError Peridynamics.typecheck_material(WrongTestMaterial)
@@ -539,7 +539,7 @@ end
 
 @testitem "TestMaterial full simulation" begin
     include("test_material.jl")
-    root = joinpath(@__DIR__, "temp_testmaterial_full_simulation")
+    root = mktempdir()
     path_vtk = joinpath(root, "vtk")
 
     N = 10
@@ -562,6 +562,4 @@ end
     @test isdir(path_vtk)
     vtk_files = Peridynamics.find_vtk_files(path_vtk)
     @test length(vtk_files) == 3
-
-    rm(root; recursive=true, force=true)
 end

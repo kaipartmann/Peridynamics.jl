@@ -34,6 +34,141 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
+    p = Dict{Symbol,Any}(:E => 1, :G => 0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:E => 1, :K => 2/3)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:E => 1, :lambda => 0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:E => 1, :mu => 0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:nu => 0.25, :G => 0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:nu => 0.25, :K => 2/3)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:nu => 0.25, :lambda => 0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:nu => 0.25, :mu => 0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:G => 0.4, :K => 2/3)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:G => 0.4, :lambda => 0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:G => 0.4, :mu => 0.4)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+
+    p = Dict{Symbol,Any}(:K => 2/3, :lambda => 0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:K => 2/3, :mu => 0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:lambda => 0.4, :mu => 0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:E => 1, :nu => 0.25, :G => NaN, :K => NaN, :lambda => NaN, :mu => NaN)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    @test E ≈ 1.0
+    @test nu ≈ 0.25
+    @test G ≈ 0.4
+    @test K ≈ 2/3
+    @test λ ≈ 0.4
+    @test μ ≈ 0.4
+
+    p = Dict{Symbol,Any}(:E => 1, :nu => 0.25, :G => NaN, :K => 3, :lambda => NaN, :mu => NaN)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+
+    p = Dict{Symbol,Any}(:E => 1, :nu => NaN, :G => NaN, :K => NaN, :lambda => NaN, :mu => NaN)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+
     p = Dict{Symbol,Any}(:E => 210e9, :nu => 0.25)
     E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(p)
     @test E ≈ 2.1e11
@@ -53,7 +188,13 @@ end
     @test μ ≈ 1.125e10
 
     p = Dict{Symbol,Any}(:G => 1, :K => 1)
-    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+    E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(p)
+    @test E ≈ 2.25
+    @test nu ≈ 0.125
+    @test G ≈ 1.0
+    @test K ≈ 1.0
+    @test λ ≈ 1/3
+    @test μ ≈ 1.0
 
     p = Dict{Symbol,Any}(:E => 0, :nu => 0.25)
     msg = "`E` should be larger than zero!\n"
@@ -65,5 +206,17 @@ end
 
     p = Dict{Symbol,Any}(:E => 1, :nu => 1.1)
     msg = "too high value of `nu`! Condition: 0 < `nu` ≤ 1\n"
+    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+
+    p = Dict{Symbol,Any}(:E => 1, :G => 0)
+    msg = "`G` should be larger than zero!\n"
+    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+
+    p = Dict{Symbol,Any}(:E => 1, :K => 0)
+    msg = "`K` should be larger than zero!\n"
+    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+
+    p = Dict{Symbol,Any}(:E => 1, :mu => 0)
+    msg = "`μ` should be larger than zero!\n"
     @test_throws ArgumentError Peridynamics.get_elastic_params(p)
 end
