@@ -38,7 +38,7 @@ end
 $(internal_api_warning())
 
 Type for a position dependent initial condition in a single dimension for a peridynamic
-    simulation
+simulation
 
 # Type Parameters
 
