@@ -87,7 +87,7 @@ end
 
 $(internal_api_warning())
 
-A type that contains the options of a job
+A type that contains the options of a job.
 
 # Type Parameters
 
