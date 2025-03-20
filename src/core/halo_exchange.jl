@@ -3,7 +3,7 @@
 
 $(internal_api_warning())
 
-A type used for communication between body chunks in MPI.
+A type used for communication between body chunks. This type is used with both MPI and multithreaded simulations. Note that the `tag` is only used with MPI and has the value `0` in multithreaded simulations.
 
 # Fields
 
