@@ -66,9 +66,17 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct BBMaterial{Correction} <: AbstractBondSystemMaterial{Correction} end
+struct BBMaterial{Correction,DM} <: AbstractBondSystemMaterial{Correction}
+    dmgmodel::DM
+    function BBMaterial{C}(dmgmodel::DM) where {C,DM}
+        new{C,DM}(dmgmodel)
+    end
+end
 
-BBMaterial() = BBMaterial{NoCorrection}()
+function BBMaterial{C}(; dmgmodel::AbstractDamageModel=StretchBasedDamage()) where {C}
+    return BBMaterial{C}(dmgmodel)
+end
+BBMaterial(; kwargs...) = BBMaterial{NoCorrection}(; kwargs...)
 
 struct BBPointParameters <: AbstractPointParameters
     δ::Float64

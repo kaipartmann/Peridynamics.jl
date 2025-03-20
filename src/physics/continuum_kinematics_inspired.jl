@@ -66,7 +66,16 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_one_nis::Vector{Int}`: Number of intact one-neighbor interactions of each point
 """
-struct CKIMaterial <: AbstractInteractionSystemMaterial end
+struct CKIMaterial{DM} <: AbstractInteractionSystemMaterial
+    dmgmodel::DM
+    function CKIMaterial(dmgmodel::DM) where DM
+        return new{DM}(dmgmodel)
+    end
+end
+
+function CKIMaterial(; dmgmodel::AbstractDamageModel=StretchBasedDamage())
+    return CKIMaterial(dmgmodel)
+end
 
 struct CKIPointParameters <: AbstractPointParameters
     δ::Float64
