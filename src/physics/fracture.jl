@@ -95,7 +95,7 @@ function no_failure!(body::AbstractBody)
     return nothing
 end
 
-function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
+function get_frac_params(::StretchBasedDamage, p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     local Gc::Float64
     local εc::Float64
 

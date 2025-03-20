@@ -313,9 +313,15 @@ end
 @testitem "Custom Materials" begin
     import Peridynamics: AbstractBondSystemMaterial, NoCorrection,
                          AbstractInteractionSystemMaterial, InterfaceError,
-                         AbstractPointParameters
+                         AbstractPointParameters, AbstractDamageModel
 
-    struct Mat3 <: AbstractBondSystemMaterial{NoCorrection} end
+    struct Mat3{DM} <: AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::DM
+        function Mat3(dmgmodel::DM) where DM
+            new{DM}(dmgmodel)
+        end
+    end
+    Mat3(; dmgmodel::AbstractDamageModel=StretchBasedDamage()) = Mat3(dmgmodel)
     struct Params3 <: AbstractPointParameters
         δ::Float64
         rho::Float64
@@ -332,7 +338,7 @@ end
     @test_throws InterfaceError Peridynamics.@params Mat3 Params3
     function Params3(mat::Mat3, p::Dict{Symbol,Any})
         (; δ, rho, E, nu, G, K, λ, μ) = Peridynamics.get_required_point_parameters(mat, p)
-        (; Gc, εc) = Peridynamics.get_frac_params(p, δ, K)
+        (; Gc, εc) = Peridynamics.get_frac_params(mat.dmgmodel, p, δ, K)
         bc = 18 * K / (π * δ^4) # bond constant
         return Params3(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
     end

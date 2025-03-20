@@ -95,7 +95,7 @@ end
 
 function CKIPointParameters(mat::CKIMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ, C1, C2, C3) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(p, δ, K)
+    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
     return CKIPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, C1, C2, C3)
 end
 

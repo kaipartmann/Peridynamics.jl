@@ -102,7 +102,7 @@ end
 
 function BACPointParameters(mat::BACMaterial, p::Dict{Symbol,Any})
     (; δ, δb, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(p, δ, K)
+    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
     return BACPointParameters(δ, δb, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end

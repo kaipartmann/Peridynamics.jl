@@ -1,4 +1,12 @@
-struct TestMaterial <: Peridynamics.AbstractBondSystemMaterial{Peridynamics.NoCorrection} end
+struct TestMaterial{D} <: Peridynamics.AbstractBondSystemMaterial{Peridynamics.NoCorrection}
+    dmgmodel::D
+    function TestMaterial(dmgmodel::D) where {D}
+        new{D}(dmgmodel)
+    end
+end
+function TestMaterial(; dmgmodel::Peridynamics.AbstractDamageModel=StretchBasedDamage())
+    return TestMaterial(dmgmodel)
+end
 struct TestPointParameters <: Peridynamics.AbstractPointParameters
     δ::Float64
     rho::Float64
@@ -14,7 +22,7 @@ struct TestPointParameters <: Peridynamics.AbstractPointParameters
 end
 function TestPointParameters(mat::TestMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ) = Peridynamics.get_required_point_parameters(mat, p)
-    (; Gc, εc) = Peridynamics.get_frac_params(p, δ, K)
+    (; Gc, εc) = Peridynamics.get_frac_params(mat.dmgmodel, p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
     return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
