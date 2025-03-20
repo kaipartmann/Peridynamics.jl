@@ -3,7 +3,7 @@
 
 $(internal_api_warning())
 
-A type for a body chunk used for multithreading and MPI.
+A type that contains all data of a body chunk. For parallel simulations, the body is divided into multiple chunks. Each `BodyChunk` instance contains all necessary information for the simulation on this specific chunk. This type is used for multithreading and MPI.
 
 # Type Parameters
 
