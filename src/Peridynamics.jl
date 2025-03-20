@@ -78,6 +78,7 @@ abstract type AbstractConstitutiveModel end
 abstract type AbstractStressIntegration end
 abstract type AbstractZEMStabilization <: AbstractCorrection end
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
+abstract type AbstractDamageModel end
 
 include("auxiliary/function_arguments.jl")
 include("auxiliary/docs.jl")
