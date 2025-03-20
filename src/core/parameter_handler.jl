@@ -21,7 +21,7 @@ struct MultiParamChunk <: AbstractParamSpec end
 
 $(internal_api_warning())
 
-A type to assign point parameter sets to points of a body.
+A type used to manage multiple point parameters defined for the same body. It is used to assign point parameter sets to points of a body.
 
 # Type Parameters
 
