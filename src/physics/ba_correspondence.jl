@@ -62,25 +62,27 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct BACMaterial{CM,K} <: AbstractBondAssociatedSystemMaterial
+struct BACMaterial{CM,K,DM} <: AbstractBondAssociatedSystemMaterial
     kernel::K
     constitutive_model::CM
+    dmgmodel::DM
     maxdmg::Float64
-    function BACMaterial(kernel::K, cm::CM, maxdmg::Real) where {K,CM}
-        return new{CM,K}(kernel, cm, maxdmg)
+    function BACMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real) where {K,CM,DM}
+        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg)
     end
+end
+
+function BACMaterial(; kernel::Function=linear_kernel,
+                     model::AbstractConstitutiveModel=LinearElastic(),
+                     dmgmodel::AbstractDamageModel=StretchBasedDamage(),
+                     maxdmg::Real=0.85)
+    return BACMaterial(kernel, model, dmgmodel, maxdmg)
 end
 
 function Base.show(io::IO, @nospecialize(mat::BACMaterial))
     print(io, typeof(mat))
     print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
     return nothing
-end
-
-function BACMaterial(; kernel::Function=linear_kernel,
-                     model::AbstractConstitutiveModel=LinearElastic(),
-                     maxdmg::Real=0.85)
-    return BACMaterial(kernel, model, maxdmg)
 end
 
 struct BACPointParameters <: AbstractPointParameters

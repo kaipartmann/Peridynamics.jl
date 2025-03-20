@@ -65,14 +65,18 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
 """
-struct OSBMaterial{Correction,K} <: AbstractBondSystemMaterial{Correction}
+struct OSBMaterial{Correction,K,DM} <: AbstractBondSystemMaterial{Correction}
     kernel::K
-    function OSBMaterial{Correction}(kernel::K) where {Correction,K}
-        return new{Correction,K}(kernel)
+    dmgmodel::DM
+    function OSBMaterial{C}(kernel::K, dmgmodel::DM) where {C,K,DM}
+        return new{C,K,DM}(kernel, dmgmodel)
     end
 end
 
-OSBMaterial{C}(; kernel::F=linear_kernel) where{C,F} = OSBMaterial{C}(kernel)
+function OSBMaterial{C}(; kernel::F=linear_kernel,
+                        dmgmodel::AbstractDamageModel=StretchBasedDamage()) where{C,F}
+    return OSBMaterial{C}(kernel, dmgmodel)
+end
 OSBMaterial(; kwargs...) = OSBMaterial{NoCorrection}(; kwargs...)
 
 struct OSBPointParameters <: AbstractPointParameters

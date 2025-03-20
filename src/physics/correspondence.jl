@@ -98,26 +98,29 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `stress::Matrix{Float64}`: Stress tensor of each point
 - `von_mises_stress::Vector{Float64}`: Von Mises stress of each point
 """
-struct CMaterial{CM,ZEM,K} <: AbstractCorrespondenceMaterial{CM,ZEM}
+struct CMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
     kernel::K
     constitutive_model::CM
     zem_stabilization::ZEM
+    dmgmodel::DM
     maxdmg::Float64
-    function CMaterial(kernel::K, cm::CM, zem::ZEM, maxdmg::Real) where {CM,ZEM,K}
-        return new{CM,ZEM,K}(kernel, cm, zem, maxdmg)
+    function CMaterial(kernel::K, cm::CM, zem::ZEM, dmgmodel::DM,
+                       maxdmg::Real) where {CM,ZEM,K,DM}
+        return new{CM,ZEM,K,DM}(kernel, cm, zem, dmgmodel, maxdmg)
     end
+end
+
+function CMaterial(; kernel::Function=linear_kernel,
+                    model::AbstractConstitutiveModel=LinearElastic(),
+                    zem::AbstractZEMStabilization=ZEMSilling(),
+                    dmgmodel::AbstractDamageModel=StretchBasedDamage(), maxdmg::Real=0.85)
+    return CMaterial(kernel, model, zem, dmgmodel, maxdmg)
 end
 
 function Base.show(io::IO, @nospecialize(mat::CMaterial))
     print(io, typeof(mat))
     print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
     return nothing
-end
-
-function CMaterial(; kernel::Function=linear_kernel,
-                    model::AbstractConstitutiveModel=LinearElastic(),
-                    zem::AbstractZEMStabilization=ZEMSilling(), maxdmg::Real=0.85)
-    return CMaterial(kernel, model, zem, maxdmg)
 end
 
 struct CPointParameters <: AbstractPointParameters

@@ -17,6 +17,9 @@ export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling
 # Kernels
 export linear_kernel, cubic_b_spline_kernel
 
+# Damage models
+export StretchBasedDamage
+
 # Systems related types
 export NoCorrection, EnergySurfaceCorrection
 
