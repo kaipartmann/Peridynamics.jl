@@ -110,7 +110,7 @@ function BBPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
         msg *= "Please define only one or two fitting elastic parameters!\n"
         throw(ArgumentError(msg))
     end
-    (; Gc, εc) = get_frac_params(p, δ, K)
+    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
     return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
