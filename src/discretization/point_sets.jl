@@ -132,7 +132,7 @@ end
 
 $(internal_api_warning())
 
-Throw error if no point set `set_name` is found in the dictionary `point_sets`.
+Throw an error if no point set `set_name` is found in the dictionary `point_sets`.
 """
 function check_if_set_is_defined(point_sets::Dict{Symbol,V}, set_name::Symbol) where {V}
     if !haskey(point_sets, set_name)
