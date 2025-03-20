@@ -5,7 +5,7 @@ const CONTACT_KWARGS = (:radius, :penalty_factor)
 
 $(internal_api_warning())
 
-A type for contact simulations.
+A type for contact simulations with the short range forces algorithm.
 
 # Type Parameters
 
