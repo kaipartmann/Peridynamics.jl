@@ -1,7 +1,7 @@
 """
     uniform_box(lx, ly, lz, ΔX0; kwargs...)
 
-Creates a grid of uniformly distributed points in a cuboid with lengths `lx`, `ly` and `lz`
+Create a grid of uniformly distributed points in a cuboid with lengths `lx`, `ly` and `lz`
 and point spacing `ΔX0`.
 
 # Arguments
@@ -61,7 +61,7 @@ end
 """
     uniform_sphere(diameter, ΔX0; kwargs...)
 
-Creates a grid of uniformly distributed points in a sphere with a specific `diameter` and
+Create a grid of uniformly distributed points in a sphere with a specific `diameter` and
 the point spacing `ΔX0`. Due to the uniform point spacings, edges on the surface of the
 sphere can occur.
 
@@ -121,7 +121,7 @@ end
 """
     uniform_cylinder(diameter::Real, height::Real, ΔX0::Real; kwargs...)
 
-Creates a grid of uniformly distributed points in a cylindrical shape with a specific
+Create a grid of uniformly distributed points in a cylindrical shape with a specific
 `height` in z-dimension, a `diameter` and the point spacing `ΔX0`. Due to the uniform point
 spacings, edges on the surface of the cylinder can occur.
 
@@ -187,7 +187,7 @@ end
 """
     round_sphere(diameter, ΔX0; kwargs...)
 
-Creates a grid of points distributed in a smooth sphere without edges on the surface
+Create a grid of points distributed in a smooth sphere without edges on the surface
 with a specific `diameter` and the point spacing `ΔX0`. Internally, some parts of
 `TrixiParticles.jl` were copied and adapted for this function.
 
@@ -241,7 +241,7 @@ end
 """
     round_cylinder(diameter::Real, height::Real, ΔX0::Real; kwargs...)
 
-Creates a grid of  points distributed in a cylindrical shape with a specific
+Create a grid of  points distributed in a cylindrical shape with a specific
 `height` in z-dimension, a `diameter` and the point spacing `ΔX0`. Due to a concentric
 point distribution in the x-y-plane, there are no sharp edges that appear on the surface
 of the cylinder.

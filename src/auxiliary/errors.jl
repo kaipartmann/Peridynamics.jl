@@ -1,3 +1,16 @@
+"""
+    InterfaceError
+
+$(internal_api_warning())
+
+A type for a customized error that is thrown when a material model is not implemented
+correctly.
+
+# Fields
+
+- `type::DataType`: Type that is used.
+- `func::String`: Function that is used.
+"""
 struct InterfaceError <: Exception
     type::DataType
     func::String

@@ -18,9 +18,9 @@ steps or the time the simulation should cover.
     will give wrong results and maybe crash!
 
 # Throws
-- Errors if both `time` and `steps` are specified as keywords.
-- Errors if neither `time` nor `steps` are specified as keywords.
-- Errors if `safety_factor < 0` or `safety_factor > 1`.
+- Error if both `time` and `steps` are specified as keywords.
+- Error if neither `time` nor `steps` are specified as keywords.
+- Error if `safety_factor < 0` or `safety_factor > 1`.
 
 # Example
 

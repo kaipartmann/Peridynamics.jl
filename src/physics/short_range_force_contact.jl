@@ -1,5 +1,24 @@
 const CONTACT_KWARGS = (:radius, :penalty_factor)
 
+"""
+    ShortRangeForceContact
+
+$(internal_api_warning())
+
+A type for contact simulations with the short range forces algorithm.
+
+# Type Parameters
+
+- `N`: Neighborhood search object used by `PointNeighbors.jl`.
+
+# Fields
+
+- `body_id_a::Symbol`: Index of a body of the contact.
+- `body_id_b::Symbol`: Index of a body of the contact.
+- `radius::Float64`: Search radius for contact.
+- `penalty_factor::Float64`: Penalty factor for the contact simulation.
+- `nhs::N`: Neighborhood search object used by `PointNeighbors.jl`.
+"""
 struct ShortRangeForceContact{N}
     body_id_a::Symbol
     body_id_b::Symbol
@@ -33,7 +52,7 @@ end
 """
     contact!(multibody_setup, name_body_a, name_body_b; kwargs...)
 
-Defines a short range force contact between body `name_body_a` and `name_body_b` in the
+Define a short range force contact between body `name_body_a` and `name_body_b` in the
 [`MultibodySetup`](@ref) `multibody_setup`.
 
 # Arguments
@@ -52,10 +71,10 @@ Defines a short range force contact between body `name_body_a` and `name_body_b`
     (default: `1e12`)
 
 # Throws
-- Errors if `multibody_setup` does not contain bodies with name `name_body_a` and
+- Error if `multibody_setup` does not contain bodies with name `name_body_a` and
     `name_body_b`.
-- Errors if the keyword `radius` is not specified or `radius ≤ 0`.
-- Errors if `penalty_factor ≤ 0`.
+- Error if the keyword `radius` is not specified or `radius ≤ 0`.
+- Error if `penalty_factor ≤ 0`.
 
 # Examples
 ```julia-repl
