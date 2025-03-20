@@ -3,7 +3,7 @@
 
 $(internal_api_warning())
 
-A type for handling multi body simulations in multithreading.
+A type for handling all data of multiple bodies in multithreading simulations.
 
 # Type Parameters
 
