@@ -56,8 +56,8 @@ function BodyChunk(body::AbstractBody, solver::AbstractTimeSolver, pd::PointDeco
     return chunk
 end
 
-@inline function get_params(b::BodyChunk, point_id::Int)
-    return get_params(b.paramsetup, point_id)
+@inline function get_params(chunk::BodyChunk, point_id::Int)
+    return get_params(chunk.paramsetup, point_id)
 end
 
 @inline function body_chunk_type(body::AbstractBody{Material}, solver::AbstractTimeSolver,

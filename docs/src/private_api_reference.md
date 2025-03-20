@@ -10,6 +10,13 @@ Pages = ["private_api_reference.md"]
 
 ```@docs
 Peridynamics.failure_permit!
+Peridynamics.get_frac_params
+Peridynamics.set_failure_permissions!
+Peridynamics.has_fracture
+Peridynamics.check_pos_and_vol
+Peridynamics.pre_submission_check
+Peridynamics.get_paramsetup
+Peridynamics.get_params
 Peridynamics.check_if_sets_intersect
 Peridynamics.check_if_set_is_defined
 Peridynamics.find_points

@@ -186,6 +186,14 @@ end
 
 @inline material_type(::AbstractBody{M}) where {M} = M
 
+"""
+    check_pos_and_vol(n_points, position, volume)
+
+$(internal_api_warning())
+
+Check if the positions and volumes for the points are correctly specified in the fields of
+a [`Body`](@ref).
+"""
 function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
     # check if n_points is greater than zero
     n_points > 0 || error("the number of points must be greater than zero!\n")
@@ -206,6 +214,15 @@ function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::Abst
     return nothing
 end
 
+"""
+    pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
+    pre_submission_check(ms::AbstractMultibodySetup)
+
+$(internal_api_warning())
+
+Check if necessary material parameters and conditions are defined when defining a
+[`Job`](@ref).
+"""
 function pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
     # the body should have material properties
     if isempty(body.point_params)
