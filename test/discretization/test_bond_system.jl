@@ -192,3 +192,9 @@ end
     bond_ids = Peridynamics.find_bond_ids(n_neighbors)
     @test bond_ids == [1:3, 4:7, 8:12]
 end
+
+@testitem "log material properties" begin
+    mat = BBMaterial()
+    msg = Peridynamics.log_material_property(:kernel, mat)
+    @test msg == "horizon: 2.0\n"
+end
