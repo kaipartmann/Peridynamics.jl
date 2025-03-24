@@ -240,12 +240,9 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
     (; Cs) = zem_correction
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
         ωij = kernel(system, bond_id) * bond_active[bond_id]

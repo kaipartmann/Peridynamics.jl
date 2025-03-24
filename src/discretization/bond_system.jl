@@ -224,36 +224,52 @@ end
 
 function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem}, t, Δt)
     (; system, mat, paramsetup, storage) = chunk
+    (; dmgmodel) = mat
     storage.b_int .= 0
     storage.n_active_bonds .= 0
     for point_id in each_point_idx(chunk)
+        calc_failure!(storage, system, mat, dmgmodel, paramsetup, point_id)
+        calc_damage!(storage, system, mat, dmgmodel, paramsetup, point_id)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, point_id)
     end
     nancheck(chunk, t)
     return nothing
 end
 
-@inline function calc_damage!(chunk::AbstractBodyChunk{<:AbstractBondSystem})
-    (; n_neighbors) = chunk.system
-    (; n_active_bonds, damage) = chunk.storage
+function calc_failure!(storage::AbstractStorage, system::AbstractBondSystem,
+                       mat::AbstractBondSystemMaterial, dmgmodel::StretchBasedDamage,
+                       paramsetup::AbstractParameterSetup, i)
+    (; εc) = get_params(paramsetup, i)
+    (; position, n_active_bonds, bond_active) = storage
+    (; bonds) = system
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        Δxij = get_vector_diff(position, i, j)
+        l = norm(Δxij)
+        ε = (l - L) / L
+        if ε > εc && bond.fail_permit
+            bond_active[bond_id] = false
+        end
+        n_active_bonds[i] += bond_active[bond_id]
+    end
+    return nothing
+end
+
+function calc_damage!(chunk::AbstractBodyChunk{<:AbstractBondSystem})
+    (; system, mat, paramsetup, storage) = chunk
+    (; dmgmodel) = mat
     for point_id in each_point_idx(chunk)
-        @inbounds damage[point_id] = 1 - n_active_bonds[point_id] / n_neighbors[point_id]
+        calc_damage!(storage, system, mat, dmgmodel, paramsetup, point_id)
     end
     return nothing
 end
 
-@inline function stretch_based_failure!(storage::AbstractStorage, ::AbstractBondSystem,
-                                        bond::Bond, params::AbstractPointParameters,
-                                        ε::Float64, i::Int, bond_id::Int)
-    if ε > params.εc && bond.fail_permit
-        storage.bond_active[bond_id] = false
-    end
-    storage.n_active_bonds[i] += storage.bond_active[bond_id]
+function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
+                      mat::AbstractMaterial, dmgmodel::AbstractDamageModel,
+                      paramsetup::AbstractParameterSetup, i)
+    @inbounds storage.damage[i] = 1 - storage.n_active_bonds[i] / system.n_neighbors[i]
     return nothing
-end
-
-@inline function bond_failure(storage::AbstractStorage, bond_id::Int)
-    return storage.bond_active[bond_id]
 end
 
 function log_system(::Type{System}, options::AbstractJobOptions,
