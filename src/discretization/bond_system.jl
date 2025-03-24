@@ -344,12 +344,6 @@ function log_material(mat::M; indentation::Int=2) where {M<:AbstractBondSystemMa
     return msg
 end
 
-function log_material_property(prop::Val{S}, mat::AbstractBondSystemMaterial;
-                               indentation::Int=2) where {S}
-    msg = msg_qty(string(prop), getfield(mat, S); indentation)
-    return msg
-end
-
 function log_material_property(::Val{:dmgmodel}, mat::AbstractBondSystemMaterial;
                                indentation::Int=2)
     msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)

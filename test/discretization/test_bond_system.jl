@@ -200,7 +200,29 @@ end
 end
 
 @testitem "log material properties" begin
+    indentation = 0
+
     mat = BBMaterial()
-    msg = Peridynamics.log_material_property(:kernel, mat)
-    @test msg == "horizon: 2.0\n"
+    msg = Peridynamics.log_material_property(Val(:randomthing), mat; indentation)
+    @test msg == ""
+    msg = Peridynamics.log_material_property(Val(:dmgmodel), mat; indentation)
+    @test contains(msg, "CriticalStretch")
+
+    mat = OSBMaterial()
+    msg = Peridynamics.log_material_property(Val(:randomthing), mat; indentation)
+    @test msg == ""
+    msg = Peridynamics.log_material_property(Val(:dmgmodel), mat; indentation)
+    @test contains(msg, "CriticalStretch")
+    msg = Peridynamics.log_material_property(Val(:kernel), mat; indentation)
+    @test contains(msg, "linear_kernel")
+
+    mat = CMaterial()
+    msg = Peridynamics.log_material_property(Val(:randomthing), mat; indentation)
+    @test msg == ""
+    msg = Peridynamics.log_material_property(Val(:dmgmodel), mat; indentation)
+    @test contains(msg, "CriticalStretch")
+    msg = Peridynamics.log_material_property(Val(:kernel), mat; indentation)
+    @test contains(msg, "linear_kernel")
+    msg = Peridynamics.log_material_property(Val(:zem_stabilization), mat; indentation)
+    @test contains(msg, "ZEMSilling")
 end

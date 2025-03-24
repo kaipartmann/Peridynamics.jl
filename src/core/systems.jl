@@ -55,3 +55,15 @@ end
 @inline function init_field_system(system, field)
     return nothing
 end
+
+function log_material(mat::M; indentation::Int=2) where {M}
+    msg = msg_qty("material type", nameof(M); indentation)
+    for prop in fieldnames(M)
+        msg *= log_material_property(Val(prop), mat; indentation)
+    end
+    return msg
+end
+
+function log_material_property(::Val{S}, mat; indentation) where {S}
+    return ""
+end
