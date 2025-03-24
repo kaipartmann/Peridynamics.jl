@@ -128,6 +128,10 @@ function set_failure_permissions!(body::AbstractBody, set_name::Symbol,
 end
 
 function has_fracture(mat::AbstractMaterial, params::AbstractPointParameters)
+    return has_fracture(mat.dmgmodel, params)
+end
+
+function has_fracture(::CriticalStretch, params::AbstractPointParameters)
     if isapprox(params.Gc, 0; atol=eps()) || isapprox(params.εc, 0; atol=eps())
         return false
     else
