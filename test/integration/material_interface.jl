@@ -20,8 +20,8 @@ end
 @testitem "Point parameters declaration" begin
     import Peridynamics: AbstractBondSystemMaterial, NoCorrection, AbstractPointParameters,
                          InterfaceError, typecheck_params, constructor_check,
-                         point_param_type, material_type, get_point_params,
-                         macrocheck_input_material, macrocheck_input_params
+                         point_param_type, get_point_params, macrocheck_input_material,
+                         macrocheck_input_params
     struct TestMaterial2 <: AbstractBondSystemMaterial{NoCorrection} end
     struct TestPointParameters2 <: AbstractPointParameters
         δ::Float64
@@ -41,8 +41,6 @@ end
     @test isnothing(typecheck_params(TestMaterial2, TestPointParameters2))
     ie1 = InterfaceError(TestMaterial2, "point_param_type")
     @test_throws ie1 point_param_type(TestMaterial2())
-    ie2 = InterfaceError(TestPointParameters2, "material_type")
-    @test_throws ie2 material_type(tpp2)
     ie3 = InterfaceError(TestMaterial2, "get_point_params")
     @test_throws ie3 get_point_params(TestMaterial2(), Dict{Symbol,Any}())
 
