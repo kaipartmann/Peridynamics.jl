@@ -610,7 +610,7 @@ end
           MATERIAL
             material type ..................................................... BBMaterial
             correction type .................................... Peridynamics.NoCorrection
-            damage model type ............................ Peridynamics.CriticalStretch
+            damage model type ............................... Peridynamics.CriticalStretch
             MATERIAL PROPERTIES #1
               horizon .................................................................. 1
               density .................................................................. 1
@@ -672,7 +672,7 @@ end
             material type .................................................... OSBMaterial
             correction type .................................... Peridynamics.NoCorrection
             kernel function ................................................ linear_kernel
-            damage model type ............................ Peridynamics.CriticalStretch
+            damage model type ............................... Peridynamics.CriticalStretch
             MATERIAL PROPERTIES #1
               horizon .................................................................. 1
               density .................................................................. 1
@@ -735,7 +735,7 @@ end
             kernel function ................................................ linear_kernel
             constitutive model .............................. Peridynamics.LinearElastic()
             zero-energy mode stabilization ................ Peridynamics.ZEMSilling(100.0)
-            damage model type ............................ Peridynamics.CriticalStretch
+            damage model type ............................... Peridynamics.CriticalStretch
             maximum damage .......................................................... 0.85
             MATERIAL PROPERTIES #1
               horizon .................................................................. 1
@@ -799,7 +799,7 @@ end
             material type .................................................... BACMaterial
             kernel function ................................................ linear_kernel
             constitutive model .............................. Peridynamics.LinearElastic()
-            damage model type ............................ Peridynamics.CriticalStretch
+            damage model type ............................... Peridynamics.CriticalStretch
             maximum damage .......................................................... 0.85
             MATERIAL PROPERTIES #1
               horizon .................................................................. 1
@@ -863,7 +863,7 @@ end
             force density condition ................................. set `a`, dimension 2
           MATERIAL
             material type .................................................... CKIMaterial
-            damage model type ............................ Peridynamics.CriticalStretch
+            damage model type ............................... Peridynamics.CriticalStretch
             MATERIAL PROPERTIES #1
               horizon .................................................................. 1
               density .................................................................. 1
