@@ -223,7 +223,7 @@ end
 
 @testitem "log_param_property" begin
     p = Dict{Symbol,Any}(:E => 1, :nu => 0.25, :rho => 1, :horizon => 1)
-    param = Peridynamics.BBPointParameters(BBMaterial(), p)
+    param = Peridynamics.get_point_params(BBMaterial(), p)
     msg = Peridynamics.log_param_property(Val(:randomthing), param; indentation=0)
     @test msg == ""
     msg = Peridynamics.log_param_property(Val(:δ), param; indentation=0)

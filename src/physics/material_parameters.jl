@@ -267,7 +267,7 @@ function log_param_property(::Val{:K}, param; indentation)
 end
 
 function Base.show(io::IO, @nospecialize(params::AbstractPointParameters))
-    print(io, "Parameters ", material_type(params), ": ")
+    print(io, typeof(params), ": ")
     print(io, msg_fields_inline(params, (:δ, :E, :nu, :rho, :Gc)))
     return nothing
 end
