@@ -82,21 +82,7 @@ function BBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) where 
 end
 BBMaterial(; kwargs...) = BBMaterial{NoCorrection}(; kwargs...)
 
-struct BBPointParameters <: AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
-    bc::Float64
-end
-
-function BBPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
+function StandardPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
     par = get_given_elastic_params(p)
     (; E, nu, G, K, λ, μ) = par
     if isfinite(nu) && !isapprox(nu, 0.25)
@@ -116,10 +102,10 @@ function BBPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
     end
     (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
-    return BBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+    return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-@params BBMaterial BBPointParameters
+@params BBMaterial StandardPointParameters
 
 @storage BBMaterial struct BBStorage <: AbstractStorage
     @lthfield position::Matrix{Float64}
@@ -166,7 +152,7 @@ function calc_failure!(storage::BBStorage, system::BondSystem,
 end
 
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
-                              params::BBPointParameters, t, Δt, i)
+                              params::StandardPointParameters, t, Δt, i)
     (; position, bond_stretch, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)

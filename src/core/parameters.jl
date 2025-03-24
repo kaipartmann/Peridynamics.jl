@@ -80,3 +80,24 @@ function constructor_check(::Type{Material}, ::Type{Param}) where {Material,Para
     end
     return nothing
 end
+
+struct StandardPointParameters <: AbstractPointParameters
+    δ::Float64
+    rho::Float64
+    E::Float64
+    nu::Float64
+    G::Float64
+    K::Float64
+    λ::Float64
+    μ::Float64
+    Gc::Float64
+    εc::Float64
+    bc::Float64
+end
+
+function StandardPointParameters(mat::AbstractMaterial, p::Dict{Symbol,Any})
+    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
+    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
+    bc = 18 * K / (π * δ^4) # bond constant
+    return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+end

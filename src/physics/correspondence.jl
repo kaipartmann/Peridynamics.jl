@@ -146,28 +146,7 @@ function log_material_property(::Val{:maxdmg},
     return msg
 end
 
-struct CPointParameters <: AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
-    bc::Float64
-end
-
-function CPointParameters(mat::CMaterial, p::Dict{Symbol,Any})
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
-    return CPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
-end
-
-@params CMaterial CPointParameters
+@params CMaterial StandardPointParameters
 
 @storage CMaterial struct CStorage
     @lthfield position::Matrix{Float64}
@@ -220,7 +199,7 @@ function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
 end
 
 function calc_deformation_gradient(storage::CStorage, system::BondSystem, ::CMaterial,
-                                   ::CPointParameters, i)
+                                   ::StandardPointParameters, i)
     (; bonds, volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
@@ -244,7 +223,7 @@ function calc_deformation_gradient(storage::CStorage, system::BondSystem, ::CMat
 end
 
 function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
-                                     params::CPointParameters, defgrad_res, Δt, i)
+                                     params::StandardPointParameters, defgrad_res, Δt, i)
     (; F, Kinv) = defgrad_res
     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
     PKinv = P * Kinv
