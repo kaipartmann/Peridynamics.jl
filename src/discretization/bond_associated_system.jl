@@ -183,3 +183,7 @@ function log_material_property(prop::Val{S}, mat::AbstractBondAssociatedSystemMa
     msg = msg_qty(string(prop), getfield(mat, S); indentation)
     return msg
 end
+
+function log_param_property(::Val{:δb}, param; indentation)
+    return msg_qty("bond horizon", param.δb; indentation)
+end
