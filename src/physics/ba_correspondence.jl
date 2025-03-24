@@ -1,5 +1,5 @@
 """
-    BACMaterial(; kernel, model, maxdmg)
+    BACMaterial(; kernel, model, dmgmodel, maxdmg)
 
 A material type used to assign the material of a [`Body`](@ref) with the bond-associated
 correspondence formulation of Chen and Spencer (2019).
@@ -9,6 +9,8 @@ correspondence formulation of Chen and Spencer (2019).
     (default: `linear_kernel`)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
     (default: `LinearElastic()`)
+- `dmgmodel::AbstractDamageModel`: Damage model defining the fracture behavior.
+    (default: `StretchBasedDamage()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values.
@@ -18,13 +20,12 @@ correspondence formulation of Chen and Spencer (2019).
 
 ```julia-repl
 julia> mat = BACMaterial()
-CMaterial(maxdmg=0.95, zem_fac=ZEMSilling())
+BACMaterial{LinearElastic, typeof(linear_kernel), StretchBasedDamage}()
 ```
-
 ---
 
 ```julia
-BACMaterial{CM,K}
+BACMaterial{CM,K,DM}
 ```
 
 Material type for the bond-associated correspondence formulation of Chen and Spencer (2019).
@@ -32,10 +33,12 @@ Material type for the bond-associated correspondence formulation of Chen and Spe
 # Type Parameters
 - `CM`: A constitutive model type. See the constructor docs for more informations.
 - `K`: A kernel function type. See the constructor docs for more informations.
+- `DM`: A damage model type.
 
 # Fields
 - `kernel::Function`: Kernel function used for weighting the interactions between points.
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
+- `dmgmodel::AbstractDamageModel`: Damage model defining the fracture behavior.
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
     constructor docs for more informations.
 
@@ -195,7 +198,7 @@ function force_density_bond!(storage::BACStorage, system::BondAssociatedSystem,
     ΔXij = get_vector_diff(system.position, i, j)
 
     ωij = kernel(system, bond_idx) * storage.bond_active[bond_idx]
-    ϕi = volume_fraction_factor(system, i, bond_idx)
+     ϕi = volume_fraction_factor(system, i, bond_idx)
     tij = ϕi * ωij * PKinv * ΔXij
     update_add_vector!(storage.b_int, i, tij .* system.volume[j])
     update_add_vector!(storage.b_int, j, -tij .* system.volume[i])

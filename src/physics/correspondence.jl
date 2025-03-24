@@ -1,5 +1,5 @@
 """
-    CMaterial(; kernel, model, zem, maxdmg)
+    CMaterial(; kernel, model, zem, dmgmodel, maxdmg)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
@@ -20,6 +20,8 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 - `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
     stabilization algorithm of Silling (2017) is used as default. \\
     (default: `ZEMSilling()`)
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
+    (default: `StretchBasedDamage()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values. \\
@@ -34,13 +36,13 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 
 ```julia-repl
 julia> mat = CMaterial()
-CMaterial(maxdmg=0.85, zem=ZEMSilling())
+CMaterial(maxdmg=0.85, zem=ZEMSilling(), dmgmodel=StretchBasedDamage())
 ```
 
 ---
 
 ```julia
-CMaterial{CM,ZEM,K}
+CMaterial{CM,ZEM,K,DM}
 ```
 
 Material type for the local continuum consistent (correspondence) formulation of
@@ -51,6 +53,7 @@ non-ordinary state-based peridynamics.
 - `ZEM`: A zero-energy mode stabilization type. See the constructor docs for more
          informations.
 - `K`: A kernel function type. See the constructor docs for more informations.
+- `DM`: A damage model type. See the constructor docs for more informations.
 
 # Fields
 - `kernel::Function`: Kernel function used for weighting the interactions between points.
@@ -59,6 +62,8 @@ non-ordinary state-based peridynamics.
     the constructor docs for more informations.
 - `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. See the constructor docs
     for more informations.
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. See the
+    constructor docs for more informations.
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
     constructor docs for more informations.
 
