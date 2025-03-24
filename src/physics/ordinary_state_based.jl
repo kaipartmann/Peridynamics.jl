@@ -1,6 +1,6 @@
 """
-    OSBMaterial()
-    OSBMaterial{Correction}()
+    OSBMaterial(; kernel, dmgmodel)
+    OSBMaterial{Correction}(; kernel, dmgmodel)
 
 A material type used to assign the material of a [`Body`](@ref) with the ordinary
 state-based formulation of peridynamics.
@@ -10,26 +10,39 @@ Possible correction methods are:
 - [`EnergySurfaceCorrection`](@ref): The energy based surface correction method of
     Le and Bobaru (2018) is applied
 
+# Keywords
+- `kernel::Function`: Kernel function used for weighting the interactions between points. \\
+    (default: `linear_kernel`)
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
+    (default: `StretchBasedDamage()`)
+
 # Examples
 
 ```julia-repl
 julia> mat = OSBMaterial()
-OSBMaterial{NoCorrection}()
+OSBMaterial{NoCorrection}(dmgmodel=StretchBasedDamage())
 
 julia> mat = OSBMaterial{EnergySurfaceCorrection}()
-OSBMaterial{EnergySurfaceCorrection}()
+OSBMaterial{EnergySurfaceCorrection}(dmgmodel=StretchBasedDamage())
 ```
 
 ---
 
 ```julia
-OSBMaterial{Correction}
+OSBMaterial{Correction,K,DM}
 ```
 
 Material type for the ordinary state-based peridynamics formulation.
 
 # Type Parameters
 - `Correction`: A correction algorithm type. See the constructor docs for more informations.
+- `K`: A kernel function type. See the constructor docs for more informations.
+- `DM`: A damage model type. See the constructor docs for more informations.
+
+# Fields
+- `kernel::Function`: Kernel function used for weighting the interactions between points.
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. See the
+    constructor docs for more informations.
 
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `OSBMaterial`, then the following

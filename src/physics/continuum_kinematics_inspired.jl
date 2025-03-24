@@ -1,23 +1,34 @@
 """
-    CKIMaterial()
+    CKIMaterial(; dmgmodel)
 
 A material type used to assign the material of a [`Body`](@ref) with the
-continuum-kinematics-inspired peridynamics fomulation.
+continuum-kinematics-inspired peridynamics formulation.
+
+# Keywords
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
+    (default: `StretchBasedDamage()`)
 
 # Examples
 
 ```julia-repl
 julia> mat = CKIMaterial()
-CKIMaterial()
+CKIMaterial(dmgmodel=StretchBasedDamage())
 ```
 
 ---
 
 ```julia
-CKIMaterial
+CKIMaterial{DM}
 ```
 
 Material type for the continuum-kinematics-inspired peridynamics framework.
+
+# Type Parameters
+- `DM`: A damage model type. See the constructor docs for more informations.
+
+# Fields
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. See the
+    constructor docs for more informations.
 
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `CKIMaterial`, then the following

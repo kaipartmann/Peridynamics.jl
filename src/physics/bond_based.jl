@@ -1,10 +1,13 @@
-
 """
     BBMaterial()
     BBMaterial{Correction}()
 
 A material type used to assign the material of a [`Body`](@ref) with the standard bond-based
 formulation of peridynamics.
+
+# Keywords
+- `dmgmodel::AbstractDamageModel`: Damage model defining the fracture behavior.
+    (default: `StretchBasedDamage()`)
 
 Possible correction methods are:
 - [`NoCorrection`](@ref): No correction is applied. (default)
@@ -30,6 +33,7 @@ Material type for the bond-based peridynamics formulation.
 
 # Type Parameters
 - `Correction`: A correction algorithm type. See the constructor docs for more informations.
+- `DM`: A damage model type.
 
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `BBMaterial`, then the following
