@@ -545,3 +545,15 @@ function log_material_property(::Val{:dmgmodel}, mat::AbstractInteractionSystemM
     msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)
     return msg
 end
+
+function log_param_property(::Val{:C1}, param; indentation)
+    return msg_qty("parameter one-neighbor interactions", param.C1; indentation)
+end
+
+function log_param_property(::Val{:C2}, param; indentation)
+    return msg_qty("parameter two-neighbor interactions", param.C2; indentation)
+end
+
+function log_param_property(::Val{:C3}, param; indentation)
+    return msg_qty("parameter three-neighbor interactions", param.C3; indentation)
+end
