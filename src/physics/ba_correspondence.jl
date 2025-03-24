@@ -198,7 +198,7 @@ function force_density_bond!(storage::BACStorage, system::BondAssociatedSystem,
     ΔXij = get_vector_diff(system.position, i, j)
 
     ωij = kernel(system, bond_idx) * storage.bond_active[bond_idx]
-     ϕi = volume_fraction_factor(system, i, bond_idx)
+    ϕi = volume_fraction_factor(system, i, bond_idx)
     tij = ϕi * ωij * PKinv * ΔXij
     update_add_vector!(storage.b_int, i, tij .* system.volume[j])
     update_add_vector!(storage.b_int, j, -tij .* system.volume[i])
