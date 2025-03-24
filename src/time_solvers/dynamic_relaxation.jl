@@ -188,7 +188,6 @@ function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
     calc_force_density!(dh, t, Δt)
     @threads :static for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
-        calc_damage!(chunk)
         cn = calc_damping(chunk, Δt)
         if n == 1
             relaxation_first_step!(chunk, Δt)
@@ -207,7 +206,6 @@ function relaxation_timestep!(dh::AbstractMPIBodyDataHandler,
     @timeit_debug TO "apply_boundary_conditions!" apply_boundary_conditions!(chunk, t)
     @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
     calc_force_density!(dh, t, Δt)
-    @timeit_debug TO "calc_damage!" calc_damage!(chunk)
     @timeit_debug TO "relaxation_step!" if n == 1
         relaxation_first_step!(chunk, Δt)
     else
