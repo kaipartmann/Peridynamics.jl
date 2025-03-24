@@ -16,7 +16,7 @@
     @test body.posdep_single_dim_ics == Vector{Peridynamics.PosDepSingleDimIC}()
     @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
     @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
-    @test body.point_params == Vector{Peridynamics.StandardsPointParameters}()
+    @test body.point_params == Vector{Peridynamics.StandardPointParameters}()
     @test body.params_map == zeros(Int, n_points)
 end
 
