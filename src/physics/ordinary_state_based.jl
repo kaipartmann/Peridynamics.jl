@@ -92,28 +92,7 @@ function OSBMaterial{C}(; kernel::F=linear_kernel,
 end
 OSBMaterial(; kwargs...) = OSBMaterial{NoCorrection}(; kwargs...)
 
-struct OSBPointParameters <: AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
-    bc::Float64
-end
-
-function OSBPointParameters(mat::OSBMaterial, p::Dict{Symbol,Any})
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
-    return OSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
-end
-
-@params OSBMaterial OSBPointParameters
+@params OSBMaterial StandardPointParameters
 
 @storage OSBMaterial struct OSBStorage <: AbstractStorage
     @lthfield position::Matrix{Float64}
@@ -164,7 +143,7 @@ function calc_failure!(storage::OSBStorage, system::BondSystem,
 end
 
 function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::OSBPointParameters, t, Δt, i)
+                              params::StandardPointParameters, t, Δt, i)
     wvol = calc_weighted_volume(storage, system, mat, params, i)
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, mat, params, wvol, i)
@@ -212,7 +191,7 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
 end
 
 function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::OSBPointParameters, i)
+                              params::StandardPointParameters, i)
     wvol = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
@@ -227,7 +206,7 @@ function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBM
 end
 
 function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                         params::OSBPointParameters, wvol, i)
+                         params::StandardPointParameters, wvol, i)
     dil = 0.0
     c1 = 3.0 / wvol
     for bond_id in each_bond_idx(system, i)

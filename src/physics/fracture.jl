@@ -117,6 +117,10 @@ function get_frac_params(::CriticalStretch, p::Dict{Symbol,Any}, δ::Float64, K:
     return (; Gc, εc)
 end
 
+function get_frac_params(::AbstractDamageModel, p, δ, K)
+    return (; )
+end
+
 function set_failure_permissions!(body::AbstractBody, set_name::Symbol,
                                   params::AbstractPointParameters)
     if has_fracture(body.mat, params)

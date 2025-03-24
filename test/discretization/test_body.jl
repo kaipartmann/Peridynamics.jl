@@ -92,26 +92,29 @@ end
     # add material
     material!(body; horizon=1, E=1, rho=1, Gc=1)
     @test body.point_params == [
-        Peridynamics.BBPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666, 0.4,
-                                       0.4, 1.0, 0.9128709291752769, 3.819718634205488),
+        Peridynamics.StandardPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666,
+                                             0.4, 0.4, 1.0, 0.9128709291752769,
+                                             3.819718634205488),
     ]
     @test body.params_map == [1, 1, 1, 1]
 
     # add material to set
     material!(body, :a; horizon=2, E=2, rho=2, Gc=2)
     @test body.point_params == [
-        Peridynamics.BBPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666, 0.4,
-                                       0.4, 1.0, 0.9128709291752769, 3.819718634205488),
-        Peridynamics.BBPointParameters(2.0, 2.0, 2.0, 0.25, 0.8, 1.3333333333333333, 0.8,
-                                       0.8, 2.0, 0.6454972243679028, 0.477464829275686),
+        Peridynamics.StandardPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666,
+                                             0.4, 0.4, 1.0, 0.9128709291752769,
+                                             3.819718634205488),
+        Peridynamics.StandardPointParameters(2.0, 2.0, 2.0, 0.25, 0.8, 1.3333333333333333,
+                                             0.8, 0.8, 2.0, 0.6454972243679028,
+                                             0.477464829275686),
     ]
     @test body.params_map == [2, 2, 1, 1]
 
     # add material to body -> overwriting everything!
     material!(body; horizon=3, E=3, rho=3, Gc=3)
     @test body.point_params == [
-        Peridynamics.BBPointParameters(3.0, 3.0, 3.0, 0.25, 1.2, 2.0, 1.2, 1.2, 3.0,
-                                       0.5270462766947299, 0.1414710605261292),
+        Peridynamics.StandardPointParameters(3.0, 3.0, 3.0, 0.25, 1.2, 2.0, 1.2, 1.2, 3.0,
+                                             0.5270462766947299, 0.1414710605261292),
     ]
     @test body.params_map == [1, 1, 1, 1]
 end
@@ -213,8 +216,9 @@ end
     # add material
     material!(body; horizon=1, E=1, rho=1, Gc=1)
     @test body.point_params == [
-        Peridynamics.BBPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666, 0.4,
-                                       0.4, 1.0, 0.9128709291752769, 3.819718634205488),
+        Peridynamics.StandardPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666,
+                                             0.4, 0.4, 1.0, 0.9128709291752769,
+                                             3.819718634205488),
     ]
     @test body.params_map == [1, 1, 1, 1]
 
@@ -305,8 +309,9 @@ end
     # add material
     material!(body; horizon=1, E=1, rho=1, Gc=1)
     @test body.point_params == [
-        Peridynamics.BBPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666, 0.4,
-                                       0.4, 1.0, 0.9128709291752769, 3.819718634205488),
+        Peridynamics.StandardPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666,
+                                             0.4, 0.4, 1.0, 0.9128709291752769,
+                                             3.819718634205488),
     ]
     @test body.params_map == [1, 1, 1, 1]
 
