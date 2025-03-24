@@ -369,7 +369,7 @@ function calc_force_density!(chunk::AbstractBodyChunk{<:InteractionSystem}, t, Î
 end
 
 function calc_failure!(storage::AbstractStorage, system::InteractionSystem,
-                       mat::AbstractInteractionSystemMaterial, dmgmodel::StretchBasedDamage,
+                       mat::AbstractInteractionSystemMaterial, dmgmodel::CriticalStretch,
                        paramsetup::AbstractParameterSetup, i)
     (; Îµc) = get_params(paramsetup, i)
     (; position, n_active_one_nis, one_ni_active) = storage

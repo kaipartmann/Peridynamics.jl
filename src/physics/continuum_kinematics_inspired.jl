@@ -6,13 +6,13 @@ continuum-kinematics-inspired peridynamics formulation.
 
 # Keywords
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
-    (default: `StretchBasedDamage()`)
+    (default: `CriticalStretch()`)
 
 # Examples
 
 ```julia-repl
 julia> mat = CKIMaterial()
-CKIMaterial(dmgmodel=StretchBasedDamage())
+CKIMaterial(dmgmodel=CriticalStretch())
 ```
 
 ---
@@ -84,7 +84,7 @@ struct CKIMaterial{DM} <: AbstractInteractionSystemMaterial
     end
 end
 
-function CKIMaterial(; dmgmodel::AbstractDamageModel=StretchBasedDamage())
+function CKIMaterial(; dmgmodel::AbstractDamageModel=CriticalStretch())
     return CKIMaterial(dmgmodel)
 end
 

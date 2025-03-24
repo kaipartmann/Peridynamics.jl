@@ -4,7 +4,7 @@ struct TestMaterial{D} <: Peridynamics.AbstractBondSystemMaterial{Peridynamics.N
         new{D}(dmgmodel)
     end
 end
-function TestMaterial(; dmgmodel::Peridynamics.AbstractDamageModel=StretchBasedDamage())
+function TestMaterial(; dmgmodel::Peridynamics.AbstractDamageModel=CriticalStretch())
     return TestMaterial(dmgmodel)
 end
 struct TestPointParameters <: Peridynamics.AbstractPointParameters

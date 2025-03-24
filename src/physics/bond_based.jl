@@ -7,7 +7,7 @@ formulation of peridynamics.
 
 # Keywords
 - `dmgmodel::AbstractDamageModel`: Damage model defining the fracture behavior.
-    (default: `StretchBasedDamage()`)
+    (default: `CriticalStretch()`)
 
 Possible correction methods are:
 - [`NoCorrection`](@ref): No correction is applied. (default)
@@ -77,7 +77,7 @@ struct BBMaterial{Correction,DM} <: AbstractBondSystemMaterial{Correction}
     end
 end
 
-function BBMaterial{C}(; dmgmodel::AbstractDamageModel=StretchBasedDamage()) where {C}
+function BBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) where {C}
     return BBMaterial{C}(dmgmodel)
 end
 BBMaterial(; kwargs...) = BBMaterial{NoCorrection}(; kwargs...)
@@ -145,7 +145,7 @@ end
 
 # Customized calc_failure to save the bond stretch ε for force density calculation
 function calc_failure!(storage::BBStorage, system::BondSystem,
-                       ::BBMaterial, ::StretchBasedDamage,
+                       ::BBMaterial, ::CriticalStretch,
                        paramsetup::AbstractParameterSetup, i)
     (; εc) = get_params(paramsetup, i)
     (; position, n_active_bonds, bond_active, bond_stretch) = storage
