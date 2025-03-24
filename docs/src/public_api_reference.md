@@ -19,7 +19,7 @@ CKIMaterial
 
 ## System or material related types
 ```@docs
-StretchBasedDamage
+CriticalStretch
 NoCorrection
 EnergySurfaceCorrection
 ZEMSilling

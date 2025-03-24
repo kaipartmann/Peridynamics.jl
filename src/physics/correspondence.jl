@@ -21,7 +21,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     stabilization algorithm of Silling (2017) is used as default. \\
     (default: `ZEMSilling()`)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
-    (default: `StretchBasedDamage()`)
+    (default: `CriticalStretch()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values. \\
@@ -36,7 +36,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 
 ```julia-repl
 julia> mat = CMaterial()
-CMaterial(maxdmg=0.85, zem=ZEMSilling(), dmgmodel=StretchBasedDamage())
+CMaterial(maxdmg=0.85, zem=ZEMSilling(), dmgmodel=CriticalStretch())
 ```
 
 ---
@@ -118,7 +118,7 @@ end
 function CMaterial(; kernel::Function=linear_kernel,
                     model::AbstractConstitutiveModel=LinearElastic(),
                     zem::AbstractZEMStabilization=ZEMSilling(),
-                    dmgmodel::AbstractDamageModel=StretchBasedDamage(), maxdmg::Real=0.85)
+                    dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85)
     return CMaterial(kernel, model, zem, dmgmodel, maxdmg)
 end
 

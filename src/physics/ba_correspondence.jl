@@ -10,7 +10,7 @@ correspondence formulation of Chen and Spencer (2019).
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
     (default: `LinearElastic()`)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the fracture behavior.
-    (default: `StretchBasedDamage()`)
+    (default: `CriticalStretch()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values.
@@ -20,7 +20,7 @@ correspondence formulation of Chen and Spencer (2019).
 
 ```julia-repl
 julia> mat = BACMaterial()
-BACMaterial{LinearElastic, typeof(linear_kernel), StretchBasedDamage}()
+BACMaterial{LinearElastic, typeof(linear_kernel), CriticalStretch}()
 ```
 ---
 
@@ -77,7 +77,7 @@ end
 
 function BACMaterial(; kernel::Function=linear_kernel,
                      model::AbstractConstitutiveModel=LinearElastic(),
-                     dmgmodel::AbstractDamageModel=StretchBasedDamage(),
+                     dmgmodel::AbstractDamageModel=CriticalStretch(),
                      maxdmg::Real=0.85)
     return BACMaterial(kernel, model, dmgmodel, maxdmg)
 end

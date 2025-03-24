@@ -321,7 +321,7 @@ end
             new{DM}(dmgmodel)
         end
     end
-    Mat3(; dmgmodel::AbstractDamageModel=StretchBasedDamage()) = Mat3(dmgmodel)
+    Mat3(; dmgmodel::AbstractDamageModel=CriticalStretch()) = Mat3(dmgmodel)
     struct Params3 <: AbstractPointParameters
         δ::Float64
         rho::Float64

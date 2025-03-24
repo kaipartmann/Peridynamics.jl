@@ -1,5 +1,5 @@
 """
-    StretchBasedDamage
+    CriticalStretch
 
 A damage model based on the stretch of the bond. The bond is considered to be broken
 if the stretch exceeds a critical value.
@@ -7,7 +7,7 @@ The critical value can be defined via the fracture energy `Gc` or the critical s
 using the [`material!`](@ref) function. The damage model is defined globally for the whole
 body as part of the material.
 """
-struct StretchBasedDamage <: AbstractDamageModel end
+struct CriticalStretch <: AbstractDamageModel end
 
 @inline fracture_kwargs() = (:Gc, :epsilon_c)
 
@@ -95,7 +95,7 @@ function no_failure!(body::AbstractBody)
     return nothing
 end
 
-function get_frac_params(::StretchBasedDamage, p::Dict{Symbol,Any}, δ::Float64, K::Float64)
+function get_frac_params(::CriticalStretch, p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     local Gc::Float64
     local εc::Float64
 

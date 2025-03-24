@@ -14,16 +14,16 @@ Possible correction methods are:
 - `kernel::Function`: Kernel function used for weighting the interactions between points. \\
     (default: `linear_kernel`)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
-    (default: `StretchBasedDamage()`)
+    (default: `CriticalStretch()`)
 
 # Examples
 
 ```julia-repl
 julia> mat = OSBMaterial()
-OSBMaterial{NoCorrection}(dmgmodel=StretchBasedDamage())
+OSBMaterial{NoCorrection}(dmgmodel=CriticalStretch())
 
 julia> mat = OSBMaterial{EnergySurfaceCorrection}()
-OSBMaterial{EnergySurfaceCorrection}(dmgmodel=StretchBasedDamage())
+OSBMaterial{EnergySurfaceCorrection}(dmgmodel=CriticalStretch())
 ```
 
 ---
@@ -87,7 +87,7 @@ struct OSBMaterial{Correction,K,DM} <: AbstractBondSystemMaterial{Correction}
 end
 
 function OSBMaterial{C}(; kernel::F=linear_kernel,
-                        dmgmodel::AbstractDamageModel=StretchBasedDamage()) where{C,F}
+                        dmgmodel::AbstractDamageModel=CriticalStretch()) where{C,F}
     return OSBMaterial{C}(kernel, dmgmodel)
 end
 OSBMaterial(; kwargs...) = OSBMaterial{NoCorrection}(; kwargs...)
@@ -143,7 +143,7 @@ end
 
 # Customized calc_failure to save the bond length for force density calculation
 function calc_failure!(storage::OSBStorage, system::BondSystem,
-                       ::OSBMaterial, ::StretchBasedDamage,
+                       ::OSBMaterial, ::CriticalStretch,
                        paramsetup::AbstractParameterSetup, i)
     (; εc) = get_params(paramsetup, i)
     (; position, n_active_bonds, bond_active, bond_length) = storage
