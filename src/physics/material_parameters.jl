@@ -230,14 +230,40 @@ function get_E_and_nu(par)
     return (; E, nu)
 end
 
-function log_material_parameters(param::AbstractPointParameters; indentation::Int=2)
-    msg = msg_qty("horizon", param.δ; indentation=indentation)
-    msg *= msg_qty("density", param.rho; indentation=indentation)
-    msg *= msg_qty("Young's modulus", param.E; indentation=indentation)
-    msg *= msg_qty("Poisson's ratio", param.nu; indentation=indentation)
-    msg *= msg_qty("shear modulus", param.G; indentation=indentation)
-    msg *= msg_qty("bulk modulus", param.K; indentation=indentation)
+function log_material_parameters(param::P; indentation::Int=2) where {P}
+    msg = ""
+    for key in fieldnames(P)
+        msg *= log_param_property(Val(key), param; indentation)
+    end
     return msg
+end
+
+function log_param_property(::Val{S}, param; indentation) where {S}
+    return ""
+end
+
+function log_param_property(::Val{:δ}, param; indentation)
+    return msg_qty("horizon", param.δ; indentation)
+end
+
+function log_param_property(::Val{:rho}, param; indentation)
+    return msg_qty("density", param.rho; indentation)
+end
+
+function log_param_property(::Val{:E}, param; indentation)
+    return msg_qty("Young's modulus", param.E; indentation)
+end
+
+function log_param_property(::Val{:nu}, param; indentation)
+    return msg_qty("Poisson's ratio", param.nu; indentation)
+end
+
+function log_param_property(::Val{:G}, param; indentation)
+    return msg_qty("shear modulus", param.G; indentation)
+end
+
+function log_param_property(::Val{:K}, param; indentation)
+    return msg_qty("bulk modulus", param.K; indentation)
 end
 
 function Base.show(io::IO, @nospecialize(params::AbstractPointParameters))

@@ -1,5 +1,5 @@
 """
-    CMaterial(; kernel, model, zem, maxdmg)
+    CMaterial(; kernel, model, zem, dmgmodel, maxdmg)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
@@ -20,6 +20,8 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 - `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
     stabilization algorithm of Silling (2017) is used as default. \\
     (default: `ZEMSilling()`)
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
+    (default: `CriticalStretch()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values. \\
@@ -34,13 +36,13 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 
 ```julia-repl
 julia> mat = CMaterial()
-CMaterial(maxdmg=0.85, zem=ZEMSilling())
+CMaterial(maxdmg=0.85, zem=ZEMSilling(), dmgmodel=CriticalStretch())
 ```
 
 ---
 
 ```julia
-CMaterial{CM,ZEM,K}
+CMaterial{CM,ZEM,K,DM}
 ```
 
 Material type for the local continuum consistent (correspondence) formulation of
@@ -51,6 +53,7 @@ non-ordinary state-based peridynamics.
 - `ZEM`: A zero-energy mode stabilization type. See the constructor docs for more
          informations.
 - `K`: A kernel function type. See the constructor docs for more informations.
+- `DM`: A damage model type. See the constructor docs for more informations.
 
 # Fields
 - `kernel::Function`: Kernel function used for weighting the interactions between points.
@@ -59,6 +62,8 @@ non-ordinary state-based peridynamics.
     the constructor docs for more informations.
 - `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. See the constructor docs
     for more informations.
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. See the
+    constructor docs for more informations.
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
     constructor docs for more informations.
 
@@ -98,14 +103,23 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `stress::Matrix{Float64}`: Stress tensor of each point
 - `von_mises_stress::Vector{Float64}`: Von Mises stress of each point
 """
-struct CMaterial{CM,ZEM,K} <: AbstractCorrespondenceMaterial{CM,ZEM}
+struct CMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
     kernel::K
     constitutive_model::CM
     zem_stabilization::ZEM
+    dmgmodel::DM
     maxdmg::Float64
-    function CMaterial(kernel::K, cm::CM, zem::ZEM, maxdmg::Real) where {CM,ZEM,K}
-        return new{CM,ZEM,K}(kernel, cm, zem, maxdmg)
+    function CMaterial(kernel::K, cm::CM, zem::ZEM, dmgmodel::DM,
+                       maxdmg::Real) where {CM,ZEM,K,DM}
+        return new{CM,ZEM,K,DM}(kernel, cm, zem, dmgmodel, maxdmg)
     end
+end
+
+function CMaterial(; kernel::Function=linear_kernel,
+                    model::AbstractConstitutiveModel=LinearElastic(),
+                    zem::AbstractZEMStabilization=ZEMSilling(),
+                    dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85)
+    return CMaterial(kernel, model, zem, dmgmodel, maxdmg)
 end
 
 function Base.show(io::IO, @nospecialize(mat::CMaterial))
@@ -114,10 +128,22 @@ function Base.show(io::IO, @nospecialize(mat::CMaterial))
     return nothing
 end
 
-function CMaterial(; kernel::Function=linear_kernel,
-                    model::AbstractConstitutiveModel=LinearElastic(),
-                    zem::AbstractZEMStabilization=ZEMSilling(), maxdmg::Real=0.85)
-    return CMaterial(kernel, model, zem, maxdmg)
+function log_material_property(::Val{:constitutive_model},
+                               mat::AbstractCorrespondenceMaterial; indentation::Int=2)
+    msg = msg_qty("constitutive model", mat.constitutive_model; indentation)
+    return msg
+end
+
+function log_material_property(::Val{:zem_stabilization},
+                               mat::CMaterial; indentation::Int=2)
+    msg = msg_qty("zero-energy mode stabilization", mat.zem_stabilization; indentation)
+    return msg
+end
+
+function log_material_property(::Val{:maxdmg},
+                               mat::CMaterial; indentation::Int=2)
+    msg = msg_qty("maximum damage", mat.maxdmg; indentation)
+    return msg
 end
 
 struct CPointParameters <: AbstractPointParameters
@@ -136,7 +162,7 @@ end
 
 function CPointParameters(mat::CMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(p, δ, K)
+    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
     return CPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
@@ -237,12 +263,9 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
     (; Cs) = zem_correction
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
 
         # stabilization
         ωij = kernel(system, bond_id) * bond_active[bond_id]

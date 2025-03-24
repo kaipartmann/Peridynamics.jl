@@ -474,7 +474,7 @@ end
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
     msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+    @test msg == "10-point Body{BBMaterial}"
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
@@ -485,7 +485,7 @@ end
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
     msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+    @test msg == "10-point Body{BBMaterial}"
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
@@ -497,7 +497,7 @@ end
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
     msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+    @test msg == "10-point Body{BBMaterial}"
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
@@ -508,7 +508,7 @@ end
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
     msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+    @test msg == "10-point Body{BBMaterial}"
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
@@ -524,7 +524,7 @@ end
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
     msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+    @test msg == "10-point Body{BBMaterial}"
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
@@ -544,7 +544,7 @@ end
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
     msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+    @test msg == "10-point Body{BBMaterial}"
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
@@ -554,7 +554,7 @@ end
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
     msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial{NoCorrection}}"
+    @test msg == "10-point Body{BBMaterial}"
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
@@ -564,14 +564,14 @@ end
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), body)
     msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial{NoCorrection}} with name `testbody`"
+    @test msg == "10-point Body{BBMaterial} with name `testbody`"
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), body)
     msg = String(take!(io))
     @test contains(msg, "with name `testbody`")
 end
 
-@testitem "log_msg_body" begin
+@testitem "log_msg_body BBMaterial" begin
     # setup
     n_points = 10
     position, volume = uniform_box(1, 1, 1, 0.5)
@@ -608,7 +608,9 @@ end
             velocity condition ...................................... set `a`, dimension 1
             force density condition ................................. set `a`, dimension 2
           MATERIAL
-            material type ............. Peridynamics.BBMaterial{Peridynamics.NoCorrection}
+            material type ..................................................... BBMaterial
+            correction type .................................... Peridynamics.NoCorrection
+            damage model type ............................... Peridynamics.CriticalStretch
             MATERIAL PROPERTIES #1
               horizon .................................................................. 1
               density .................................................................. 1
@@ -616,6 +618,8 @@ end
               Poisson's ratio ....................................................... 0.25
               shear modulus .......................................................... 0.4
               bulk modulus ..................................................... 0.6666667
+              critical energy release rate ............................................. 1
+              critical stretch ................................................. 0.9128709
             MATERIAL PROPERTIES #2
               horizon .................................................................. 2
               density .................................................................. 2
@@ -623,6 +627,267 @@ end
               Poisson's ratio ....................................................... 0.25
               shear modulus .......................................................... 0.8
               bulk modulus ...................................................... 1.333333
+              critical energy release rate ............................................. 2
+              critical stretch ................................................. 0.6454972
+        """
+end
+
+@testitem "log_msg_body OSBMaterial" begin
+    # setup
+    n_points = 10
+    position, volume = uniform_box(1, 1, 1, 0.5)
+    body = Body(OSBMaterial(), position, volume)
+    point_set!(body, :a, 1:2)
+    material!(body, horizon=1, rho=1, E=1, nu=0.25, Gc=1)
+    material!(body, :a, horizon=2, rho=2, E=2, nu=0.25, Gc=2)
+    velocity_ic!(body, :a, :z, 1.0)
+    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
+    velocity_bc!(t -> t, body, :a, 1)
+    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
+    point_set!(body, :b, 3:4)
+    precrack!(body, :a, :b)
+    no_failure!(body, :a)
+    Peridynamics.change_name!(body, :testbody)
+
+    msg = Peridynamics.log_msg_body(body)
+
+    @test msg == """
+        BODY `testbody`
+          POINT CLOUD
+            number of points ........................................................... 8
+            min, max values x-direction ...................................... -0.25, 0.25
+            min, max values y-direction ...................................... -0.25, 0.25
+            min, max values z-direction ...................................... -0.25, 0.25
+          POINT SETS
+            number of points in set `a` ................................................ 2
+            number of points in set `all_points` ....................................... 8
+            number of points in set `b` ................................................ 2
+          INITIAL CONDITIONS
+            velocity condition ...................................... set `a`, dimension 3
+            velocity condition ...................................... set `a`, dimension 2
+          BOUNDARY CONDITIONS
+            velocity condition ...................................... set `a`, dimension 1
+            force density condition ................................. set `a`, dimension 2
+          MATERIAL
+            material type .................................................... OSBMaterial
+            correction type .................................... Peridynamics.NoCorrection
+            kernel function ................................................ linear_kernel
+            damage model type ............................... Peridynamics.CriticalStretch
+            MATERIAL PROPERTIES #1
+              horizon .................................................................. 1
+              density .................................................................. 1
+              Young's modulus .......................................................... 1
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.4
+              bulk modulus ..................................................... 0.6666667
+              critical energy release rate ............................................. 1
+              critical stretch ................................................. 0.9128709
+            MATERIAL PROPERTIES #2
+              horizon .................................................................. 2
+              density .................................................................. 2
+              Young's modulus .......................................................... 2
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.8
+              bulk modulus ...................................................... 1.333333
+              critical energy release rate ............................................. 2
+              critical stretch ................................................. 0.6454972
+        """
+end
+
+@testitem "log_msg_body CMaterial" begin
+    # setup
+    n_points = 10
+    position, volume = uniform_box(1, 1, 1, 0.5)
+    body = Body(CMaterial(), position, volume)
+    point_set!(body, :a, 1:2)
+    material!(body, horizon=1, rho=1, E=1, nu=0.25, Gc=1)
+    material!(body, :a, horizon=2, rho=2, E=2, nu=0.25, Gc=2)
+    velocity_ic!(body, :a, :z, 1.0)
+    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
+    velocity_bc!(t -> t, body, :a, 1)
+    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
+    point_set!(body, :b, 3:4)
+    precrack!(body, :a, :b)
+    no_failure!(body, :a)
+    Peridynamics.change_name!(body, :testbody)
+
+    msg = Peridynamics.log_msg_body(body)
+
+    @test msg == """
+        BODY `testbody`
+          POINT CLOUD
+            number of points ........................................................... 8
+            min, max values x-direction ...................................... -0.25, 0.25
+            min, max values y-direction ...................................... -0.25, 0.25
+            min, max values z-direction ...................................... -0.25, 0.25
+          POINT SETS
+            number of points in set `a` ................................................ 2
+            number of points in set `all_points` ....................................... 8
+            number of points in set `b` ................................................ 2
+          INITIAL CONDITIONS
+            velocity condition ...................................... set `a`, dimension 3
+            velocity condition ...................................... set `a`, dimension 2
+          BOUNDARY CONDITIONS
+            velocity condition ...................................... set `a`, dimension 1
+            force density condition ................................. set `a`, dimension 2
+          MATERIAL
+            material type ...................................................... CMaterial
+            kernel function ................................................ linear_kernel
+            constitutive model .............................. Peridynamics.LinearElastic()
+            zero-energy mode stabilization ................ Peridynamics.ZEMSilling(100.0)
+            damage model type ............................... Peridynamics.CriticalStretch
+            maximum damage .......................................................... 0.85
+            MATERIAL PROPERTIES #1
+              horizon .................................................................. 1
+              density .................................................................. 1
+              Young's modulus .......................................................... 1
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.4
+              bulk modulus ..................................................... 0.6666667
+              critical energy release rate ............................................. 1
+              critical stretch ................................................. 0.9128709
+            MATERIAL PROPERTIES #2
+              horizon .................................................................. 2
+              density .................................................................. 2
+              Young's modulus .......................................................... 2
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.8
+              bulk modulus ...................................................... 1.333333
+              critical energy release rate ............................................. 2
+              critical stretch ................................................. 0.6454972
+        """
+end
+
+
+@testitem "log_msg_body BACMaterial" begin
+    # setup
+    n_points = 10
+    position, volume = uniform_box(1, 1, 1, 0.5)
+    body = Body(BACMaterial(), position, volume)
+    point_set!(body, :a, 1:2)
+    material!(body, horizon=1, rho=1, E=1, nu=0.25, Gc=1)
+    material!(body, :a, horizon=2, rho=2, E=2, nu=0.25, Gc=2)
+    velocity_ic!(body, :a, :z, 1.0)
+    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
+    velocity_bc!(t -> t, body, :a, 1)
+    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
+    point_set!(body, :b, 3:4)
+    precrack!(body, :a, :b)
+    no_failure!(body, :a)
+    Peridynamics.change_name!(body, :testbody)
+
+    msg = Peridynamics.log_msg_body(body)
+
+    @test msg == """
+        BODY `testbody`
+          POINT CLOUD
+            number of points ........................................................... 8
+            min, max values x-direction ...................................... -0.25, 0.25
+            min, max values y-direction ...................................... -0.25, 0.25
+            min, max values z-direction ...................................... -0.25, 0.25
+          POINT SETS
+            number of points in set `a` ................................................ 2
+            number of points in set `all_points` ....................................... 8
+            number of points in set `b` ................................................ 2
+          INITIAL CONDITIONS
+            velocity condition ...................................... set `a`, dimension 3
+            velocity condition ...................................... set `a`, dimension 2
+          BOUNDARY CONDITIONS
+            velocity condition ...................................... set `a`, dimension 1
+            force density condition ................................. set `a`, dimension 2
+          MATERIAL
+            material type .................................................... BACMaterial
+            kernel function ................................................ linear_kernel
+            constitutive model .............................. Peridynamics.LinearElastic()
+            damage model type ............................... Peridynamics.CriticalStretch
+            maximum damage .......................................................... 0.85
+            MATERIAL PROPERTIES #1
+              horizon .................................................................. 1
+              bond horizon ............................................................. 1
+              density .................................................................. 1
+              Young's modulus .......................................................... 1
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.4
+              bulk modulus ..................................................... 0.6666667
+              critical energy release rate ............................................. 1
+              critical stretch ................................................. 0.9128709
+            MATERIAL PROPERTIES #2
+              horizon .................................................................. 2
+              bond horizon ............................................................. 2
+              density .................................................................. 2
+              Young's modulus .......................................................... 2
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.8
+              bulk modulus ...................................................... 1.333333
+              critical energy release rate ............................................. 2
+              critical stretch ................................................. 0.6454972
+        """
+end
+
+
+@testitem "log_msg_body CKIMaterial" begin
+    # setup
+    n_points = 10
+    position, volume = uniform_box(1, 1, 1, 0.5)
+    body = Body(CKIMaterial(), position, volume)
+    point_set!(body, :a, 1:2)
+    material!(body, horizon=1, rho=1, E=1, nu=0.25, Gc=1)
+    material!(body, :a, horizon=2, rho=2, E=2, nu=0.25, Gc=2)
+    velocity_ic!(body, :a, :z, 1.0)
+    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
+    velocity_bc!(t -> t, body, :a, 1)
+    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
+    point_set!(body, :b, 3:4)
+    precrack!(body, :a, :b)
+    no_failure!(body, :a)
+    Peridynamics.change_name!(body, :testbody)
+
+    msg = Peridynamics.log_msg_body(body)
+
+    @test msg == """
+        BODY `testbody`
+          POINT CLOUD
+            number of points ........................................................... 8
+            min, max values x-direction ...................................... -0.25, 0.25
+            min, max values y-direction ...................................... -0.25, 0.25
+            min, max values z-direction ...................................... -0.25, 0.25
+          POINT SETS
+            number of points in set `a` ................................................ 2
+            number of points in set `all_points` ....................................... 8
+            number of points in set `b` ................................................ 2
+          INITIAL CONDITIONS
+            velocity condition ...................................... set `a`, dimension 3
+            velocity condition ...................................... set `a`, dimension 2
+          BOUNDARY CONDITIONS
+            velocity condition ...................................... set `a`, dimension 1
+            force density condition ................................. set `a`, dimension 2
+          MATERIAL
+            material type .................................................... CKIMaterial
+            damage model type ............................... Peridynamics.CriticalStretch
+            MATERIAL PROPERTIES #1
+              horizon .................................................................. 1
+              density .................................................................. 1
+              Young's modulus .......................................................... 1
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.4
+              bulk modulus ..................................................... 0.6666667
+              critical energy release rate ............................................. 1
+              critical stretch ................................................. 0.9128709
+              parameter one-neighbor interactions ............................... 3.819719
+              parameter two-neighbor interactions ...................................... 0
+              parameter three-neighbor interactions .................................... 0
+            MATERIAL PROPERTIES #2
+              horizon .................................................................. 2
+              density .................................................................. 2
+              Young's modulus .......................................................... 2
+              Poisson's ratio ....................................................... 0.25
+              shear modulus .......................................................... 0.8
+              bulk modulus ...................................................... 1.333333
+              critical energy release rate ............................................. 2
+              critical stretch ................................................. 0.6454972
+              parameter one-neighbor interactions .............................. 0.4774648
+              parameter two-neighbor interactions ...................................... 0
+              parameter three-neighbor interactions .................................... 0
         """
 end
 

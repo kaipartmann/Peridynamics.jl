@@ -190,7 +190,6 @@ function verlet_timestep!(dh::AbstractThreadsBodyDataHandler, options::AbstractJ
     calc_force_density!(dh, t, Δt)
     @threads :static for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
-        calc_damage!(chunk)
         update_acc_and_vel!(chunk, Δt½)
         export_results(dh, options, chunk_id, n, t)
     end
@@ -217,7 +216,6 @@ function verlet_timestep!(dh::AbstractThreadsMultibodyDataHandler,
         @threads :static for chunk_id in eachindex(body_dh.chunks)
             exchange_halo_to_loc!(body_dh, chunk_id)
             chunk = body_dh.chunks[chunk_id]
-            calc_damage!(chunk)
             update_acc_and_vel!(chunk, Δt½)
             export_results(body_dh, options, chunk_id, n, t)
         end
@@ -233,7 +231,6 @@ function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractJobOp
     @timeit_debug TO "apply_boundary_conditions!" apply_boundary_conditions!(chunk, t)
     @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
     calc_force_density!(dh, t, Δt)
-    @timeit_debug TO "calc_damage!" calc_damage!(chunk)
     @timeit_debug TO "update_acc_and_vel!" update_acc_and_vel!(chunk, Δt½)
     @timeit_debug TO "export_results" export_results(dh, options, n, t)
     return nothing
