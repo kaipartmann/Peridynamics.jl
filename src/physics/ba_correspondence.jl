@@ -170,12 +170,8 @@ function force_density_bond!(storage::BACStorage, system::BondAssociatedSystem,
     PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i, bond_idx)
 
     bond = system.bonds[bond_idx]
-    j, L = bond.neighbor, bond.length
+    j = bond.neighbor
     ΔXij = get_vector_diff(system.position, i, j)
-    Δxij = get_vector_diff(storage.position, i, j)
-    l = norm(Δxij)
-    ε = (l - L) / L
-    stretch_based_failure!(storage, system, bond, params, ε, i, bond_idx)
 
     ωij = kernel(system, bond_idx) * storage.bond_active[bond_idx]
     ϕi = volume_fraction_factor(system, i, bond_idx)

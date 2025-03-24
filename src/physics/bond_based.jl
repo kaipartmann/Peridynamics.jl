@@ -129,42 +129,68 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
+    bond_stretch::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
 end
 
-function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
-                              params::BBPointParameters, t, Δt, i)
+function init_field(::BBMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:bond_stretch})
+    return zeros(get_n_bonds(system))
+end
+
+# Customized calc_failure to save the bond stretch ε for force density calculation
+function calc_failure!(storage::BBStorage, system::BondSystem,
+                       ::BBMaterial, ::StretchBasedDamage,
+                       paramsetup::AbstractParameterSetup, i)
+    (; εc) = get_params(paramsetup, i)
+    (; position, n_active_bonds, bond_active, bond_stretch) = storage
+    (; bonds) = system
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
+        bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(storage.position, i, j)
+        Δxij = get_vector_diff(position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
-        b_int = bond_failure(storage, bond_id) *
-                surface_correction_factor(system.correction, bond_id) *
-                params.bc * ε / l * system.volume[j] .* Δxij
-        update_add_vector!(storage.b_int, i, b_int)
+        bond_stretch[bond_id] = ε / l # note that this is  ε / l!
+        if ε > εc && bond.fail_permit
+            bond_active[bond_id] = false
+        end
+        n_active_bonds[i] += bond_active[bond_id]
+    end
+    return nothing
+end
+
+function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
+                              params::BBPointParameters, t, Δt, i)
+    (; position, bond_stretch, bond_active, b_int) = storage
+    (; bonds, correction, volume) = system
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j = bond.neighbor
+        Δxij = get_vector_diff(position, i, j)
+        ε = bond_stretch[bond_id]
+        ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        b = ω * params.bc * ε * volume[j] .* Δxij
+        update_add_vector!(b_int, i, b)
     end
     return nothing
 end
 
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
                               paramhandler::ParameterHandler, t, Δt, i)
+    (; position, bond_stretch, bond_active, b_int) = storage
+    (; bonds, correction, volume) = system
     params_i = get_params(paramhandler, i)
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(storage.position, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params_i, ε, i, bond_id)
+        bond = bonds[bond_id]
+        j = bond.neighbor
+        Δxij = get_vector_diff(position, i, j)
+        ε = bond_stretch[bond_id]
         params_j = get_params(paramhandler, j)
-        b_int = bond_failure(storage, bond_id) *
-                surface_correction_factor(system.correction, bond_id) *
-                (params_i.bc + params_j.bc) / 2 * ε / l * system.volume[j] .* Δxij
-        update_add_vector!(storage.b_int, i, b_int)
+        ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        b = ω * (params_i.bc + params_j.bc) / 2 * ε * volume[j] .* Δxij
+        update_add_vector!(b_int, i, b)
     end
     return nothing
 end

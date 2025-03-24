@@ -153,3 +153,13 @@ end
 function req_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
     return ()
 end
+
+# @inline function stretch_based_failure!(storage::AbstractStorage, ::AbstractBondSystem,
+#                                         bond::Bond, params::AbstractPointParameters,
+#                                         ε::Float64, i::Int, bond_id::Int)
+#     if ε > params.εc && bond.fail_permit
+#         storage.bond_active[bond_id] = false
+#     end
+#     storage.n_active_bonds[i] += storage.bond_active[bond_id]
+#     return nothing
+# end

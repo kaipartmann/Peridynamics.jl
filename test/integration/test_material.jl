@@ -55,8 +55,7 @@ function Peridynamics.force_density_point!(storage::TestStorage,
         Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
         l = Peridynamics.LinearAlgebra.norm(Δxij)
         ε = (l - L) / L
-        Peridynamics.stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
-        b_int = Peridynamics.bond_failure(storage, bond_id) *
+        b_int = storage.bond_active[bond_id] *
                 Peridynamics.surface_correction_factor(system.correction, bond_id) *
                 params.bc * ε / l * system.volume[j] .* Δxij
         Peridynamics.update_add_vector!(storage.b_int, i, b_int)

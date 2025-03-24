@@ -132,8 +132,8 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
         j, L = one_ni.neighbor, one_ni.length
         Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, one_ni, params, ε, i, one_ni_id)
+        # ε = (l - L) / L
+        # stretch_based_failure!(storage, system, one_ni, params, ε, i, one_ni_id)
         b_int = one_ni_failure(storage, one_ni_id) * params.C1 * (1 / L - 1 / l) *
                 system.volume_one_nis[i] .* Δxij
         update_add_vector!(storage.b_int, i, b_int)
@@ -149,8 +149,8 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
         j, L = one_ni.neighbor, one_ni.length
         Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, one_ni, params_i, ε, i, one_ni_id)
+        # ε = (l - L) / L
+        # stretch_based_failure!(storage, system, one_ni, params_i, ε, i, one_ni_id)
         params_j = get_params(paramhandler, j)
         b_int = one_ni_failure(storage, one_ni_id) * (params_i.C1 + params_j.C1) / 2 *
                 (1 / L - 1 / l) * system.volume_one_nis[i] .* Δxij

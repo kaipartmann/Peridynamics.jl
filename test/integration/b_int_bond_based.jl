@@ -4,7 +4,7 @@
     δ = 1.5
     E = 210e9
     body = Body(BBMaterial(), ref_position, volume)
-    material!(body, horizon=δ, rho=1, E=E, Gc=1.0)
+    material!(body, horizon=δ, rho=1, E=E)
     no_failure!(body)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
