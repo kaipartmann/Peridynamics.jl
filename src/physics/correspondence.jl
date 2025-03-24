@@ -123,6 +123,24 @@ function Base.show(io::IO, @nospecialize(mat::CMaterial))
     return nothing
 end
 
+function log_material_property(::Val{:constitutive_model},
+                               mat::AbstractCorrespondenceMaterial; indentation::Int=2)
+    msg = msg_qty("constitutive model", mat.constitutive_model; indentation)
+    return msg
+end
+
+function log_material_property(::Val{:zem_stabilization},
+                               mat::CMaterial; indentation::Int=2)
+    msg = msg_qty("zero-energy mode stabilization", mat.zem_stabilization; indentation)
+    return msg
+end
+
+function log_material_property(::Val{:maxdmg},
+                               mat::CMaterial; indentation::Int=2)
+    msg = msg_qty("maximum damage", mat.maxdmg; indentation)
+    return msg
+end
+
 struct CPointParameters <: AbstractPointParameters
     δ::Float64
     rho::Float64

@@ -231,12 +231,12 @@ function get_E_and_nu(par)
 end
 
 function log_material_parameters(param::AbstractPointParameters; indentation::Int=2)
-    msg = msg_qty("horizon", param.δ; indentation=indentation)
-    msg *= msg_qty("density", param.rho; indentation=indentation)
-    msg *= msg_qty("Young's modulus", param.E; indentation=indentation)
-    msg *= msg_qty("Poisson's ratio", param.nu; indentation=indentation)
-    msg *= msg_qty("shear modulus", param.G; indentation=indentation)
-    msg *= msg_qty("bulk modulus", param.K; indentation=indentation)
+    msg = msg_qty("horizon", param.δ; indentation)
+    msg *= msg_qty("density", param.rho; indentation)
+    msg *= msg_qty("Young's modulus", param.E; indentation)
+    msg *= msg_qty("Poisson's ratio", param.nu; indentation)
+    msg *= msg_qty("shear modulus", param.G; indentation)
+    msg *= msg_qty("bulk modulus", param.K; indentation)
     return msg
 end
 

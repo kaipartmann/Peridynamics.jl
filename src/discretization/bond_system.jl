@@ -237,7 +237,7 @@ function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem}, t, 
 end
 
 function calc_failure!(storage::AbstractStorage, system::AbstractBondSystem,
-                       mat::AbstractBondSystemMaterial, dmgmodel::StretchBasedDamage,
+                       mat::AbstractMaterial, dmgmodel::StretchBasedDamage,
                        paramsetup::AbstractParameterSetup, i)
     (; εc) = get_params(paramsetup, i)
     (; position, n_active_bonds, bond_active) = storage
@@ -334,3 +334,38 @@ function allowed_material_kwargs(::AbstractBondSystemMaterial)
 end
 
 @inline get_n_bonds(system::AbstractBondSystem) = length(system.bonds)
+
+function log_material(mat::M; indentation::Int=2) where {M<:AbstractBondSystemMaterial}
+    msg = msg_qty("material type", nameof(M); indentation)
+    msg *= msg_qty("correction type", correction_type(mat); indentation)
+    for prop in fieldnames(M)
+        msg *= log_material_property(Val(prop), mat; indentation)
+    end
+    return msg
+end
+
+function log_material_property(prop::Val{S}, mat::AbstractBondSystemMaterial;
+                               indentation::Int=2) where {S}
+    msg = msg_qty(string(prop), getfield(mat, S); indentation)
+    return msg
+end
+
+function log_material_property(::Val{:dmgmodel}, mat::AbstractBondSystemMaterial;
+                               indentation::Int=2)
+    msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)
+    return msg
+end
+
+function log_material_property(::Val{:kernel}, mat::AbstractBondSystemMaterial;
+                               indentation::Int=2)
+    msg = msg_qty("kernel function", mat.kernel; indentation)
+    return msg
+end
+
+function log_material(mat::M; indentation::Int=2) where {M<:AbstractCorrespondenceMaterial}
+    msg = msg_qty("material type", nameof(M); indentation)
+    for prop in fieldnames(M)
+        msg *= log_material_property(Val(prop), mat; indentation)
+    end
+    return msg
+end

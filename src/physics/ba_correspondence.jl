@@ -85,6 +85,27 @@ function Base.show(io::IO, @nospecialize(mat::BACMaterial))
     return nothing
 end
 
+function log_material_property(::Val{:kernel}, mat::BACMaterial; indentation::Int)
+    msg = msg_qty("kernel function", mat.kernel; indentation)
+    return msg
+end
+
+function log_material_property(::Val{:dmgmodel}, mat::BACMaterial; indentation::Int)
+    msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)
+    return msg
+end
+
+function log_material_property(::Val{:constitutive_model}, mat::BACMaterial;
+                               indentation::Int)
+    msg = msg_qty("constitutive model", mat.constitutive_model; indentation)
+    return msg
+end
+
+function log_material_property(::Val{:maxdmg}, mat::BACMaterial; indentation::Int)
+    msg = msg_qty("maximum damage", mat.maxdmg; indentation)
+    return msg
+end
+
 struct BACPointParameters <: AbstractPointParameters
     δ::Float64
     δb::Float64

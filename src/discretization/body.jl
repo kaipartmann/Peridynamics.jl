@@ -182,7 +182,7 @@ function Body(mat::AbstractMaterial, inp_file::AbstractString)
     return body
 end
 
-@inline material_type(::AbstractBody{M}) where {M} = M
+@inline material_type(::AbstractBody{M}) where {M} = M.name.wrapper
 
 function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
     # check if n_points is greater than zero
@@ -286,7 +286,7 @@ function log_msg_body(body::AbstractBody)
         msg *= msg_qty(descr, settings; indentation=4)
     end
     msg *= "  MATERIAL\n"
-    msg *= msg_qty("material type", material_type(body); indentation=4)
+    msg *= log_material(body.mat; indentation=4)
     n_point_params = length(body.point_params)
     if n_point_params == 1
         msg *= log_material_parameters(first(body.point_params); indentation=4)
