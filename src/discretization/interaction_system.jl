@@ -525,21 +525,6 @@ end
 
 @inline get_n_one_nis(system::InteractionSystem) = length(system.one_nis)
 
-function log_material(mat::M;
-                      indentation::Int=2) where {M<:AbstractInteractionSystemMaterial}
-    msg = msg_qty("material type", nameof(M); indentation)
-    for prop in fieldnames(M)
-        msg *= log_material_property(Val(prop), mat; indentation)
-    end
-    return msg
-end
-
-function log_material_property(prop::Val{S}, mat::AbstractInteractionSystemMaterial;
-                               indentation::Int=2) where {S}
-    msg = msg_qty(string(prop), getfield(mat, S); indentation)
-    return msg
-end
-
 function log_material_property(::Val{:dmgmodel}, mat::AbstractInteractionSystemMaterial;
                                indentation::Int=2)
     msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)
