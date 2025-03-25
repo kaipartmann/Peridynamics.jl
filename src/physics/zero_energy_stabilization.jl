@@ -49,8 +49,14 @@ end
 
 function get_hooke_matrix(nu, λ, μ)
     a = (1 - nu) * λ / nu
-    CVoigt = SMatrix{6,6}(a, λ, 0, 0, 0, 0, λ, a, λ, 0, 0, 0, λ, λ, a, 0, 0, 0, 0,
-                          0, 0, μ, 0, 0, 0, 0, 0, 0, μ, 0, 0, 0, 0, 0, 0, μ)
+    CVoigt = SMatrix{6,6,Float64,36}(
+        a, λ, λ, 0, 0, 0,
+        λ, a, λ, 0, 0, 0,
+        λ, λ, a, 0, 0, 0,
+        0, 0, 0, μ, 0, 0,
+        0, 0, 0, 0, μ, 0,
+        0, 0, 0, 0, 0, μ
+    )
     C = @MArray zeros(3,3,3,3)
     C .= fromvoigt(SymmetricTensor{4,3}, CVoigt)
     return C
