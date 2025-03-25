@@ -13,6 +13,7 @@ Pages = ["public_api_reference.md"]
 BBMaterial
 OSBMaterial
 CMaterial
+CRMaterial
 BACMaterial
 CKIMaterial
 ```
