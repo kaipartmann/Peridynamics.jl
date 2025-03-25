@@ -103,50 +103,36 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `stress::Matrix{Float64}`: Stress tensor of each point
 - `von_mises_stress::Vector{Float64}`: Von Mises stress of each point
 """
-struct CMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
+struct CRMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
     kernel::K
     constitutive_model::CM
     zem_stabilization::ZEM
     dmgmodel::DM
     maxdmg::Float64
-    function CMaterial(kernel::K, cm::CM, zem::ZEM, dmgmodel::DM,
+    function CRMaterial(kernel::K, cm::CM, zem::ZEM, dmgmodel::DM,
                        maxdmg::Real) where {CM,ZEM,K,DM}
         return new{CM,ZEM,K,DM}(kernel, cm, zem, dmgmodel, maxdmg)
     end
 end
 
-function CMaterial(; kernel::Function=linear_kernel,
+function CRMaterial(; kernel::Function=linear_kernel,
                     model::AbstractConstitutiveModel=LinearElastic(),
                     zem::AbstractZEMStabilization=ZEMSilling(),
                     dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85)
-    return CMaterial(kernel, model, zem, dmgmodel, maxdmg)
+    if !(model isa LinearElastic)
+        msg = "only `LinearElastic` is supported as model for `CRMaterial`!\n"
+        throw(ArgumentError(msg))
+    end
+    return CRMaterial(kernel, model, zem, dmgmodel, maxdmg)
 end
 
-function Base.show(io::IO, @nospecialize(mat::CMaterial))
-    print(io, typeof(mat))
-    print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
-    return nothing
-end
+@params CRMaterial StandardPointParameters
 
-function log_material_property(::Val{:constitutive_model}, mat; indentation)
-    return msg_qty("constitutive model", mat.constitutive_model; indentation)
-end
-
-function log_material_property(::Val{:zem_stabilization}, mat; indentation)
-    return msg_qty("zero-energy mode stabilization", mat.zem_stabilization; indentation)
-end
-
-function log_material_property(::Val{:maxdmg}, mat; indentation)
-    return msg_qty("maximum damage", mat.maxdmg; indentation)
-end
-
-@params CMaterial StandardPointParameters
-
-@storage CMaterial struct CStorage
+@storage CRMaterial struct CRStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
+    @lthfield velocity_half::Matrix{Float64}
     @pointfield velocity_half_old::Matrix{Float64}
     @pointfield acceleration::Matrix{Float64}
     @htlfield b_int::Matrix{Float64}
@@ -158,109 +144,211 @@ end
     @pointfield n_active_bonds::Vector{Int}
     @pointfield stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
+    @pointfield left_stretch::Matrix{Float64}
+    @pointfield rotation::Matrix{Float64}
 end
 
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:velocity_half})
     return zeros(3, get_n_points(system))
 end
 
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
+    return zeros(3, get_n_points(system))
+end
+
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
     return zeros(9, get_n_loc_points(system))
 end
 
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem,
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:von_mises_stress})
     return zeros(get_n_loc_points(system))
 end
 
-function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
-                              mat::AbstractCorrespondenceMaterial,
-                              paramhandler::AbstractParameterHandler, t, Δt, i)
-    params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, t, Δt, i)
-    return nothing
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:left_stretch})
+    V = zeros(9, get_n_loc_points(system))
+    V[[1, 5, 9], :] .= 1.0
+    return V
 end
 
-function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
-                              mat::AbstractCorrespondenceMaterial,
-                              params::AbstractPointParameters, t, Δt, i)
-    defgrad_res = calc_deformation_gradient(storage, system, mat, params, i)
-    too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
-    PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)
-    zem = mat.zem_stabilization
-    c_force_density!(storage, system, mat, params, zem, PKinv, defgrad_res, i)
-    return nothing
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:rotation})
+    R = zeros(9, get_n_loc_points(system))
+    R[[1, 5, 9], :] .= 1.0
+    return R
 end
 
-function calc_deformation_gradient(storage::CStorage, system::BondSystem, ::CMaterial,
+function calc_deformation_gradient(storage::CRStorage, system::BondSystem, ::CRMaterial,
                                    ::StandardPointParameters, i)
     (; bonds, volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
+    _Ḟ = zero(SMatrix{3,3,Float64,9})
     ω0 = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
+        Δvij = get_vector_diff(storage.velocity_half, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
         ω0 += ωij
         temp = ωij * volume[j]
         ΔXijt = ΔXij'
         K += temp * (ΔXij * ΔXijt)
         _F += temp * (Δxij * ΔXijt)
+        _Ḟ += temp * (Δvij * ΔXijt)
     end
     Kinv = inv(K)
     F = _F * Kinv
-    return (; F, Kinv, ω0)
+    Ḟ = _Ḟ * Kinv
+    return (; F, Ḟ, Kinv, ω0)
 end
 
-function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
+function calc_first_piola_kirchhoff!(storage::CRStorage, mat::CRMaterial,
                                      params::StandardPointParameters, defgrad_res, Δt, i)
-    (; F, Kinv) = defgrad_res
-    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+
+    ### New implementation
+    (; F, Ḟ, Kinv) = defgrad_res
+    D = init_stress_rotation!(storage, F, Ḟ, Δt, i)
+    if iszero(D)
+        storage.von_mises_stress[i] = 0.0
+        return zero(SMatrix{3,3,Float64,9})
+    end
+    Δε = D * Δt
+    Δθ = tr(Δε)
+    Δεᵈᵉᵛ = Δε - Δθ / 3 * I
+    σ = get_tensor(storage.stress, i)
+    σₙ₊₁ = σ + 2 * params.G * Δεᵈᵉᵛ + params.K * Δθ * I
+    update_tensor!(storage.stress, i, σₙ₊₁)
+    T = rotate_stress(storage, σₙ₊₁, i)
+    storage.von_mises_stress[i] = von_mises_stress(T)
+    P = first_piola_kirchhoff(T, F)
     PKinv = P * Kinv
-    σ = cauchy_stress(P, F)
-    update_tensor!(storage.stress, i, σ)
-    storage.von_mises_stress[i] = von_mises_stress(σ)
     return PKinv
+
+
+
+    # ### SaintVenantKirchhoff
+    # (; F, Ḟ, Kinv) = defgrad_res
+
+    # # Compute Green-Lagrange strain tensor
+    # E = 0.5 .* (F' * F - I)
+
+    # # Compute strain rate (Lie derivative of Green-Lagrange strain)
+    # Ė = symmetrize(F' * Ḟ)  # Time derivative of strain tensor
+
+    # # Retrieve previous stress tensor (Second Piola-Kirchhoff stress)
+    # S_prev = get_tensor(storage.stress, i)
+
+    # # Compute stress rate (Lie derivative of the Second Piola-Kirchhoff stress)
+    # S_dot = params.λ * tr(Ė) * I + 2 * params.μ * Ė
+
+    # # Incremental stress update
+    # S_new = S_prev + S_dot * Δt
+
+    # # Store updated stress tensor
+    # update_tensor!(storage.stress, i, S_new)
+
+    # # Convert to First Piola-Kirchhoff stress
+    # P = F * S_new
+
+    # # Apply objectivity enforcement using Flanagan & Taylor's rotation algorithm
+    # D = init_stress_rotation!(storage, F, Ḟ, Δt, i)
+
+    # if iszero(D)
+    #     storage.von_mises_stress[i] = 0.0
+    #     return zero(SMatrix{3,3,Float64,9})
+    # end
+
+    # # Rotate stress tensor
+    # P_rotated = rotate_stress(storage, P, i)
+
+    # # Compute von Mises stress (for monitoring)
+    # storage.von_mises_stress[i] = von_mises_stress(P_rotated)
+
+    # # Convert to final stress measure
+    # PKinv = P_rotated * Kinv
+
+
+
+
+    # ### Neo-NeoHooke
+    # (; F, Ḟ, Kinv) = defgrad_res
+
+    # # Compute deformation tensors
+    # J = det(F)                # Jacobian determinant
+
+    # # Prevent issues with inversion if J is too small
+    # if J < 1e-8
+    #     @warn "Jacobian determinant J = $J is too small, setting J = 1e-8"
+    #     J = 1e-8  # Prevent singularities
+    # end
+
+    # C = F' * F                # Right Cauchy-Green strain tensor
+    # Cinv = safe_inverse(C)    # Use a stabilized inverse function
+    # I1 = tr(C)                # First invariant of C
+    # μ, κ = params.μ, params.K # Shear and bulk modulus
+
+    # # Compute strain rate (Lie derivative of C)
+    # Ċ = symmetrize(F' * Ḟ)
+
+    # # Ensure the trace computation is numerically stable
+    # tr_Ċ = tr(Ċ)
+    # if tr_Ċ < 0 && abs(tr_Ċ) < 1e-12  # Numerical noise handling
+    #     tr_Ċ = 0.0
+    # end
+
+    # # Compute stress rate (Lie derivative of Second Piola-Kirchhoff stress)
+    # S_dot = μ * J^(-2/3) * (I - (1/3) * I1 * Cinv) * Ċ - (2/3) * μ * J^(-2/3) * tr_Ċ * Cinv +
+    #         κ * (J - 1) * J * Cinv * tr_Ċ
+
+    # # Retrieve previous stress tensor (Second Piola-Kirchhoff stress)
+    # S_prev = get_tensor(storage.stress, i)
+
+    # # Incremental stress update
+    # S_new = S_prev + S_dot * Δt
+
+    # # Store updated stress tensor
+    # update_tensor!(storage.stress, i, S_new)
+
+    # # Convert to First Piola-Kirchhoff stress
+    # P = F * S_new
+
+    # # Apply objectivity enforcement using Flanagan & Taylor's rotation algorithm
+    # D = init_stress_rotation!(storage, F, Ḟ, Δt, i)
+
+    # if iszero(D)
+    #     storage.von_mises_stress[i] = 0.0
+    #     return zero(SMatrix{3,3,Float64,9})
+    # end
+
+    # # Rotate stress tensor
+    # P_rotated = rotate_stress(storage, P, i)
+
+    # # Compute von Mises stress (for monitoring)
+    # storage.von_mises_stress[i] = von_mises_stress(P_rotated)
+
+    # # Convert to final stress measure
+    # PKinv = P_rotated * Kinv
+
+    # return PKinv
 end
 
-function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
-                          ::AbstractCorrespondenceMaterial, params::AbstractPointParameters,
-                          zem_correction::ZEMSilling, PKinv, defgrad_res, i)
-    (; bonds, volume) = system
-    (; bond_active) = storage
-    (; F, ω0) = defgrad_res
-    (; Cs) = zem_correction
-    for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
-        ΔXij = get_vector_diff(system.position, i, j)
-        Δxij = get_vector_diff(storage.position, i, j)
+# # Safe inverse function to prevent singularity issues
+# @inline function safe_inverse(A::SMatrix{3,3,T,9}) where T
+#     try
+#         return inv(A)
+#     catch e
+#         @warn "Matrix inversion failed, returning identity matrix as fallback"
+#         return I
+#     end
+# end
 
-        # stabilization
-        ωij = kernel(system, bond_id) * bond_active[bond_id]
-        tzem = Cs .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
-
-        # update of force density
-        tij = ωij * PKinv * ΔXij + tzem
-        update_add_vector!(storage.b_int, i, tij .* volume[j])
-        update_add_vector!(storage.b_int, j, -tij .* volume[i])
-    end
-    return nothing
-end
-
-function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
-                          mat::AbstractCorrespondenceMaterial, defgrad_res, i)
-    (; F) = defgrad_res
-    # if storage.n_active_bonds[i] ≤ 3 || storage.damage[i] > mat.maxdmg || containsnan(F)
-    if storage.damage[i] > mat.maxdmg || containsnan(F)
-        # kill all bonds of this point
-        storage.bond_active[each_bond_idx(system, i)] .= false
-        storage.n_active_bonds[i] = 0
-        return true
-    end
-    return false
-end
+# Helper function to ensure symmetry
+# @inline function symmetrize(A::SMatrix{3,3,T,9}) where T
+#     return 0.5 * (A + A')
+# end
