@@ -57,7 +57,21 @@ function get_hooke_matrix(nu, λ, μ)
         0, 0, 0, 0, μ, 0,
         0, 0, 0, 0, 0, μ
     )
-    C = @MArray zeros(3,3,3,3)
-    C .= fromvoigt(SymmetricTensor{4,3}, CVoigt)
+
+    C = MArray{Tuple{3,3,3,3}, Float64}(undef)
+
+    # Voigt notation index mapping
+    voigt_map = @SVector [(1,1), (2,2), (3,3), (2,3), (1,3), (1,2)]
+
+    # Convert Voigt matrix to full 3x3x3x3 tensor
+    for I in 1:6, J in 1:6
+        i1, i2 = voigt_map[I]
+        j1, j2 = voigt_map[J]
+        C[i1, i2, j1, j2] = CVoigt[I, J]
+        C[i2, i1, j1, j2] = CVoigt[I, J]
+        C[i1, i2, j2, j1] = CVoigt[I, J]
+        C[i2, i1, j2, j1] = CVoigt[I, J]
+    end
+
     return C
 end
