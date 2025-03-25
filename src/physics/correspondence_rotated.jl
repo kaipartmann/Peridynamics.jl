@@ -1,5 +1,5 @@
 """
-    CMaterial(; kernel, model, zem, dmgmodel, maxdmg)
+    CRMaterial(; kernel, model, zem, dmgmodel, maxdmg)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
@@ -12,16 +12,13 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     - [`cubic_b_spline_kernel`](@ref)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
     (default: `LinearElastic()`) \\
-    The following models can be used:
+    Only the following model can be used:
     - [`LinearElastic`](@ref)
-    - [`NeoHooke`](@ref)
-    - [`MooneyRivlin`](@ref)
-    - [`SaintVenantKirchhoff`](@ref)
 - `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
     stabilization algorithm of Silling (2017) is used as default. \\
-    (default: `ZEMSilling()`)
+    (default: [`ZEMSilling`](@ref))
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
-    (default: `CriticalStretch()`)
+    (default: [`CriticalStretch`](@ref))
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values. \\
@@ -35,14 +32,14 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 # Examples
 
 ```julia-repl
-julia> mat = CMaterial()
-CMaterial(maxdmg=0.85, zem=ZEMSilling(), dmgmodel=CriticalStretch())
+julia> mat = CRMaterial()
+CRMaterial{LinearElastic, ZEMSilling, typeof(linear_kernel), CriticalStretch}(maxdmg=0.85)
 ```
 
 ---
 
 ```julia
-CMaterial{CM,ZEM,K,DM}
+CRMaterial{CM,ZEM,K,DM}
 ```
 
 Material type for the local continuum consistent (correspondence) formulation of
@@ -68,7 +65,7 @@ non-ordinary state-based peridynamics.
     constructor docs for more informations.
 
 # Allowed material parameters
-When using [`material!`](@ref) on a [`Body`](@ref) with `CMaterial`, then the following
+When using [`material!`](@ref) on a [`Body`](@ref) with `CRMaterial`, then the following
 parameters are allowed:
 Material parameters:
 - `horizon::Float64`: Radius of point interactions
@@ -90,7 +87,7 @@ Fracture parameters:
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
-`CMaterial`, the following fields are allowed:
+`CRMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point
 - `displacement::Matrix{Float64}`: Displacement of each point
 - `velocity::Matrix{Float64}`: Velocity of each point
@@ -124,6 +121,12 @@ function CRMaterial(; kernel::Function=linear_kernel,
         throw(ArgumentError(msg))
     end
     return CRMaterial(kernel, model, zem, dmgmodel, maxdmg)
+end
+
+function Base.show(io::IO, @nospecialize(mat::CRMaterial))
+    print(io, typeof(mat))
+    print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
+    return nothing
 end
 
 @params CRMaterial StandardPointParameters

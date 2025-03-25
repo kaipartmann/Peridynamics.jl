@@ -19,9 +19,9 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     - [`SaintVenantKirchhoff`](@ref)
 - `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
     stabilization algorithm of Silling (2017) is used as default. \\
-    (default: `ZEMSilling()`)
+    (default: [`ZEMSilling`](@ref))
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
-    (default: `CriticalStretch()`)
+    (default: [`CriticalStretch`](@ref))
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values. \\
@@ -36,7 +36,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 
 ```julia-repl
 julia> mat = CMaterial()
-CMaterial(maxdmg=0.85, zem=ZEMSilling(), dmgmodel=CriticalStretch())
+CMaterial{LinearElastic, ZEMSilling, typeof(linear_kernel), CriticalStretch}(maxdmg=0.85)
 ```
 
 ---
