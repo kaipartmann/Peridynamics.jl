@@ -129,7 +129,7 @@ function Base.show(io::IO, @nospecialize(mat::CRMaterial))
     return nothing
 end
 
-@params CRMaterial StandardPointParameters
+@params CRMaterial CPointParameters
 
 @storage CRMaterial struct CRStorage
     @lthfield position::Matrix{Float64}
@@ -149,6 +149,7 @@ end
     @pointfield von_mises_stress::Vector{Float64}
     @pointfield left_stretch::Matrix{Float64}
     @pointfield rotation::Matrix{Float64}
+    zem_stiffness_rotated::MArray{NTuple{4,3},Float64,4,81}
 end
 
 function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
@@ -183,8 +184,13 @@ function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
     return R
 end
 
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:zem_stiffness_rotated})
+    return zero(MArray{NTuple{4,3},Float64,4,81})
+end
+
 function calc_deformation_gradient(storage::CRStorage, system::BondSystem, ::CRMaterial,
-                                   ::StandardPointParameters, i)
+                                   ::CPointParameters, i)
     (; bonds, volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
@@ -212,7 +218,7 @@ function calc_deformation_gradient(storage::CRStorage, system::BondSystem, ::CRM
 end
 
 function calc_first_piola_kirchhoff!(storage::CRStorage, mat::CRMaterial,
-                                     params::StandardPointParameters, defgrad_res, Δt, i)
+                                     params::CPointParameters, defgrad_res, Δt, i)
     (; F, Ḟ, Kinv) = defgrad_res
     D = init_stress_rotation!(storage, F, Ḟ, Δt, i)
     if iszero(D)
@@ -230,4 +236,13 @@ function calc_first_piola_kirchhoff!(storage::CRStorage, mat::CRMaterial,
     P = first_piola_kirchhoff(T, F)
     PKinv = P * Kinv
     return PKinv
+end
+
+function calc_zem_stiffness_tensor!(storage::CRStorage, system::BondSystem, mat::CRMaterial,
+                                    params::CPointParameters, zem::ZEMWan, defgrad_res, i)
+    (; Kinv) = defgrad_res
+    (; rotation, zem_stiffness_rotated) = storage
+    R = get_tensor(rotation, i)
+    C_1 = calc_rotated_zem_stiffness_tensor!(zem_stiffness_rotated, params.C, Kinv, R)
+    return C_1
 end

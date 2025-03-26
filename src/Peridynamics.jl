@@ -12,7 +12,7 @@ import LibGit2, Dates
 export BBMaterial, OSBMaterial, CMaterial, CRMaterial, BACMaterial, CKIMaterial
 
 # CMaterial related types
-export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling
+export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling, ZEMWan
 
 # Kernels
 export linear_kernel, cubic_b_spline_kernel
