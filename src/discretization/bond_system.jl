@@ -195,18 +195,18 @@ end
 function break_bonds!(storage::AbstractStorage, system::AbstractBondSystem,
                       set_a::Vector{Int}, set_b::Vector{Int})
     storage.n_active_bonds .= 0
-    for point_id in each_point_idx(system)
-        for bond_id in each_bond_idx(system, point_id)
+    for i in each_point_idx(system)
+        for bond_id in each_bond_idx(system, i)
             bond = system.bonds[bond_id]
             neighbor_id = bond.neighbor
-            point_in_a = in(point_id, set_a)
-            point_in_b = in(point_id, set_b)
+            point_in_a = in(i, set_a)
+            point_in_b = in(i, set_b)
             neigh_in_a = in(neighbor_id, set_a)
             neigh_in_b = in(neighbor_id, set_b)
             if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
                 storage.bond_active[bond_id] = false
             end
-            storage.n_active_bonds[point_id] += storage.bond_active[bond_id]
+            storage.n_active_bonds[i] += storage.bond_active[bond_id]
         end
     end
     return nothing
@@ -227,10 +227,10 @@ function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem}, t, 
     (; dmgmodel) = mat
     storage.b_int .= 0
     storage.n_active_bonds .= 0
-    for point_id in each_point_idx(chunk)
-        calc_failure!(storage, system, mat, dmgmodel, paramsetup, point_id)
-        calc_damage!(storage, system, mat, dmgmodel, paramsetup, point_id)
-        force_density_point!(storage, system, mat, paramsetup, t, Δt, point_id)
+    for i in each_point_idx(chunk)
+        calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
+        calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
+        force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
     nancheck(chunk, t)
     return nothing
