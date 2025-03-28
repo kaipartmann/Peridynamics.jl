@@ -248,11 +248,12 @@ function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
     (; n_active_bonds, damage, damage_changed) = storage
     old_damage = damage[i]
     new_damage = 1 - n_active_bonds[i] / n_neighbors[i]
-    if new_damage > old_damage
-        damage_changed[i] = true
-    else
-        damage_changed[i] = false
-    end
+    # if new_damage > old_damage
+    #     damage_changed[i] = true
+    # else
+    #     damage_changed[i] = true # TODO: somehow this makes an error if set to `false`!!!
+    # end
+    damage_changed[i] = true
     damage[i] = new_damage
     return nothing
 end
