@@ -9,7 +9,8 @@ end
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, OSBMaterial, CMaterial, CRMaterial, NSCMaterial, BACMaterial, CKIMaterial
+export BBMaterial, OSBMaterial, CMaterial, CRMaterial, NSCMaterial, NSCRMaterial,
+       BACMaterial, CKIMaterial
 
 # CMaterial related types
 export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling
@@ -76,6 +77,7 @@ abstract type AbstractStorage end
 abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMaterial{ZEM} end
+abstract type AbstractNSCMaterial{CM,C} <: AbstractBondSystemMaterial{C} end
 abstract type AbstractBondAssociatedSystemMaterial <: AbstractMaterial end
 abstract type AbstractConstitutiveModel end
 abstract type AbstractStressIntegration end
@@ -138,6 +140,7 @@ include("physics/constitutive_models.jl")
 include("physics/correspondence.jl")
 include("physics/correspondence_rotated.jl")
 include("physics/ns_correspondence.jl")
+include("physics/ns_correspondence_rotated.jl")
 include("physics/ba_correspondence.jl")
 
 include("VtkReader/VtkReader.jl")

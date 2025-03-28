@@ -1,5 +1,5 @@
 """
-    NSCMaterial(; kernel, model, zem, dmgmodel, maxdmg)
+    NSCMaterial(; kernel, model, dmgmodel, maxdmg)
 
 A material type used to assign the material of a [`Body`](@ref) with the local continuum
 consistent (correspondence) formulation of non-ordinary state-based peridynamics.
@@ -32,7 +32,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 
 ```julia-repl
 julia> mat = NSCMaterial()
-NSCMaterial{LinearElastic, ZEMSilling, typeof(linear_kernel), CriticalStretch}(maxdmg=0.85)
+NSCMaterial{LinearElastic, typeof(linear_kernel), CriticalStretch}(maxdmg=0.85)
 ```
 
 ---
@@ -95,7 +95,7 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `stress::Matrix{Float64}`: Stress tensor of each point
 - `von_mises_stress::Vector{Float64}`: Von Mises stress of each point
 """
-struct NSCMaterial{CM,K,DM} <: AbstractCorrespondenceMaterial{CM,NoCorrection}
+struct NSCMaterial{CM,K,DM} <: AbstractNSCMaterial{CM,NoCorrection}
     kernel::K
     constitutive_model::CM
     dmgmodel::DM
@@ -147,59 +147,64 @@ end
     first_piola_kirchhoff::Matrix{Float64}
 end
 
-function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
+function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:b_int})
     return zeros(3, get_n_points(system))
 end
 
-function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem,
+function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:damage_changed})
     return ones(Bool, get_n_loc_points(system))
 end
 
-function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
+function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:stress})
     return zeros(9, get_n_loc_points(system))
 end
 
-function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem,
+function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:von_mises_stress})
     return zeros(get_n_loc_points(system))
 end
 
-function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem,
+function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:defgrad})
     return zeros(9, get_n_points(system))
 end
 
-function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem,
+function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:weighted_volume})
     return zeros(get_n_points(system))
 end
 
-function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem,
+function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:gradient_weight})
     return zeros(3, get_n_bonds(system))
 end
 
-function init_field(::NSCMaterial, ::AbstractTimeSolver, system::BondSystem,
+function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:first_piola_kirchhoff})
     return zeros(9, get_n_bonds(system))
 end
 
-function initialize!(chunk::BodyChunk{<:BondSystem,<:NSCMaterial})
+function initialize!(chunk::BodyChunk{<:BondSystem,<:AbstractNSCMaterial})
     chunk.storage.damage_changed .= true
     return nothing
 end
 
-function calc_force_density!(dh::ThreadsBodyDataHandler{<:BondSystem,<:NSCMaterial}, t, Δt)
+function calc_force_density!(dh::ThreadsBodyDataHandler{<:BondSystem,<:AbstractNSCMaterial},
+                             t, Δt)
     (; chunks) = dh
+    after_fields = nsc_lth_after_fields(chunks[1].mat)
+    pre_fields = filter(x -> !in(x, after_fields), loc_to_halo_fields(chunks[1].storage))
     @threads :static for chunk_id in eachindex(chunks)
-        exchange_loc_to_halo!(dh, chunk_id, :position)
+        exchange_loc_to_halo!(dh, chunk_id, pre_fields)
     end
     @threads :static for chunk_id in eachindex(chunks)
         calc_weights_and_defgrad!(chunks[chunk_id], t, Δt)
     end
     @threads :static for chunk_id in eachindex(chunks)
-        exchange_loc_to_halo!(dh, chunk_id, (:defgrad, :weighted_volume))
+        exchange_loc_to_halo!(dh, chunk_id, after_fields)
     end
     @threads :static for chunk_id in eachindex(chunks)
         calc_force_density!(chunks[chunk_id], t, Δt)
@@ -210,7 +215,10 @@ function calc_force_density!(dh::ThreadsBodyDataHandler{<:BondSystem,<:NSCMateri
     return nothing
 end
 
-function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:NSCMaterial}, t, Δt)
+nsc_lth_after_fields(::NSCMaterial) = (:defgrad, :weighted_volume)
+
+function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:AbstractNSCMaterial}, t,
+                             Δt)
     (; chunk) = dh
     exchange_loc_to_halo!(dh, :position)
     calc_weights_and_defgrad!(chunk, t, Δt)
@@ -220,7 +228,8 @@ function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:NSCMaterial},
     return nothing
 end
 
-function calc_weights_and_defgrad!(chunk::BodyChunk{<:BondSystem,<:NSCMaterial}, t, Δt)
+function calc_weights_and_defgrad!(chunk::BodyChunk{<:BondSystem,<:AbstractNSCMaterial}, t,
+                                   Δt)
     (; system, mat, paramsetup, storage) = chunk
     (; dmgmodel) = mat
     storage.n_active_bonds .= 0
@@ -232,19 +241,41 @@ function calc_weights_and_defgrad!(chunk::BodyChunk{<:BondSystem,<:NSCMaterial},
     return nothing
 end
 
-function calc_weights_and_defgrad!(storage::NSCStorage, system::BondSystem,
-                                   mat::NSCMaterial, paramhandler::AbstractParameterHandler,
-                                   t, Δt, i)
-    params = get_params(paramhandler, i)
-    calc_weights_and_defgrad!(storage, system, mat, params, t, Δt, i)
+function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
+                      mat::AbstractNSCMaterial, dmgmodel::AbstractDamageModel,
+                      paramsetup::AbstractParameterSetup, i)
+    (; n_neighbors) = system
+    (; n_active_bonds, damage, damage_changed) = storage
+    old_damage = damage[i]
+    new_damage = 1 - n_active_bonds[i] / n_neighbors[i]
+    if new_damage > old_damage
+        damage_changed[i] = true
+    else
+        damage_changed[i] = false
+    end
+    damage[i] = new_damage
     return nothing
 end
 
-function calc_weights_and_defgrad!(storage::NSCStorage, system::BondSystem,
-                                   mat::NSCMaterial, params::StandardPointParameters, t, Δt,
-                                   i)
+function damage_changed(::AbstractNSCMaterial, storage::AbstractStorage, i)
+    return storage.damage_changed[i]
+end
+
+function calc_weights_and_defgrad!(storage::AbstractStorage, system::AbstractBondSystem,
+                                   mat::AbstractNSCMaterial,
+                                   paramsetup::AbstractParameterSetup, t, Δt, i)
+    params = get_params(paramsetup, i)
+    Kinv = nsc_defgrad!(storage, system, mat, params, t, Δt, i)
+    if damage_changed(mat, storage, i)
+        nsc_weights!(storage, system, mat, params, Kinv, t, Δt, i)
+    end
+    return nothing
+end
+
+function nsc_defgrad!(storage::AbstractStorage, system::AbstractBondSystem,
+                      mat::AbstractNSCMaterial, params::AbstractPointParameters, t, Δt, i)
     (; bonds, volume) = system
-    (; bond_active, defgrad, weighted_volume, gradient_weight, damage_changed) = storage
+    (; bond_active, defgrad, weighted_volume) = storage
 
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
@@ -265,14 +296,20 @@ function calc_weights_and_defgrad!(storage::NSCStorage, system::BondSystem,
     update_tensor!(defgrad, i, F)
     weighted_volume[i] = wi
 
-    damage_changed[i] || return nothing
+    return Kinv
+end
+
+function nsc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
+                      mat::AbstractNSCMaterial, params::AbstractPointParameters,
+                      Kinv::SMatrix{3,3,T,9}, t, Δt, i) where {T}
+    (; bonds, volume) = system
+    (; bond_active, gradient_weight) = storage
 
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
-        # temp = ωij
         temp = ωij * volume[j]
         Ψ = temp * (Kinv * ΔXij)
         update_vector!(gradient_weight, bond_id, Ψ)
@@ -281,7 +318,7 @@ function calc_weights_and_defgrad!(storage::NSCStorage, system::BondSystem,
     return nothing
 end
 
-function calc_force_density!(chunk::BodyChunk{<:BondSystem,<:NSCMaterial}, t, Δt)
+function calc_force_density!(chunk::BodyChunk{<:BondSystem,<:AbstractNSCMaterial}, t, Δt)
     (; system, mat, paramsetup, storage) = chunk
     storage.b_int .= 0
     for i in each_point_idx(chunk)
@@ -291,30 +328,29 @@ function calc_force_density!(chunk::BodyChunk{<:BondSystem,<:NSCMaterial}, t, Δ
     return nothing
 end
 
-function force_density_point!(storage::NSCStorage, system::BondSystem, mat::NSCMaterial,
-                              params::StandardPointParameters, t, Δt, i)
-    nsc_force_density!(storage, system, mat, params, t, Δt, i)
+function force_density_point!(storage::AbstractStorage, system::BondSystem,
+                              mat::AbstractNSCMaterial, params::AbstractPointParameters, t,
+                              Δt, i)
+    ∑P = nsc_stress_integral!(storage, system, mat, params, t, Δt, i)
+    nsc_force_density!(storage, system, mat, params, ∑P, t, Δt, i)
     return nothing
 end
 
-function nsc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
-                            mat::AbstractCorrespondenceMaterial,
-                            params::AbstractPointParameters, t, Δt, i)
+function nsc_stress_integral!(storage::AbstractStorage, system::AbstractBondSystem,
+                              mat::AbstractNSCMaterial, params::AbstractPointParameters, t,
+                              Δt, i)
     (; bonds, volume) = system
     (; bond_active, gradient_weight, defgrad, weighted_volume) = storage
-
     Fi = get_tensor(defgrad, i)
-    # too_much_damage!(storage, system, mat, Fi, i) && return nothing
-
-    # Stress integral SI
+    too_much_damage!(storage, system, mat, Fi, i) && return nothing
     wi = weighted_volume[i]
     ∑P = SMatrix{3,3,Float64,9}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        ΔXij = get_vector_diff(system.position, i, j)
-        Δxij = get_vector_diff(storage.position, i, j)
         if bond_active[bond_id]
+            bond = bonds[bond_id]
+            j, L = bond.neighbor, bond.length
+            ΔXij = get_vector_diff(system.position, i, j)
+            Δxij = get_vector_diff(storage.position, i, j)
             Fj = get_tensor(defgrad, j)
             Fb = 0.5 * (Fi + Fj)
             ΔXijLL = ΔXij' / (L * L)
@@ -329,6 +365,15 @@ function nsc_force_density!(storage::AbstractStorage, system::AbstractBondSystem
             ∑P += ∑Pij
         end
     end
+    return ∑P
+end
+
+function nsc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
+                            mat::AbstractNSCMaterial, params::AbstractPointParameters,
+                            ∑P, t, Δt, i)
+    (; bonds, volume) = system
+    (; bond_active, gradient_weight, weighted_volume) = storage
+    wi = weighted_volume[i]
     for bond_id in each_bond_idx(system, i)
         if bond_active[bond_id]
             bond = bonds[bond_id]
@@ -348,18 +393,17 @@ function nsc_force_density!(storage::AbstractStorage, system::AbstractBondSystem
 end
 
 function calc_first_piola_kirchhoff!(storage::NSCStorage, mat::NSCMaterial,
-                                     params::StandardPointParameters, F::SMatrix{3,3,T,9},
-                                     bond_id) where {T}
+                                     params::StandardPointParameters, F, bond_id)
     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
     update_tensor!(storage.first_piola_kirchhoff, bond_id, P)
     return P
 end
 
-function too_much_damage!(storage::NSCStorage, system::BondSystem, mat::NSCMaterial, F, i)
+function too_much_damage!(storage::AbstractStorage, system::BondSystem,
+                          mat::AbstractNSCMaterial, F, i)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         # kill all bonds of this point
         storage.bond_active[each_bond_idx(system, i)] .= false
-        storage.n_active_bonds[i] = 0
         return true
     end
     return false
