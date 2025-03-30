@@ -220,9 +220,11 @@ nsc_lth_after_fields(::NSCMaterial) = (:defgrad, :weighted_volume)
 function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:AbstractNSCMaterial}, t,
                              Δt)
     (; chunk) = dh
-    exchange_loc_to_halo!(dh, :position)
+    after_fields = nsc_lth_after_fields(chunk.mat)
+    pre_fields = filter(x -> !in(x, after_fields), loc_to_halo_fields(chunk.storage))
+    exchange_loc_to_halo!(dh, pre_fields)
     calc_weights_and_defgrad!(chunk, t, Δt)
-    exchange_loc_to_halo!(dh, (:defgrad, :weighted_volume))
+    exchange_loc_to_halo!(dh, after_fields)
     calc_force_density!(chunk, t, Δt)
     exchange_halo_to_loc!(dh)
     return nothing
