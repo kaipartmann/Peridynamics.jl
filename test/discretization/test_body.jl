@@ -40,6 +40,20 @@ end
     @test body.params_map == zeros(Int, n_points)
 end
 
+@testitem "check_pos_and_vol" begin
+    # setup
+    position = [0.0 1.0 0.0 0.0
+                0.0 0.0 1.0 0.0]
+    volume = [1, 1, 1, 1]
+    n_points = length(volume)
+    mat = BBMaterial()
+    @test_throws DimensionMismatch Peridynamics.check_pos_and_vol(n_points, position,
+                                                                  volume)
+    @test_throws DimensionMismatch body = Body(mat, position, volume)
+    @test_throws DimensionMismatch Peridynamics.check_pos_and_vol(n_points-1, position,
+                                                                  volume)
+end
+
 @testitem "point_set!" begin
     # setup
     position = [0.0 1.0 0.0 0.0
@@ -58,6 +72,9 @@ end
     point_set!(body, :a, 1:2)
     @test body.point_sets == Dict(:all_points => 1:4, :a => 1:2)
 
+    # try adding point set with identical name
+    @test_throws ErrorException point_set!(body, :a, 3:4)
+
     # add another point set via function definition
     point_set!(x -> x > 0.5, body, :b)
     @test body.point_sets == Dict(:all_points => 1:4, :a => 1:2, :b => [2])
@@ -70,6 +87,9 @@ end
 
     # point_set!
     @test_throws BoundsError point_set!(body, :d, 1:5)
+
+    #
+    @test_throws ErrorException Peridynamics.check_if_set_is_defined(body.point_sets, :d)
 end
 
 @testitem "material!" begin
@@ -287,9 +307,12 @@ end
     @test bc6.field === :velocity_half
     @test bc6.point_set === :b
     @test bc6.dim == 0x03
+
+    #test has_conditions
+    @test Peridynamics.has_conditions(body) == true
 end
 
-@testitem "velocity_bc! position dependend" begin
+@testitem "velocity_bc! position dependent" begin
     # setup
     n_points = 4
     mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
@@ -359,7 +382,7 @@ end
     point_set!(body, :b, 3:4)
     @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2, :b => 3:4)
 
-    # velocity bc 1
+    # force bc 1
     forcedensity_bc!(t -> 1, body, :a, 1)
     @test length(body.single_dim_bcs) == 1
     bc1 = body.single_dim_bcs[1]
@@ -370,7 +393,7 @@ end
     @test bc1.point_set === :a
     @test bc1.dim == 0x01
 
-    # velocity bc 2
+    # force bc 2
     forcedensity_bc!(t -> 2, body, :a, 2)
     @test length(body.single_dim_bcs) == 2
     bc2 = body.single_dim_bcs[2]
@@ -381,7 +404,7 @@ end
     @test bc2.point_set === :a
     @test bc2.dim == 0x02
 
-    # velocity bc 3
+    # force bc 3
     forcedensity_bc!(t -> 3, body, :a, 3)
     @test length(body.single_dim_bcs) == 3
     bc3 = body.single_dim_bcs[3]
@@ -392,7 +415,7 @@ end
     @test bc3.point_set === :a
     @test bc3.dim == 0x03
 
-    # velocity bc 4
+    # force bc 4
     forcedensity_bc!(t -> 4, body, :b, :x)
     @test length(body.single_dim_bcs) == 4
     bc4 = body.single_dim_bcs[4]
@@ -403,7 +426,7 @@ end
     @test bc4.point_set === :b
     @test bc4.dim == 0x01
 
-    # velocity bc 5
+    # force bc 5
     forcedensity_bc!(t -> 5, body, :b, :y)
     @test length(body.single_dim_bcs) == 5
     bc5 = body.single_dim_bcs[5]
@@ -414,7 +437,7 @@ end
     @test bc5.point_set === :b
     @test bc5.dim == 0x02
 
-    # velocity bc 6
+    # force bc 6
     forcedensity_bc!(t -> 6, body, :b, :z)
     @test length(body.single_dim_bcs) == 6
     bc6 = body.single_dim_bcs[6]
@@ -426,7 +449,7 @@ end
     @test bc6.dim == 0x03
 end
 
-@testitem "forcedensity_bc! position dependend" begin
+@testitem "forcedensity_bc! position dependent" begin
     # setup
     n_points = 4
     mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
@@ -443,7 +466,7 @@ end
     point_set!(body, :b, 3:4)
     @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2, :b => 3:4)
 
-    # velocity bc 1
+    # force bc 1
     forcedensity_bc!((p,t) -> 1, body, :a, 1)
     @test length(body.posdep_single_dim_bcs) == 1
     bc1 = body.posdep_single_dim_bcs[1]
@@ -455,7 +478,7 @@ end
     @test bc1.point_set === :a
     @test bc1.dim == 0x01
 
-    # velocity bc 2
+    # force bc 2
     forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
     @test length(body.posdep_single_dim_bcs) == 2
     bc2 = body.posdep_single_dim_bcs[2]
@@ -467,6 +490,19 @@ end
     @test bc2.point_set === :a
     @test bc2.dim == 0x02
     @test bc2([1,2,3], 1.0) == 7.0
+end
+
+@testitem "missing bc/ic" begin
+    # setup
+    n_points = 4
+    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
+    body = Body(mat, position, volume)
+    material!(body; horizon=1, E=1, rho=1, Gc=1)
+    vv = VelocityVerlet(steps=8)
+    # test has_conditions
+    @test Peridynamics.has_conditions(body) == false
+    # test pre_submission_check
+    @test_throws ErrorException job = Job(body, vv)
 end
 
 @testitem "show Body" begin

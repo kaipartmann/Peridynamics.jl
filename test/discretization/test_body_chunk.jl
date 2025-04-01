@@ -40,6 +40,8 @@
     for i in 1:4
         @test ch.localizer[i] == i
     end
+    @test Peridynamics.n_loc_points(chunk) == 2
+    @test Peridynamics.n_points(chunk) == 4
 
     #TODO: test the other fields!
 end
