@@ -1,3 +1,14 @@
+"""
+    CriticalStretch
+
+A damage model based on the stretch of the bond. The bond is considered to be broken
+if the stretch exceeds a critical value.
+The critical value can be defined via the fracture energy `Gc` or the critical stretch `εc`
+using the [`material!`](@ref) function. The damage model is defined globally for the whole
+body as part of the material.
+"""
+struct CriticalStretch <: AbstractDamageModel end
+
 @inline fracture_kwargs() = (:Gc, :epsilon_c)
 
 """
@@ -84,8 +95,9 @@ function no_failure!(body::AbstractBody)
     return nothing
 end
 
+
 """
-    get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
+    get_frac_params(::AbstractDamageModel, p::Dict{Symbol,Any}, δ::Float64, K::Float64)
 
 $(internal_api_warning())
 
@@ -94,7 +106,7 @@ Read the submitted fracture parameter from the dictionary created with [`materia
 If multiple fracture parameters are found, an error is thrown. If none are found, all are
 set 0 and therefore failure is disabled in the following steps.
 """
-function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
+function get_frac_params(::CriticalStretch, p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     local Gc::Float64
     local εc::Float64
 
@@ -114,6 +126,10 @@ function get_frac_params(p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     end
 
     return (; Gc, εc)
+end
+  
+function get_frac_params(::AbstractDamageModel, p, δ, K)
+    return (; )
 end
 
 """
@@ -146,6 +162,10 @@ Return `true` if at least one fracture parameter is set `!=0` in `params` and th
 therefore is supposed to have failure allowed or return `false` if not.
 """
 function has_fracture(mat::AbstractMaterial, params::AbstractPointParameters)
+    return has_fracture(mat.dmgmodel, params)
+end
+
+function has_fracture(::CriticalStretch, params::AbstractPointParameters)
     if isapprox(params.Gc, 0; atol=eps()) || isapprox(params.εc, 0; atol=eps())
         return false
     else
@@ -160,10 +180,6 @@ function required_fields_fracture(::Type{Material}) where {Material<:AbstractMat
     return fields
 end
 
-# function required_fields_fracture(::Any)
-#     return ()
-# end
-
 function req_point_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
     return ()
 end
@@ -174,4 +190,12 @@ end
 
 function req_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
     return ()
+end
+
+function log_param_property(::Val{:Gc}, param; indentation)
+    return msg_qty("critical energy release rate", param.Gc; indentation)
+end
+
+function log_param_property(::Val{:εc}, param; indentation)
+    return msg_qty("critical stretch", param.εc; indentation)
 end

@@ -168,3 +168,7 @@ function allowed_material_kwargs(::AbstractBondAssociatedSystemMaterial)
     return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...,
             :bond_horizon)
 end
+
+function log_param_property(::Val{:δb}, param; indentation)
+    return msg_qty("bond horizon", param.δb; indentation)
+end

@@ -13,12 +13,14 @@ Pages = ["public_api_reference.md"]
 BBMaterial
 OSBMaterial
 CMaterial
+CRMaterial
 BACMaterial
 CKIMaterial
 ```
 
 ## System or material related types
 ```@docs
+CriticalStretch
 NoCorrection
 EnergySurfaceCorrection
 ZEMSilling

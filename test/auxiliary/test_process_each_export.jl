@@ -10,7 +10,7 @@
     l, Δx, δ, a = 1.0, 1 / 4, 3.015 / 4, 0.5
     pos, vol = uniform_box(l, l, l, Δx)
     b1 = Body(BBMaterial(), pos, vol)
-    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6, Gc=2.7)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
     point_set!(y -> y > l / 2 - Δx, b1, :set_top)
     point_set!(y -> y < -l / 2 + Δx, b1, :set_bottom)
     velocity_bc!(t -> 30, b1, :set_top, :y)

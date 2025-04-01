@@ -220,3 +220,16 @@ end
     msg = "`μ` should be larger than zero!\n"
     @test_throws ArgumentError Peridynamics.get_elastic_params(p)
 end
+
+@testitem "log_param_property" begin
+    p = Dict{Symbol,Any}(:E => 1, :nu => 0.25, :rho => 1, :horizon => 1)
+    param = Peridynamics.get_point_params(BBMaterial(), p)
+    msg = Peridynamics.log_param_property(Val(:randomthing), param; indentation=0)
+    @test msg == ""
+    msg = Peridynamics.log_param_property(Val(:δ), param; indentation=0)
+    @test contains(msg, "horizon")
+    @test contains(msg, "1")
+    msg = Peridynamics.log_param_property(Val(:E), param; indentation=0)
+    @test contains(msg, "Young's modulus")
+    @test contains(msg, "1")
+end

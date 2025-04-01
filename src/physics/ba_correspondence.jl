@@ -1,5 +1,5 @@
 """
-    BACMaterial(; kernel, model, maxdmg)
+    BACMaterial(; kernel, model, dmgmodel, maxdmg)
 
 A material type used to assign the material of a [`Body`](@ref) with the bond-associated
 correspondence formulation of Chen and Spencer (2019).
@@ -9,6 +9,8 @@ correspondence formulation of Chen and Spencer (2019).
     (default: `linear_kernel`)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
     (default: `LinearElastic()`)
+- `dmgmodel::AbstractDamageModel`: Damage model defining the fracture behavior.
+    (default: `CriticalStretch()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values.
@@ -18,13 +20,12 @@ correspondence formulation of Chen and Spencer (2019).
 
 ```julia-repl
 julia> mat = BACMaterial()
-CMaterial(maxdmg=0.95, zem_fac=ZEMSilling())
+BACMaterial{LinearElastic, typeof(linear_kernel), CriticalStretch}()
 ```
-
 ---
 
 ```julia
-BACMaterial{CM,K}
+BACMaterial{CM,K,DM}
 ```
 
 Material type for the bond-associated correspondence formulation of Chen and Spencer (2019).
@@ -32,10 +33,12 @@ Material type for the bond-associated correspondence formulation of Chen and Spe
 # Type Parameters
 - `CM`: A constitutive model type. See the constructor docs for more informations.
 - `K`: A kernel function type. See the constructor docs for more informations.
+- `DM`: A damage model type.
 
 # Fields
 - `kernel::Function`: Kernel function used for weighting the interactions between points.
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
+- `dmgmodel::AbstractDamageModel`: Damage model defining the fracture behavior.
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
     constructor docs for more informations.
 
@@ -62,13 +65,21 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point.
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
 """
-struct BACMaterial{CM,K} <: AbstractBondAssociatedSystemMaterial
+struct BACMaterial{CM,K,DM} <: AbstractBondAssociatedSystemMaterial
     kernel::K
     constitutive_model::CM
+    dmgmodel::DM
     maxdmg::Float64
-    function BACMaterial(kernel::K, cm::CM, maxdmg::Real) where {K,CM}
-        return new{CM,K}(kernel, cm, maxdmg)
+    function BACMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real) where {K,CM,DM}
+        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg)
     end
+end
+
+function BACMaterial(; kernel::Function=linear_kernel,
+                     model::AbstractConstitutiveModel=LinearElastic(),
+                     dmgmodel::AbstractDamageModel=CriticalStretch(),
+                     maxdmg::Real=0.85)
+    return BACMaterial(kernel, model, dmgmodel, maxdmg)
 end
 
 function Base.show(io::IO, @nospecialize(mat::BACMaterial))
@@ -77,10 +88,25 @@ function Base.show(io::IO, @nospecialize(mat::BACMaterial))
     return nothing
 end
 
-function BACMaterial(; kernel::Function=linear_kernel,
-                     model::AbstractConstitutiveModel=LinearElastic(),
-                     maxdmg::Real=0.85)
-    return BACMaterial(kernel, model, maxdmg)
+function log_material_property(::Val{:kernel}, mat::BACMaterial; indentation::Int)
+    msg = msg_qty("kernel function", mat.kernel; indentation)
+    return msg
+end
+
+function log_material_property(::Val{:dmgmodel}, mat::BACMaterial; indentation::Int)
+    msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)
+    return msg
+end
+
+function log_material_property(::Val{:constitutive_model}, mat::BACMaterial;
+                               indentation::Int)
+    msg = msg_qty("constitutive model", mat.constitutive_model; indentation)
+    return msg
+end
+
+function log_material_property(::Val{:maxdmg}, mat::BACMaterial; indentation::Int)
+    msg = msg_qty("maximum damage", mat.maxdmg; indentation)
+    return msg
 end
 
 """
@@ -123,7 +149,7 @@ end
 
 function BACPointParameters(mat::BACMaterial, p::Dict{Symbol,Any})
     (; δ, δb, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(p, δ, K)
+    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
     bc = 18 * K / (π * δ^4) # bond constant
     return BACPointParameters(δ, δb, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
@@ -191,12 +217,8 @@ function force_density_bond!(storage::BACStorage, system::BondAssociatedSystem,
     PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i, bond_idx)
 
     bond = system.bonds[bond_idx]
-    j, L = bond.neighbor, bond.length
+    j = bond.neighbor
     ΔXij = get_vector_diff(system.position, i, j)
-    Δxij = get_vector_diff(storage.position, i, j)
-    l = norm(Δxij)
-    ε = (l - L) / L
-    stretch_based_failure!(storage, system, bond, params, ε, i, bond_idx)
 
     ωij = kernel(system, bond_idx) * storage.bond_active[bond_idx]
     ϕi = volume_fraction_factor(system, i, bond_idx)

@@ -1,23 +1,34 @@
 """
-    CKIMaterial()
+    CKIMaterial(; dmgmodel)
 
 A material type used to assign the material of a [`Body`](@ref) with the
-continuum-kinematics-inspired peridynamics fomulation.
+continuum-kinematics-inspired peridynamics formulation.
+
+# Keywords
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
+    (default: `CriticalStretch()`)
 
 # Examples
 
 ```julia-repl
 julia> mat = CKIMaterial()
-CKIMaterial()
+CKIMaterial(dmgmodel=CriticalStretch())
 ```
 
 ---
 
 ```julia
-CKIMaterial
+CKIMaterial{DM}
 ```
 
 Material type for the continuum-kinematics-inspired peridynamics framework.
+
+# Type Parameters
+- `DM`: A damage model type. See the constructor docs for more informations.
+
+# Fields
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. See the
+    constructor docs for more informations.
 
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `CKIMaterial`, then the following
@@ -66,7 +77,16 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point.
 - `n_active_one_nis::Vector{Int}`: Number of intact one-neighbor interactions of each point.
 """
-struct CKIMaterial <: AbstractInteractionSystemMaterial end
+struct CKIMaterial{DM} <: AbstractInteractionSystemMaterial
+    dmgmodel::DM
+    function CKIMaterial(dmgmodel::DM) where DM
+        return new{DM}(dmgmodel)
+    end
+end
+
+function CKIMaterial(; dmgmodel::AbstractDamageModel=CriticalStretch())
+    return CKIMaterial(dmgmodel)
+end
 
 """
     CKIPointParameters
@@ -110,7 +130,7 @@ end
 
 function CKIPointParameters(mat::CKIMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ, C1, C2, C3) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(p, δ, K)
+    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
     return CKIPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, C1, C2, C3)
 end
 
@@ -147,8 +167,8 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
         j, L = one_ni.neighbor, one_ni.length
         Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, one_ni, params, ε, i, one_ni_id)
+        # ε = (l - L) / L
+        # stretch_based_failure!(storage, system, one_ni, params, ε, i, one_ni_id)
         b_int = one_ni_failure(storage, one_ni_id) * params.C1 * (1 / L - 1 / l) *
                 system.volume_one_nis[i] .* Δxij
         update_add_vector!(storage.b_int, i, b_int)
@@ -164,8 +184,8 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
         j, L = one_ni.neighbor, one_ni.length
         Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, one_ni, params_i, ε, i, one_ni_id)
+        # ε = (l - L) / L
+        # stretch_based_failure!(storage, system, one_ni, params_i, ε, i, one_ni_id)
         params_j = get_params(paramhandler, j)
         b_int = one_ni_failure(storage, one_ni_id) * (params_i.C1 + params_j.C1) / 2 *
                 (1 / L - 1 / l) * system.volume_one_nis[i] .* Δxij

@@ -1,6 +1,6 @@
 """
-    OSBMaterial()
-    OSBMaterial{Correction}()
+    OSBMaterial(; kernel, dmgmodel)
+    OSBMaterial{Correction}(; kernel, dmgmodel)
 
 A material type used to assign the material of a [`Body`](@ref) with the ordinary
 state-based formulation of peridynamics.
@@ -10,26 +10,39 @@ Possible correction methods are:
 - [`EnergySurfaceCorrection`](@ref): The energy based surface correction method of
     Le and Bobaru (2018) is applied.
 
+# Keywords
+- `kernel::Function`: Kernel function used for weighting the interactions between points. \\
+    (default: `linear_kernel`)
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
+    (default: `CriticalStretch()`)
+
 # Examples
 
 ```julia-repl
 julia> mat = OSBMaterial()
-OSBMaterial{NoCorrection}()
+OSBMaterial{NoCorrection}(dmgmodel=CriticalStretch())
 
 julia> mat = OSBMaterial{EnergySurfaceCorrection}()
-OSBMaterial{EnergySurfaceCorrection}()
+OSBMaterial{EnergySurfaceCorrection}(dmgmodel=CriticalStretch())
 ```
 
 ---
 
 ```julia
-OSBMaterial{Correction}
+OSBMaterial{Correction,K,DM}
 ```
 
 Material type for the ordinary state-based peridynamics formulation.
 
 # Type Parameters
 - `Correction`: A correction algorithm type. See the constructor docs for more informations.
+- `K`: A kernel function type. See the constructor docs for more informations.
+- `DM`: A damage model type. See the constructor docs for more informations.
+
+# Fields
+- `kernel::Function`: Kernel function used for weighting the interactions between points.
+- `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. See the
+    constructor docs for more informations.
 
 # Allowed material parameters
 When using [`material!`](@ref) on a [`Body`](@ref) with `OSBMaterial`, then the following
@@ -65,59 +78,21 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point.
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
 """
-struct OSBMaterial{Correction,K} <: AbstractBondSystemMaterial{Correction}
+struct OSBMaterial{Correction,K,DM} <: AbstractBondSystemMaterial{Correction}
     kernel::K
-    function OSBMaterial{Correction}(kernel::K) where {Correction,K}
-        return new{Correction,K}(kernel)
+    dmgmodel::DM
+    function OSBMaterial{C}(kernel::K, dmgmodel::DM) where {C,K,DM}
+        return new{C,K,DM}(kernel, dmgmodel)
     end
 end
 
-OSBMaterial{C}(; kernel::F=linear_kernel) where{C,F} = OSBMaterial{C}(kernel)
+function OSBMaterial{C}(; kernel::F=linear_kernel,
+                        dmgmodel::AbstractDamageModel=CriticalStretch()) where{C,F}
+    return OSBMaterial{C}(kernel, dmgmodel)
+end
 OSBMaterial(; kwargs...) = OSBMaterial{NoCorrection}(; kwargs...)
 
-"""
-    OSBPointParameters
-
-$(internal_api_warning())
-
-Type containing the material parameters for an ordinary state-based peridynamics model.
-
-# Fields
-
-- `δ::Float64`: Horizon.
-- `rho::Float64`: Density.
-- `E::Float64`: Young's modulus.
-- `nu::Float64`: Poisson's ratio.
-- `G::Float64`: Shear modulus.
-- `K::Float64`: Bulk modulus.
-- `λ::Float64`: 1st Lamé parameter.
-- `μ::Float64`: 2nd Lamé parameter.
-- `Gc::Float64`: Critical energy release rate.
-- `εc::Float64`: Critical strain.
-- `bc::Float64`: Bond constant.
-"""
-struct OSBPointParameters <: AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
-    bc::Float64
-end
-
-function OSBPointParameters(mat::OSBMaterial, p::Dict{Symbol,Any})
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
-    return OSBPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
-end
-
-@params OSBMaterial OSBPointParameters
+@params OSBMaterial StandardPointParameters
 
 @storage OSBMaterial struct OSBStorage <: AbstractStorage
     @lthfield position::Matrix{Float64}
@@ -131,6 +106,7 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
+    bond_length::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
 end
@@ -139,25 +115,52 @@ function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::V
     return zeros(3, get_n_points(system))
 end
 
+function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:bond_length})
+    return zeros(get_n_bonds(system))
+end
+
+# Customized calc_failure to save the bond length for force density calculation
+function calc_failure!(storage::OSBStorage, system::BondSystem,
+                       ::OSBMaterial, ::CriticalStretch,
+                       paramsetup::AbstractParameterSetup, i)
+    (; εc) = get_params(paramsetup, i)
+    (; position, n_active_bonds, bond_active, bond_length) = storage
+    (; bonds) = system
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        Δxij = get_vector_diff(position, i, j)
+        l = norm(Δxij)
+        bond_length[bond_id] = l # this is customized!
+        ε = (l - L) / L
+        if ε > εc && bond.fail_permit
+            bond_active[bond_id] = false
+        end
+        n_active_bonds[i] += bond_active[bond_id]
+    end
+    return nothing
+end
+
 function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::OSBPointParameters, t, Δt, i)
+                              params::StandardPointParameters, t, Δt, i)
     wvol = calc_weighted_volume(storage, system, mat, params, i)
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, mat, params, wvol, i)
+    (; position, bond_active, b_int, bond_length) = storage
+    (; bonds, correction, volume) = system
     c1 = 15.0 * params.G / wvol
     c2 = dil * (3.0 * params.K / wvol - c1 / 3.0)
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
+        bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(storage.position, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params, ε, i, bond_id)
-        p_int = kernel(system, bond_id) * bond_failure(storage, bond_id) *
-                surface_correction_factor(system.correction, bond_id) *
-                (c2 * L + c1 * (l - L)) / l .* Δxij
-        update_add_vector!(storage.b_int, i, p_int .* system.volume[j])
-        update_add_vector!(storage.b_int, j, -p_int .* system.volume[i])
+        Δxij = get_vector_diff(position, i, j)
+        l = bond_length[bond_id]
+        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        β = surface_correction_factor(correction, bond_id)
+        p = ωij * β * (c2 * L + c1 * (l - L)) / l .* Δxij
+        update_add_vector!(b_int, i, p .* volume[j])
+        update_add_vector!(b_int, j, -p .* volume[i])
     end
     return nothing
 end
@@ -168,52 +171,51 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
     wvol = calc_weighted_volume(storage, system, mat, params_i, i)
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, mat, params_i, wvol, i)
+    (; position, bond_active, b_int, bond_length) = storage
+    (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
+        bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(storage.position, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        stretch_based_failure!(storage, system, bond, params_i, ε, i, bond_id)
+        Δxij = get_vector_diff(position, i, j)
+        l = bond_length[bond_id]
         params_j = get_params(paramhandler, j)
         c1 = 15.0 * (params_i.G + params_j.G) / (2 * wvol)
         c2 = dil * (3.0 * (params_i.K + params_j.K) / (2 * wvol) - c1 / 3.0)
-        p_int = kernel(system, bond_id) * bond_failure(storage, bond_id) *
-                surface_correction_factor(system.correction, bond_id) *
-                (c2 * L + c1 * (l - L)) / l .* Δxij
-        update_add_vector!(storage.b_int, i, p_int .* system.volume[j])
-        update_add_vector!(storage.b_int, j, -p_int .* system.volume[i])
+        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        β = surface_correction_factor(correction, bond_id)
+        p = ωij * β * (c2 * L + c1 * (l - L)) / l .* Δxij
+        update_add_vector!(b_int, i, p .* volume[j])
+        update_add_vector!(b_int, j, -p .* volume[i])
     end
     return nothing
 end
 
 function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::OSBPointParameters, i)
+                              params::StandardPointParameters, i)
     wvol = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         ΔXij_sq = dot(ΔXij, ΔXij)
-        scfactor = surface_correction_factor(system.correction, bond_id)
-        ωij = kernel(system, bond_id) * storage.bond_active[bond_id] * scfactor
-        wvol += ωij * ΔXij_sq * system.volume[j]
+        ωij = kernel(system, bond_id) * storage.bond_active[bond_id]
+        β = surface_correction_factor(system.correction, bond_id)
+        wvol += ωij * β * ΔXij_sq * system.volume[j]
     end
     return wvol
 end
 
 function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                         params::OSBPointParameters, wvol, i)
+                         params::StandardPointParameters, wvol, i)
     dil = 0.0
     c1 = 3.0 / wvol
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(storage.position, i, j)
-        l = norm(Δxij)
-        scfactor = surface_correction_factor(system.correction, bond_id)
-        ωij = kernel(system, bond_id) * storage.bond_active[bond_id] * scfactor
-        dil += ωij * c1 * L * (l - L) * system.volume[j]
+        l = storage.bond_length[bond_id]
+        ωij = kernel(system, bond_id) * storage.bond_active[bond_id]
+        β = surface_correction_factor(system.correction, bond_id)
+        dil += ωij * β * c1 * L * (l - L) * system.volume[j]
     end
     return dil
 end
