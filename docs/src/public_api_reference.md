@@ -28,6 +28,7 @@ LinearElastic
 NeoHooke
 MooneyRivlin
 SaintVenantKirchhoff
+const_one_kernel
 linear_kernel
 cubic_b_spline_kernel
 ```

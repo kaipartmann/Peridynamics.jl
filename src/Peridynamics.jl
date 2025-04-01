@@ -16,7 +16,7 @@ export BBMaterial, OSBMaterial, CMaterial, CRMaterial, NSCMaterial, NSCRMaterial
 export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling
 
 # Kernels
-export linear_kernel, cubic_b_spline_kernel
+export const_one_kernel, linear_kernel, cubic_b_spline_kernel
 
 # Damage models
 export CriticalStretch
