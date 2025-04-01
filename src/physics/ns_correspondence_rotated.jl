@@ -138,7 +138,7 @@ end
     @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
-    @pointfield damage_changed::Vector{Bool}
+    @pointfield update_gradients::Vector{Bool}
     @pointfield stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
     @lthfield defgrad::Matrix{Float64}
@@ -186,8 +186,7 @@ nsc_lth_after_fields(::NSCRMaterial) = (:defgrad, :defgrad_dot, :weighted_volume
 function nsc_defgrad!(storage::NSCRStorage, system::BondSystem, mat::NSCRMaterial,
                       params::StandardPointParameters, t, Δt, i)
     (; bonds, volume) = system
-    (; bond_active, defgrad, defgrad_dot, weighted_volume, gradient_weight,
-       damage_changed) = storage
+    (; bond_active, defgrad, defgrad_dot, weighted_volume) = storage
 
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})

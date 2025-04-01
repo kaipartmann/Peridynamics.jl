@@ -138,7 +138,7 @@ end
     @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
-    @pointfield damage_changed::Vector{Bool}
+    @pointfield update_gradients::Vector{Bool}
     @pointfield stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
     @lthfield defgrad::Matrix{Float64}
@@ -153,7 +153,7 @@ function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSys
 end
 
 function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:damage_changed})
+                    ::Val{:update_gradients})
     return ones(Bool, get_n_loc_points(system))
 end
 
@@ -188,7 +188,11 @@ function init_field(::AbstractNSCMaterial, ::AbstractTimeSolver, system::BondSys
 end
 
 function initialize!(chunk::BodyChunk{<:BondSystem,<:AbstractNSCMaterial})
-    chunk.storage.damage_changed .= true
+    (; system, mat, paramsetup, storage) = chunk
+    storage.update_gradients .= true
+    for i in each_point_idx(system)
+        calc_weights_and_defgrad!(storage, system, mat, paramsetup, 0.0, 0.0, i)
+    end
     return nothing
 end
 
@@ -247,21 +251,20 @@ function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
                       mat::AbstractNSCMaterial, dmgmodel::AbstractDamageModel,
                       paramsetup::AbstractParameterSetup, i)
     (; n_neighbors) = system
-    (; n_active_bonds, damage, damage_changed) = storage
+    (; n_active_bonds, damage, update_gradients) = storage
     old_damage = damage[i]
     new_damage = 1 - n_active_bonds[i] / n_neighbors[i]
-    # if new_damage > old_damage
-    #     damage_changed[i] = true
-    # else
-    #     damage_changed[i] = true # TODO: somehow this makes an error if set to `false`!!!
-    # end
-    damage_changed[i] = true
+    if new_damage > old_damage
+        update_gradients[i] = true
+    else
+        update_gradients[i] = false
+    end
     damage[i] = new_damage
     return nothing
 end
 
-function damage_changed(::AbstractNSCMaterial, storage::AbstractStorage, i)
-    return storage.damage_changed[i]
+function update_gradients(::AbstractNSCMaterial, storage::AbstractStorage, i)
+    return storage.update_gradients[i]
 end
 
 function calc_weights_and_defgrad!(storage::AbstractStorage, system::AbstractBondSystem,
@@ -269,7 +272,7 @@ function calc_weights_and_defgrad!(storage::AbstractStorage, system::AbstractBon
                                    paramsetup::AbstractParameterSetup, t, Δt, i)
     params = get_params(paramsetup, i)
     Kinv = nsc_defgrad!(storage, system, mat, params, t, Δt, i)
-    if damage_changed(mat, storage, i)
+    if update_gradients(mat, storage, i)
         nsc_weights!(storage, system, mat, params, Kinv, t, Δt, i)
     end
     return nothing
@@ -306,7 +309,7 @@ function nsc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
                       mat::AbstractNSCMaterial, params::AbstractPointParameters,
                       Kinv::SMatrix{3,3,T,9}, t, Δt, i) where {T}
     (; bonds, volume) = system
-    (; bond_active, gradient_weight) = storage
+    (; bond_active, gradient_weight, update_gradients) = storage
 
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
@@ -317,6 +320,9 @@ function nsc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         Ψ = temp * (Kinv * ΔXij)
         update_vector!(gradient_weight, bond_id, Ψ)
     end
+
+    # gradients are evaluated and do not need to be updated anymore
+    update_gradients[i] = false
 
     return nothing
 end

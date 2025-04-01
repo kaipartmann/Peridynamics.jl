@@ -110,7 +110,7 @@ end
 function RKCMaterial(; kernel::Function=cubic_b_spline_kernel,
                      model::AbstractConstitutiveModel=LinearElastic(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85,
-                     accuracy_order::Int=2)
+                     accuracy_order::Int=1)
     if kernel !== cubic_b_spline_kernel
         msg = "The kernel $kernel is not recommended for use with RKCMaterial."
         msg *= "Use the `cubic_b_spline_kernel` function instead.\n"
@@ -129,6 +129,10 @@ function Base.show(io::IO, @nospecialize(mat::RKCMaterial))
     return nothing
 end
 
+function log_material_property(::Val{:accuracy_order}, mat; indentation)
+    return msg_qty("gradient order of accuracy", mat.accuracy_order; indentation)
+end
+
 @params RKCMaterial StandardPointParameters
 
 @storage RKCMaterial struct RKCStorage
@@ -145,7 +149,7 @@ end
     @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
-    @pointfield damage_changed::Vector{Bool}
+    @pointfield update_gradients::Vector{Bool}
     @pointfield stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
     @lthfield defgrad::Matrix{Float64}
@@ -160,7 +164,7 @@ function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSys
 end
 
 function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:damage_changed})
+                    ::Val{:update_gradients})
     return ones(Bool, get_n_loc_points(system))
 end
 
@@ -195,7 +199,11 @@ function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSys
 end
 
 function initialize!(chunk::BodyChunk{<:BondSystem,<:AbstractRKCMaterial})
-    chunk.storage.damage_changed .= true
+    (; system, mat, paramsetup, storage) = chunk
+    storage.update_gradients .= true
+    for i in each_point_idx(system)
+        calc_weights_and_defgrad!(storage, system, mat, paramsetup, 0.0, 0.0, i)
+    end
     return nothing
 end
 
@@ -254,136 +262,83 @@ function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
                       mat::AbstractRKCMaterial, dmgmodel::AbstractDamageModel,
                       paramsetup::AbstractParameterSetup, i)
     (; n_neighbors) = system
-    (; n_active_bonds, damage, damage_changed) = storage
+    (; n_active_bonds, damage, update_gradients) = storage
     old_damage = damage[i]
     new_damage = 1 - n_active_bonds[i] / n_neighbors[i]
-    # if new_damage > old_damage
-    #     damage_changed[i] = true
-    # else
-    #     damage_changed[i] = true # TODO: somehow this makes an error if set to `false`!!!
-    # end
-    damage_changed[i] = true
+    if new_damage > old_damage
+        update_gradients[i] = true
+    else
+        update_gradients[i] = false
+    end
     damage[i] = new_damage
     return nothing
 end
 
-function damage_changed(::AbstractRKCMaterial, storage::AbstractStorage, i)
-    return storage.damage_changed[i]
+function update_gradients(::AbstractRKCMaterial, storage::AbstractStorage, i)
+    return storage.update_gradients[i]
 end
 
 function calc_weights_and_defgrad!(storage::AbstractStorage, system::AbstractBondSystem,
                                    mat::AbstractRKCMaterial,
                                    paramsetup::AbstractParameterSetup, t, Δt, i)
     params = get_params(paramsetup, i)
-    rkc_weight!(storage, system, mat, params, t, Δt, i)
+    if update_gradients(mat, storage, i)
+        rkc_weights!(storage, system, mat, params, t, Δt, i)
+    end
     rkc_defgrad!(storage, system, mat, params, t, Δt, i)
     return nothing
 end
 
-function rkc_weight!(storage::AbstractStorage, system::AbstractBondSystem,
+function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
                      mat::AbstractRKCMaterial, params::AbstractPointParameters, t, Δt, i)
     (; bonds, volume) = system
-    (; bond_active, gradient_weight, damage_changed, weighted_volume) = storage
+    (; bond_active, gradient_weight, weighted_volume, update_gradients) = storage
     (; accuracy_order) = mat
     q_dim = get_q_dim(accuracy_order)
 
     Q∇ᵀ = get_q_triangle(accuracy_order)
 
-    if damage_changed[i]
-        (; δ) = params
+    (; δ) = params
 
-        # calculate moment matrix M
-        M = zero(SMatrix{q_dim,q_dim,Float64,q_dim*q_dim})
-        wi = 0.0
-        for bond_id in each_bond_idx(system, i)
-            bond = bonds[bond_id]
-            j = bond.neighbor
-            ΔXij = get_vector_diff(system.position, i, j)
-            Q = get_monomial_vector(accuracy_order, ΔXij, δ)
-            ωij = kernel(system, bond_id) * bond_active[bond_id]
-            temp = ωij * volume[j]
-            M += temp * (Q * Q')
-            wi += temp
-        end
-        weighted_volume[i] = wi
-
-        # calculate inverse of moment matrix, must be a full rank matrix!
-        threshold = 1e-6 * δ * δ * δ
-        Minv = invreg(M, threshold)
-
-        # calculate gradient weights Φ
-        for bond_id in each_bond_idx(system, i)
-            bond = bonds[bond_id]
-            j = bond.neighbor
-            ΔXij = get_vector_diff(system.position, i, j)
-            Q = get_monomial_vector(accuracy_order, ΔXij, δ)
-            ωij = kernel(system, bond_id) * bond_active[bond_id]
-            temp = ωij / δ * volume[j]
-            MinvQ = Minv * Q
-            Φ = temp * (Q∇ᵀ * MinvQ)
-            update_vector!(gradient_weight, bond_id, Φ)
-        end
+    # calculate moment matrix M
+    M = zero(SMatrix{q_dim,q_dim,Float64,q_dim*q_dim})
+    wi = 0.0
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j = bond.neighbor
+        ΔXij = get_vector_diff(system.position, i, j)
+        Q = get_monomial_vector(accuracy_order, ΔXij, δ)
+        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        temp = ωij * volume[j]
+        M += temp * (Q * Q')
+        wi += temp
     end
+    weighted_volume[i] = wi
+
+    # calculate inverse of moment matrix, must be a full rank matrix!
+    threshold = 1e-6 * δ * δ * δ
+    Minv = invreg(M, threshold)
+
+    # calculate gradient weights Φ
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j = bond.neighbor
+        ΔXij = get_vector_diff(system.position, i, j)
+        Q = get_monomial_vector(accuracy_order, ΔXij, δ)
+        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        temp = ωij / δ * volume[j]
+        MinvQ = Minv * Q
+        Φ = temp * (Q∇ᵀ * MinvQ)
+        update_vector!(gradient_weight, bond_id, Φ)
+    end
+
+    # gradients are evaluated and do not need to be updated anymore
+    update_gradients[i] = false
 
     return nothing
 end
 
-#= MATLAB
-function H=H(obj,x)
-    H=zeros(obj.order*2+1,1);
-    H(1)=1;
-    counter=2;
-    for i=1:obj.order
-        H(counter)=(x(1)-obj.cordinates(1))^i;
-        H(counter+1)=(x(2)-obj.cordinates(2))^i;
-        counter=counter+2;
-    end
-end
-=#
-# function H(obj, x)
-#     H = zeros(obj.order * 2 + 1)
-#     H[1] = 1
-#     counter = 2
-#     for i in 1:obj.order
-#         H[counter] = (x[1] - obj.coordinates[1])^i
-#         H[counter + 1] = (x[2] - obj.coordinates[2])^i
-#         counter += 2
-#     end
-#     return H
-# end
-
-#= MATLAB
-function H=Hd(obj,x)
-    % order*2+1 rows + SD rows
-    % the first column is H,x and the second colum is H,y
-    H=zeros(obj.order*2+1,2);
-    H(1,:)=0;
-    counter=2;
-    for i=1:obj.order
-        H(counter,1)=i*(x(1)-obj.cordinates(1))^(i-1);
-        H(counter+1,1)=0;
-        H(counter,2)=0;
-        H(counter+1,2)=i*(x(2)-obj.cordinates(2))^(i-1);
-        counter=counter+2;
-    end
-end
-=#
-# function Hd(obj, x)
-#     # order*2+1 rows + 2 columns (H,x and H,y)
-#     H = zeros(obj.order * 2 + 1, 2)
-#     H[1, :] .= 0
-#     counter = 2
-#     for i in 1:obj.order
-#         H[counter, 1] = i * (x[1] - obj.coordinates[1])^(i - 1)
-#         H[counter + 1, 1] = 0
-#         H[counter, 2] = 0
-#         H[counter + 1, 2] = i * (x[2] - obj.coordinates[2])^(i - 1)
-#         counter += 2
-#     end
-#     return H
-# end
-
-@inline each_monomial(N::Int) = each_monomial(Val(N))
+# @inline each_monomial(N::Int) = each_monomial(Val(N))
 
 # @inline function each_monomial(::Val{N}) where {N}
 #     monomials = Tuple((p1,p2,p3) for i in 1:N
@@ -397,13 +352,16 @@ end
 #     return ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 # end
 
-@inline function each_monomial(::Val{2})
-    # return ((1, 0, 0), (0, 1, 0), (0, 0, 1), (2, 0, 0), (1, 1, 0), (1, 0, 1), (0, 2, 0),
-    #         (0, 1, 1), (0, 0, 2))
-    return ((0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (2, 0, 0), (0, 2, 0), (0, 0, 2))
-end
+# @inline function each_monomial(::Val{2})
+#     # return ((1, 0, 0), (0, 1, 0), (0, 0, 1), (2, 0, 0), (1, 1, 0), (1, 0, 1), (0, 2, 0),
+#     #         (0, 1, 1), (0, 0, 2))
+#     return ((0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (2, 0, 0), (0, 2, 0), (0, 0, 2))
+# end
 
-@inline get_q_dim(accuracy_order) = length(each_monomial(accuracy_order))
+# @inline get_q_dim(accuracy_order) = length(each_monomial(accuracy_order))
+@inline get_q_dim(N::Int) = get_q_dim(Val(N))
+@inline get_q_dim(::Val{1}) = 4
+@inline get_q_dim(::Val{2}) = 7
 
 @inline function get_monomial_vector(N::Int, ΔX::AbstractArray, δ::Real)
     return get_monomial_vector(Val(N), ΔX, δ)
@@ -417,19 +375,19 @@ end
 #     return Q
 # end
 
-@inline function get_monomial_vector(n::Val{N}, ΔX::AbstractArray, δ::Real) where {N}
-    a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
-    _Q = (a1^p1 * a2^p2 * a3^p3 for (p1, p2, p3) in each_monomial(n))
-    q_dims = get_q_dim(n)
-    Q = SVector{q_dims,eltype(ΔX)}(_Q...)
-    return Q
-end
-
-# @inline function get_monomial_vector(::Val{1}, ΔX::AbstractArray, δ::Real)
+# @inline function get_monomial_vector(n::Val{N}, ΔX::AbstractArray, δ::Real) where {N}
 #     a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
-#     Q = SVector{3,eltype(ΔX)}(a1, a2, a3)
+#     _Q = (a1^p1 * a2^p2 * a3^p3 for (p1, p2, p3) in each_monomial(n))
+#     q_dims = get_q_dim(n)
+#     Q = SVector{q_dims,eltype(ΔX)}(_Q...)
 #     return Q
 # end
+
+@inline function get_monomial_vector(::Val{1}, ΔX::AbstractArray, δ::Real)
+    a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
+    Q = SVector{4,eltype(ΔX)}(1.0, a1, a2, a3)
+    return Q
+end
 
 @inline function get_monomial_vector(::Val{2}, ΔX::AbstractArray, δ::Real)
     a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
@@ -441,25 +399,21 @@ end
 @inline get_q_triangle(N::Int) = get_q_triangle(Val(N))
 
 function get_q_triangle(::Val{1})
-    Q∇ᵀ = SMatrix{3,3,Int,9}(1, 0, 0,
-                             0, 1, 0,
-                             0, 0, 1)
-    # Q∇ᵀ = SMatrix{1,3,Int,3}(1, 0, 0)
+    Q∇ᵀ = SMatrix{3,4,Int,12}(0, 0, 0,
+                              1, 0, 0,
+                              0, 1, 0,
+                              0, 0, 1)
     return Q∇ᵀ
 end
 
 function get_q_triangle(::Val{2})
-    Q∇ᵀ = SMatrix{3,7,Int,21}(0, 0, 0,
+    Q∇ᵀ = SMatrix{3,7,Int,24}(0, 0, 0,
                               1, 0, 0,
                               0, 1, 0,
                               0, 0, 1,
                               0, 0, 0,
                               0, 0, 0,
                               0, 0, 0)
-    # Q∇ᵀ = SMatrix{1,9,Int,9}(1, 0, 0, 0, 0, 0, 0, 0, 0)
-    # Q∇ᵀ = SMatrix{3,9,Int,27}(1, 0, 0, 0, 0, 0, 0, 0, 0,
-    #                           0, 1, 0, 0, 0, 0, 0, 0, 0,
-    #                           0, 0, 1, 0, 0, 0, 0, 0, 0)
     return Q∇ᵀ
 end
 
