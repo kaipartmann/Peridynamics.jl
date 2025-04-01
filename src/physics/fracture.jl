@@ -95,6 +95,17 @@ function no_failure!(body::AbstractBody)
     return nothing
 end
 
+
+"""
+    get_frac_params(::AbstractDamageModel, p::Dict{Symbol,Any}, δ::Float64, K::Float64)
+
+$(internal_api_warning())
+
+Read the submitted fracture parameter from the dictionary created with [`material!`](@ref).
+
+If multiple fracture parameters are found, an error is thrown. If none are found, all are
+set 0 and therefore failure is disabled in the following steps.
+"""
 function get_frac_params(::CriticalStretch, p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     local Gc::Float64
     local εc::Float64
@@ -116,11 +127,22 @@ function get_frac_params(::CriticalStretch, p::Dict{Symbol,Any}, δ::Float64, K:
 
     return (; Gc, εc)
 end
-
+  
 function get_frac_params(::AbstractDamageModel, p, δ, K)
     return (; )
 end
 
+"""
+    set_failure_permissions!(body, set_name, params)
+
+$(internal_api_warning())
+
+Grant or prohibit failure permission depending on the submitted fracture parameters by
+calling [`failure_permit!`](@ref).
+
+If fracture parameters are found, failure is allowed. If no fracture parameters are found,
+failure is not allowed.
+"""
 function set_failure_permissions!(body::AbstractBody, set_name::Symbol,
                                   params::AbstractPointParameters)
     if has_fracture(body.mat, params)
@@ -131,6 +153,14 @@ function set_failure_permissions!(body::AbstractBody, set_name::Symbol,
     return nothing
 end
 
+"""
+    has_fracture(mat, params)
+
+$(internal_api_warning())
+
+Return `true` if at least one fracture parameter is set `!=0` in `params` and the system
+therefore is supposed to have failure allowed or return `false` if not.
+"""
 function has_fracture(mat::AbstractMaterial, params::AbstractPointParameters)
     return has_fracture(mat.dmgmodel, params)
 end

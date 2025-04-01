@@ -18,6 +18,49 @@ function init_field(material, solver, system, field)
     return throw(InterfaceError(material, method_msg))
 end
 
+"""
+    @storage material storage
+    @storage material solver storage
+
+$(internal_api_warning())
+
+A macro for automatic creation of a storage type. The macro then maps a specified `material`
+type with the `storage` structure. When no solver is specified, this storage is always used
+independently of the solver type. Specifying a solver allows the usage of customized
+storages for a solver.
+
+The following macros can be used before field definitions inside the storage struct:
+- `@pointfield`: Specifies a point field (data that each point has). Most of the time a
+    `Matrix` (column `i` is a vectorial quantity of the local point `i`) or a `Vector`
+    (entry `i` is a scalar value of local point `i`).
+- `@lthfield`: Specifies a point field with local-to-halo exchange during the simulation
+    (creates a buffer and automatically updates this field when running the local-to-halo
+    update functions).
+- `@htlfield`: Specifies a point field with halo-to-local exchange during the simulation,
+    similar to `@lthfield`.
+
+# Example
+Example definition of the storage for the bond-based material:
+````julia
+@storage BBMaterial struct BBStorage <: AbstractStorage
+    @lthfield position::Matrix{Float64}
+    @pointfield displacement::Matrix{Float64}
+    @pointfield velocity::Matrix{Float64}
+    @pointfield velocity_half::Matrix{Float64}
+    @pointfield velocity_half_old::Matrix{Float64}
+    @pointfield acceleration::Matrix{Float64}
+    @pointfield b_int::Matrix{Float64}
+    @pointfield b_int_old::Matrix{Float64}
+    @pointfield b_ext::Matrix{Float64}
+    @pointfield density_matrix::Matrix{Float64}
+    @pointfield damage::Vector{Float64}
+    bond_active::Vector{Bool}
+    @pointfield n_active_bonds::Vector{Int}
+end
+
+"""
+macro storage end
+
 macro storage(material, storage)
     macrocheck_input_material(material)
     macrocheck_input_storage_struct(storage)
