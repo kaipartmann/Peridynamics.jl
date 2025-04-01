@@ -43,15 +43,13 @@ Peridynamics.TwoNeighborInteraction
 Peridynamics.ThreeNeighborInteraction
 Peridynamics.InteractionSystem
 Peridynamics.PointSetsPreCrack
-Peridynamics.BBPointParameters
+Peridynamics.StandardPointParameters
 Peridynamics.SingleDimBC
 Peridynamics.PosDepSingleDimBC
 Peridynamics.CKIPointParameters
-Peridynamics.CPointParameters
 Peridynamics.BACPointParameters
 Peridynamics.SingleDimIC
 Peridynamics.PosDepSingleDimIC
-Peridynamics.OSBPointParameters
 Peridynamics.ShortRangeForceContact
 
 Peridynamics.@storage
