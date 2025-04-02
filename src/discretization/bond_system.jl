@@ -358,7 +358,6 @@ end
 
 function log_material(mat::M;
                       indentation::Int=2) where {M<:Union{AbstractCorrespondenceMaterial,
-                                                          AbstractNSCMaterial,
                                                           AbstractRKCMaterial}}
     msg = msg_qty("material type", nameof(M); indentation)
     for prop in fieldnames(M)
