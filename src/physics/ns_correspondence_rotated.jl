@@ -161,7 +161,6 @@ function init_field(::NSCRMaterial, ::AbstractTimeSolver, system::BondSystem,
     return zeros(9, get_n_points(system))
 end
 
-
 function init_field(::NSCRMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:left_stretch})
     V = zeros(9, get_n_bonds(system))

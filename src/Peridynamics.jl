@@ -10,7 +10,7 @@ import LibGit2, Dates
 
 # Material models
 export BBMaterial, OSBMaterial, CMaterial, CRMaterial, NSCMaterial, NSCRMaterial,
-       RKCMaterial, BACMaterial, CKIMaterial
+       RKCMaterial, RKCRMaterial, BACMaterial, CKIMaterial
 
 # CMaterial related types
 export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling
@@ -143,6 +143,7 @@ include("physics/correspondence_rotated.jl")
 include("physics/ns_correspondence.jl")
 include("physics/ns_correspondence_rotated.jl")
 include("physics/rk_correspondence.jl")
+include("physics/rk_correspondence_rotated.jl")
 include("physics/ba_correspondence.jl")
 
 include("VtkReader/VtkReader.jl")

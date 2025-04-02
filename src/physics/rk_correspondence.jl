@@ -127,7 +127,7 @@ function RKCMaterial(; kernel::Function=cubic_b_spline_kernel,
     return RKCMaterial(kernel, model, dmgmodel, maxdmg, accuracy_order, regfactor)
 end
 
-function Base.show(io::IO, @nospecialize(mat::RKCMaterial))
+function Base.show(io::IO, @nospecialize(mat::AbstractRKCMaterial))
     print(io, typeof(mat))
     print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
     return nothing
