@@ -111,11 +111,11 @@ function RKCMaterial(; kernel::Function=cubic_b_spline_kernel,
                      model::AbstractConstitutiveModel=LinearElastic(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85,
                      accuracy_order::Int=1)
-    if kernel !== cubic_b_spline_kernel
-        msg = "The kernel $kernel is not recommended for use with RKCMaterial."
-        msg *= "Use the `cubic_b_spline_kernel` function instead.\n"
-        throw(ArgumentError(msg))
-    end
+    # if kernel !== cubic_b_spline_kernel
+    #     msg = "The kernel $kernel is not recommended for use with RKCMaterial."
+    #     msg *= "Use the `cubic_b_spline_kernel` function instead.\n"
+    #     throw(ArgumentError(msg))
+    # end
     if !(accuracy_order in (1, 2))
         msg = "RK kernel only implemented for `accuracy_order ∈ {1,2}`!\n"
         throw(ArgumentError(msg))
@@ -157,6 +157,11 @@ end
     gradient_weight::Matrix{Float64}
     first_piola_kirchhoff::Matrix{Float64}
 end
+
+# function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
+#                     ::Val{:displacement})
+#     return zeros(3, get_n_points(system))
+# end
 
 function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:b_int})
@@ -307,7 +312,8 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
-        Q = get_monomial_vector(accuracy_order, ΔXij, δ)
+        # Q = get_monomial_vector(accuracy_order, ΔXij, δ)
+        Q = get_monomial_vector(accuracy_order, ΔXij, 1.0)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
         temp = ωij * volume[j]
         M += temp * (Q * Q')
@@ -316,17 +322,21 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
     weighted_volume[i] = wi
 
     # calculate inverse of moment matrix, must be a full rank matrix!
-    threshold = 1e-6 * δ * δ * δ
+    threshold = 1e-9 * δ * δ * δ
     Minv = invreg(M, threshold)
+    # Minv = inv(M)
 
     # calculate gradient weights Φ
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
-        Q = get_monomial_vector(accuracy_order, ΔXij, δ)
+        # Q = get_monomial_vector(accuracy_order, ΔXij, δ)
+        Q = get_monomial_vector(accuracy_order, ΔXij, 1.0)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
-        temp = ωij / δ * volume[j]
+        # temp = ωij / δ
+        # temp = ωij / δ * volume[j]
+        temp = ωij * volume[j]
         MinvQ = Minv * Q
         Φ = temp * (Q∇ᵀ * MinvQ)
         update_vector!(gradient_weight, bond_id, Φ)
@@ -337,6 +347,77 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
 
     return nothing
 end
+
+# function my_rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
+#                          mat::AbstractRKCMaterial, params::AbstractPointParameters, t, Δt, i)
+#     (; bonds, volume) = system
+#     (; bond_active, gradient_weight, weighted_volume, update_gradients) = storage
+#     (; accuracy_order) = mat
+
+#     q_dim = get_q_dim(accuracy_order)
+#     Q∇ᵀ = get_q_triangle(accuracy_order)
+
+#     (; δ) = params
+
+#     # calculate moment matrix M
+#     # M2 = zero(MMatrix{q_dim,q_dim,Float64,q_dim*q_dim})
+#     M = zero(SMatrix{q_dim,q_dim,Float64,q_dim*q_dim})
+#     wi = 0.0
+#     for bond_id in each_bond_idx(system, i)
+#         bond = bonds[bond_id]
+#         j = bond.neighbor
+#         ΔXij = get_vector_diff(system.position, i, j)
+#         Q = get_monomial_vector(accuracy_order, ΔXij, δ)
+#         ωij = kernel(system, bond_id) * bond_active[bond_id]
+#         temp = ωij * volume[j]
+#         # for jj in 1:q_dim
+#         #     for ii in 1:q_dim
+#         #         M2[ii, jj] += temp * Q[ii] * Q[jj]
+#         #     end
+#         # end
+#         M += temp * (Q * Q')
+#         wi += temp
+#     end
+#     weighted_volume[i] = wi
+
+#     # @show M ≈ M2
+
+#     # error("stop")
+
+#     # calculate inverse of moment matrix, must be a full rank matrix!
+#     threshold = 1e-6 * δ * δ * δ
+#     Minv = invreg(M, threshold)
+
+#     # calculate gradient weights Φ
+#     for bond_id in each_bond_idx(system, i)
+#         bond = bonds[bond_id]
+#         j = bond.neighbor
+#         ΔXij = get_vector_diff(system.position, i, j)
+#         Q = get_monomial_vector(accuracy_order, ΔXij, δ)
+#         ωij = kernel(system, bond_id) * bond_active[bond_id]
+#         temp = ωij / δ
+#         # temp = ωij / δ * volume[j]
+#         MinvQ = Minv * Q
+#         Φ = temp * (Q∇ᵀ * MinvQ)
+#         Φ1 = 0.0
+#         Φ2 = 0.0
+#         Φ3 = 0.0
+#         temp = ωij
+#         for jj in 1:q_dim
+#             Φ1 += temp * Minv[jj, 1] * Q[jj] / δ
+#             Φ2 += temp * Minv[jj, 2] * Q[jj] / δ
+#             Φ3 += temp * Minv[jj, 3] * Q[jj] / δ
+#         end
+#         Φ_2 = SVector{3,Float64}(Φ1, Φ2, Φ3)
+#         @show Φ ≈ Φ_2
+#         update_vector!(gradient_weight, bond_id, Φ)
+#     end
+
+#     # gradients are evaluated and do not need to be updated anymore
+#     update_gradients[i] = false
+
+#     return nothing
+# end
 
 # @inline each_monomial(N::Int) = each_monomial(Val(N))
 
@@ -360,8 +441,8 @@ end
 
 # @inline get_q_dim(accuracy_order) = length(each_monomial(accuracy_order))
 @inline get_q_dim(N::Int) = get_q_dim(Val(N))
-@inline get_q_dim(::Val{1}) = 4
-@inline get_q_dim(::Val{2}) = 7
+@inline get_q_dim(::Val{1}) = 3
+@inline get_q_dim(::Val{2}) = 9
 
 @inline function get_monomial_vector(N::Int, ΔX::AbstractArray, δ::Real)
     return get_monomial_vector(Val(N), ΔX, δ)
@@ -385,32 +466,34 @@ end
 
 @inline function get_monomial_vector(::Val{1}, ΔX::AbstractArray, δ::Real)
     a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
-    Q = SVector{4,eltype(ΔX)}(1.0, a1, a2, a3)
+    Q = SVector{3,eltype(ΔX)}(a1, a2, a3)
     return Q
 end
 
 @inline function get_monomial_vector(::Val{2}, ΔX::AbstractArray, δ::Real)
     a1, a2, a3 = ΔX[1] / δ, ΔX[2] / δ, ΔX[3] / δ
+    Q = SVector{9,eltype(ΔX)}(a1, a2, a3, a1*a1, a1*a2, a1*a3, a2*a2, a2*a3, a3*a3)
     # Q = SVector{10,eltype(ΔX)}(1.0, a1, a2, a3, a1*a1, a1*a2, a1*a3, a2*a2, a2*a3, a3*a3)
-    Q = SVector{7,eltype(ΔX)}(1.0, a1, a2, a3, a1*a1, a2*a2, a3*a3)
+    # Q = SVector{7,eltype(ΔX)}(1.0, a1, a2, a3, a1*a1, a2*a2, a3*a3)
     return Q
 end
 
 @inline get_q_triangle(N::Int) = get_q_triangle(Val(N))
 
 function get_q_triangle(::Val{1})
-    Q∇ᵀ = SMatrix{3,4,Int,12}(0, 0, 0,
-                              1, 0, 0,
-                              0, 1, 0,
-                              0, 0, 1)
+    Q∇ᵀ = SMatrix{3,3,Int,9}(1, 0, 0,
+                             0, 1, 0,
+                             0, 0, 1)
     return Q∇ᵀ
 end
 
 function get_q_triangle(::Val{2})
-    Q∇ᵀ = SMatrix{3,7,Int,24}(0, 0, 0,
-                              1, 0, 0,
+    Q∇ᵀ = SMatrix{3,9,Int,27}(1, 0, 0,
                               0, 1, 0,
                               0, 0, 1,
+                              0, 0, 0,
+                              0, 0, 0,
+                              0, 0, 0,
                               0, 0, 0,
                               0, 0, 0,
                               0, 0, 0)
@@ -428,17 +511,74 @@ function rkc_defgrad!(storage::AbstractStorage, system::AbstractBondSystem,
     (; bond_active, defgrad, gradient_weight) = storage
 
     F = SMatrix{3,3,Float64,9}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+    # F2 = MMatrix{3,3,Float64,9}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     for bond_id in each_bond_idx(system, i)
-        if bond_active[bond_id]
-            bond = bonds[bond_id]
-            j = bond.neighbor
-            ΔXij = get_vector_diff(system.position, i, j)
-            Δxij = get_vector_diff(storage.position, i, j)
-            ΔUij = Δxij - ΔXij
-            Φij = get_vector(gradient_weight, bond_id)
-            F += (ΔUij * Φij') * volume[j]
-        end
+        bond = bonds[bond_id]
+        j = bond.neighbor
+        ΔXij = get_vector_diff(system.position, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
+        # ΔUij = get_vector_diff(storage.displacement, i, j)
+        ΔUij = Δxij - ΔXij
+        Φij = get_vector(gradient_weight, bond_id)
+        F += (ΔUij * Φij')# * volume[j]
+        # for ii in 1:3
+        #     F2[ii, 1] += ΔUij[ii] * Φij[1] * volume[j]
+        #     F2[ii, 2] += ΔUij[ii] * Φij[2] * volume[j]
+        #     F2[ii, 3] += ΔUij[ii] * Φij[3] * volume[j]
+        # end
     end
+
+    # (; accuracy_order) = mat
+    # _F = SMatrix{3,3,Float64,9}(0.0, 0.0, 0.0,
+    #                             0.0, 0.0, 0.0,
+    #                             0.0, 0.0, 0.0)
+    # q_dim = get_q_dim(accuracy_order)
+    # M = zero(SMatrix{q_dim,q_dim,Float64,q_dim*q_dim})
+    # Q∇ᵀ = get_q_triangle(accuracy_order)
+    # for bond_id in each_bond_idx(system, i)
+    #     bond = bonds[bond_id]
+    #     j = bond.neighbor
+    #     ΔXij = get_vector_diff(system.position, i, j)
+    #     Δxij = get_vector_diff(storage.position, i, j)
+    #     # ΔUij = get_vector_diff(storage.displacement, i, j)
+    #     # ΔUij = Δxij - ΔXij
+    #     # Φij = get_vector(gradient_weight, bond_id)
+    #     # _F += (ΔUij * Φij') * volume[j]
+
+    #     Q = get_monomial_vector(accuracy_order, ΔXij, 1.0)
+    #     @assert Q ≈ ΔXij
+    #     ωij = kernel(system, bond_id) * bond_active[bond_id]
+    #     temp = ωij * volume[j]
+    #     M += temp * (Q * Q')
+    #     _F += temp * (Δxij * Q')
+    # end
+    # δ = params.δ
+    # threshold = 1e-6 * δ * δ * δ
+    # Minv = invreg(M, threshold)
+    # Minv = inv(M)
+    # F = _F * Minv
+
+    # (; bonds, volume) = system
+    # (; bond_active, defgrad, weighted_volume) = storage
+
+    # K = zero(SMatrix{3,3,Float64,9})
+    # _F = zero(SMatrix{3,3,Float64,9})
+    # wi = 0.0
+    # for bond_id in each_bond_idx(system, i)
+    #     bond = bonds[bond_id]
+    #     j = bond.neighbor
+    #     ΔXij = get_vector_diff(system.position, i, j)
+    #     Δxij = get_vector_diff(storage.position, i, j)
+    #     ωij = kernel(system, bond_id) * bond_active[bond_id]
+    #     temp = ωij * volume[j]
+    #     K += temp * (ΔXij * ΔXij')
+    #     _F += temp * (Δxij * ΔXij')
+    #     wi += temp
+    # end
+    # Kinv = inv(K)
+    # F = _F * Kinv
+
+
     update_tensor!(defgrad, i, F)
 
     return nothing
@@ -461,6 +601,26 @@ function force_density_point!(storage::AbstractStorage, system::BondSystem,
     rkc_force_density!(storage, system, mat, params, ∑P, t, Δt, i)
     return nothing
 end
+
+# function force_density_point!(storage::AbstractStorage, system::BondSystem,
+#                               mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
+#                               Δt, i)
+#     (; bonds, volume) = system
+#     (; bond_active, gradient_weight, b_int) = storage
+#     F = get_tensor(storage.defgrad, i)
+#     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+#     for bond_id in each_bond_idx(system, i)
+#         bond = bonds[bond_id]
+#         j = bond.neighbor
+#         if bond_active[bond_id]
+#             Ψ = get_vector(gradient_weight, bond_id)
+#             tij = P * Ψ
+#             update_add_vector!(b_int, i, tij * volume[j])
+#             update_add_vector!(b_int, j, -tij * volume[i])
+#         end
+#     end
+#     return nothing
+# end
 
 function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSystem,
                               mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
