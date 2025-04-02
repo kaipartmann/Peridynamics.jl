@@ -108,11 +108,11 @@ end
 function NSCMaterial(; kernel::Function=cubic_b_spline_kernel,
                      model::AbstractConstitutiveModel=LinearElastic(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85)
-    if kernel !== cubic_b_spline_kernel
-        msg = "The kernel $kernel is not recommended for use with NSCMaterial."
-        msg *= "Use the `cubic_b_spline_kernel` function instead.\n"
-        throw(ArgumentError(msg))
-    end
+    # if kernel !== cubic_b_spline_kernel
+    #     msg = "The kernel $kernel is not recommended for use with NSCMaterial."
+    #     msg *= "Use the `cubic_b_spline_kernel` function instead.\n"
+    #     throw(ArgumentError(msg))
+    # end
     return NSCMaterial(kernel, model, dmgmodel, maxdmg)
 end
 

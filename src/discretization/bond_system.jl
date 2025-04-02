@@ -356,7 +356,10 @@ function log_material_property(::Val{:kernel}, mat::AbstractBondSystemMaterial;
     return msg
 end
 
-function log_material(mat::M; indentation::Int=2) where {M<:AbstractCorrespondenceMaterial}
+function log_material(mat::M;
+                      indentation::Int=2) where {M<:Union{AbstractCorrespondenceMaterial,
+                                                          AbstractNSCMaterial,
+                                                          AbstractRKCMaterial}}
     msg = msg_qty("material type", nameof(M); indentation)
     for prop in fieldnames(M)
         msg *= log_material_property(Val(prop), mat; indentation)
