@@ -3,17 +3,20 @@
 !!! warning "Work in progress"
     This page is currently worked on.
 
-## AbstractBondSystemMaterial
+## Implemented material models
 
-## AbstractCorrespondenceMaterial
-
-## AbstractInteractionSystemMaterial
+- [`BBMaterial`](@ref)
+- [`OSBMaterial`](@ref)
+- [`CMaterial`](@ref)
+- [`CKIMaterial`](@ref)
+- [`BACMaterial`](@ref)
 
 ## Custom materials
 
-can be defined for existing systems
-<XYZ>Material type has to be subtype of an Abstract<Systemname>Material, which automatically sets methods for this type
-link a point parameter type with @params
-link and create a storage with @storage
-define the force_density_point! function
+Custom materials can be defined for existing systems.
+Therefore the `<XYZ>Material` type has to be subtype of an `Abstract<Systemname>Material`, which automatically sets methods for this type.
+Further it is necessary to: 
+- link a point parameter type with `@params`.
+- link and create a storage with `@storage`.
+- define the `force_density_point!` function.
 
