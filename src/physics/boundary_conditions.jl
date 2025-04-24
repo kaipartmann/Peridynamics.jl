@@ -19,7 +19,7 @@ end
 function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}},
                    bc::SingleDimBC{F}, time::Float64) where {F}
     value = bc(time)
-    isnan(value) && return nothing
+    isfinite(value) || return nothing
     apply_sdbc!(get_point_data(s, bc.field), value, bc.dim, psets[bc.point_set])
     return nothing
 end
@@ -62,55 +62,58 @@ end
                                t::Float64) where {F}
     @simd for i in point_ids
         value = bc(SVector{3}(pos[1, i], pos[2, i], pos[3, i]), t)
-        if !isnan(value)
+        if isfinite(value)
             field[bc.dim, i] = value
         end
     end
     return nothing
 end
 
-struct VBC <: AbstractCondition
-    mbc::AbstractMatrix
+struct DataBC <: AbstractCondition
+    data::Matrix{Float64}
     field::Symbol
     point_set::Symbol
     dims::Vector{UInt8}
 end
 
-function Base.show(io::IO, @nospecialize(bc::VBC))
+function Base.show(io::IO, @nospecialize(bc::DataBC))
     print(io, "BC on ", field_to_name(bc.field), ": ")
     print(io, msg_fields_inline(bc, (:point_set)))
     return nothing
 end
 
-function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}}, bc::VBC, all_point_ids::Vector{Int})
-    apply_sdbc!(get_point_data(s, bc.field), bc, psets[bc.point_set], all_point_ids)
+function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}}, bc::DataBC,
+                   all_point_ids::Vector{Int})
+    apply_databc!(get_point_data(s, bc.field), bc, psets[bc.point_set], all_point_ids)
     return nothing
 end
 
-@inline function apply_sdbc!(field::Matrix{Float64}, bc::VBC, point_ids::Vector{Int}, all_point_ids::Vector{Int})
-    @simd for i in point_ids
+@inline function apply_databc!(field::Matrix{Float64}, bc::DataBC, point_ids::Vector{Int},
+                               all_point_ids::Vector{Int})
+    for i in point_ids
         for j in eachindex(bc.dims)
-            value = bc.mbc[j, all_point_ids[i]]
-            dim = bc.dims[j]
-            field[dim, i] = value
+            value = bc.data[j, all_point_ids[i]]
+            if isfinite(value)
+                dim = bc.dims[j]
+                field[dim, i] = value
+            end
         end
     end
     return nothing
 end
 
-function apply_boundary_conditions!(b::AbstractBodyChunk, time::Float64)
-    for bc in b.sdbcs
-        apply_bc!(b.storage, b.psets, bc, time)
+function apply_boundary_conditions!(chunk::AbstractBodyChunk, time::Float64)
+    for bc in chunk.sdbcs
+        apply_bc!(chunk.storage, chunk.psets, bc, time)
     end
-    for bc in b.pdsdbcs
-        apply_bc!(b.storage, b.psets, bc, b.system.position, time)
+    for bc in chunk.pdsdbcs
+        apply_bc!(chunk.storage, chunk.psets, bc, chunk.system.position, time)
     end
-    for bc in b.vbcs
-        apply_bc!(b.storage, b.psets, bc, b.system.chunk_handler.point_ids)
+    for bc in chunk.databcs
+        apply_bc!(chunk.storage, chunk.psets, bc, chunk.system.chunk_handler.point_ids)
     end
     return nothing
 end
-
 
 function wrong_dim_err_msg(dim)
     msg = "unknown dimension `$(dim)`!\n"
@@ -135,6 +138,14 @@ function get_dim(dim::Symbol)
     return SYMBOL_TO_DIM[dim]
 end
 
+function get_dims(dimspec::Vector{T}) where {T<:Union{Integer,Symbol}}
+    if length(dimspec) > 3
+        throw(ArgumentError("too many dimensions specified!"))
+    end
+    dims::Vector{UInt8} = [get_dim(dim) for dim in dimspec]
+    return dims
+end
+
 function add_boundary_condition!(body::AbstractBody, conditions::Vector{BC},
                                  condition::BC) where {BC<:AbstractCondition}
     check_boundary_condition_conflicts(body, condition)
@@ -157,14 +168,37 @@ function has_boundary_condition_conflict(body::AbstractBody, condition::BC) wher
     for existing_condition in body.posdep_single_dim_bcs
         conditions_conflict(body, existing_condition, condition) && return true
     end
+    for existing_condition in body.data_bcs
+        conditions_conflict(body, existing_condition, condition) && return true
+    end
     return false
 end
 
 function conditions_conflict(body::AbstractBody, a::AbstractCondition, b::AbstractCondition)
-    same_field = a.field === b.field
-    same_dim = a.dim == b.dim
+    same_field = conditions_have_same_field(a, b)
+    same_dim = conditions_have_same_dim(a, b)
     points_intersect = point_sets_intersect(body.point_sets, a.point_set, b.point_set)
     return same_field && same_dim && points_intersect
+end
+
+function conditions_have_same_field(a::AbstractCondition, b::AbstractCondition)
+    return a.field === b.field
+end
+
+function conditions_have_same_dim(a::AbstractCondition, b::AbstractCondition)
+    return a.dim == b.dim
+end
+
+function conditions_have_same_dim(a::DataBC, b::AbstractCondition)
+    return b.dim in a.dims
+end
+
+function conditions_have_same_dim(a::AbstractCondition, b::DataBC)
+    return a.dim in b.dims
+end
+
+function conditions_have_same_dim(a::DataBC, b::DataBC)
+    return intersect(a.dims, b.dims) != UInt8[]
 end
 
 function check_boundary_condition_function(f::F) where {F<:Function}
@@ -249,38 +283,6 @@ julia> body
     BC on velocity: point_set=all_points, dim=3
     Pos.-dep. BC on velocity: point_set=all_points, dim=2
 ```
-
-# A new method to apply velocity boundary conditions
-
-velocity_bc!(v_matrix, body, set_name, dims)
-
-Specifies velocity boundary conditions for points of the set `set_name` in `body`.
-
-The value of the boundary condition is assigned by reading the corresponding positions
-    in the matrix(`v_matrix`). 
-
-Multiple dimensions can be handled at once.
-
-More importantly, if we cannot describe the evolution of boundary conditions over time
-    using a function, and can only obtain the boundary values directly 
-    (e.g., in fluid-structure interaction problems), 
-    or if the boundary changes—such as when the original boundary disappears and a new one forms 
-    (e.g., in cases of surface ablation or melting)—we can simply update the corresponding values
-    in the `v_matrix` at each iteration to implement this.
-
-Of course, this method of application is more suitable for pressure boundaries
-    from a physical perspective.  
-
-# Example
-julia> dims = UInt8[1, 2, 3] 
-julia> v_matrix = zeros(3, body.n_points)
-julia> velocity_bc!(v_matrix, body, :all_points, dims)
-
-Here, the elements of dims are of type UInt8.     
-    -  x-direction: `1`
-    -  y-direction: `2`
-    -  z-direction: `3`
-
 """
 function velocity_bc!(f::F, body::AbstractBody, point_set::Symbol,
                       dimension::Union{Integer,Symbol}) where {F<:Function}
@@ -297,9 +299,64 @@ function velocity_bc!(f::F, body::AbstractBody, point_set::Symbol,
     return nothing
 end
 
-function velocity_bc!(f::Matrix, b::AbstractBody, name::Symbol, dims::Vector{UInt8})
-    vbc = VBC(f, :velocity_half, name, dims)
-    add_boundary_condition!(b, b.v_bcs, vbc)
+"""
+    velocity_databc!(body, data, set_name, dims)
+
+Specifies velocity boundary conditions for points of the set `set_name` in `body`.
+The value of the boundary condition is assigned by reading the corresponding positions
+in the matrix `data`. Multiple dimensions can be handled at once.
+
+!!! warning "Compatibility feature with other packages"
+    This method / feature is used for compatibility with other packages developing with
+    `Peridynamics.jl`. It is likely to change in the future, since the functionality of
+    updating the values of the matrix during the simulation is not yet implemented.
+    Consequently, at this stage, it is only available as a private API to facilitate future
+    modifications and ensure easier implementation of changes.
+
+# Arguments
+
+- `body::AbstractBody`: [`Body`](@ref) the condition is specified on.
+- `data::Matrix`: A matrix of size `length(dims) x n_points` that contains the values of
+    the boundary condition for each point in the body. But only the conditions of points
+    contained in the set `set_name` are applied during the simulation! It should be noted,
+    that the value of the `data` matrix is constant and currently cannot be updated during
+    the simulation. The data matrix is not checked for `NaN` values, since this is handled
+    in the `apply_bc!` function. If it contains `NaN` values, then these values are ignored.
+- `set_name::Symbol`: The name of a point set of this body. The condition applies only to
+    the points in this set, even if the data matrix contains values for all points in the
+    body.
+- `dims::Vector{Union{Integer,Symbol}}`: Vector containing the directions of the condition
+    that should be applied, either specified as Symbol or integer.
+    -  x-direction: `:x` or `1`
+    -  y-direction: `:y` or `2`
+    -  z-direction: `:z` or `3`
+    It should not contain more than 3 elements, and the elements should be unique. The order
+    of the elements does not matter, however it must match the values in the data matrix.
+    So if the first column of the data matrix contains the values for the x-direction,
+    then the first element of `dims` should be `1` or `:x`, and so on.
+
+# Throws
+
+- Errors if the body does not contain a set with `set_name`.
+- Errors if the directions are not correctly specified.
+- Errors if the dimensions of the data matrix are incorrect.
+"""
+function velocity_databc!(body::AbstractBody, data::Matrix, name::Symbol,
+                          dimspec::Vector{T}) where {T<:Union{Integer,Symbol}}
+    check_if_set_is_defined(body.point_sets, name)
+    if size(data, 2) != n_points(body)
+        msg = "the data matrix has a different number of columns than the number of points "
+        msg *= "in the body!\n"
+        throw(ArgumentError(msg))
+    end
+    if size(data, 1) != length(dimspec)
+        msg = "the data matrix has a different number of rows than the elements"
+        msg *= "in the dimension matrix!\n"
+        throw(ArgumentError(msg))
+    end
+    dims = get_dims(dimspec)
+    databc = DataBC(data, :velocity_half, name, dims)
+    add_boundary_condition!(body, body.data_bcs, databc)
     return nothing
 end
 
@@ -355,38 +412,6 @@ julia> body
     BC on force density: point_set=all_points, dim=3
     Pos.-dep. BC on force density: point_set=all_points, dim=2
 ```
-
-# A new method to apply forcedensity boundary conditions
-
-forcedensity_bc!(f_matrix, body, set_name, dims)
-
-Specifies forcedensity boundary conditions for points of the set `set_name` in `body`.
-
-The value of the boundary condition is assigned by reading the corresponding positions
-    in the matrix(`f_matrix`). 
-
-Multiple dimensions can be handled at once.
-
-More importantly, if we cannot describe the evolution of boundary conditions over time
-    using a function, and can only obtain the boundary values directly 
-    (e.g., in fluid-structure interaction problems), 
-    or if the boundary changes—such as when the original boundary disappears and a new one forms 
-    (e.g., in cases of surface ablation or melting)—we can simply update the corresponding values
-    in the `v_matrix` at each iteration to implement this. 
-
-By applying the boundary conditions through the matrix, we can adjust the conditions for each PD node
-    at every step, offering greater flexibility and control.
-
-# Example
-julia> dims = UInt8[1, 2, 3] 
-julia> f_matrix = zeros(3, body.n_points)
-julia> forcedensity_bc!(f_matrix, body, :all_points, dims)
-
-Here, the elements of dims are of type UInt8.     
-    -  x-direction: `1`
-    -  y-direction: `2`
-    -  z-direction: `3`
-
 """
 function forcedensity_bc!(f::F, body::AbstractBody, point_set::Symbol,
                           dimension::Union{Integer,Symbol}) where {F<:Function}
@@ -403,8 +428,63 @@ function forcedensity_bc!(f::F, body::AbstractBody, point_set::Symbol,
     return nothing
 end
 
-function forcedensity_bc!(f::Matrix, b::AbstractBody, name::Symbol, dims::Vector{UInt8})
-    vbc = VBC(f, :b_ext, name, dims)
-    add_boundary_condition!(b, b.v_bcs, vbc)
+"""
+    forcedensity_databc!(body, data, set_name, dims)
+
+Specifies forcedensity boundary conditions for points of the set `set_name` in `body`.
+The value of the boundary condition is assigned by reading the corresponding positions
+in the matrix `data`. Multiple dimensions can be handled at once.
+
+!!! warning "Compatibility feature with other packages"
+    This method / feature is used for compatibility with other packages developing with
+    `Peridynamics.jl`. It is likely to change in the future, since the functionality of
+    updating the values of the matrix during the simulation is not yet implemented.
+    Consequently, at this stage, it is only available as a private API to facilitate future
+    modifications and ensure easier implementation of changes.
+
+# Arguments
+
+- `body::AbstractBody`: [`Body`](@ref) the condition is specified on.
+- `data::Matrix`: A matrix of size `length(dims) x n_points` that contains the values of
+    the boundary condition for each point in the body. But only the conditions of points
+    contained in the set `set_name` are applied during the simulation! It should be noted,
+    that the value of the `data` matrix is constant and currently cannot be updated during
+    the simulation. The data matrix is not checked for `NaN` values, since this is handled
+    in the `apply_bc!` function. If it contains `NaN` values, then these values are ignored.
+- `set_name::Symbol`: The name of a point set of this body. The condition applies only to
+    the points in this set, even if the data matrix contains values for all points in the
+    body.
+- `dims::Vector{Union{Integer,Symbol}}`: Vector containing the directions of the condition
+    that should be applied, either specified as Symbol or integer.
+    -  x-direction: `:x` or `1`
+    -  y-direction: `:y` or `2`
+    -  z-direction: `:z` or `3`
+    It should not contain more than 3 elements, and the elements should be unique. The order
+    of the elements does not matter, however it must match the values in the data matrix.
+    So if the first column of the data matrix contains the values for the x-direction,
+    then the first element of `dims` should be `1` or `:x`, and so on.
+
+# Throws
+
+- Errors if the body does not contain a set with `set_name`.
+- Errors if the directions are not correctly specified.
+- Errors if the dimensions of the data matrix are incorrect.
+"""
+function forcedensity_databc!(body::AbstractBody, data::Matrix, name::Symbol,
+                              dimspec::Vector{T}) where {T<:Union{Integer,Symbol}}
+    check_if_set_is_defined(body.point_sets, name)
+    if size(data, 2) != n_points(body)
+        msg = "the data matrix has a different number of columns than the number of points "
+        msg *= "in the body!\n"
+        throw(ArgumentError(msg))
+    end
+    if size(data, 1) != length(dimspec)
+        msg = "the data matrix has a different number of rows than the elements"
+        msg *= "in the dimension matrix!\n"
+        throw(ArgumentError(msg))
+    end
+    dims = get_dims(dimspec)
+    databc = DataBC(data, :b_ext, name, dims)
+    add_boundary_condition!(body, body.data_bcs, databc)
     return nothing
 end
