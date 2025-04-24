@@ -101,11 +101,10 @@ end
 
 $(internal_api_warning())
 
-Read the submitted fracture parameter from the dictionary created with [`material!`](@ref).
-
-If multiple fracture parameters are found, an error is thrown. If none are found, all are
-set 0 and therefore failure is disabled in the following steps.
+Read or calculate the necessary fracture parameters for the specified damage model from the dictionary created with [`material!`](@ref). This function has to be defined when creating a new damage model. Otherwise, a default method returns a empty named tuple `(; )`.
 """
+function get_frac_params end
+
 function get_frac_params(::CriticalStretch, p::Dict{Symbol,Any}, δ::Float64, K::Float64)
     local Gc::Float64
     local εc::Float64
