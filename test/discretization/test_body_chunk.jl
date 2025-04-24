@@ -93,7 +93,7 @@ end
     @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
     @test b1.storage.n_active_bonds == [1, 1]
 
-    @test b1.paramsetup isa Peridynamics.BBPointParameters
+    @test b1.paramsetup isa Peridynamics.StandardPointParameters
     b1_params = Peridynamics.get_params(b1, 1)
     @test b1_params.δ ≈ 2.0
     @test b1_params.rho ≈ 1.0
@@ -156,7 +156,7 @@ end
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    @test b2.paramsetup isa Peridynamics.BBPointParameters
+    @test b2.paramsetup isa Peridynamics.StandardPointParameters
     b2_params = Peridynamics.get_params(b2, 1)
     @test b2_params.δ ≈ 2.0
     @test b2_params.rho ≈ 1.0
@@ -245,7 +245,7 @@ end
     @test length(b1.paramsetup.parameters) == 2
 
     pp1 = Peridynamics.get_params(b1, 1)
-    @test pp1 isa Peridynamics.BBPointParameters
+    @test pp1 isa Peridynamics.StandardPointParameters
     @test pp1.δ ≈ 2.0
     @test pp1.rho ≈ 1.0
     @test pp1.E ≈ 1.0
@@ -259,7 +259,7 @@ end
     @test pp1.bc ≈ 0.238732414637843
 
     pp2 = Peridynamics.get_params(b1, 2)
-    @test pp2 isa Peridynamics.BBPointParameters
+    @test pp2 isa Peridynamics.StandardPointParameters
     @test pp2.δ ≈ 2.0
     @test pp2.rho ≈ 1.0
     @test pp2.E ≈ 1.0
@@ -273,7 +273,7 @@ end
     @test pp2.bc ≈ 0.238732414637843
 
     pp3 = Peridynamics.get_params(b1, 3)
-    @test pp3 isa Peridynamics.BBPointParameters
+    @test pp3 isa Peridynamics.StandardPointParameters
     @test pp3.δ ≈ 3.0
     @test pp3.rho ≈ 2.0
     @test pp3.E ≈ 2.0
@@ -287,7 +287,7 @@ end
     @test pp3.bc ≈ 0.0943140403507528
 
     pp4= Peridynamics.get_params(b1, 4)
-    @test pp4 isa Peridynamics.BBPointParameters
+    @test pp4 isa Peridynamics.StandardPointParameters
     @test pp4.δ ≈ 3.0
     @test pp4.rho ≈ 2.0
     @test pp4.E ≈ 2.0
@@ -350,7 +350,7 @@ end
     @test length(b2.paramsetup.parameters) == 2
 
     pp3 = Peridynamics.get_params(b2, 1)
-    @test pp3 isa Peridynamics.BBPointParameters
+    @test pp3 isa Peridynamics.StandardPointParameters
     @test pp3.δ ≈ 3.0
     @test pp3.rho ≈ 2.0
     @test pp3.E ≈ 2.0
@@ -364,7 +364,7 @@ end
     @test pp3.bc ≈ 0.0943140403507528
 
     pp4 = Peridynamics.get_params(b2, 2)
-    @test pp4 isa Peridynamics.BBPointParameters
+    @test pp4 isa Peridynamics.StandardPointParameters
     @test pp4.δ ≈ 3.0
     @test pp4.rho ≈ 2.0
     @test pp4.E ≈ 2.0
@@ -378,7 +378,7 @@ end
     @test pp4.bc ≈ 0.0943140403507528
 
     pp1 = Peridynamics.get_params(b2, 3)
-    @test pp1 isa Peridynamics.BBPointParameters
+    @test pp1 isa Peridynamics.StandardPointParameters
     @test pp1.δ ≈ 2.0
     @test pp1.rho ≈ 1.0
     @test pp1.E ≈ 1.0
@@ -392,7 +392,7 @@ end
     @test pp1.bc ≈ 0.238732414637843
 
     pp2 = Peridynamics.get_params(b2, 4)
-    @test pp2 isa Peridynamics.BBPointParameters
+    @test pp2 isa Peridynamics.StandardPointParameters
     @test pp2.δ ≈ 2.0
     @test pp2.rho ≈ 1.0
     @test pp2.E ≈ 1.0

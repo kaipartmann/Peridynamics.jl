@@ -164,23 +164,30 @@ end
     return nothing
 end
 
+@inline function calc_density_matrix!(density_matrix::Matrix{Float64},
+                                      system::BondAssociatedSystem,
+                                      params::AbstractPointParameters,
+                                      dr::DynamicRelaxation, i::Int)
+    n_bonds = system.n_neighbors[i]
+    k = 5π * params.δ^2 * params.bc
+    Λ = dr.Λ * 1 / 4 * dr.Δt^2 * n_bonds * k
+    density_matrix[1, i] = Λ
+    density_matrix[2, i] = Λ
+    density_matrix[3, i] = Λ
+    return nothing
+end
+
 function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
-                              options::AbstractJobOptions,
-                              Δt::Float64, n::Int)
+                              options::AbstractJobOptions, Δt, n)
     t = n * Δt
     @threads :static for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
         apply_boundary_conditions!(chunk, t)
         update_disp_and_pos!(chunk, Δt)
     end
+    calc_force_density!(dh, t, Δt)
     @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_loc_to_halo!(dh, chunk_id)
-        calc_force_density!(dh.chunks[chunk_id])
-    end
-    @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_halo_to_loc!(dh, chunk_id)
         chunk = dh.chunks[chunk_id]
-        calc_damage!(chunk)
         cn = calc_damping(chunk, Δt)
         if n == 1
             relaxation_first_step!(chunk, Δt)
@@ -189,6 +196,23 @@ function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
         end
         export_results(dh, options, chunk_id, n, t)
     end
+    return nothing
+end
+
+function relaxation_timestep!(dh::AbstractMPIBodyDataHandler,
+                              options::AbstractJobOptions, Δt, n)
+    t = n * Δt
+    (; chunk) = dh
+    @timeit_debug TO "apply_boundary_conditions!" apply_boundary_conditions!(chunk, t)
+    @timeit_debug TO "update_disp_and_pos!" update_disp_and_pos!(chunk, Δt)
+    calc_force_density!(dh, t, Δt)
+    @timeit_debug TO "relaxation_step!" if n == 1
+        relaxation_first_step!(chunk, Δt)
+    else
+        cn = calc_damping(chunk, Δt)
+        relaxation_step!(chunk, Δt, cn)
+    end
+    @timeit_debug TO "export_results" export_results(dh, options, n, t)
     return nothing
 end
 

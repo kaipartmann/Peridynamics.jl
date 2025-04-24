@@ -2,10 +2,6 @@ function point_param_type(mat::AbstractMaterial)
     return throw(InterfaceError(mat, "point_param_type"))
 end
 
-function material_type(params::AbstractPointParameters)
-    return throw(InterfaceError(params, "material_type"))
-end
-
 function get_point_params(mat::AbstractMaterial, ::Dict{Symbol,Any})
     return throw(InterfaceError(mat, "get_point_params"))
 end
@@ -28,9 +24,6 @@ macro params(material, params)
     local _pointparam_type = quote
         Peridynamics.point_param_type(::$(esc(material))) = $(esc(params))
     end
-    local _material_type = quote
-        Peridynamics.material_type(::$(esc(params))) = $(esc(material))
-    end
     local _get_pointparams = quote
         function Peridynamics.get_point_params(m::$(esc(material)), p::Dict{Symbol,Any})
             return $(esc(params))(m, p)
@@ -39,8 +32,7 @@ macro params(material, params)
     local _post_checks = quote
         Peridynamics.constructor_check($(esc(material)), $(esc(params)))
     end
-    exprs = Expr(:block, _pre_checks, _pointparam_type, _material_type, _get_pointparams,
-                 _post_checks)
+    exprs = Expr(:block, _pre_checks, _pointparam_type, _get_pointparams, _post_checks)
     return exprs
 end
 
@@ -48,6 +40,7 @@ function macrocheck_input_material(material)
     material isa Symbol && return nothing
     (material isa Expr && material.head === :.) && return nothing
     (material isa Expr && material.head === :escape) && return nothing
+    (material isa Expr && material.head === :curly) && return nothing
     return throw(ArgumentError("argument `$material` is not a valid material input!\n"))
 end
 
@@ -86,4 +79,25 @@ function constructor_check(::Type{Material}, ::Type{Param}) where {Material,Para
         throw(InterfaceError(Param, "$(Param)(::$(Material), ::Dict{Symbol,Any})"))
     end
     return nothing
+end
+
+struct StandardPointParameters <: AbstractPointParameters
+    δ::Float64
+    rho::Float64
+    E::Float64
+    nu::Float64
+    G::Float64
+    K::Float64
+    λ::Float64
+    μ::Float64
+    Gc::Float64
+    εc::Float64
+    bc::Float64
+end
+
+function StandardPointParameters(mat::AbstractMaterial, p::Dict{Symbol,Any})
+    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
+    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
+    bc = 18 * K / (π * δ^4) # bond constant
+    return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end

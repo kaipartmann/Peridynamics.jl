@@ -354,33 +354,53 @@ function calc_timestep_point(system::InteractionSystem, params::AbstractPointPar
     return sqrt(2 * params.rho / dtsum)
 end
 
-function calc_force_density!(chunk::AbstractBodyChunk{S,M}) where {S<:InteractionSystem,M}
+function calc_force_density!(chunk::AbstractBodyChunk{<:InteractionSystem}, t, Δt)
     (; system, mat, paramsetup, storage) = chunk
+    (; dmgmodel) = mat
     storage.b_int .= 0
     storage.n_active_one_nis .= 0
     for point_id in each_point_idx(chunk)
-        force_density_point!(storage, system, mat, paramsetup, point_id)
+        calc_failure!(storage, system, mat, dmgmodel, paramsetup, point_id)
+        calc_damage!(storage, system, mat, dmgmodel, paramsetup, point_id)
+        force_density_point!(storage, system, mat, paramsetup, t, Δt, point_id)
+    end
+    nancheck(chunk, t)
+    return nothing
+end
+
+function calc_failure!(storage::AbstractStorage, system::InteractionSystem,
+                       mat::AbstractInteractionSystemMaterial, dmgmodel::CriticalStretch,
+                       paramsetup::AbstractParameterSetup, i)
+    (; εc) = get_params(paramsetup, i)
+    (; position, n_active_one_nis, one_ni_active) = storage
+    (; one_nis) = system
+    for bond_id in each_one_ni_idx(system, i)
+        one_ni = one_nis[bond_id]
+        j, L = one_ni.neighbor, one_ni.length
+        Δxij = get_vector_diff(position, i, j)
+        l = norm(Δxij)
+        ε = (l - L) / L
+        if ε > εc && one_ni.fail_permit
+            one_ni_active[bond_id] = false
+        end
+        n_active_one_nis[i] += one_ni_active[bond_id]
     end
     return nothing
 end
 
-@inline function calc_damage!(chunk::AbstractBodyChunk{S,M}) where {S<:InteractionSystem,M}
-    (; n_one_nis) = chunk.system
-    (; n_active_one_nis, damage) = chunk.storage
+function calc_damage!(chunk::AbstractBodyChunk{<:InteractionSystem})
+    (; system, mat, paramsetup, storage) = chunk
+    (; dmgmodel) = mat
     for point_id in each_point_idx(chunk)
-        @inbounds damage[point_id] = 1 - n_active_one_nis[point_id] / n_one_nis[point_id]
+        calc_damage!(storage, system, mat, dmgmodel, paramsetup, point_id)
     end
     return nothing
 end
 
-@inline function stretch_based_failure!(storage::AbstractStorage, ::InteractionSystem,
-                                        one_ni::Bond, params::AbstractPointParameters,
-                                        ε::Float64, i::Int, one_ni_id::Int)
-    if ε > params.εc && one_ni.fail_permit
-        storage.one_ni_active[one_ni_id] = false
-    end
-    storage.n_active_one_nis[i] += storage.one_ni_active[one_ni_id]
-    return nothing
+function calc_damage!(storage::AbstractStorage, system::InteractionSystem,
+                      mat::AbstractInteractionSystemMaterial, dmgmodel::AbstractDamageModel,
+                      paramsetup::AbstractParameterSetup, i)
+    @inbounds storage.damage[i] = 1 - storage.n_active_one_nis[i] / system.n_one_nis[i]
 end
 
 @inline function one_ni_failure(storage::AbstractStorage, one_ni_id::Int)
@@ -504,3 +524,21 @@ function allowed_material_kwargs(::AbstractInteractionSystemMaterial)
 end
 
 @inline get_n_one_nis(system::InteractionSystem) = length(system.one_nis)
+
+function log_material_property(::Val{:dmgmodel}, mat::AbstractInteractionSystemMaterial;
+                               indentation::Int=2)
+    msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)
+    return msg
+end
+
+function log_param_property(::Val{:C1}, param; indentation)
+    return msg_qty("parameter one-neighbor interactions", param.C1; indentation)
+end
+
+function log_param_property(::Val{:C2}, param; indentation)
+    return msg_qty("parameter two-neighbor interactions", param.C2; indentation)
+end
+
+function log_param_property(::Val{:C3}, param; indentation)
+    return msg_qty("parameter three-neighbor interactions", param.C3; indentation)
+end

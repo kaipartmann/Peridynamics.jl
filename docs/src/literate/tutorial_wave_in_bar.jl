@@ -22,8 +22,6 @@ npyz = 4
 # and point spacing is then created:
 pos, vol = uniform_box(lx, lyz, lyz, Δx)
 body = Body(OSBMaterial(), pos, vol)
-# Failure is prohibited throughout the body:
-failure_permit!(body, false)
 # Following material parameters are specified:
 
 # | material parameter | value |
@@ -32,8 +30,8 @@ failure_permit!(body, false)
 # | Density $ρ$ | $ 7850\,\mathrm{kg}\,\mathrm{m}^{-3}$ |
 # | Young's modulus $E$ | $ 210 \, \mathrm{GPa}$ |
 # | Poisson's ratio $ν$ | $0.25$ |
-# | critical strain $ε_c$ | $0.01$ |
-material!(body, horizon=3.015Δx, rho=7850.0, E=210e9, nu=0.25, epsilon_c=0.01)
+material!(body, horizon=3.015Δx, rho=7850.0, E=210e9, nu=0.25)
+# Failure is prohibited throughout the body since no fracture parameters are defined.
 # Point set `:left` including the first row of points in x-direction is created:
 point_set!(x -> x < -lx / 2 + 1.2Δx, body, :left)
 # The velocity boundary condition of the form
@@ -64,6 +62,6 @@ job = Job(body, vv; path="results/xwave")
 
 # ```@raw html
 #     <video controls loop="true">
-#         <source src="https://github.com/user-attachments/assets/a2594777-5d0b-4c5a-acd4-da1e357a06e3" />
+#         <source src="https://github.com/user-attachments/assets/b9839787-f265-43f4-9d57-a33375ad9610" />
 #     </video>
 # ```

@@ -9,15 +9,13 @@
     n_points = size(pos, 2)
     vol = fill(Δx^3, n_points)
     body = Body(BBMaterial(), pos, vol)
-    failure_permit!(body, false)
-    material!(body, horizon=3.015Δx, rho=7850, E=210e9, Gc=1)
+    material!(body, horizon=3.015Δx, rho=7850, E=210e9)
     point_set!(z -> z > width/2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width/2 + 0.6Δx, body, :set_b)
     velocity_bc!(t -> 100, body, :set_a, :z)
     velocity_bc!(t -> -100, body, :set_b, :z)
     vv = VelocityVerlet(steps=100)
-    temp_root = joinpath(@__DIR__, "temp_root_symmetry_test_bb_vv")
-    rm(temp_root; recursive=true, force=true)
+    temp_root = mktempdir()
     job = Job(body, vv; path=temp_root, freq=10)
     dh = Peridynamics.submit_threads(job, 1)
 
@@ -62,9 +60,6 @@
             @test abs(end_displacement[d, i]) > 0
         end
     end
-
-    # delete all simulation files
-    rm(temp_root; recursive=true, force=true)
 end
 
 @testitem "symmetry BBMaterial DynamicRelaxation" begin
@@ -78,15 +73,13 @@ end
     n_points = size(pos, 2)
     vol = fill(Δx^3, n_points)
     body = Body(BBMaterial(), pos, vol)
-    failure_permit!(body, false)
-    material!(body, horizon=3.015Δx, rho=7850, E=210e9, Gc=1)
+    material!(body, horizon=3.015Δx, rho=7850, E=210e9)
     point_set!(z -> z > width/2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width/2 + 0.6Δx, body, :set_b)
     forcedensity_bc!(t -> 1e10, body, :set_a, :z)
     forcedensity_bc!(t -> -1e10, body, :set_b, :z)
     dr = DynamicRelaxation(steps=100)
-    temp_root = joinpath(@__DIR__, "temp_root_symmetry_test_bb_dr")
-    rm(temp_root; recursive=true, force=true)
+    temp_root = mktempdir()
     job = Job(body, dr; path=temp_root, freq=10)
     dh = Peridynamics.submit_threads(job, 1)
 
@@ -121,7 +114,4 @@ end
             @test abs(end_displacement[d, i]) > 0
         end
     end
-
-    # delete all simulation files
-    rm(temp_root; recursive=true, force=true)
 end
