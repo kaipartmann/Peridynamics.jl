@@ -340,6 +340,8 @@ end
 """
     velocity_databc!(body, data, set_name, dims)
 
+$(internal_api_warning())
+
 Specifies velocity boundary conditions for points of the set `set_name` in `body`.
 The value of the boundary condition is assigned by reading the corresponding positions
 in the matrix `data`. Multiple dimensions can be handled at once.
@@ -473,6 +475,8 @@ end
 
 """
     forcedensity_databc!(body, data, set_name, dims)
+
+$(internal_api_warning())
 
 Specifies forcedensity boundary conditions for points of the set `set_name` in `body`.
 The value of the boundary condition is assigned by reading the corresponding positions
