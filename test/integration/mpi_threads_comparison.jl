@@ -263,7 +263,7 @@ end
     end
 end
 
-@testitem "MPI-Threads comparison CMaterial" tags=[:mpi,:skipci] begin
+@testitem "MPI-Threads comparison CMaterial" tags=[:mpi] begin
     root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
