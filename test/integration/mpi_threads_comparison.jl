@@ -1,4 +1,4 @@
-@testitem "MPI-Threads comparison BBMaterial{NoCorrection}" begin
+@testitem "MPI-Threads comparison BBMaterial{NoCorrection}" tags=[:mpi] begin
     root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
@@ -63,7 +63,7 @@
     end
 end
 
-@testitem "MPI-Threads comparison BBMaterial{NoCorrection} DynamicRelaxation" begin
+@testitem "MPI-Threads comparison BBMaterial{NoCorrection} DynamicRelaxation" tags=[:mpi] begin
     root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
@@ -133,7 +133,7 @@ end
     end
 end
 
-@testitem "MPI-Threads comparison BBMaterial{EnergySurfaceCorrection}" begin
+@testitem "MPI-Threads comparison BBMaterial{EnergySurfaceCorrection}" tags=[:mpi] begin
     root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
@@ -198,7 +198,7 @@ end
     end
 end
 
-@testitem "MPI-Threads comparison OSBMaterial" begin
+@testitem "MPI-Threads comparison OSBMaterial" tags=[:mpi] begin
     root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
@@ -263,7 +263,7 @@ end
     end
 end
 
-@testitem "MPI-Threads comparison CMaterial" begin
+@testitem "MPI-Threads comparison CMaterial" tags=[:mpi] begin
     root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
@@ -329,7 +329,7 @@ end
 end
 
 
-@testitem "MPI-Threads comparison BACMaterial" begin
+@testitem "MPI-Threads comparison BACMaterial" tags=[:mpi] begin
     root = mktempdir()
     path_threads = joinpath(root, "results_threads")
     path_threads_vtk = joinpath(path_threads, "vtk")
