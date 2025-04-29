@@ -344,6 +344,14 @@ in the matrix `data`. Multiple dimensions can be handled at once.
 function velocity_databc!(body::AbstractBody, data::Matrix, name::Symbol,
                           dimspec::Vector{T}) where {T<:Union{Integer,Symbol}}
     check_if_set_is_defined(body.point_sets, name)
+    check_databc_data_dimensions(body, data, dimspec)
+    dims = get_dims(dimspec)
+    databc = DataBC(data, :velocity_half, name, dims)
+    add_boundary_condition!(body, body.data_bcs, databc)
+    return nothing
+end
+
+function check_databc_data_dimensions(body::AbstractBody, data::Matrix, dimspec::Vector)
     if size(data, 2) != n_points(body)
         msg = "the data matrix has a different number of columns than the\n"
         msg *= "number of points in the body!\n"
@@ -354,9 +362,6 @@ function velocity_databc!(body::AbstractBody, data::Matrix, name::Symbol,
         msg *= "in the dimension matrix!\n"
         throw(ArgumentError(msg))
     end
-    dims = get_dims(dimspec)
-    databc = DataBC(data, :velocity_half, name, dims)
-    add_boundary_condition!(body, body.data_bcs, databc)
     return nothing
 end
 
@@ -473,16 +478,7 @@ in the matrix `data`. Multiple dimensions can be handled at once.
 function forcedensity_databc!(body::AbstractBody, data::Matrix, name::Symbol,
                               dimspec::Vector{T}) where {T<:Union{Integer,Symbol}}
     check_if_set_is_defined(body.point_sets, name)
-    if size(data, 2) != n_points(body)
-        msg = "the data matrix has a different number of columns than the number of points "
-        msg *= "in the body!\n"
-        throw(ArgumentError(msg))
-    end
-    if size(data, 1) != length(dimspec)
-        msg = "the data matrix has a different number of rows than the elements"
-        msg *= "in the dimension matrix!\n"
-        throw(ArgumentError(msg))
-    end
+    check_databc_data_dimensions(body, data, dimspec)
     dims = get_dims(dimspec)
     databc = DataBC(data, :b_ext, name, dims)
     add_boundary_condition!(body, body.data_bcs, databc)

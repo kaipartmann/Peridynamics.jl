@@ -126,4 +126,18 @@ end
     # too many dimensions
     data = rand(4, 2)
     @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [1, 2, 3, 4])
+
+    # reset the body
+    body = Body(BBMaterial(), position, volume)
+    material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)
+    point_set!(body, :a, 1:2)
+    point_set!(body, :b, [2])
+
+    # check for conflicts when standard conditions are set first
+    velocity_bc!(t -> 2 * t, body, :a, :x)
+    forcedensity_bc!(t -> t, body, :a, :y)
+    data = rand(1, 2)
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [1])
+    data = rand(2, 2)
+    @test_throws ArgumentError Peridynamics.forcedensity_databc!(body, data, :a, [:y, :z])
 end
