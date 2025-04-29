@@ -67,6 +67,7 @@ Body{Material,PointParameters}
     dimension.
 - `posdep_single_dim_ics::Vector{PosDepSingleDimIC}`: A vector with position dependent
     initial conditions on a single dimension.
+- `data_bcs::Vector{DataBC}`: A vector with data boundary conditions.
 - `point_sets_precracks::Vector{PointSetsPreCrack}`: A vector with predefined point set
     cracks.
 """
@@ -84,6 +85,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     posdep_single_dim_bcs::Vector{PosDepSingleDimBC}
     single_dim_ics::Vector{SingleDimIC}
     posdep_single_dim_ics::Vector{PosDepSingleDimIC}
+    data_bcs::Vector{DataBC}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
     function Body(mat::M, position::AbstractMatrix, volume::AbstractVector) where {M}
@@ -101,10 +103,11 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
         posdep_single_dim_bcs = Vector{PosDepSingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         posdep_single_dim_ics = Vector{PosDepSingleDimIC}()
+        v_bcs = Vector{DataBC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
         new{M,P}(name, mat, n_points, position, volume, fail_permit, point_sets,
-                 point_params, params_map, single_dim_bcs, posdep_single_dim_bcs,
+                 point_params, params_map, single_dim_bcs, posdep_single_dim_bcs, v_bcs,
                  single_dim_ics, posdep_single_dim_ics, point_sets_precracks)
     end
 end
@@ -149,6 +152,10 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(body::AbstractBody)
             show(io, bc)
         end
         for bc in body.posdep_single_dim_bcs
+            print(io, "\n    ")
+            show(io, bc)
+        end
+        for bc in body.data_bcs
             print(io, "\n    ")
             show(io, bc)
         end
@@ -355,10 +362,15 @@ end
 @inline has_params(body::AbstractBody) = !isempty(body.point_params)
 
 @inline function n_bcs(body::AbstractBody)
-    return length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
+    n_sdbcs = length(body.single_dim_bcs)
+    n_pdsdbcs = length(body.posdep_single_dim_bcs)
+    n_databcs = length(body.data_bcs)
+    return n_sdbcs + n_pdsdbcs + n_databcs
 end
 @inline function n_ics(body::AbstractBody)
-    return length(body.single_dim_ics) + length(body.posdep_single_dim_ics)
+    n_sdics = length(body.single_dim_ics)
+    n_pdsdics = length(body.posdep_single_dim_ics)
+    return n_sdics + n_pdsdics
 end
 
 @inline has_bcs(body::AbstractBody) = n_bcs(body) > 0 ? true : false

@@ -23,6 +23,8 @@ Peridynamics.find_points
 Peridynamics.apply_precracks!
 Peridynamics.apply_precrack!
 Peridynamics.point_sets_intersect
+Peridynamics.velocity_databc!
+Peridynamics.forcedensity_databc!
 
 Peridynamics.InterfaceError
 Peridynamics.HaloExchange
