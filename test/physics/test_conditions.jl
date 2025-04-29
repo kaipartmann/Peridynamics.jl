@@ -74,3 +74,70 @@ end
     @test_throws ArgumentError velocity_bc!(t -> 1, body, :a, :k)
     @test_throws ArgumentError velocity_bc!(t -> 1, body, :a, 4)
 end
+
+@testitem "Condition errors DataBCs" begin
+    position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
+    volume = [1.0, 1.0]
+    body = Body(BBMaterial(), position, volume)
+    material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)
+    point_set!(body, :a, 1:2)
+    point_set!(body, :b, [2])
+
+    # data has wrong dimensions
+    data = rand(2, 3) # not matching the number of points
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [1, 2])
+    data = rand(3, 2) # not matching the number of dimensions
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [1, 2])
+
+    # should work for just the x-dimension
+    data = rand(1, 2)
+    Peridynamics.velocity_databc!(body, data, :a, [1])
+
+    # conflicts with existing conditions:
+    @test_throws ArgumentError velocity_bc!(t -> 2 * t, body, :a, :x)
+
+    data = rand(1, 2)
+    Peridynamics.velocity_databc!(body, data, :a, [:y])
+
+    @test_throws ArgumentError velocity_bc!(t -> t, body, :a, :y)
+    @test_throws ArgumentError velocity_bc!(t -> t, body, :b, :y)
+
+    data = rand(1, 2)
+    Peridynamics.forcedensity_databc!(body, data, :a, [:x])
+    @test_throws ArgumentError Peridynamics.forcedensity_databc!(body, 2 * data, :a, [:x])
+    @test_throws ArgumentError forcedensity_bc!((p,t) -> p[1] * t, body, :a, :x)
+    @test_throws ArgumentError forcedensity_bc!((p,t) -> p[1] * t, body, :b, :x)
+
+    data = rand(2, 2)
+    Peridynamics.forcedensity_databc!(body, data, :a, [:y, :z])
+    @test_throws ArgumentError forcedensity_bc!(t -> t, body, :a, :y)
+    @test_throws ArgumentError forcedensity_bc!(t -> t, body, :b, :y)
+    @test_throws ArgumentError forcedensity_bc!(t -> t, body, :a, :z)
+    @test_throws ArgumentError forcedensity_bc!(t -> t, body, :b, :z)
+
+    # unknown symbols
+    data = rand(1, 2)
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [:k])
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [4])
+    @test_throws MethodError Peridynamics.velocity_databc!(body, data, :a, 3)
+    data = rand(2, 2)
+    @test_throws MethodError Peridynamics.velocity_databc!(body, data, :a, [:x, 2])
+
+    # too many dimensions
+    data = rand(4, 2)
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [1, 2, 3, 4])
+
+    # reset the body
+    body = Body(BBMaterial(), position, volume)
+    material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)
+    point_set!(body, :a, 1:2)
+    point_set!(body, :b, [2])
+
+    # check for conflicts when standard conditions are set first
+    velocity_bc!(t -> 2 * t, body, :a, :x)
+    forcedensity_bc!(t -> t, body, :a, :y)
+    data = rand(1, 2)
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [1])
+    data = rand(2, 2)
+    @test_throws ArgumentError Peridynamics.forcedensity_databc!(body, data, :a, [:y, :z])
+end

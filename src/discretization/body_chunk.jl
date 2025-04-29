@@ -10,6 +10,7 @@ struct BodyChunk{System<:AbstractSystem,
     psets::Dict{Symbol,Vector{Int}}
     sdbcs::Vector{SingleDimBC}
     pdsdbcs::Vector{PosDepSingleDimBC}
+    databcs::Vector{DataBC}
     cells::Vector{MeshCell{VTKCellType,Tuple{Int64}}}
 end
 
@@ -23,9 +24,10 @@ function BodyChunk(body::AbstractBody, solver::AbstractTimeSolver, pd::PointDeco
     psets = localized_point_sets(body.point_sets, system.chunk_handler)
     sdbcs = body.single_dim_bcs
     pdsdbcs = body.posdep_single_dim_bcs
+    databcs = body.data_bcs
     cells = get_cells(get_n_loc_points(system))
     chunk = BodyChunk(body_name, system, mat, paramsetup, storage, psets, sdbcs,
-                      pdsdbcs, cells)
+                      pdsdbcs, databcs, cells)
     return chunk
 end
 
