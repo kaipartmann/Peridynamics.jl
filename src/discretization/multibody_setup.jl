@@ -10,7 +10,7 @@ Setup for a peridynamic simulation with multiple bodies.
 
 # Throws
 
-- Errors if less than 2 bodies are defined
+- Error if less than 2 bodies are defined.
 
 # Examples
 

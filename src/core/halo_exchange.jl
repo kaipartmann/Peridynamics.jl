@@ -1,3 +1,19 @@
+"""
+    HaloExchange
+
+$(internal_api_warning())
+
+A type used for communication between body chunks. This type is used with both MPI and multithreaded simulations. Note that the `tag` is only used with MPI and has the value `0` in multithreaded simulations.
+
+# Fields
+
+- `tag::Int`: Tag used for the MPI sending and receiving commands.
+- `src_chunk_id::Int`: Index of the chunk that sends information.
+- `dest_chunk_id::Int`: Index of the chunk that receives information.
+- `src_idxs::Vector{Int}`: Indices of the points in the source chunk that send information.
+- `dest_idxs::Vector{Int}`: Indices of the points in the destination chunk that receive
+    information.
+"""
 struct HaloExchange
     tag::Int
     src_chunk_id::Int
