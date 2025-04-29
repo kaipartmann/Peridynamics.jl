@@ -2,19 +2,25 @@
     Body(material, position, volume)
     Body(material, inp_file)
 
-Constructs a `Body` for a peridynamics simulation.
+Construct a `Body` for a peridynamics simulation.
 
 # Arguments
 - `material::AbstractMaterial`: The material which is defined for the whole body.
+    Available material models:
+    - [`BBMaterial`](@ref): Bond-based peridynamics
+    - [`OSBMaterial`](@ref): Ordinary state-based peridynamics
+    - [`CMaterial`](@ref): Correspondence formulation of non-ordinary state-based
+        peridynamics
+    - [`CKIMaterial`](@ref): Continuum-kinematics-inspired peridynamics
 - `position::AbstractMatrix`: A `3×n` matrix with the point position of the `n` points.
 - `volume::AbstractVector`: A vector with the volume of each point.
 - `inp_file::AbstractString`: An Abaqus input file containing meshes, imported with
     [`read_inp`](@ref).
 
 # Throws
-- Errors if the number of points is not larger than zero
-- Errors if `position` is not a `3×n` matrix and has the same length as `volume`
-- Errors if `position` or `volume` contain `NaN` values
+- Error if the number of points is not larger than zero.
+- Error if `position` is not a `3×n` matrix and has the same length as `volume`.
+- Error if `position` or `volume` contain `NaN` values.
 
 # Example
 
@@ -38,8 +44,8 @@ Body{Material,PointParameters}
 
 # Type Parameters
 
-- `Material <: AbstractMaterial`: Type of the specified material model
-- `PointParameters <: AbstractPointParameters`: Type of the point parameters
+- `Material <: AbstractMaterial`: Type of the specified material model.
+- `PointParameters <: AbstractPointParameters`: Type of the point parameters.
 
 # Fields
 
@@ -187,6 +193,14 @@ end
 
 @inline material_type(::AbstractBody{M}) where {M} = M.name.wrapper
 
+"""
+    check_pos_and_vol(n_points, position, volume)
+
+$(internal_api_warning())
+
+Check if the positions and volumes for the points are correctly specified in the fields of
+a [`Body`](@ref).
+"""
 function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
     # check if n_points is greater than zero
     n_points > 0 || error("the number of points must be greater than zero!\n")
@@ -207,6 +221,15 @@ function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::Abst
     return nothing
 end
 
+"""
+    pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
+    pre_submission_check(ms::AbstractMultibodySetup)
+
+$(internal_api_warning())
+
+Check if necessary material parameters and conditions are defined when defining a
+[`Job`](@ref).
+"""
 function pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
     # the body should have material properties
     if isempty(body.point_params)
@@ -360,7 +383,7 @@ end
 """
     n_points(body)
 
-Returns the total number of points in a body.
+Return the total number of points in a body.
 
 # Arguments
 - `body::Body`: [`Body`](@ref).
@@ -383,7 +406,7 @@ julia> n_points(body)
 
     n_points(multibody_setup)
 
-Returns the total number of points in a multibody setup.
+Return the total number of points in a multibody setup.
 
 # Arguments
 - `multibody_setup::MultibodySetup`: [`MultibodySetup`](@ref).

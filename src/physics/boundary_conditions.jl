@@ -1,3 +1,21 @@
+"""
+    SingleDimBC{F}
+
+$(internal_api_warning())
+
+Type for a boundary condition in a single dimension for a peridynamic simulation.
+
+# Type Parameters
+
+- `F<:Function`: Time dependent function which describes the boundary condition.
+
+# Fields
+
+- `fun::F`: Time dependent function which describes the boundary condition.
+- `field::Symbol`: Field of the condition (e.g. velocity, force density).
+- `point_set::Symbol`: Point set on which the condition is applied.
+- `dim::UInt8`: Dimension in which the condition is applied.
+"""
 struct SingleDimBC{F<:Function} <: AbstractCondition
     fun::F
     field::Symbol
@@ -32,6 +50,26 @@ end
     return nothing
 end
 
+"""
+    PosDepSingleDimBC{F}
+
+$(internal_api_warning())
+
+Type for a position dependent boundary condition in a single dimension for a peridynamic
+simulation.
+
+# Type Parameters
+
+- `F<:Function`: Position and time dependent function which describes the boundary
+    condition.
+
+# Fields
+
+- `fun::F`: Position and time dependent function which describes the boundary condition.
+- `field::Symbol`: Field of the condition (e.g. velocity, force density).
+- `point_set::Symbol`: Point set on which the condition is applied.
+- `dim::UInt8`: Dimension in which the condition is applied.
+"""
 struct PosDepSingleDimBC{F<:Function} <: AbstractCondition
     fun::F
     field::Symbol
@@ -234,7 +272,7 @@ end
 """
     velocity_bc!(fun, body, set_name, dim)
 
-Specifies velocity boundary conditions for points of the set `set_name` in `body`.
+Specify velocity boundary condition for points of the set `set_name` in `body`.
 The value of the boundary condition is calculated with the function `fun` at every time
 step.
 
@@ -261,9 +299,9 @@ step.
 
 # Throws
 
-- Errors if the body does not contain a set with `set_name`.
-- Errors if the direction is not correctly specified.
-- Errors if function is not suitable as condition function and has the wrong arguments.
+- Error if the body does not contain a set with `set_name`.
+- Error if the direction is not correctly specified.
+- Error if function is not suitable as condition function and has the wrong arguments.
 
 # Example
 
@@ -301,6 +339,8 @@ end
 
 """
     velocity_databc!(body, data, set_name, dims)
+
+$(internal_api_warning())
 
 Specifies velocity boundary conditions for points of the set `set_name` in `body`.
 The value of the boundary condition is assigned by reading the corresponding positions
@@ -368,7 +408,7 @@ end
 """
     forcedensity_bc!(fun, body, set, dim)
 
-Specifies force density boundary conditions for points of the set `set_name` in `body`.
+Specify force density boundary condition for points of the set `set_name` in `body`.
 The value of the boundary condition is calculated with the function `fun` at every time
 step.
 
@@ -395,9 +435,9 @@ step.
 
 # Throws
 
-- Errors if the body does not contain a set with `set_name`.
-- Errors if the direction is not correctly specified.
-- Errors if function is not suitable as condition function and has the wrong arguments.
+- Error if the body does not contain a set with `set_name`.
+- Error if the direction is not correctly specified.
+- Error if function is not suitable as condition function and has the wrong arguments.
 
 # Example
 
@@ -435,6 +475,8 @@ end
 
 """
     forcedensity_databc!(body, data, set_name, dims)
+
+$(internal_api_warning())
 
 Specifies forcedensity boundary conditions for points of the set `set_name` in `body`.
 The value of the boundary condition is assigned by reading the corresponding positions
