@@ -38,11 +38,21 @@
 
     velocity_databc!(body, v_matrix, :left, dims_v)
     forcedensity_databc!(body, f_matrix, :right, dims_f)
+
+    # test show method for DataBCs
+    io = IOBuffer()
+    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
+    msg = String(take!(io))
+    @test contains(msg, "2 boundary condition(s):")
+    @test contains(msg, "Data BC on velocity: point_set=left, dims=UInt8[0x01, 0x02, 0x03]")
+    @test contains(msg, "Data BC on force density: point_set=right, dims=UInt8[0x01]")
+
+    # run the simulation
     vv = DynamicRelaxation(; steps)
     path = mktempdir()
     rm(path; recursive=true, force=true)
     job = Job(body, vv; freq=steps, path, fields=(:displacement, :b_ext))
-    A = submit(job)
+    submit(job)
 
     # Analytical solution
     A = w * h # Cross-sectional area

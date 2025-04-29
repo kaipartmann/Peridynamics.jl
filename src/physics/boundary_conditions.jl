@@ -77,8 +77,8 @@ struct DataBC <: AbstractCondition
 end
 
 function Base.show(io::IO, @nospecialize(bc::DataBC))
-    print(io, "BC on ", field_to_name(bc.field), ": ")
-    print(io, msg_fields_inline(bc, (:point_set)))
+    print(io, "Data BC on ", field_to_name(bc.field), ": ")
+    print(io, msg_fields_inline(bc, (:point_set, :dims)))
     return nothing
 end
 
@@ -345,12 +345,12 @@ function velocity_databc!(body::AbstractBody, data::Matrix, name::Symbol,
                           dimspec::Vector{T}) where {T<:Union{Integer,Symbol}}
     check_if_set_is_defined(body.point_sets, name)
     if size(data, 2) != n_points(body)
-        msg = "the data matrix has a different number of columns than the number of points "
-        msg *= "in the body!\n"
+        msg = "the data matrix has a different number of columns than the\n"
+        msg *= "number of points in the body!\n"
         throw(ArgumentError(msg))
     end
     if size(data, 1) != length(dimspec)
-        msg = "the data matrix has a different number of rows than the elements"
+        msg = "the data matrix has a different number of rows than the elements\n"
         msg *= "in the dimension matrix!\n"
         throw(ArgumentError(msg))
     end
