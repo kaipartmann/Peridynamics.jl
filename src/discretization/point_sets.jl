@@ -39,8 +39,8 @@ with all points.
 
 # Throws
 
-- Errors if a point set with the same `set_name` already exists.
-- Errors if `points` are not in bounds with `position` and `volume` of the `body`.
+- Error if a point set with the same `set_name` already exists.
+- Error if `points` are not in bounds with `position` and `volume` of the `body`.
 
 # Examples
 
@@ -92,6 +92,17 @@ function _point_set!(point_sets::Dict{Symbol,Vector{Int}}, set_name::Symbol,
     return nothing
 end
 
+"""
+    find_points(f, position)
+
+$(internal_api_warning())
+
+Find all points whose `position`s meet function `f`.
+
+The function `f` accepts only one positional argument and will be used in a `findall` call.
+Depending on the argument name, a different input will be processed.
+See [`point_set!`](@ref).
+"""
 function find_points(f::F, position::AbstractMatrix) where {F<:Function}
     func_method = get_method_of_function(f)
     argnames = get_argument_names_of_function(func_method)
@@ -116,6 +127,13 @@ function find_points(f::F, position::AbstractMatrix) where {F<:Function}
     return findall(f, @view(position[dim, :]))
 end
 
+"""
+    check_if_set_is_defined(point_sets, set_name)
+
+$(internal_api_warning())
+
+Throw an error if no point set `set_name` is found in the dictionary `point_sets`.
+"""
 function check_if_set_is_defined(point_sets::Dict{Symbol,V}, set_name::Symbol) where {V}
     if !haskey(point_sets, set_name)
         error("there is no point set with name $(set_name)!")
@@ -126,7 +144,7 @@ end
 """
     point_sets(body)
 
-Returns all point sets of `body`.
+Return all point sets of `body`.
 
 # Arguments
 
@@ -156,6 +174,14 @@ end
     return name_str_cleaned
 end
 
+"""
+    point_sets_intersect(point_sets, key_a, key_b)
+
+$(internal_api_warning())
+
+Return `true` if point sets `key_a` and `key_b` out of the dictionary `point_sets` have
+at least one common point, return false if they do not.
+"""
 function point_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Symbol,
                               key_b::Symbol)
     isempty(point_sets[key_a] ∩ point_sets[key_b]) && return false
