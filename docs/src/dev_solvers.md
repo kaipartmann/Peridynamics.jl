@@ -14,6 +14,6 @@ A time integration solver for the adaptive dynamic relaxation algorithm used for
 ## Custom solvers
 
 To create a custom time solver, the following steps are required:
-- define a type of `subtype MySolver <: AbstractTimeSolver`.
-- define the `init_time_solver!(vv::MySolver, dh::AbstractDataHandler)` function.
-- define the `solve!(dh::AbstractDataHandler, vv::VelocityVerlet, options::AbstractJobOptions)` function.
+- define a type `MySolver<:AbstractTimeSolver`. It has to be a subtype of the type `AbstractTimeSolver`.
+- define the function `init_time_solver!(vv::MySolver, dh::AbstractDataHandler)`.
+- define the function `solve!(dh::AbstractDataHandler, vv::VelocityVerlet, options::AbstractJobOptions)`.
