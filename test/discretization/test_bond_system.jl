@@ -60,6 +60,12 @@
     @test ch.localizer[4] == 2
     @test ch.localizer[1] == 3
     @test ch.localizer[2] == 4
+
+    # 3
+    mat_incompatible = CKIMaterial()
+    body_incompatible = Body(mat_incompatible, position, volume)
+
+    @test_throws ArgumentError system = Peridynamics.BondSystem(body_incompatible, pd, 1)
 end
 
 @testitem "find_bonds!" begin

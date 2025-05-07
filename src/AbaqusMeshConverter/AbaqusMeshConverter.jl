@@ -72,12 +72,12 @@ Element sets defined in Abaqus are converted to corresponding point sets.
 Currently supported mesh elements: $SUPPORTED_ELEMENT_TYPES
 
 # Arguments
-- `file::String`: Path to Abaqus .inp-file
+- `file::String`: Path to Abaqus .inp-file.
 
 # Returns
-- `position::Matrix{Float64}`: Point position (midpoint of every element)
-- `volume::Vector{Float64}`: Point volume (volume of every element)
-- `point_sets`: Element sets defined in the .inp-file
+- `position::Matrix{Float64}`: Point position (midpoint of every element).
+- `volume::Vector{Float64}`: Point volume (volume of every element).
+- `point_sets`: Element sets defined in the .inp-file.
 """
 function read_inp(file::String)
     if !endswith(file, ".inp")
