@@ -346,8 +346,8 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
 end
 
 @inline get_q_dim(N::Int) = get_q_dim(Val(N))
-# @inline get_q_dim(::Val{1}) = 3
-@inline get_q_dim(::Val{1}) = 4
+@inline get_q_dim(::Val{1}) = 3
+# @inline get_q_dim(::Val{1}) = 4
 @inline get_q_dim(::Val{2}) = 7
 function get_q_dim(::Val{N}) where {N}
     msg = "RK kernel only implemented for `accuracy_order ∈ {1,2}`!\n"
@@ -360,8 +360,8 @@ end
 
 @inline function get_monomial_vector(::Val{1}, ΔX::AbstractArray)
     x, y, z = ΔX[1], ΔX[2], ΔX[3]
-    # Q = SVector{3,eltype(ΔX)}(x, y, z)
-    Q = SVector{4,eltype(ΔX)}(1.0, x, y, z)
+    Q = SVector{3,eltype(ΔX)}(x, y, z)
+    # Q = SVector{4,eltype(ΔX)}(1.0, x, y, z)
     return Q
 end
 
@@ -381,8 +381,8 @@ end
 @inline get_q_triangle(N::Int) = get_q_triangle(Val(N))
 
 function get_q_triangle(::Val{1})
-    # Q∇ᵀ = SMatrix{3,3,Int,9}(1, 0, 0, 0, 1, 0, 0, 0, 1)
-    Q∇ᵀ = SMatrix{3,4,Int,12}(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+    Q∇ᵀ = SMatrix{3,3,Int,9}(1, 0, 0, 0, 1, 0, 0, 0, 1)
+    # Q∇ᵀ = SMatrix{3,4,Int,12}(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
     return Q∇ᵀ
 end
 
@@ -438,7 +438,7 @@ function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSyst
     (; bonds) = system
     (; bond_active, defgrad, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
-    too_much_damage!(storage, system, mat, Fi, i) && return nothing
+    too_much_damage!(storage, system, mat, Fi, i) && return zero(SMatrix{3,3,Float64,9})
     wi = weighted_volume[i]
     ∑P = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
@@ -472,19 +472,41 @@ function rkc_force_density!(storage::AbstractStorage, system::AbstractBondSystem
        b_int) = storage
     wi = weighted_volume[i]
     for bond_id in each_bond_idx(system, i)
-        if bond_active[bond_id]
-            bond = bonds[bond_id]
-            j, L = bond.neighbor, bond.length
-            ΔXij = get_vector_diff(system.position, i, j)
-            Pij = get_tensor(first_piola_kirchhoff, bond_id)
-            Φij = get_vector(gradient_weight, bond_id)
-            wj = weighted_volume[j]
-            ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
-            ω̃ij = kernel(system, bond_id) * ϕ
-            tij = ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij
-            update_add_vector!(b_int, i, tij * volume[j])
-            update_add_vector!(b_int, j, -tij * volume[i])
-        end
+        # if bond_active[bond_id]
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        ΔXij = get_vector_diff(system.position, i, j)
+        Pij = get_tensor(first_piola_kirchhoff, bond_id)
+        Φij = get_vector(gradient_weight, bond_id)
+        wj = weighted_volume[j]
+        ViVj = volume[i] * volume[j]
+        ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
+        # ϕ = 0.5 / wi + 0.5 / wj
+        ω̃ij = kernel(system, bond_id) * bond_active[bond_id] * ϕ
+
+        # if isnothing(ω̃ij) || isnothing(Pij) || isnothing(∑P) || isnothing(Φij)
+        #     if isdefined(Main, :Infiltrator)
+        #         Main.infiltrate(@__MODULE__, Base.@locals, @__FILE__, @__LINE__)
+        #     end
+        # end
+
+        tij = ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij / ViVj
+        # tij = try
+        #     ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij / ViVj
+        # catch e
+        #     @show ω̃ij
+        #     @show L
+        #     @show Pij
+        #     @show ΔXij
+        #     @show ∑P
+        #     @show Φij
+        #     @show ViVj
+        #     rethrow(e)
+        # end
+
+        update_add_vector!(b_int, i, tij * volume[j])
+        update_add_vector!(b_int, j, -tij * volume[i])
+        # end
     end
     return nothing
 end

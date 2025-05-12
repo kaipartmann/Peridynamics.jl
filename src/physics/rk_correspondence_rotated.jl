@@ -125,15 +125,15 @@ end
 
 function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
                               mat::RKCRMaterial, params::StandardPointParameters, t, Δt, i)
-    (; bonds) = system
+    (; bonds, volume) = system
     (; bond_active, defgrad, defgrad_dot, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
     Ḟi = get_tensor(defgrad_dot, i)
-    too_much_damage!(storage, system, mat, Fi, i) && return nothing
+    too_much_damage!(storage, system, mat, Fi, i) && return zero(SMatrix{3,3,Float64,9})
     wi = weighted_volume[i]
-    ∑P = SMatrix{3,3,Float64,9}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    ∑P = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
-        if bond_active[bond_id]
+        # if bond_active[bond_id]
             bond = bonds[bond_id]
             j, L = bond.neighbor, bond.length
             ΔXij = get_vector_diff(system.position, i, j)
@@ -148,14 +148,91 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             ΔḞij = (Δvij - Ḟb * ΔXij) * ΔXijLL
             Fij = Fb + ΔFij
             Ḟij = Ḟb + ΔḞij
+
+            # LL = L * L
+
+            # β1 = Fb[1] * ΔXij[1] + Fb[2] * ΔXij[2] + Fb[3] * ΔXij[3]
+            # Fij1 = Fb[1] + (Δxij[1] - β1) * ΔXij[1] / LL
+            # Fij2 = Fb[2] + (Δxij[1] - β1) * ΔXij[2] / LL
+            # Fij3 = Fb[3] + (Δxij[1] - β1) * ΔXij[3] / LL
+
+            # β2 = Fb[4] * ΔXij[1] + Fb[5] * ΔXij[2] + Fb[6] * ΔXij[3]
+            # Fij4 = Fb[4] + (Δxij[2] - β2) * ΔXij[1] / LL
+            # Fij5 = Fb[5] + (Δxij[2] - β2) * ΔXij[2] / LL
+            # Fij6 = Fb[6] + (Δxij[2] - β2) * ΔXij[3] / LL
+
+            # β3 = Fb[7] * ΔXij[1] + Fb[8] * ΔXij[2] + Fb[9] * ΔXij[3]
+            # Fij7 = Fb[7] + (Δxij[3] - β3) * ΔXij[1] / LL
+            # Fij8 = Fb[8] + (Δxij[3] - β3) * ΔXij[2] / LL
+            # Fij9 = Fb[9] + (Δxij[3] - β3) * ΔXij[3] / LL
+
+            # Fij = SMatrix{3,3,Float64,9}(Fij1, Fij2, Fij3,
+            #                              Fij4, Fij5, Fij6,
+            #                              Fij7, Fij8, Fij9)
+
+            # β1 = Ḟb[1] * ΔXij[1] + Ḟb[2] * ΔXij[2] + Ḟb[3] * ΔXij[3]
+            # Ḟij1 = Ḟb[1] + (Δvij[1] - β1) * ΔXij[1] / LL
+            # Ḟij2 = Ḟb[2] + (Δvij[1] - β1) * ΔXij[2] / LL
+            # Ḟij3 = Ḟb[3] + (Δvij[1] - β1) * ΔXij[3] / LL
+
+            # β2 = Ḟb[4] * ΔXij[1] + Ḟb[5] * ΔXij[2] + Ḟb[6] * ΔXij[3]
+            # Ḟij4 = Ḟb[4] + (Δvij[2] - β2) * ΔXij[1] / LL
+            # Ḟij5 = Ḟb[5] + (Δvij[2] - β2) * ΔXij[2] / LL
+            # Ḟij6 = Ḟb[6] + (Δvij[2] - β2) * ΔXij[3] / LL
+
+            # β3 = Ḟb[7] * ΔXij[1] + Ḟb[8] * ΔXij[2] + Ḟb[9] * ΔXij[3]
+            # Ḟij7 = Ḟb[7] + (Δvij[3] - β3) * ΔXij[1] / LL
+            # Ḟij8 = Ḟb[8] + (Δvij[3] - β3) * ΔXij[2] / LL
+            # Ḟij9 = Ḟb[9] + (Δvij[3] - β3) * ΔXij[3] / LL
+
+            # Ḟij = SMatrix{3,3,Float64,9}(Ḟij1, Ḟij2, Ḟij3,
+            #                              Ḟij4, Ḟij5, Ḟij6,
+            #                              Ḟij7, Ḟij8, Ḟij9)
+
+            # Fij ≈ _Fij || (@show Fij; @show _Fij)
+            # Ḟij ≈ _Ḟij || (@show Ḟij; @show _Ḟij)
+
+            # scalarTemp = *(meanDefGrad+0) * undeformedBondX + *(meanDefGrad+1) * undeformedBondY + *(meanDefGrad+2) * undeformedBondZ;
+            # *(defGrad+0) = *(meanDefGrad+0) + (defStateX - scalarTemp) * undeformedBondX/undeformedBondLengthSq;
+            # *(defGrad+1) = *(meanDefGrad+1) + (defStateX - scalarTemp) * undeformedBondY/undeformedBondLengthSq;
+            # *(defGrad+2) = *(meanDefGrad+2) + (defStateX - scalarTemp) * undeformedBondZ/undeformedBondLengthSq;
+
+            # scalarTemp = *(meanDefGrad+3) * undeformedBondX + *(meanDefGrad+4) * undeformedBondY + *(meanDefGrad+5) * undeformedBondZ;
+            # *(defGrad+3) = *(meanDefGrad+3) + (defStateY - scalarTemp) * undeformedBondX/undeformedBondLengthSq;
+            # *(defGrad+4) = *(meanDefGrad+4) + (defStateY - scalarTemp) * undeformedBondY/undeformedBondLengthSq;
+            # *(defGrad+5) = *(meanDefGrad+5) + (defStateY - scalarTemp) * undeformedBondZ/undeformedBondLengthSq;
+
+            # scalarTemp = *(meanDefGrad+6) * undeformedBondX + *(meanDefGrad+7) * undeformedBondY + *(meanDefGrad+8) * undeformedBondZ;
+            # *(defGrad+6) = *(meanDefGrad+6) + (defStateZ - scalarTemp) * undeformedBondX/undeformedBondLengthSq;
+            # *(defGrad+7) = *(meanDefGrad+7) + (defStateZ - scalarTemp) * undeformedBondY/undeformedBondLengthSq;
+            # *(defGrad+8) = *(meanDefGrad+8) + (defStateZ - scalarTemp) * undeformedBondZ/undeformedBondLengthSq;
+
+            # scalarTemp = *(meanDefGradDot+0) * undeformedBondX + *(meanDefGradDot+1) * undeformedBondY + *(meanDefGradDot+2) * undeformedBondZ;
+            # *(defGradDot+0) = *(meanDefGradDot+0) + (velStateX - scalarTemp) * undeformedBondX/undeformedBondLengthSq;
+            # *(defGradDot+1) = *(meanDefGradDot+1) + (velStateX - scalarTemp) * undeformedBondY/undeformedBondLengthSq;
+            # *(defGradDot+2) = *(meanDefGradDot+2) + (velStateX - scalarTemp) * undeformedBondZ/undeformedBondLengthSq;
+
+            # scalarTemp = *(meanDefGradDot+3) * undeformedBondX + *(meanDefGradDot+4) * undeformedBondY + *(meanDefGradDot+5) * undeformedBondZ;
+            # *(defGradDot+3) = *(meanDefGradDot+3) + (velStateY - scalarTemp) * undeformedBondX/undeformedBondLengthSq;
+            # *(defGradDot+4) = *(meanDefGradDot+4) + (velStateY - scalarTemp) * undeformedBondY/undeformedBondLengthSq;
+            # *(defGradDot+5) = *(meanDefGradDot+5) + (velStateY - scalarTemp) * undeformedBondZ/undeformedBondLengthSq;
+
+            # scalarTemp = *(meanDefGradDot+6) * undeformedBondX + *(meanDefGradDot+7) * undeformedBondY + *(meanDefGradDot+8) * undeformedBondZ;
+            # *(defGradDot+6) = *(meanDefGradDot+6) + (velStateZ - scalarTemp) * undeformedBondX/undeformedBondLengthSq;
+            # *(defGradDot+7) = *(meanDefGradDot+7) + (velStateZ - scalarTemp) * undeformedBondY/undeformedBondLengthSq;
+            # *(defGradDot+8) = *(meanDefGradDot+8) + (velStateZ - scalarTemp) * undeformedBondZ/undeformedBondLengthSq;
+
             Pij = calc_first_piola_kirchhoff!(storage, mat, params, Fij, Ḟij, Δt, bond_id)
             Tempij = I - ΔXij * ΔXijLL
+            # Tempij = I - (ΔXij * ΔXij') / LL
             wj = weighted_volume[j]
             ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
-            ω̃ij = kernel(system, bond_id) * ϕ
+            # ϕ = (0.5 / wi + 0.5 / wj)
+            ViVj = volume[i] * volume[j]
+            ω̃ij = kernel(system, bond_id) * ϕ * ViVj
             ∑Pij = ω̃ij * (Pij * Tempij)
             ∑P += ∑Pij
-        end
+        # end
     end
     return ∑P
 end
@@ -164,7 +241,7 @@ function calc_first_piola_kirchhoff!(storage::RKCRStorage, mat::RKCRMaterial,
                                      params::StandardPointParameters, F::SMatrix{3,3,FT,9},
                                      Ḟ::SMatrix{3,3,FT,9}, Δt, bond_id) where {FT}
     D = init_stress_rotation!(storage, F, Ḟ, Δt, bond_id)
-    iszero(D) && return zero(SMatrix{3,3,FT,9})
+    # iszero(D) && return zero(SMatrix{3,3,FT,9})
     Δε = D * Δt
     Δθ = tr(Δε)
     Δεᵈᵉᵛ = Δε - Δθ / 3 * I
