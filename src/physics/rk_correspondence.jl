@@ -424,7 +424,15 @@ function calc_force_density!(chunk::BodyChunk{<:BondSystem,<:AbstractRKCMaterial
     return nothing
 end
 
-function force_density_point!(storage::AbstractStorage, system::BondSystem,
+function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
+                              mat::AbstractRKCMaterial,
+                              paramhandler::AbstractParameterHandler, t, Δt, i)
+    params = get_params(paramhandler, i)
+    force_density_point!(storage, system, mat, params, t, Δt, i)
+    return nothing
+end
+
+function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
                               mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
                               Δt, i)
     ∑P = rkc_stress_integral!(storage, system, mat, params, t, Δt, i)
