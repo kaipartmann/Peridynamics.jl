@@ -88,8 +88,7 @@ makedocs(;
             "dev_systems.md",
             "dev_materials.md",
             "dev_solvers.md",
-            "dev_multithreading.md",
-            "dev_mpi.md",
+            "dev_multithreading_mpi.md",
         ],
         "API Reference" => [
             "public_api_reference.md",
