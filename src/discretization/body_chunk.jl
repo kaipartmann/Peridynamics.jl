@@ -1,3 +1,30 @@
+"""
+    BodyChunk{System, Material, Params, Storage}
+
+$(internal_api_warning())
+
+A type that contains all data of a body chunk. For parallel simulations, the body is divided into multiple chunks. Each `BodyChunk` instance contains all necessary information for the simulation on this specific chunk. This type is used for multithreading and MPI.
+
+# Type Parameters
+
+- `System<:AbstractSystem`: Type of the system.
+- `Material<:AbstractMaterial`: Type of the material model of the system.
+- `Params<:AbstractParameterSetup`: Material parameters of the points in the body chunk.
+- `Storage<:AbstractStorage`: Storage of all information that changes during the simulation.
+
+# Fields
+
+- `body_name::Symbol`: Name of the body in multibody simulations.
+- `system::System`: System with all information that is known before the simulation.
+- `mat::Material`: Material model of the system.
+- `paramsetup::Params`: Material parameters of the points in the body chunk.
+- `storage::Storage`: Storage of all information that changes during the simulation.
+- `psets::Dict{Symbol,Vector{Int}}`: Point sets of the chunk with local indices.
+- `sdbcs::Vector{SingleDimBC}`: Single dimension boundary conditions.
+- `pdsdbcs::Vector{PosDepSingleDimBC}`: Position dependent single dimension boundary
+    conditions.
+- `cells::Vector{MeshCell{VTKCellType,Tuple{Int64}}}`: Cells for vtk export.
+"""
 struct BodyChunk{System<:AbstractSystem,
                  Material<:AbstractMaterial,
                  Params<:AbstractParameterSetup,
@@ -10,6 +37,7 @@ struct BodyChunk{System<:AbstractSystem,
     psets::Dict{Symbol,Vector{Int}}
     sdbcs::Vector{SingleDimBC}
     pdsdbcs::Vector{PosDepSingleDimBC}
+    databcs::Vector{DataBC}
     cells::Vector{MeshCell{VTKCellType,Tuple{Int64}}}
 end
 
@@ -23,14 +51,15 @@ function BodyChunk(body::AbstractBody, solver::AbstractTimeSolver, pd::PointDeco
     psets = localized_point_sets(body.point_sets, system.chunk_handler)
     sdbcs = body.single_dim_bcs
     pdsdbcs = body.posdep_single_dim_bcs
+    databcs = body.data_bcs
     cells = get_cells(get_n_loc_points(system))
     chunk = BodyChunk(body_name, system, mat, paramsetup, storage, psets, sdbcs,
-                      pdsdbcs, cells)
+                      pdsdbcs, databcs, cells)
     return chunk
 end
 
-@inline function get_params(b::BodyChunk, point_id::Int)
-    return get_params(b.paramsetup, point_id)
+@inline function get_params(chunk::BodyChunk, point_id::Int)
+    return get_params(chunk.paramsetup, point_id)
 end
 
 @inline function body_chunk_type(body::AbstractBody{Material}, solver::AbstractTimeSolver,

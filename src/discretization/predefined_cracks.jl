@@ -1,3 +1,18 @@
+"""
+    PointSetsPreCrack
+
+$(internal_api_warning())
+
+Type describing a predefined crack in a peridynamic body.
+
+# Fields
+
+- `set_a::Symbol`: Point set containing points on one side of the crack.
+- `set_b::Symbol`: Point set with points on other side of the crack.
+- `filter_bonds::Bool`: If true, the involved bonds are filtered out so no damage is
+    present at the beginning of the simulation. Else, all involved bonds are marked broken
+    from the beginning.
+"""
 struct PointSetsPreCrack <: AbstractPredefinedCrack
     set_a::Symbol
     set_b::Symbol
@@ -6,14 +21,29 @@ end
 
 @inline filter_bonds(crack::AbstractPredefinedCrack) = crack.filter_bonds
 
-function apply_precracks!(b::AbstractBodyChunk, body::AbstractBody)
+"""
+    apply_precracks!(chunk, body)
+
+$(internal_api_warning())
+
+Apply all predefined cracks for `chunk` by calling `apply_precrack!` for each crack.
+"""
+function apply_precracks!(chunk::AbstractBodyChunk, body::AbstractBody)
     for precrack in body.point_sets_precracks
-        apply_precrack!(b, body, precrack)
+        apply_precrack!(chunk, body, precrack)
     end
-    calc_damage!(b)
+    calc_damage!(chunk)
     return nothing
 end
 
+"""
+    apply_precrack!(chunk, body, crack)
+
+$(internal_api_warning())
+
+Apply the predefined `crack` of the `body` for the considered `chunk` by breaking the
+concerned bonds.
+"""
 function apply_precrack!(chunk::AbstractBodyChunk, body::AbstractBody,
                          crack::PointSetsPreCrack)
     filter_bonds(crack) && return nothing
@@ -33,7 +63,7 @@ end
 """
     precrack!(body, set_a, set_b; update_dmg=true)
 
-Creates a crack between two point sets by prohibiting interaction between points of
+Create a crack between two point sets by prohibiting interaction between points of
 different point sets. The points in `set_a` are not allowed to interact with points in
 `set_b`.
 
@@ -52,8 +82,8 @@ different point sets. The points in `set_a` are not allowed to interact with poi
 
 # Throws
 
-- Errors if the body does not contain sets with name `set_a` and `set_b`.
-- Errors if the point sets intersect and a point is included in both sets.
+- Error if the body does not contain sets with name `set_a` and `set_b`.
+- Error if the point sets intersect and a point is included in both sets.
 
 # Example
 
@@ -81,6 +111,13 @@ function precrack!(b::AbstractBody, set_a::Symbol, set_b::Symbol; update_dmg::Bo
     return nothing
 end
 
+"""
+    check_if_sets_intersect(point_sets, key_a, key_b)
+
+$(internal_api_warning())
+
+Throw error if two sets chosen for `precrack!` have common points.
+"""
 function check_if_sets_intersect(point_sets::Dict{Symbol,Vector{Int}}, key_a::Symbol,
                                  key_b::Symbol)
     if point_sets_intersect(point_sets, key_a, key_b)

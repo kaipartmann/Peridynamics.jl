@@ -1,4 +1,4 @@
-@testitem "process_each_export" begin
+@testitem "process_each_export" tags=[:mpi] begin
     root = mktempdir()
     root_post_threads = joinpath(root, "post_threads")
     mkpath(root_post_threads)

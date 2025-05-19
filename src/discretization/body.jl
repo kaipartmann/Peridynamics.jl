@@ -2,19 +2,25 @@
     Body(material, position, volume)
     Body(material, inp_file)
 
-Constructs a `Body` for a peridynamics simulation.
+Construct a `Body` for a peridynamics simulation.
 
 # Arguments
 - `material::AbstractMaterial`: The material which is defined for the whole body.
+    Available material models:
+    - [`BBMaterial`](@ref): Bond-based peridynamics
+    - [`OSBMaterial`](@ref): Ordinary state-based peridynamics
+    - [`CMaterial`](@ref): Correspondence formulation
+    - [`BACMaterial`](@ref): Bond-associated correspondence formulation of Chen and Spencer
+    - [`CKIMaterial`](@ref): Continuum-kinematics-inspired peridynamics
 - `position::AbstractMatrix`: A `3×n` matrix with the point position of the `n` points.
 - `volume::AbstractVector`: A vector with the volume of each point.
 - `inp_file::AbstractString`: An Abaqus input file containing meshes, imported with
     [`read_inp`](@ref).
 
 # Throws
-- Errors if the number of points is not larger than zero
-- Errors if `position` is not a `3×n` matrix and has the same length as `volume`
-- Errors if `position` or `volume` contain `NaN` values
+- Error if the number of points is not larger than zero.
+- Error if `position` is not a `3×n` matrix and has the same length as `volume`.
+- Error if `position` or `volume` contain `NaN` values.
 
 # Example
 
@@ -38,8 +44,8 @@ Body{Material,PointParameters}
 
 # Type Parameters
 
-- `Material <: AbstractMaterial`: Type of the specified material model
-- `PointParameters <: AbstractPointParameters`: Type of the point parameters
+- `Material <: AbstractMaterial`: Type of the specified material model.
+- `PointParameters <: AbstractPointParameters`: Type of the point parameters.
 
 # Fields
 
@@ -49,8 +55,10 @@ Body{Material,PointParameters}
 - `volume::Vector{Float64}`: A vector with the volume of each point.
 - `fail_permit::Vector{Bool}`: A vector that describes if failure is allowed for each point.
 - `point_sets::Dict{Symbol,Vector{Int}}`: A dictionary containing point sets.
-- `point_params::Vector{PointParameters}`: A vector containing all different point parameter instances of the body. Each point can have its own `PointParameters` instance.
-- `params_map::Vector{Int}`: A vector that maps each point index to a parameter instance in `point_params`.
+- `point_params::Vector{PointParameters}`: A vector containing all different point parameter
+    instances of the body. Each point can have its own `PointParameters` instance.
+- `params_map::Vector{Int}`: A vector that maps each point index to a parameter instance in
+    `point_params`.
 - `single_dim_bcs::Vector{SingleDimBC}`: A vector with boundary conditions on a single
     dimension.
 - `posdep_single_dim_bcs::Vector{PosDepSingleDimBC}`: A vector with position dependent
@@ -59,6 +67,7 @@ Body{Material,PointParameters}
     dimension.
 - `posdep_single_dim_ics::Vector{PosDepSingleDimIC}`: A vector with position dependent
     initial conditions on a single dimension.
+- `data_bcs::Vector{DataBC}`: A vector with data boundary conditions.
 - `point_sets_precracks::Vector{PointSetsPreCrack}`: A vector with predefined point set
     cracks.
 """
@@ -76,6 +85,7 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     posdep_single_dim_bcs::Vector{PosDepSingleDimBC}
     single_dim_ics::Vector{SingleDimIC}
     posdep_single_dim_ics::Vector{PosDepSingleDimIC}
+    data_bcs::Vector{DataBC}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
     function Body(mat::M, position::AbstractMatrix, volume::AbstractVector) where {M}
@@ -93,10 +103,11 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
         posdep_single_dim_bcs = Vector{PosDepSingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         posdep_single_dim_ics = Vector{PosDepSingleDimIC}()
+        v_bcs = Vector{DataBC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
         new{M,P}(name, mat, n_points, position, volume, fail_permit, point_sets,
-                 point_params, params_map, single_dim_bcs, posdep_single_dim_bcs,
+                 point_params, params_map, single_dim_bcs, posdep_single_dim_bcs, v_bcs,
                  single_dim_ics, posdep_single_dim_ics, point_sets_precracks)
     end
 end
@@ -144,6 +155,10 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(body::AbstractBody)
             print(io, "\n    ")
             show(io, bc)
         end
+        for bc in body.data_bcs
+            print(io, "\n    ")
+            show(io, bc)
+        end
     end
     if has_ics(body)
         print(io, "\n  ", n_ics(body), " initial condition(s):")
@@ -178,6 +193,14 @@ end
 
 @inline material_type(::AbstractBody{M}) where {M} = M.name.wrapper
 
+"""
+    check_pos_and_vol(n_points, position, volume)
+
+$(internal_api_warning())
+
+Check if the positions and volumes for the points are correctly specified in the fields of
+a [`Body`](@ref).
+"""
 function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::AbstractVector)
     # check if n_points is greater than zero
     n_points > 0 || error("the number of points must be greater than zero!\n")
@@ -198,6 +221,15 @@ function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::Abst
     return nothing
 end
 
+"""
+    pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
+    pre_submission_check(ms::AbstractMultibodySetup)
+
+$(internal_api_warning())
+
+Check if necessary material parameters and conditions are defined when defining a
+[`Job`](@ref).
+"""
 function pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
     # the body should have material properties
     if isempty(body.point_params)
@@ -330,10 +362,15 @@ end
 @inline has_params(body::AbstractBody) = !isempty(body.point_params)
 
 @inline function n_bcs(body::AbstractBody)
-    return length(body.single_dim_bcs) + length(body.posdep_single_dim_bcs)
+    n_sdbcs = length(body.single_dim_bcs)
+    n_pdsdbcs = length(body.posdep_single_dim_bcs)
+    n_databcs = length(body.data_bcs)
+    return n_sdbcs + n_pdsdbcs + n_databcs
 end
 @inline function n_ics(body::AbstractBody)
-    return length(body.single_dim_ics) + length(body.posdep_single_dim_ics)
+    n_sdics = length(body.single_dim_ics)
+    n_pdsdics = length(body.posdep_single_dim_ics)
+    return n_sdics + n_pdsdics
 end
 
 @inline has_bcs(body::AbstractBody) = n_bcs(body) > 0 ? true : false
@@ -346,7 +383,7 @@ end
 """
     n_points(body)
 
-Returns the total number of points in a body.
+Return the total number of points in a body.
 
 # Arguments
 - `body::Body`: [`Body`](@ref).
@@ -369,7 +406,7 @@ julia> n_points(body)
 
     n_points(multibody_setup)
 
-Returns the total number of points in a multibody setup.
+Return the total number of points in a multibody setup.
 
 # Arguments
 - `multibody_setup::MultibodySetup`: [`MultibodySetup`](@ref).
