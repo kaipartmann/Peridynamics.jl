@@ -14,9 +14,11 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     (default: `LinearElastic()`) \\
     Only the following model can be used:
     - [`LinearElastic`](@ref)
-- `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
-    stabilization algorithm of Silling (2017) is used as default. \\
-    (default: [`ZEMSilling`](@ref))
+- `zem::AbstractZEMStabilization`: Algorithm of zero-energy mode stabilization. \\
+    (default: [`ZEMSilling`](@ref)) \\
+    The following algorithms can be used:
+    - [`ZEMSilling`](@ref)
+    - [`ZEMWan`](@ref)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
     (default: [`CriticalStretch`](@ref))
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is

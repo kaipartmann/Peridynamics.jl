@@ -25,6 +25,7 @@ CriticalStretch
 NoCorrection
 EnergySurfaceCorrection
 ZEMSilling
+ZEMWan
 LinearElastic
 NeoHooke
 MooneyRivlin
