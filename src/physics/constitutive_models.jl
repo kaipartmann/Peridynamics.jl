@@ -20,7 +20,7 @@ function first_piola_kirchhoff(::LinearElastic, storage::AbstractStorage,
                                params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
     E = 0.5 .* (F' * F - I)
     Evoigt = SVector{6,Float64}(E[1,1], E[2,2], E[3,3], 2 * E[2,3], 2 * E[3,1], 2 * E[1,2])
-    Cvoigt = get_hooke_matrix(params.nu, params.λ, params.μ)
+    Cvoigt = get_hooke_matrix_voigt(params.nu, params.λ, params.μ)
     Pvoigt = Cvoigt * Evoigt
     P = SMatrix{3,3,Float64,9}(Pvoigt[1], Pvoigt[6], Pvoigt[5],
                                Pvoigt[6], Pvoigt[2], Pvoigt[4],
@@ -28,12 +28,34 @@ function first_piola_kirchhoff(::LinearElastic, storage::AbstractStorage,
     return P
 end
 
-function get_hooke_matrix(nu, λ, μ)
+function get_hooke_matrix_voigt(nu, λ, μ)
     a = (1 - nu) * λ / nu
-    CVoigt = SMatrix{6,6,Float64,36}(a, λ, λ, 0, 0, 0, λ, a, λ, 0, 0, 0, λ, λ, a, 0, 0, 0,
-                                     0, 0, 0, μ, 0, 0, 0, 0, 0, 0, μ, 0, 0, 0, 0, 0, 0, μ)
-    return CVoigt
+    Cvoigt = SMatrix{6,6,Float64,36}(
+        a, λ, λ, 0, 0, 0,
+        λ, a, λ, 0, 0, 0,
+        λ, λ, a, 0, 0, 0,
+        0, 0, 0, μ, 0, 0,
+        0, 0, 0, 0, μ, 0,
+        0, 0, 0, 0, 0, μ
+    )
+    return Cvoigt
 end
+
+function get_hooke_matrix(nu, λ, μ)
+    Cvoigt = get_hooke_matrix_voigt(nu, λ, μ)
+    C = zero(MArray{NTuple{4,3},Float64,4,81})
+    voigt_map = @SVector [(1,1), (2,2), (3,3), (2,3), (1,3), (1,2)]
+    for I in 1:6, J in 1:6
+        i1, i2 = voigt_map[I]
+        j1, j2 = voigt_map[J]
+        C[i1, i2, j1, j2] = Cvoigt[I, J]
+        C[i2, i1, j1, j2] = Cvoigt[I, J]
+        C[i1, i2, j2, j1] = Cvoigt[I, J]
+        C[i2, i1, j2, j1] = Cvoigt[I, J]
+    end
+    return C
+end
+
 
 @doc raw"""
     NeoHooke
