@@ -57,7 +57,7 @@ Example definition of the storage for the bond-based material:
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
 end
-
+````
 """
 macro storage end
 
