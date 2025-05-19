@@ -1,9 +1,9 @@
 """
-    BBMaterial()
-    BBMaterial{Correction}()
+    DHBBMaterial()
+    DHBBMaterial{Correction}()
 
-A material type used to assign the material of a [`Body`](@ref) with the standard bond-based
-formulation of peridynamics.
+A material type used to assign the material of a [`Body`](@ref) with the dual-horizon
+bond-based formulation of peridynamics.
 
 # Keywords
 - `dmgmodel::AbstractDamageModel`: Damage model defining the fracture behavior.
@@ -17,31 +17,31 @@ Possible correction methods are:
 # Examples
 
 ```julia-repl
-julia> mat = BBMaterial()
-BBMaterial{NoCorrection}()
+julia> mat = DHBBMaterial()
+DHBBMaterial{NoCorrection}()
 
-julia> mat = BBMaterial{EnergySurfaceCorrection}()
-BBMaterial{EnergySurfaceCorrection}()
+julia> mat = DHBBMaterial{EnergySurfaceCorrection}()
+DHBBMaterial{EnergySurfaceCorrection}()
 ```
 ---
 
 ```julia
-BBMaterial{Correction}
+DHBBMaterial{Correction}
 ```
 
-Material type for the bond-based peridynamics formulation.
+Material type for the dual-horizon bond-based peridynamics formulation.
 
 # Type Parameters
 - `Correction`: A correction algorithm type. See the constructor docs for more informations.
 - `DM`: A damage model type.
 
 # Allowed material parameters
-When using [`material!`](@ref) on a [`Body`](@ref) with `BBMaterial`, then the following
+When using [`material!`](@ref) on a [`Body`](@ref) with `DHBBMaterial`, then the following
 parameters are allowed:
 Material parameters:
 - `horizon::Float64`: Radius of point interactions.
 - `rho::Float64`: Density.
-Elastic parameters
+Elastic parameters:
 - `E::Float64`: Young's modulus.
 - `G::Float64`: Shear modulus.
 - `K::Float64`: Bulk modulus.
@@ -59,7 +59,7 @@ Fracture parameters:
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
-`BBMaterial`, the following fields are allowed:
+`DHBBMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point.
 - `displacement::Matrix{Float64}`: Displacement of each point.
 - `velocity::Matrix{Float64}`: Velocity of each point.
@@ -70,57 +70,35 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point.
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
 """
-struct BBMaterial{Correction,DM} <: AbstractBondBasedMaterial{Correction}
+struct DHBBMaterial{Correction,DM} <: AbstractBondBasedMaterial{Correction}
     dmgmodel::DM
-    function BBMaterial{C}(dmgmodel::DM) where {C,DM}
+    function DHBBMaterial{C}(dmgmodel::DM) where {C,DM}
         new{C,DM}(dmgmodel)
     end
 end
 
-function BBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) where {C}
-    return BBMaterial{C}(dmgmodel)
+function DHBBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) where {C}
+    return DHBBMaterial{C}(dmgmodel)
 end
-BBMaterial(; kwargs...) = BBMaterial{NoCorrection}(; kwargs...)
+DHBBMaterial(; kwargs...) = DHBBMaterial{NoCorrection}(; kwargs...)
 
-function StandardPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
+function StandardPointParameters(mat::DHBBMaterial{C,D}, p::Dict{Symbol,Any}) where {C,D}
     (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters_bb(mat, p)
     (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
+    bc = 0.5 * 18 * K / (π * δ^4) # half of the normal bond constant
     return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-function get_required_point_parameters_bb(mat::AbstractBondBasedMaterial,
-                                          p::Dict{Symbol,Any})
-    par = get_given_elastic_params(p)
-    (; E, nu, G, K, λ, μ) = par
-    if isfinite(nu) && !isapprox(nu, 0.25)
-        msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
-        msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
-        throw(ArgumentError(msg))
-    elseif !isfinite(nu) && length(findall(isfinite, par)) == 1
-        p[:nu] = 0.25
-    end
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    if !isapprox(nu, 0.25)
-        msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
-        msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
-        msg *= "The submitted parameter combination results in an illegal value for nu!\n"
-        msg *= "Please define either only one or two fitting elastic parameters!\n"
-        throw(ArgumentError(msg))
-    end
-    return (; δ, rho, E, nu, G, K, λ, μ)
-end
+@params DHBBMaterial StandardPointParameters
 
-@params BBMaterial StandardPointParameters
-
-@storage BBMaterial struct BBStorage <: AbstractStorage
+@storage DHBBMaterial struct DHBBStorage <: AbstractStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
     @pointfield velocity_half::Matrix{Float64}
     @pointfield velocity_half_old::Matrix{Float64}
     @pointfield acceleration::Matrix{Float64}
-    @pointfield b_int::Matrix{Float64}
+    @htlfield b_int::Matrix{Float64}
     @pointfield b_int_old::Matrix{Float64}
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
@@ -130,34 +108,16 @@ end
     @pointfield n_active_bonds::Vector{Int}
 end
 
-function init_field(::BBMaterial, ::AbstractTimeSolver, system::BondSystem,
+function init_field(::DHBBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
+    return zeros(3, get_n_points(system))
+end
+
+function init_field(::DHBBMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:bond_stretch})
     return zeros(get_n_bonds(system))
 end
 
-# Customized calc_failure to save the bond stretch ε for force density calculation
-function calc_failure!(storage::AbstractStorage, system::BondSystem,
-                       ::AbstractBondBasedMaterial, ::CriticalStretch,
-                       paramsetup::AbstractParameterSetup, i)
-    (; εc) = get_params(paramsetup, i)
-    (; position, n_active_bonds, bond_active, bond_stretch) = storage
-    (; bonds) = system
-    for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        bond_stretch[bond_id] = ε / l # note that this is  ε / l!
-        if ε > εc && bond.fail_permit
-            bond_active[bond_id] = false
-        end
-        n_active_bonds[i] += bond_active[bond_id]
-    end
-    return nothing
-end
-
-function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
+function force_density_point!(storage::DHBBStorage, system::BondSystem, ::DHBBMaterial,
                               params::StandardPointParameters, t, Δt, i)
     (; position, bond_stretch, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
@@ -167,13 +127,14 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
         Δxij = get_vector_diff(position, i, j)
         ε = bond_stretch[bond_id]
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * params.bc * ε * volume[j] .* Δxij
-        update_add_vector!(b_int, i, b)
+        b = ω * params.bc * ε .* Δxij
+        update_add_vector!(b_int, i, b * volume[j])
+        update_add_vector!(b_int, j, -b * volume[i])
     end
     return nothing
 end
 
-function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
+function force_density_point!(storage::DHBBStorage, system::BondSystem, ::DHBBMaterial,
                               paramhandler::ParameterHandler, t, Δt, i)
     (; position, bond_stretch, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
@@ -185,8 +146,9 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
         ε = bond_stretch[bond_id]
         params_j = get_params(paramhandler, j)
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * (params_i.bc + params_j.bc) / 2 * ε * volume[j] .* Δxij
-        update_add_vector!(b_int, i, b)
+        b = ω * (params_i.bc + params_j.bc) / 2 * ε .* Δxij
+        update_add_vector!(b_int, i, b * volume[j])
+        update_add_vector!(b_int, j, -b * volume[i])
     end
     return nothing
 end
