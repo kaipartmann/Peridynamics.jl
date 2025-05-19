@@ -7,11 +7,15 @@ Construct a `Body` for a peridynamics simulation.
 # Arguments
 - `material::AbstractMaterial`: The material which is defined for the whole body.
     Available material models:
-    - [`BBMaterial`](@ref): Bond-based peridynamics
-    - [`OSBMaterial`](@ref): Ordinary state-based peridynamics
-    - [`CMaterial`](@ref): Correspondence formulation
-    - [`BACMaterial`](@ref): Bond-associated correspondence formulation of Chen and Spencer
-    - [`CKIMaterial`](@ref): Continuum-kinematics-inspired peridynamics
+    - [`BBMaterial`](@ref): Bond-based peridynamics.
+    - [`DHBBMaterial`](@ref): Dual-horizon bond-based peridynamics.
+    - [`OSBMaterial`](@ref): Ordinary state-based peridynamics, also called linear
+        peridynamic solid (LPS).
+    - [`CMaterial`](@ref): Correspondence formulation.
+    - [`CRMaterial`](@ref): Correspondence formulation stress rotation for objectivity
+        enforcement.
+    - [`BACMaterial`](@ref): Bond-associated correspondence formulation of Chen and Spencer.
+    - [`CKIMaterial`](@ref): Continuum-kinematics-inspired peridynamics.
 - `position::AbstractMatrix`: A `3×n` matrix with the point position of the `n` points.
 - `volume::AbstractVector`: A vector with the volume of each point.
 - `inp_file::AbstractString`: An Abaqus input file containing meshes, imported with
