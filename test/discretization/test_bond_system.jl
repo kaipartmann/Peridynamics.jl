@@ -223,6 +223,6 @@ end
     @test contains(msg, "CriticalStretch")
     msg = Peridynamics.log_material_property(Val(:kernel), mat; indentation)
     @test contains(msg, "linear_kernel")
-    msg = Peridynamics.log_material_property(Val(:zem_stabilization), mat; indentation)
+    msg = Peridynamics.log_material_property(Val(:zem), mat; indentation)
     @test contains(msg, "ZEMSilling")
 end

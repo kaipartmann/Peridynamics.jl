@@ -14,9 +14,11 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     (default: `LinearElastic()`) \\
     Only the following model can be used:
     - [`LinearElastic`](@ref)
-- `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
-    stabilization algorithm of Silling (2017) is used as default. \\
-    (default: [`ZEMSilling`](@ref))
+- `zem::AbstractZEMStabilization`: Algorithm of zero-energy mode stabilization. \\
+    (default: [`ZEMSilling`](@ref)) \\
+    The following algorithms can be used:
+    - [`ZEMSilling`](@ref)
+    - [`ZEMWan`](@ref)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
     (default: [`CriticalStretch`](@ref))
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
@@ -103,7 +105,7 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 struct CRMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
     kernel::K
     constitutive_model::CM
-    zem_stabilization::ZEM
+    zem::ZEM
     dmgmodel::DM
     maxdmg::Float64
     function CRMaterial(kernel::K, cm::CM, zem::ZEM, dmgmodel::DM,
@@ -129,7 +131,7 @@ function Base.show(io::IO, @nospecialize(mat::CRMaterial))
     return nothing
 end
 
-@params CRMaterial StandardPointParameters
+@params CRMaterial CPointParameters
 
 @storage CRMaterial struct CRStorage
     @lthfield position::Matrix{Float64}
@@ -149,6 +151,7 @@ end
     @pointfield von_mises_stress::Vector{Float64}
     @pointfield left_stretch::Matrix{Float64}
     @pointfield rotation::Matrix{Float64}
+    zem_stiffness_rotated::MArray{NTuple{4,3},Float64,4,81}
 end
 
 function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
@@ -183,8 +186,13 @@ function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
     return R
 end
 
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:zem_stiffness_rotated})
+    return zero(MArray{NTuple{4,3},Float64,4,81})
+end
+
 function calc_deformation_gradient(storage::CRStorage, system::BondSystem, ::CRMaterial,
-                                   ::StandardPointParameters, i)
+                                   ::CPointParameters, i)
     (; bonds, volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
@@ -212,7 +220,7 @@ function calc_deformation_gradient(storage::CRStorage, system::BondSystem, ::CRM
 end
 
 function calc_first_piola_kirchhoff!(storage::CRStorage, mat::CRMaterial,
-                                     params::StandardPointParameters, defgrad_res, Δt, i)
+                                     params::CPointParameters, defgrad_res, Δt, i)
     (; F, Ḟ, Kinv) = defgrad_res
     D = init_stress_rotation!(storage, F, Ḟ, Δt, i)
     if iszero(D)
@@ -230,4 +238,13 @@ function calc_first_piola_kirchhoff!(storage::CRStorage, mat::CRMaterial,
     P = first_piola_kirchhoff(T, F)
     PKinv = P * Kinv
     return PKinv
+end
+
+function calc_zem_stiffness_tensor!(storage::CRStorage, system::BondSystem, mat::CRMaterial,
+                                    params::CPointParameters, zem::ZEMWan, defgrad_res, i)
+    (; Kinv) = defgrad_res
+    (; rotation, zem_stiffness_rotated) = storage
+    R = get_tensor(rotation, i)
+    C_1 = calc_rotated_zem_stiffness_tensor!(zem_stiffness_rotated, params.C, Kinv, R)
+    return C_1
 end
