@@ -103,7 +103,7 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 struct CRMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
     kernel::K
     constitutive_model::CM
-    zem_stabilization::ZEM
+    zem::ZEM
     dmgmodel::DM
     maxdmg::Float64
     function CRMaterial(kernel::K, cm::CM, zem::ZEM, dmgmodel::DM,

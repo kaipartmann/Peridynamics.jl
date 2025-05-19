@@ -106,7 +106,7 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 struct CMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
     kernel::K
     constitutive_model::CM
-    zem_stabilization::ZEM
+    zem::ZEM
     dmgmodel::DM
     maxdmg::Float64
     function CMaterial(kernel::K, cm::CM, zem::ZEM, dmgmodel::DM,
@@ -132,8 +132,8 @@ function log_material_property(::Val{:constitutive_model}, mat; indentation)
     return msg_qty("constitutive model", mat.constitutive_model; indentation)
 end
 
-function log_material_property(::Val{:zem_stabilization}, mat; indentation)
-    return msg_qty("zero-energy mode stabilization", mat.zem_stabilization; indentation)
+function log_material_property(::Val{:zem}, mat; indentation)
+    return msg_qty("zero-energy mode stabilization", mat.zem; indentation)
 end
 
 function log_material_property(::Val{:maxdmg}, mat; indentation)
@@ -210,8 +210,7 @@ function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
     defgrad_res = calc_deformation_gradient(storage, system, mat, params, i)
     too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
     PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)
-    zem = mat.zem_stabilization
-    c_force_density!(storage, system, mat, params, zem, PKinv, defgrad_res, i)
+    c_force_density!(storage, system, mat, params, mat.zem, PKinv, defgrad_res, i)
     return nothing
 end
 

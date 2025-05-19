@@ -1,6 +1,6 @@
 function get_correction(mat::AbstractBondSystemMaterial{<:AbstractZEMStabilization},
                         ::Int, ::Int, ::Int)
-    return mat.zem_stabilization
+    return mat.zem
 end
 
 """
