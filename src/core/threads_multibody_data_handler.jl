@@ -1,3 +1,29 @@
+"""
+    ThreadsMultibodyDataHandler
+
+$(internal_api_warning())
+
+A type for handling all data of multiple bodies in multithreading simulations.
+
+# Type Parameters
+
+- `BDH`: Body data handler type.
+- `PC`: Position cache type.
+- `VC`: Volume cache type.
+
+# Fields
+
+- `n_bodies::Int`: Number of bodies in the simulation.
+- `body_dhs::BDH`: Tuple containing all body data handlers.
+- `body_names::Vector{Symbol}`: Names of the bodies.
+- `body_idxs::Dict{Symbol,Int}`: Names of bodies assigned to their indices.
+- `srf_contacts::Vector{ShortRangeForceContact}`: All short range force contacts of this
+    simulation.
+- `position_caches::PC`: Positions of all points of all bodies (should be of type
+    `Vector{Matrix{Float64}}`).
+- `volume_caches::VC`: Volumes of all points of all bodies (should be of type
+    `Vector{Vector{Float64}}`).
+"""
 struct ThreadsMultibodyDataHandler{BDH,PC,VC} <: AbstractThreadsMultibodyDataHandler
     n_bodies::Int
     body_dhs::BDH
@@ -5,7 +31,7 @@ struct ThreadsMultibodyDataHandler{BDH,PC,VC} <: AbstractThreadsMultibodyDataHan
     body_idxs::Dict{Symbol,Int}
     srf_contacts::Vector{ShortRangeForceContact}
     position_caches::PC #Vector{Matrix{Float64}}
-    volume_caches::VC #Vector{Matrix{Float64}}
+    volume_caches::VC #Vector{Vector{Float64}}
 end
 
 function threads_data_handler(ms::AbstractMultibodySetup, solver::AbstractTimeSolver,

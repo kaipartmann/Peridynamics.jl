@@ -11,6 +11,7 @@ Pages = ["public_api_reference.md"]
 ## Material models
 ```@docs
 BBMaterial
+DHBBMaterial
 OSBMaterial
 CMaterial
 CRMaterial
@@ -24,6 +25,7 @@ CriticalStretch
 NoCorrection
 EnergySurfaceCorrection
 ZEMSilling
+ZEMWan
 LinearElastic
 NeoHooke
 MooneyRivlin

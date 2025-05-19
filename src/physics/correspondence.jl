@@ -18,9 +18,11 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     - [`NeoHooke`](@ref)
     - [`MooneyRivlin`](@ref)
     - [`SaintVenantKirchhoff`](@ref)
-- `zem::AbstractZEMStabilization`: Zero-energy mode stabilization. The
-    stabilization algorithm of Silling (2017) is used as default. \\
-    (default: [`ZEMSilling`](@ref))
+- `zem::AbstractZEMStabilization`: Algorithm of zero-energy mode stabilization. \\
+    (default: [`ZEMSilling`](@ref)) \\
+    The following algorithms can be used:
+    - [`ZEMSilling`](@ref)
+    - [`ZEMWan`](@ref)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
     (default: [`CriticalStretch`](@ref))
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
@@ -72,18 +74,18 @@ non-ordinary state-based peridynamics.
 When using [`material!`](@ref) on a [`Body`](@ref) with `CMaterial`, then the following
 parameters are allowed:
 Material parameters:
-- `horizon::Float64`: Radius of point interactions
-- `rho::Float64`: Density
+- `horizon::Float64`: Radius of point interactions.
+- `rho::Float64`: Density.
 Elastic parameters:
-- `E::Float64`: Young's modulus
-- `nu::Float64`: Poisson's ratio
-- `G::Float64`: Shear modulus
-- `K::Float64`: Bulk modulus
-- `lambda::Float64`: 1st Lamé parameter
-- `mu::Float64`: 2nd Lamé parameter
+- `E::Float64`: Young's modulus.
+- `nu::Float64`: Poisson's ratio.
+- `G::Float64`: Shear modulus.
+- `K::Float64`: Bulk modulus.
+- `lambda::Float64`: 1st Lamé parameter.
+- `mu::Float64`: 2nd Lamé parameter.
 Fracture parameters:
-- `Gc::Float64`: Critical energy release rate
-- `epsilon_c::Float64`: Critical strain
+- `Gc::Float64`: Critical energy release rate.
+- `epsilon_c::Float64`: Critical strain.
 
 !!! note "Elastic parameters"
     Note that exactly two elastic parameters are required to specify a material.
@@ -92,22 +94,22 @@ Fracture parameters:
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 `CMaterial`, the following fields are allowed:
-- `position::Matrix{Float64}`: Position of each point
-- `displacement::Matrix{Float64}`: Displacement of each point
-- `velocity::Matrix{Float64}`: Velocity of each point
-- `velocity_half::Matrix{Float64}`: Velocity parameter for Verlet time solver
-- `acceleration::Matrix{Float64}`: Acceleration of each point
-- `b_int::Matrix{Float64}`: Internal force density of each point
-- `b_ext::Matrix{Float64}`: External force density of each point
-- `damage::Vector{Float64}`: Damage of each point
-- `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
-- `stress::Matrix{Float64}`: Stress tensor of each point
-- `von_mises_stress::Vector{Float64}`: Von Mises stress of each point
+- `position::Matrix{Float64}`: Position of each point.
+- `displacement::Matrix{Float64}`: Displacement of each point.
+- `velocity::Matrix{Float64}`: Velocity of each point.
+- `velocity_half::Matrix{Float64}`: Velocity parameter for Verlet time solver.
+- `acceleration::Matrix{Float64}`: Acceleration of each point.
+- `b_int::Matrix{Float64}`: Internal force density of each point.
+- `b_ext::Matrix{Float64}`: External force density of each point.
+- `damage::Vector{Float64}`: Damage of each point.
+- `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
+- `stress::Matrix{Float64}`: Stress tensor of each point.
+- `von_mises_stress::Vector{Float64}`: Von Mises stress of each point.
 """
 struct CMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
     kernel::K
     constitutive_model::CM
-    zem_stabilization::ZEM
+    zem::ZEM
     dmgmodel::DM
     maxdmg::Float64
     function CMaterial(kernel::K, cm::CM, zem::ZEM, dmgmodel::DM,
@@ -133,15 +135,38 @@ function log_material_property(::Val{:constitutive_model}, mat; indentation)
     return msg_qty("constitutive model", mat.constitutive_model; indentation)
 end
 
-function log_material_property(::Val{:zem_stabilization}, mat; indentation)
-    return msg_qty("zero-energy mode stabilization", mat.zem_stabilization; indentation)
+function log_material_property(::Val{:zem}, mat; indentation)
+    return msg_qty("zero-energy mode stabilization", mat.zem; indentation)
 end
 
 function log_material_property(::Val{:maxdmg}, mat; indentation)
     return msg_qty("maximum damage", mat.maxdmg; indentation)
 end
 
-@params CMaterial StandardPointParameters
+struct CPointParameters <: AbstractPointParameters
+    δ::Float64
+    rho::Float64
+    E::Float64
+    nu::Float64
+    G::Float64
+    K::Float64
+    λ::Float64
+    μ::Float64
+    Gc::Float64
+    εc::Float64
+    bc::Float64
+    C::MArray{NTuple{4,3},Float64,4,81}
+end
+
+function CPointParameters(mat::AbstractMaterial, p::Dict{Symbol,Any})
+    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
+    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
+    bc = 18 * K / (π * δ^4) # bond constant
+    C = get_hooke_matrix(nu, λ, μ)
+    return CPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc, C)
+end
+
+@params CMaterial CPointParameters
 
 @storage CMaterial struct CStorage
     @lthfield position::Matrix{Float64}
@@ -188,13 +213,12 @@ function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
     defgrad_res = calc_deformation_gradient(storage, system, mat, params, i)
     too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
     PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)
-    zem = mat.zem_stabilization
-    c_force_density!(storage, system, mat, params, zem, PKinv, defgrad_res, i)
+    c_force_density!(storage, system, mat, params, mat.zem, PKinv, defgrad_res, i)
     return nothing
 end
 
 function calc_deformation_gradient(storage::CStorage, system::BondSystem, ::CMaterial,
-                                   ::StandardPointParameters, i)
+                                   ::CPointParameters, i)
     (; bonds, volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
@@ -218,7 +242,7 @@ function calc_deformation_gradient(storage::CStorage, system::BondSystem, ::CMat
 end
 
 function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
-                                     params::StandardPointParameters, defgrad_res, Δt, i)
+                                     params::CPointParameters, defgrad_res, Δt, i)
     (; F, Kinv) = defgrad_res
     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
     PKinv = P * Kinv
@@ -251,6 +275,40 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
         update_add_vector!(storage.b_int, j, -tij .* volume[i])
     end
     return nothing
+end
+
+function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
+                          mat::AbstractCorrespondenceMaterial,
+                          params::AbstractPointParameters, zem::ZEMWan, PKinv, defgrad_res,
+                          i)
+    (; bonds, volume) = system
+    (; bond_active) = storage
+    (; F) = defgrad_res
+    C_1 = calc_zem_stiffness_tensor!(storage, system, mat, params, zem, defgrad_res, i)
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j = bond.neighbor
+        ΔXij = get_vector_diff(system.position, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
+
+        # improved stabilization from this article:
+        # https://doi.org/10.1007/s10409-019-00873-y
+        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        tzem = ωij * C_1 * (Δxij .- F * ΔXij)
+
+        # update of force density
+        tij = ωij * PKinv * ΔXij + tzem
+        update_add_vector!(storage.b_int, i, tij .* volume[j])
+        update_add_vector!(storage.b_int, j, -tij .* volume[i])
+    end
+    return nothing
+end
+
+function calc_zem_stiffness_tensor!(storage::CStorage, system::BondSystem, mat::CMaterial,
+                                    params::CPointParameters, zem::ZEMWan, defgrad_res, i)
+    (; Kinv) = defgrad_res
+    C_1 = calc_zem_stiffness_tensor(params.C, Kinv)
+    return C_1
 end
 
 function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,

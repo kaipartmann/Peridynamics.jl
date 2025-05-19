@@ -9,11 +9,11 @@ end
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, OSBMaterial, CMaterial, CRMaterial, RKCMaterial, RKCRMaterial,
-       BACMaterial, CKIMaterial
+export BBMaterial, DHBBMaterial, OSBMaterial, CMaterial, CRMaterial, BACMaterial,
+       CKIMaterial, RKCMaterial, RKCRMaterial
 
 # CMaterial related types
-export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling
+export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling, ZEMWan
 
 # Kernels
 export const_one_kernel, linear_kernel, cubic_b_spline_kernel
@@ -76,6 +76,7 @@ abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
+abstract type AbstractBondBasedMaterial{CM} <: AbstractBondSystemMaterial{CM} end
 abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMaterial{ZEM} end
 abstract type AbstractRKCMaterial{CM,C} <: AbstractBondSystemMaterial{C} end
 abstract type AbstractBondAssociatedSystemMaterial <: AbstractMaterial end
@@ -134,6 +135,7 @@ include("time_solvers/velocity_verlet.jl")
 include("time_solvers/dynamic_relaxation.jl")
 
 include("physics/bond_based.jl")
+include("physics/dh_bond_based.jl")
 include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")
 include("physics/constitutive_models.jl")

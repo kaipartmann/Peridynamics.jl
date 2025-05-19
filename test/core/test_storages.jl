@@ -41,3 +41,57 @@ end
     @test header4 == Expr(:(<:), :(MyStorage{A,B,C}), :(Peridynamics.AbstractStorage))
     @test type4 == :MyStorage
 end
+
+@testitem "macrochecks @storage macro" begin
+
+    input = :(Peridynamics.BBStorage)
+    @test isnothing(Peridynamics.macrocheck_input_storage_type(input))
+
+    input = :(MyNonexistingStorage)
+    @test isnothing(Peridynamics.macrocheck_input_storage_type(input))
+
+    input = :(Base.MyNonexistingStorage)
+    @test isnothing(Peridynamics.macrocheck_input_storage_type(input))
+
+    input = :(:MyNonexistingStorageAsSymbol)
+    @test_throws ArgumentError Peridynamics.macrocheck_input_storage_type(input)
+
+    input = :(
+        struct MyTestStorage <: Peridynamics.AbstractStorage
+            a::Int
+        end
+    )
+    @test isnothing(Peridynamics.macrocheck_input_storage_struct(input))
+
+    input = :(
+        struct MyTestStorage{A,B,C} <: Peridynamics.AbstractStorage
+            c::Vector{Float64}
+        end
+    )
+    @test isnothing(Peridynamics.macrocheck_input_storage_struct(input))
+
+    input = :(
+        @kwdef struct MyTestStorage <: Peridynamics.AbstractStorage
+            c::Vector{Float64}
+        end
+    )
+    @test_throws ArgumentError Peridynamics.macrocheck_input_storage_struct(input)
+
+    input = :(Peridynamics.VelocityVerlet)
+    @test isnothing(Peridynamics.macrocheck_input_timesolver(input))
+
+    input = :(MyNonexistingSolver)
+    @test isnothing(Peridynamics.macrocheck_input_timesolver(input))
+
+    input = :(Base.MyNonexistingSolver)
+    @test isnothing(Peridynamics.macrocheck_input_timesolver(input))
+
+    input = :(:MyNonexistingSolverAsSymbol)
+    @test_throws ArgumentError Peridynamics.macrocheck_input_timesolver(input)
+
+    input = :(:testfield)
+    @test isnothing(Peridynamics.macrocheck_input_field(input))
+
+    input = :testfield
+    @test_throws ArgumentError Peridynamics.macrocheck_input_field(input)
+end
