@@ -29,8 +29,6 @@ See also [`CMaterial`](@ref) on how to use this stabilization algorithm.
 """
 struct ZEMWan <: AbstractZEMStabilization end
 
-using StaticArrays
-
 function calc_zem_stiffness_tensor(C, Kinv)
     C_1 = zero(SMatrix{3,3,Float64,9})
     for i in 1:3, j in 1:3
