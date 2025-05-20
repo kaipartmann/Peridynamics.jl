@@ -467,6 +467,7 @@ function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSyst
             ω̃ij = kernel(system, bond_id) * ϕ
             ∑Pij = ω̃ij * (Pij * Tempij)
             ∑P += ∑Pij
+            # @autoinfiltrate containsnan(∑P)
         end
     end
     return ∑P
@@ -511,6 +512,8 @@ function rkc_force_density!(storage::AbstractStorage, system::AbstractBondSystem
         #     @show ViVj
         #     rethrow(e)
         # end
+
+        # @autoinfiltrate containsnan(tij)
 
         update_add_vector!(b_int, i, tij * volume[j])
         update_add_vector!(b_int, j, -tij * volume[i])

@@ -94,6 +94,7 @@ include("auxiliary/mpi.jl")
 include("auxiliary/errors.jl")
 include("auxiliary/static_arrays.jl")
 include("auxiliary/nans.jl")
+include("auxiliary/autoinfiltrate.jl")
 
 include("physics/boundary_conditions.jl")
 include("physics/initial_conditions.jl")

@@ -133,7 +133,7 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
     wi = weighted_volume[i]
     ∑P = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
-        # if bond_active[bond_id]
+        if bond_active[bond_id]
             bond = bonds[bond_id]
             j, L = bond.neighbor, bond.length
             ΔXij = get_vector_diff(system.position, i, j)
@@ -144,50 +144,52 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             Fb = 0.5 * (Fi + Fj)
             Ḟb = 0.5 * (Ḟi + Ḟj)
             ΔXijLL = ΔXij' / (L * L)
-            ΔFij = (Δxij - Fb * ΔXij) * ΔXijLL
-            ΔḞij = (Δvij - Ḟb * ΔXij) * ΔXijLL
-            Fij = Fb + ΔFij
-            Ḟij = Ḟb + ΔḞij
+            # ΔFij = (Δxij - Fb * ΔXij) * ΔXijLL
+            # ΔḞij = (Δvij - Ḟb * ΔXij) * ΔXijLL
+            # Fij = Fb + ΔFij
+            # _Fij = Fb + ΔFij
+            # Ḟij = Ḟb + ΔḞij
+            # _Ḟij = Ḟb + ΔḞij
 
-            # LL = L * L
+            LL = L * L
 
-            # β1 = Fb[1] * ΔXij[1] + Fb[2] * ΔXij[2] + Fb[3] * ΔXij[3]
-            # Fij1 = Fb[1] + (Δxij[1] - β1) * ΔXij[1] / LL
-            # Fij2 = Fb[2] + (Δxij[1] - β1) * ΔXij[2] / LL
-            # Fij3 = Fb[3] + (Δxij[1] - β1) * ΔXij[3] / LL
+            β1 = Fb[1] * ΔXij[1] + Fb[2] * ΔXij[2] + Fb[3] * ΔXij[3]
+            Fij1 = Fb[1] + (Δxij[1] - β1) * ΔXij[1] / LL
+            Fij2 = Fb[2] + (Δxij[1] - β1) * ΔXij[2] / LL
+            Fij3 = Fb[3] + (Δxij[1] - β1) * ΔXij[3] / LL
 
-            # β2 = Fb[4] * ΔXij[1] + Fb[5] * ΔXij[2] + Fb[6] * ΔXij[3]
-            # Fij4 = Fb[4] + (Δxij[2] - β2) * ΔXij[1] / LL
-            # Fij5 = Fb[5] + (Δxij[2] - β2) * ΔXij[2] / LL
-            # Fij6 = Fb[6] + (Δxij[2] - β2) * ΔXij[3] / LL
+            β2 = Fb[4] * ΔXij[1] + Fb[5] * ΔXij[2] + Fb[6] * ΔXij[3]
+            Fij4 = Fb[4] + (Δxij[2] - β2) * ΔXij[1] / LL
+            Fij5 = Fb[5] + (Δxij[2] - β2) * ΔXij[2] / LL
+            Fij6 = Fb[6] + (Δxij[2] - β2) * ΔXij[3] / LL
 
-            # β3 = Fb[7] * ΔXij[1] + Fb[8] * ΔXij[2] + Fb[9] * ΔXij[3]
-            # Fij7 = Fb[7] + (Δxij[3] - β3) * ΔXij[1] / LL
-            # Fij8 = Fb[8] + (Δxij[3] - β3) * ΔXij[2] / LL
-            # Fij9 = Fb[9] + (Δxij[3] - β3) * ΔXij[3] / LL
+            β3 = Fb[7] * ΔXij[1] + Fb[8] * ΔXij[2] + Fb[9] * ΔXij[3]
+            Fij7 = Fb[7] + (Δxij[3] - β3) * ΔXij[1] / LL
+            Fij8 = Fb[8] + (Δxij[3] - β3) * ΔXij[2] / LL
+            Fij9 = Fb[9] + (Δxij[3] - β3) * ΔXij[3] / LL
 
-            # Fij = SMatrix{3,3,Float64,9}(Fij1, Fij2, Fij3,
-            #                              Fij4, Fij5, Fij6,
-            #                              Fij7, Fij8, Fij9)
+            Fij = SMatrix{3,3,Float64,9}(Fij1, Fij2, Fij3,
+                                         Fij4, Fij5, Fij6,
+                                         Fij7, Fij8, Fij9)
 
-            # β1 = Ḟb[1] * ΔXij[1] + Ḟb[2] * ΔXij[2] + Ḟb[3] * ΔXij[3]
-            # Ḟij1 = Ḟb[1] + (Δvij[1] - β1) * ΔXij[1] / LL
-            # Ḟij2 = Ḟb[2] + (Δvij[1] - β1) * ΔXij[2] / LL
-            # Ḟij3 = Ḟb[3] + (Δvij[1] - β1) * ΔXij[3] / LL
+            β1 = Ḟb[1] * ΔXij[1] + Ḟb[2] * ΔXij[2] + Ḟb[3] * ΔXij[3]
+            Ḟij1 = Ḟb[1] + (Δvij[1] - β1) * ΔXij[1] / LL
+            Ḟij2 = Ḟb[2] + (Δvij[1] - β1) * ΔXij[2] / LL
+            Ḟij3 = Ḟb[3] + (Δvij[1] - β1) * ΔXij[3] / LL
 
-            # β2 = Ḟb[4] * ΔXij[1] + Ḟb[5] * ΔXij[2] + Ḟb[6] * ΔXij[3]
-            # Ḟij4 = Ḟb[4] + (Δvij[2] - β2) * ΔXij[1] / LL
-            # Ḟij5 = Ḟb[5] + (Δvij[2] - β2) * ΔXij[2] / LL
-            # Ḟij6 = Ḟb[6] + (Δvij[2] - β2) * ΔXij[3] / LL
+            β2 = Ḟb[4] * ΔXij[1] + Ḟb[5] * ΔXij[2] + Ḟb[6] * ΔXij[3]
+            Ḟij4 = Ḟb[4] + (Δvij[2] - β2) * ΔXij[1] / LL
+            Ḟij5 = Ḟb[5] + (Δvij[2] - β2) * ΔXij[2] / LL
+            Ḟij6 = Ḟb[6] + (Δvij[2] - β2) * ΔXij[3] / LL
 
-            # β3 = Ḟb[7] * ΔXij[1] + Ḟb[8] * ΔXij[2] + Ḟb[9] * ΔXij[3]
-            # Ḟij7 = Ḟb[7] + (Δvij[3] - β3) * ΔXij[1] / LL
-            # Ḟij8 = Ḟb[8] + (Δvij[3] - β3) * ΔXij[2] / LL
-            # Ḟij9 = Ḟb[9] + (Δvij[3] - β3) * ΔXij[3] / LL
+            β3 = Ḟb[7] * ΔXij[1] + Ḟb[8] * ΔXij[2] + Ḟb[9] * ΔXij[3]
+            Ḟij7 = Ḟb[7] + (Δvij[3] - β3) * ΔXij[1] / LL
+            Ḟij8 = Ḟb[8] + (Δvij[3] - β3) * ΔXij[2] / LL
+            Ḟij9 = Ḟb[9] + (Δvij[3] - β3) * ΔXij[3] / LL
 
-            # Ḟij = SMatrix{3,3,Float64,9}(Ḟij1, Ḟij2, Ḟij3,
-            #                              Ḟij4, Ḟij5, Ḟij6,
-            #                              Ḟij7, Ḟij8, Ḟij9)
+            Ḟij = SMatrix{3,3,Float64,9}(Ḟij1, Ḟij2, Ḟij3,
+                                         Ḟij4, Ḟij5, Ḟij6,
+                                         Ḟij7, Ḟij8, Ḟij9)
 
             # Fij ≈ _Fij || (@show Fij; @show _Fij)
             # Ḟij ≈ _Ḟij || (@show Ḟij; @show _Ḟij)
@@ -223,8 +225,8 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             # *(defGradDot+8) = *(meanDefGradDot+8) + (velStateZ - scalarTemp) * undeformedBondZ/undeformedBondLengthSq;
 
             Pij = calc_first_piola_kirchhoff!(storage, mat, params, Fij, Ḟij, Δt, bond_id)
-            Tempij = I - ΔXij * ΔXijLL
-            # Tempij = I - (ΔXij * ΔXij') / LL
+            # Tempij = I - ΔXij * ΔXijLL
+            Tempij = I - (ΔXij * ΔXij') / LL
             wj = weighted_volume[j]
             ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
             # ϕ = (0.5 / wi + 0.5 / wj)
@@ -232,7 +234,8 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             ω̃ij = kernel(system, bond_id) * ϕ * ViVj
             ∑Pij = ω̃ij * (Pij * Tempij)
             ∑P += ∑Pij
-        # end
+            # @autoinfiltrate containsnan(∑P)
+        end
     end
     return ∑P
 end
@@ -241,7 +244,7 @@ function calc_first_piola_kirchhoff!(storage::RKCRStorage, mat::RKCRMaterial,
                                      params::StandardPointParameters, F::SMatrix{3,3,FT,9},
                                      Ḟ::SMatrix{3,3,FT,9}, Δt, bond_id) where {FT}
     D = init_stress_rotation!(storage, F, Ḟ, Δt, bond_id)
-    # iszero(D) && return zero(SMatrix{3,3,FT,9})
+    iszero(D) && return zero(SMatrix{3,3,FT,9})
     Δε = D * Δt
     Δθ = tr(Δε)
     Δεᵈᵉᵛ = Δε - Δθ / 3 * I
