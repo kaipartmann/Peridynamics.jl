@@ -40,6 +40,22 @@ end
     return SVector{3}(M[1, j] - M[1, i], M[2, j] - M[2, i], M[3, j] - M[3, i])
 end
 
+"""
+    invreg(M::StaticMatrix{N,N,T}, threshold::Real=eps()) where {N,T}
+
+Computes the pseudo-inverse of a square static matrix `M` using singular value
+decomposition (SVD) with regularization. The regularization is applied to the
+singular values, where singular values below the specified `threshold` are set
+to zero in the pseudo-inverse. This helps to avoid numerical instability and
+ill-conditioning in the inversion process.
+
+# Arguments
+- `M::StaticMatrix{N,N,T}`: The square `N`×`N` static matrix with element type `T` to be
+    inverted.
+- `threshold::Real=eps()`: The threshold value for regularization, should be a positive
+    real number between 0 and 1. Singular values below this threshold are set to zero in the
+    pseudo-inverse.
+"""
 function invreg(M::StaticMatrix{N,N,T}, threshold::Real=eps()) where {N,T}
     U, S, V = svd(M)
     Sinvreg = SVector{N,T}((s > threshold ? 1/s : 0) for s in S)
