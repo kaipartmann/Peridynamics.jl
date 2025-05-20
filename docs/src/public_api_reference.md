@@ -17,6 +17,8 @@ CMaterial
 CRMaterial
 BACMaterial
 CKIMaterial
+RKCMaterial
+RKCRMaterial
 ```
 
 ## System or material related types

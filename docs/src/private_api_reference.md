@@ -55,4 +55,5 @@ Peridynamics.PosDepSingleDimIC
 Peridynamics.ShortRangeForceContact
 
 Peridynamics.@storage
+Peridynamics.@autoinfiltrate
 ```
