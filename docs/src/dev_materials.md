@@ -7,11 +7,13 @@ The selected material specifies, which peridynamic formulation is employed in ca
 
 ## Implemented material models
 
-- [`BBMaterial`](@ref): Bond-based material model.
-- [`OSBMaterial`](@ref): Ordinary state-based material model.
-- [`CMaterial`](@ref): Non-ordinary state-based corespondence material model.
-- [`CKIMaterial`](@ref): Continuum-kinematics-inspired material model.
-- [`BACMaterial`](@ref): Bond-associated correspondence material model by Chen and Spencer.
+- [`BBMaterial`](@ref): Bond-based peridynamics.
+- [`DHBBMaterial`](@ref): Dual-horizon bond-based peridynamics.
+- [`OSBMaterial`](@ref): Ordinary state-based peridynamics, also called linear peridynamic solid (LPS).
+- [`CMaterial`](@ref): Correspondence formulation.
+- [`CRMaterial`](@ref): Correspondence formulation stress rotation for objectivity enforcement.
+- [`BACMaterial`](@ref): Bond-associated correspondence formulation of Chen and Spencer.
+- [`CKIMaterial`](@ref): Continuum-kinematics-inspired peridynamics.
 
 ## Custom materials
 
