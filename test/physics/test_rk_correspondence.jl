@@ -11,8 +11,8 @@
     @test n_neighbors == fill(7, 8)
     @test n_active_bonds == fill(7, 8)
     @test bond_active == fill(true, 56)
-    @test gradient_weight[:,1] ≈ [0.400635899698093, -1.0858583421041945, -1.0858583421041945]
-    @test gradient_weight[:,2] ≈ [-1.0858583421041959, 0.4006358996980926, -1.0858583421041956]
+    @test gradient_weight[:,1] ≈ [1.1548446667165417, -0.3316495750857463, -0.3316495750857462]
+    @test gradient_weight[:,2] ≈ [-0.33164957508574605, 1.1548446667165417, -0.3316495750857461]
     @test update_gradients == fill(false, 8)
 
     Peridynamics.calc_weights_and_defgrad!(chunk, 0.0, 0.0)
@@ -20,8 +20,8 @@
     # everything should be the same, the gradients are initialized and damage did not change
     @test n_active_bonds == fill(7, 8)
     @test bond_active == fill(true, 56)
-    @test gradient_weight[:,1] ≈ [0.400635899698093, -1.0858583421041945, -1.0858583421041945]
-    @test gradient_weight[:,2] ≈ [-1.0858583421041959, 0.4006358996980926, -1.0858583421041956]
+    @test gradient_weight[:,1] ≈ [1.1548446667165417, -0.3316495750857463, -0.3316495750857462]
+    @test gradient_weight[:,2] ≈ [-0.33164957508574605, 1.1548446667165417, -0.3316495750857461]
     @test update_gradients == fill(false, 8)
 
     # bond 1 failed somehow
@@ -32,7 +32,7 @@
     @test n_active_bonds == [6, 7, 7, 7, 7, 7, 7, 7]
     @test bond_active == [false; fill(true, 55)]
     @test iszero(gradient_weight[:,1])
-    @test gradient_weight[:,2] ≈ [-0.9358795619757143, -0.005857152132367364, -1.4923513939346549]
+    @test gradient_weight[:,2] ≈ [-0.6163778391975847, 1.2366132461014017, -0.24988099570088682]
     @test update_gradients == fill(false, 8)
 end
 
@@ -49,7 +49,7 @@ end
 #     # t = 0.0
 #     # Δt = 0.0
 
-#     body2 = deepcopy(Body(NSCMaterial(), pos, vol))
+#     body2 = deepcopy(Body(RKCMaterial(), pos, vol))
 #     material!(body2; horizon=2, rho=1, E=210e9, nu=0.25, Gc=1.0)
 
 #     dh2 = Peridynamics.threads_data_handler(body2, VelocityVerlet(steps=1), 1)
