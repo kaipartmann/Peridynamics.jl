@@ -70,3 +70,20 @@ end
     # end
 
 end
+
+@testitem "bond horizon" begin
+    # setup
+    pos, vol = uniform_box(1, 0.25, 0.25, 0.25)
+    body = Body(BACMaterial(), pos, vol)
+    @test_throws ArgumentError material!(body, horizon=0.5, bond_horizon=-1, rho=1, E=1,
+        nu=0.25, Gc=1)
+    @test_logs (:warn,) material!(body, horizon=0.5, bond_horizon=0.1, rho=1, E=1, nu=0.25,
+        Gc=1)
+end
+
+@testitem "bond-associated compatibility" begin
+    # setup
+    pos, vol = uniform_box(1, 0.25, 0.25, 0.25)
+    body = Body(BBMaterial(), pos, vol)
+    @test_throws ArgumentError Peridynamics.check_bond_associated_system_compat(body.mat)
+end
