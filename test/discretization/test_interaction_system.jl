@@ -36,9 +36,9 @@
     point_set!(body, :a, 1:2)
     material!(body, :a; horizon=1.5, rho=7e-6, E=200e3, nu=0.3, Gc=1.0, C1=1, C2=1)
 
-    ts = VelocityVerlet(steps=1) # nur als dummy
-    dh = Peridynamics.threads_data_handler(body, ts, 1) # ein thread
-    chunk = dh.chunks[1] # das erste und einzige chunk
+    ts = VelocityVerlet(steps=1)
+    dh = Peridynamics.threads_data_handler(body, ts, 1)
+    chunk = dh.chunks[1]
     @test Peridynamics.has_three_nis(chunk.paramsetup) == false
 end
 
@@ -88,9 +88,9 @@ end
     point_set!(body, :a, 1:2)
     material!(body, :a; horizon=1.5, rho=7e-6, E=200e3, nu=0.3, Gc=1.0, C1=1, C3=1)
 
-    ts = VelocityVerlet(steps=1) # nur als dummy
-    dh = Peridynamics.threads_data_handler(body, ts, 1) # ein thread
-    chunk = dh.chunks[1] # das erste und einzige chunk
+    ts = VelocityVerlet(steps=1)
+    dh = Peridynamics.threads_data_handler(body, ts, 1)
+    chunk = dh.chunks[1]
     @test Peridynamics.has_two_nis(chunk.paramsetup) == false
 end
 
