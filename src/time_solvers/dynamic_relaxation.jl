@@ -113,6 +113,17 @@ function init_density_matrix!(dh::AbstractThreadsBodyDataHandler, dr::DynamicRel
     return nothing
 end
 
+function init_density_matrix!(dh::AbstractThreadsMultibodyDataHandler,
+                              dr::DynamicRelaxation)
+    for body_idx in each_body_idx(dh)
+        body_dh = get_body_dh(dh, body_idx)
+        @threads :static for chunk in body_dh.chunks
+            _init_density_matrix!(chunk, dr, chunk.paramsetup)
+        end
+    end
+    return nothing
+end
+
 function init_density_matrix!(dh::AbstractMPIBodyDataHandler, dr::DynamicRelaxation)
     _init_density_matrix!(dh.chunk, dr, dh.chunk.paramsetup)
     return nothing
@@ -213,6 +224,36 @@ function relaxation_timestep!(dh::AbstractMPIBodyDataHandler,
         relaxation_step!(chunk, Δt, cn)
     end
     @timeit_debug TO "export_results" export_results(dh, options, n, t)
+    return nothing
+end
+
+function relaxation_timestep!(dh::AbstractThreadsMultibodyDataHandler,
+                              options::AbstractJobOptions, Δt, n)
+    t = n * Δt
+    for body_idx in each_body_idx(dh)
+        body_dh = get_body_dh(dh, body_idx)
+        @threads :static for chunk_id in eachindex(body_dh.chunks)
+            chunk = body_dh.chunks[chunk_id]
+            apply_boundary_conditions!(chunk, t)
+            update_disp_and_pos!(chunk, Δt)
+        end
+    end
+    calc_force_density!(dh, t, Δt)
+    update_caches!(dh)
+    calc_contact_force_densities!(dh)
+    for body_idx in each_body_idx(dh)
+        body_dh = get_body_dh(dh, body_idx)
+        @threads :static for chunk_id in eachindex(body_dh.chunks)
+            chunk = body_dh.chunks[chunk_id]
+            cn = calc_damping(chunk, Δt)
+            if n == 1
+                relaxation_first_step!(chunk, Δt)
+            else
+                relaxation_step!(chunk, Δt, cn)
+            end
+            export_results(body_dh, options, chunk_id, n, t)
+        end
+    end
     return nothing
 end
 
