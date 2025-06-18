@@ -1,4 +1,15 @@
 @doc raw"""
+    const_one_kernel(δ, L)
+
+A kernel function ``\omega`` (also called influence function) used for weighting the
+bonds in a family. The kernel function is simply defined as a constant value 1:
+```math
+\omega = 1
+```
+"""
+@inline const_one_kernel(δ, L) = 1
+
+@doc raw"""
     linear_kernel(δ, L)
 
 A linear kernel function ``\omega`` (also called influence function) used for weighting the

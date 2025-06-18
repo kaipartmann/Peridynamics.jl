@@ -91,7 +91,6 @@ function init_stress_rotation!(storage::AbstractStorage, F, Ḟ, Δt, i)
     # update rotation and left stretch
     update_tensor!(storage.rotation, i, Rₙ₊₁)
     update_tensor!(storage.left_stretch, i, Vₙ₊₁)
-    # update_tensor!(storage.unrot_rate_of_deformation, i, Dᵣ)
     return Dᵣ
 end
 

@@ -8,6 +8,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 - `kernel::Function`: Kernel function used for weighting the interactions between points. \\
     (default: `linear_kernel`) \\
     The following kernels can be used:
+    - [`const_one_kernel`](@ref)
     - [`linear_kernel`](@ref)
     - [`cubic_b_spline_kernel`](@ref)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
