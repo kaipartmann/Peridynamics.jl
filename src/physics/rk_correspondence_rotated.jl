@@ -143,7 +143,7 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             Ḟj = get_tensor(defgrad_dot, j)
             Fb = 0.5 * (Fi + Fj)
             Ḟb = 0.5 * (Ḟi + Ḟj)
-            ΔXijLL = ΔXij' / (L * L)
+            # ΔXijLL = ΔXij' / (L * L)
             # ΔFij = (Δxij - Fb * ΔXij) * ΔXijLL
             # ΔḞij = (Δvij - Ḟb * ΔXij) * ΔXijLL
             # Fij = Fb + ΔFij
@@ -168,9 +168,9 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             Fij8 = Fb[8] + (Δxij[3] - β3) * ΔXij[2] / LL
             Fij9 = Fb[9] + (Δxij[3] - β3) * ΔXij[3] / LL
 
-            Fij = SMatrix{3,3,Float64,9}(Fij1, Fij2, Fij3,
-                                         Fij4, Fij5, Fij6,
-                                         Fij7, Fij8, Fij9)
+            Fij = SMatrix{3,3,Float64,9}(Fij1, Fij4, Fij7,
+                                         Fij2, Fij5, Fij8,
+                                         Fij3, Fij6, Fij9)
 
             β1 = Ḟb[1] * ΔXij[1] + Ḟb[2] * ΔXij[2] + Ḟb[3] * ΔXij[3]
             Ḟij1 = Ḟb[1] + (Δvij[1] - β1) * ΔXij[1] / LL
@@ -187,12 +187,19 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             Ḟij8 = Ḟb[8] + (Δvij[3] - β3) * ΔXij[2] / LL
             Ḟij9 = Ḟb[9] + (Δvij[3] - β3) * ΔXij[3] / LL
 
-            Ḟij = SMatrix{3,3,Float64,9}(Ḟij1, Ḟij2, Ḟij3,
-                                         Ḟij4, Ḟij5, Ḟij6,
-                                         Ḟij7, Ḟij8, Ḟij9)
+            Ḟij = SMatrix{3,3,Float64,9}(Ḟij1, Ḟij4, Ḟij7,
+                                         Ḟij2, Ḟij5, Ḟij8,
+                                         Ḟij3, Ḟij6, Ḟij9)
 
             # Fij ≈ _Fij || (@show Fij; @show _Fij)
             # Ḟij ≈ _Ḟij || (@show Ḟij; @show _Ḟij)
+
+            # ORDERING OF THE ELEMENTS IN THE MATRICES IS IMPORTANT!
+            #   // The default ordering is row-major:
+            #   //
+            #   // XX(0) XY(1) XZ(2)
+            #   // YX(3) YY(4) YZ(5)
+            #   // ZX(6) ZY(7) ZZ(8)
 
             # scalarTemp = *(meanDefGrad+0) * undeformedBondX + *(meanDefGrad+1) * undeformedBondY + *(meanDefGrad+2) * undeformedBondZ;
             # *(defGrad+0) = *(meanDefGrad+0) + (defStateX - scalarTemp) * undeformedBondX/undeformedBondLengthSq;
