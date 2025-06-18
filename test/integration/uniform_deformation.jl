@@ -70,9 +70,9 @@ end
     (; position, defgrad) = chunk.storage
 
     # define a uniform deformation gradient for the whole body
-    F_a = @SMatrix [1.5 0.0 0.0
-                    0.0 1.5 0.0
-                    0.0 0.0 1.5]
+    F_a = @SMatrix [1.1 0.0 0.0
+                    0.0 1.2 0.0
+                    0.0 0.0 1.3]
     J = det(F_a)
 
     # apply a uniform displacement to the body
