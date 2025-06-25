@@ -1,5 +1,5 @@
 """
-    RKCRMaterial(; kernel, model, dmgmodel, maxdmg, regfactor)
+    RKCRMaterial(; kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
 
 The same as the [`RKCMaterial`](@ref) but with rotation of the stress tensor for large
 deformation simulations, therefore not all models are supported.
@@ -15,31 +15,28 @@ struct RKCRMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     constitutive_model::CM
     dmgmodel::DM
     maxdmg::Float64
-    accuracy_order::Int
+    reprkernel::Symbol
     regfactor::Float64
-    function RKCRMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real,
-                          accuracy_order::Int, regfactor::Real) where {CM,K,DM}
-        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, accuracy_order, regfactor)
+    function RKCRMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real, reprkernel::Symbol,
+                          regfactor::Real) where {CM,K,DM}
+        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, reprkernel, regfactor)
     end
 end
 
 function RKCRMaterial(; kernel::Function=cubic_b_spline_kernel,
                         model::AbstractConstitutiveModel=LinearElastic(),
                         dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85,
-                        accuracy_order::Int=1, regfactor::Real=1e-13)
+                        reprkernel::Symbol=:C1, regfactor::Real=1e-13)
     if !(model isa LinearElastic)
         msg = "only `LinearElastic` is supported as model for `RKCRMaterial`!\n"
         throw(ArgumentError(msg))
     end
-    if !(accuracy_order in (1, 2))
-        msg = "RK kernel only implemented for `accuracy_order ∈ {1,2}`!\n"
-        throw(ArgumentError(msg))
-    end
+    get_q_dim(reprkernel) # check if the kernel is implemented
     if !(0 ≤ regfactor ≤ 1)
         msg = "Regularization factor must be in the range 0 ≤ regfactor ≤ 1\n"
         throw(ArgumentError(msg))
     end
-    return RKCRMaterial(kernel, model, dmgmodel, maxdmg, accuracy_order, regfactor)
+    return RKCRMaterial(kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
 end
 
 @params RKCRMaterial StandardPointParameters
@@ -143,7 +140,7 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             Ḟj = get_tensor(defgrad_dot, j)
             Fb = 0.5 * (Fi + Fj)
             Ḟb = 0.5 * (Ḟi + Ḟj)
-            # ΔXijLL = ΔXij' / (L * L)
+            ΔXijLL = ΔXij' / (L * L)
             # ΔFij = (Δxij - Fb * ΔXij) * ΔXijLL
             # ΔḞij = (Δvij - Ḟb * ΔXij) * ΔXijLL
             # Fij = Fb + ΔFij
@@ -152,7 +149,6 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             # _Ḟij = Ḟb + ΔḞij
 
             LL = L * L
-
             β1 = Fb[1] * ΔXij[1] + Fb[2] * ΔXij[2] + Fb[3] * ΔXij[3]
             Fij1 = Fb[1] + (Δxij[1] - β1) * ΔXij[1] / LL
             Fij2 = Fb[2] + (Δxij[1] - β1) * ΔXij[2] / LL
@@ -232,16 +228,14 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             # *(defGradDot+8) = *(meanDefGradDot+8) + (velStateZ - scalarTemp) * undeformedBondZ/undeformedBondLengthSq;
 
             Pij = calc_first_piola_kirchhoff!(storage, mat, params, Fij, Ḟij, Δt, bond_id)
-            # Tempij = I - ΔXij * ΔXijLL
-            Tempij = I - (ΔXij * ΔXij') / LL
+            Tempij = I - ΔXij * ΔXijLL
+            # Tempij = I - (ΔXij * ΔXij') / LL
             wj = weighted_volume[j]
-            ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
-            # ϕ = (0.5 / wi + 0.5 / wj)
-            ViVj = volume[i] * volume[j]
-            ω̃ij = kernel(system, bond_id) * ϕ * ViVj
+            # ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
+            ϕ = (0.5 / wi + 0.5 / wj)
+            ω̃ij = kernel(system, bond_id) * ϕ * volume[j]
             ∑Pij = ω̃ij * (Pij * Tempij)
             ∑P += ∑Pij
-            # @autoinfiltrate containsnan(∑P)
         end
     end
     return ∑P
@@ -251,7 +245,7 @@ function calc_first_piola_kirchhoff!(storage::RKCRStorage, mat::RKCRMaterial,
                                      params::StandardPointParameters, F::SMatrix{3,3,FT,9},
                                      Ḟ::SMatrix{3,3,FT,9}, Δt, bond_id) where {FT}
     D = init_stress_rotation!(storage, F, Ḟ, Δt, bond_id)
-    iszero(D) && return zero(SMatrix{3,3,FT,9})
+    # iszero(D) && return zero(SMatrix{3,3,FT,9})
     Δε = D * Δt
     Δθ = tr(Δε)
     Δεᵈᵉᵛ = Δε - Δθ / 3 * I

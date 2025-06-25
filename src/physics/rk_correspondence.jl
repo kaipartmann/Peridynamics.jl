@@ -1,8 +1,9 @@
 """
-    RKCMaterial(; kernel, model, dmgmodel, maxdmg, regfactor)
+    RKCMaterial(; kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
 
 A material type used to assign the material of a [`Body`](@ref) with a reproducing kernel
-peridynamics (correspondence) formulation.
+peridynamics (correspondence) formulation with bond-associated quadrature integration at
+the center of the bonds.
 
 # Keywords
 - `kernel::Function`: Kernel function used for weighting the interactions between points. \\
@@ -24,11 +25,18 @@ peridynamics (correspondence) formulation.
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values. \\
     (default: `0.85`)
+- `reprkernel::Symbol`: A kernel function used for the reproducing kernel approximation
+    of the moment matrix. This kernel is used to calculate the moment matrix and the
+    gradient weights, which are used to approximate the deformation gradient. \\
+    (default: `:C1`) \\
+    The following kernels can be used:
+    - `:C1`: A kernel reproducing the corresponndence formulation of peridynamics
+        with a first order accuracy. This is the default kernel.
 - `regfactor::Float64`: A regularization factor used to stabilize the inversion of the
     moment matrix. The product of `regfactor * δ^3` is used for the regularization with
     [`invreg`](@ref). The regularization helps to ensure numerical stability by mitigating
     issues such as ill-conditioning or singularity in the matrix operations.\\
-    (default: `1e-13`, )
+    (default: `1e-13`)
 
 # Examples
 
@@ -43,8 +51,8 @@ RKCMaterial{LinearElastic, typeof(linear_kernel), CriticalStretch}(maxdmg=0.85)
 RKCMaterial{CM,K,DM}
 ```
 
-Material type for the naturally stabilized local continuum consistent (correspondence) formulation of
-non-ordinary state-based peridynamics.
+Material type for a reproducing kernel peridynamics (correspondence) formulation with
+bond-associated quadrature integration at the center of the bonds.
 
 # Type Parameters
 - `CM`: A constitutive model type. See the constructor docs for more informations.
@@ -60,6 +68,8 @@ non-ordinary state-based peridynamics.
     constructor docs for more informations.
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
     constructor docs for more informations.
+- `reprkernel::Symbol`: A kernel function used for the reproducing kernel approximation. See
+    the constructor docs for more informations.
 - `regfactor::Float64`: Regularization factor. See the constructor docs for more
     informations.
 
@@ -104,27 +114,24 @@ struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     constitutive_model::CM
     dmgmodel::DM
     maxdmg::Float64
-    accuracy_order::Int
+    reprkernel::Symbol
     regfactor::Float64
-    function RKCMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real,
-                         accuracy_order::Int, regfactor::Real) where {CM,K,DM}
-        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, accuracy_order, regfactor)
+    function RKCMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real, reprkernel::Symbol,
+                         regfactor::Real) where {CM,K,DM}
+        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, reprkernel, regfactor)
     end
 end
 
 function RKCMaterial(; kernel::Function=cubic_b_spline_kernel,
                      model::AbstractConstitutiveModel=LinearElastic(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85,
-                     accuracy_order::Int=1, regfactor::Real=1e-13)
-    if !(accuracy_order in (1, 2))
-        msg = "RK kernel only implemented for `accuracy_order ∈ {1,2}`!\n"
-        throw(ArgumentError(msg))
-    end
+                     reprkernel::Symbol=:C1, regfactor::Real=1e-13)
+    get_q_dim(reprkernel) # check if the kernel is implemented
     if !(0 ≤ regfactor ≤ 1)
         msg = "Regularization factor must be in the range 0 ≤ regfactor ≤ 1\n"
         throw(ArgumentError(msg))
     end
-    return RKCMaterial(kernel, model, dmgmodel, maxdmg, accuracy_order, regfactor)
+    return RKCMaterial(kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
 end
 
 function Base.show(io::IO, @nospecialize(mat::AbstractRKCMaterial))
@@ -133,8 +140,8 @@ function Base.show(io::IO, @nospecialize(mat::AbstractRKCMaterial))
     return nothing
 end
 
-function log_material_property(::Val{:accuracy_order}, mat; indentation)
-    return msg_qty("gradient order of accuracy", mat.accuracy_order; indentation)
+function log_material_property(::Val{:reprkernel}, mat; indentation)
+    return msg_qty("reproducing kernel", mat.reprkernel; indentation)
 end
 
 function log_material_property(::Val{:regfactor}, mat; indentation)
@@ -298,13 +305,13 @@ function calc_weights_and_defgrad!(storage::AbstractStorage, system::AbstractBon
 end
 
 function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
-                     mat::AbstractRKCMaterial, params::AbstractPointParameters, t, Δt, i)
+                      mat::AbstractRKCMaterial, params::AbstractPointParameters, t, Δt, i)
     (; bonds, volume) = system
     (; bond_active, gradient_weight, weighted_volume, update_gradients) = storage
-    (; accuracy_order, regfactor) = mat
-    q_dim = get_q_dim(accuracy_order)
+    (; reprkernel, regfactor) = mat
+    q_dim = get_q_dim(reprkernel)
 
-    Q∇ᵀ = get_q_triangle(accuracy_order)
+    Q∇ᵀ = get_q_triangle(reprkernel)
 
     (; δ) = params
 
@@ -315,7 +322,7 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
-        Q = get_monomial_vector(accuracy_order, ΔXij)
+        Q = get_monomial_vector(reprkernel, ΔXij) ./ δ # scale by horizon
         ωij = kernel(system, bond_id) * bond_active[bond_id]
         temp = ωij * volume[j]
         M += temp * (Q * Q')
@@ -331,9 +338,9 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
-        Q = get_monomial_vector(accuracy_order, ΔXij)
+        Q = get_monomial_vector(reprkernel, ΔXij) ./ δ # scale by horizon
         ωij = kernel(system, bond_id) * bond_active[bond_id]
-        temp = ωij * volume[j]
+        temp = ωij * volume[j] / δ # δ is needed due to scaling by horizon
         MinvQ = Minv * Q
         Φ = temp * (Q∇ᵀ * MinvQ)
         update_vector!(gradient_weight, bond_id, Φ)
@@ -345,55 +352,72 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
     return nothing
 end
 
-@inline get_q_dim(N::Int) = get_q_dim(Val(N))
-@inline get_q_dim(::Val{1}) = 3
-# @inline get_q_dim(::Val{1}) = 4
-@inline get_q_dim(::Val{2}) = 7
-function get_q_dim(::Val{N}) where {N}
-    msg = "RK kernel only implemented for `accuracy_order ∈ {1,2}`!\n"
+@inline get_q_dim(reprkernel::Symbol) = get_q_dim(Val(reprkernel))
+
+function get_q_dim(::Val{reprkernel}) where {reprkernel}
+    msg = "Reproducing kernel `$reprkernel` is not implemented!\n"
     return throw(ArgumentError(msg))
 end
 
-@inline function get_monomial_vector(N::Int, ΔX::AbstractArray)
-    return get_monomial_vector(Val(N), ΔX)
+@inline function get_monomial_vector(rk::Symbol, ΔX::AbstractArray)
+    return get_monomial_vector(Val(rk), ΔX)
 end
 
-@inline function get_monomial_vector(::Val{1}, ΔX::AbstractArray)
+function get_monomial_vector(::Val{reprkernel}, ΔX::AbstractArray) where {reprkernel}
+    msg = "Reproducing kernel `$reprkernel` is not implemented!\n"
+    return throw(ArgumentError(msg))
+end
+
+@inline get_q_triangle(reprkernel::Symbol) = get_q_triangle(Val(reprkernel))
+
+function get_q_triangle(::Val{reprkernel}) where {reprkernel}
+    msg = "Reproducing kernel `$reprkernel` is not implemented!\n"
+    return throw(ArgumentError(msg))
+end
+
+@inline get_q_dim(::Val{:C1}) = 3
+@inline function get_monomial_vector(::Val{:C1}, ΔX::AbstractArray)
     x, y, z = ΔX[1], ΔX[2], ΔX[3]
     Q = SVector{3,eltype(ΔX)}(x, y, z)
-    # Q = SVector{4,eltype(ΔX)}(1.0, x, y, z)
     return Q
 end
-
-@inline function get_monomial_vector(::Val{2}, ΔX::AbstractArray)
-    x, y, z = ΔX[1], ΔX[2], ΔX[3]
-    Q = SVector{7,eltype(ΔX)}(1.0, x, y, z, x*x, y*y, z*z)
-    # Q = SVector{9,eltype(ΔX)}(x, y, z, x*x, x*y, x*z, y*y, y*z, z*z)
-    # Q = SVector{10,eltype(ΔX)}(1.0, x, y, z, x*x, x*y, x*z, y*y, y*z, z*z)
-    return Q
-end
-
-function get_monomial_vector(::Val{N}, ΔX::AbstractArray) where {N}
-    msg = "RK kernel only implemented for `accuracy_order ∈ {1,2}`!\n"
-    return throw(ArgumentError(msg))
-end
-
-@inline get_q_triangle(N::Int) = get_q_triangle(Val(N))
-
-function get_q_triangle(::Val{1})
+@inline function get_q_triangle(::Val{:C1})
     Q∇ᵀ = SMatrix{3,3,Int,9}(1, 0, 0, 0, 1, 0, 0, 0, 1)
-    # Q∇ᵀ = SMatrix{3,4,Int,12}(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
     return Q∇ᵀ
 end
 
-function get_q_triangle(::Val{2})
+@inline get_q_dim(::Val{:RK1}) = 4
+@inline function get_monomial_vector(::Val{:RK1}, ΔX::AbstractArray)
+    x, y, z = ΔX[1], ΔX[2], ΔX[3]
+    Q = SVector{4,eltype(ΔX)}(1.0, x, y, z)
+    return Q
+end
+@inline function get_q_triangle(::Val{:RK1})
+    Q∇ᵀ = SMatrix{3,4,Int,12}(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+    return Q∇ᵀ
+end
+
+@inline get_q_dim(::Val{:RK2}) = 7
+@inline function get_monomial_vector(::Val{:RK2}, ΔX::AbstractArray)
+    x, y, z = ΔX[1], ΔX[2], ΔX[3]
+    Q = SVector{7,eltype(ΔX)}(1.0, x, y, z, x * x, y * y, z * z)
+    return Q
+end
+@inline function get_q_triangle(::Val{:RK2})
     Q∇ᵀ = SMatrix{3,7,Int,21}(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
     return Q∇ᵀ
 end
 
-function get_q_triangle(::Val{N}) where {N}
-    msg = "RK kernel only implemented for `accuracy_order ∈ {1,2}`!\n"
-    return throw(ArgumentError(msg))
+@inline get_q_dim(::Val{:PD2}) = 9
+@inline function get_monomial_vector(::Val{:PD2}, ΔX::AbstractArray)
+    x, y, z = ΔX[1], ΔX[2], ΔX[3]
+    Q = SVector{9,eltype(ΔX)}(x, y, z, x * x, x * y, x * z, y * y, y * z, z * z)
+    return Q
+end
+@inline function get_q_triangle(::Val{:PD2})
+    Q∇ᵀ = SMatrix{3,9,Int,27}(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                              0, 0, 0, 0, 0, 0, 0, 0, 0)
+    return Q∇ᵀ
 end
 
 function rkc_defgrad!(storage::AbstractStorage, system::AbstractBondSystem,
@@ -443,7 +467,7 @@ end
 function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSystem,
                               mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
                               Δt, i)
-    (; bonds) = system
+    (; bonds, volume) = system
     (; bond_active, defgrad, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
     too_much_damage!(storage, system, mat, Fi, i) && return zero(SMatrix{3,3,Float64,9})
@@ -463,11 +487,12 @@ function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSyst
             Pij = calc_first_piola_kirchhoff!(storage, mat, params, Fij, bond_id)
             Tempij = I - ΔXij * ΔXijLL
             wj = weighted_volume[j]
-            ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
-            ω̃ij = kernel(system, bond_id) * ϕ
+            # ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
+            # ϕ = 0.5 / max(wi, eps()) + 0.5 / max(wj, eps())
+            ϕ = 0.5 / wi + 0.5 / wj
+            ω̃ij = kernel(system, bond_id) * ϕ * volume[j]
             ∑Pij = ω̃ij * (Pij * Tempij)
             ∑P += ∑Pij
-            # @autoinfiltrate containsnan(∑P)
         end
     end
     return ∑P
@@ -481,43 +506,24 @@ function rkc_force_density!(storage::AbstractStorage, system::AbstractBondSystem
        b_int) = storage
     wi = weighted_volume[i]
     for bond_id in each_bond_idx(system, i)
-        # if bond_active[bond_id]
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        ΔXij = get_vector_diff(system.position, i, j)
-        Pij = get_tensor(first_piola_kirchhoff, bond_id)
-        Φij = get_vector(gradient_weight, bond_id)
-        wj = weighted_volume[j]
-        ViVj = volume[i] * volume[j]
-        ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
-        # ϕ = 0.5 / wi + 0.5 / wj
-        ω̃ij = kernel(system, bond_id) * bond_active[bond_id] * ϕ
+        if bond_active[bond_id]
+            bond = bonds[bond_id]
+            j, L = bond.neighbor, bond.length
+            ΔXij = get_vector_diff(system.position, i, j)
+            Pij = get_tensor(first_piola_kirchhoff, bond_id)
+            Φij = get_vector(gradient_weight, bond_id)
+            # wj = weighted_volume[j]
+            # ϕ = (wi > 0 && wj > 0) ? (0.5 / wi + 0.5 / wj) : 0.0
+            # ϕ = 0.5 / max(wi, eps()) + 0.5 / max(wj, eps())
+            # ϕ = 0.5 / wi + 0.5 / wj
+            ϕ = 1 / wi
+            ω̃ij = kernel(system, bond_id) * ϕ
 
-        # if isnothing(ω̃ij) || isnothing(Pij) || isnothing(∑P) || isnothing(Φij)
-        #     if isdefined(Main, :Infiltrator)
-        #         Main.infiltrate(@__MODULE__, Base.@locals, @__FILE__, @__LINE__)
-        #     end
-        # end
+            tij = ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij / volume[j]
 
-        tij = ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij / ViVj
-        # tij = try
-        #     ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij / ViVj
-        # catch e
-        #     @show ω̃ij
-        #     @show L
-        #     @show Pij
-        #     @show ΔXij
-        #     @show ∑P
-        #     @show Φij
-        #     @show ViVj
-        #     rethrow(e)
-        # end
-
-        # @autoinfiltrate containsnan(tij)
-
-        update_add_vector!(b_int, i, tij * volume[j])
-        update_add_vector!(b_int, j, -tij * volume[i])
-        # end
+            update_add_vector!(b_int, i, tij * volume[j])
+            update_add_vector!(b_int, j, -tij * volume[i])
+        end
     end
     return nothing
 end
