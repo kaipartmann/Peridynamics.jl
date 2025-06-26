@@ -470,7 +470,7 @@ function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSyst
     (; bonds, volume) = system
     (; bond_active, defgrad, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
-    too_much_damage!(storage, system, mat, Fi, i) && return zero(SMatrix{3,3,Float64,9})
+    # too_much_damage!(storage, system, mat, Fi, i) && return zero(SMatrix{3,3,Float64,9})
     wi = weighted_volume[i]
     ∑P = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
@@ -480,11 +480,6 @@ function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSyst
             ΔXij = get_vector_diff(system.position, i, j)
             Δxij = get_vector_diff(storage.position, i, j)
             Fj = get_tensor(defgrad, j)
-            # bond averaging manually
-            # Fb = 0.5 * (Fi + Fj)
-            # ΔXijLL = ΔXij' / (L * L)
-            # ΔFij = (Δxij - Fb * ΔXij) * ΔXijLL
-            # Fij = Fb + ΔFij
             Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
             Pij = calc_first_piola_kirchhoff!(storage, mat, params, Fij, bond_id)
             Tempij = I - ΔXij * ΔXij' / (L * L)
@@ -529,92 +524,19 @@ function calc_first_piola_kirchhoff!(storage::RKCStorage, mat::RKCMaterial,
     return P
 end
 
-function too_much_damage!(storage::AbstractStorage, system::BondSystem,
-                          mat::AbstractRKCMaterial, F, i)
-    if storage.damage[i] > mat.maxdmg || containsnan(F)
-        # kill all bonds of this point
-        storage.bond_active[each_bond_idx(system, i)] .= false
-        return true
-    end
-    return false
-end
+# function too_much_damage!(storage::AbstractStorage, system::BondSystem,
+#                           mat::AbstractRKCMaterial, F, i)
+#     if storage.damage[i] > mat.maxdmg || containsnan(F)
+#         # kill all bonds of this point
+#         storage.bond_active[each_bond_idx(system, i)] .= false
+#         return true
+#     end
+#     return false
+# end
 
 function bond_avg(Fi, Fj, ΔXij, Δxij, L)
-    # Matrix writing notation:
-    # A = [A11 A12 A13
-    #      A21 A22 A23
-    #      A31 A32 A33]
-
-    #-- read the elements
-
-    # # Fi
-    # Fi11, Fi12, Fi13 = Fi[1], Fi[4], Fi[7]
-    # Fi21, Fi22, Fi23 = Fi[2], Fi[5], Fi[8]
-    # Fi31, Fi32, Fi33 = Fi[3], Fi[6], Fi[9]
-
-    # # Fj
-    # Fj11, Fj12, Fj13 = Fj[1], Fj[4], Fj[7]
-    # Fj21, Fj22, Fj23 = Fj[2], Fj[5], Fj[8]
-    # Fj31, Fj32, Fj33 = Fj[3], Fj[6], Fj[9]
-
-    # # ΔXij
-    # ΔX1, ΔX2, ΔX3 = ΔXij[1], ΔXij[2], ΔXij[3]
-
-    # # Δxij
-    # Δx1, Δx2, Δx3 = Δxij[1], Δxij[2], Δxij[3]
-
-    # # check the norm
-    # # @assert norm(ΔXij) ≈ L "|ΔXij| should be equal to L!"
-    # Lsq = L * L
-
-    # #-- calculate the average bond force
-    # Favg11 = 0.5 * (Fi11 + Fj11)
-    # Favg12 = 0.5 * (Fi12 + Fj12)
-    # Favg13 = 0.5 * (Fi13 + Fj13)
-    # Favg21 = 0.5 * (Fi21 + Fj21)
-    # Favg22 = 0.5 * (Fi22 + Fj22)
-    # Favg23 = 0.5 * (Fi23 + Fj23)
-    # Favg31 = 0.5 * (Fi31 + Fj31)
-    # Favg32 = 0.5 * (Fi32 + Fj32)
-    # Favg33 = 0.5 * (Fi33 + Fj33)
-
-    # # calculate the difference vector
-    # ΔD1 = Δx1 - Favg11 * ΔX1 - Favg12 * ΔX2 - Favg13 * ΔX3
-    # ΔD2 = Δx2 - Favg21 * ΔX1 - Favg22 * ΔX2 - Favg23 * ΔX3
-    # ΔD3 = Δx3 - Favg31 * ΔX1 - Favg32 * ΔX2 - Favg33 * ΔX3
-
-    # # calculate the correction term
-    # Fcor11 = 1 / Lsq * (ΔD1 * ΔX1)
-    # Fcor12 = 1 / Lsq * (ΔD1 * ΔX2)
-    # Fcor13 = 1 / Lsq * (ΔD1 * ΔX3)
-    # Fcor21 = 1 / Lsq * (ΔD2 * ΔX1)
-    # Fcor22 = 1 / Lsq * (ΔD2 * ΔX2)
-    # Fcor23 = 1 / Lsq * (ΔD2 * ΔX3)
-    # Fcor31 = 1 / Lsq * (ΔD3 * ΔX1)
-    # Fcor32 = 1 / Lsq * (ΔD3 * ΔX2)
-    # Fcor33 = 1 / Lsq * (ΔD3 * ΔX3)
-
-    # #-- assemble
-    # F11 = Favg11 + Fcor11
-    # F12 = Favg12 + Fcor12
-    # F13 = Favg13 + Fcor13
-    # F21 = Favg21 + Fcor21
-    # F22 = Favg22 + Fcor22
-    # F23 = Favg23 + Fcor23
-    # F31 = Favg31 + Fcor31
-    # F32 = Favg32 + Fcor32
-    # F33 = Favg33 + Fcor33
-
-    # # merge the element type of Fi and Fj
-    # T = promote_type(eltype(Fi), eltype(Fj), eltype(ΔXij), eltype(Δxij))
-    # Fij = SMatrix{3,3,T,9}(F11, F21, F31,
-    #                        F12, F22, F32,
-    #                        F13, F23, F33)
-
-    #-- using StaticArrays for simplicity
     Favg = 0.5 * (Fi + Fj)
     Fcor = (Δxij - Favg * ΔXij) * (ΔXij' / (L * L))
     Fij = Favg + Fcor
-
     return Fij
 end
