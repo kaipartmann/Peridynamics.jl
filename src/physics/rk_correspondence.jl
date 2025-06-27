@@ -30,8 +30,14 @@ the center of the bonds.
     gradient weights, which are used to approximate the deformation gradient. \\
     (default: `:C1`) \\
     The following kernels can be used:
-    - `:C1`: A kernel reproducing the corresponndence formulation of peridynamics
-        with a first order accuracy. This is the default kernel.
+    - `:C1`: Linear reproducing kernel basis [x, y, z] with first-order accuracy
+        for correspondence formulation. This is the default kernel.
+    - `:RK1`: First-order reproducing kernel basis [1, x, y, z] with constant term
+        for enhanced stability in uniform deformation fields.
+    - `:RK2`: Second-order reproducing kernel basis [1, x, y, z, x², y², z²] with
+        diagonal quadratic terms for improved accuracy in curved deformation fields.
+    - `:PD2`: Second-order peridynamic basis [x, y, z, x², xy, xz, y², yz, z²] with
+        full quadratic terms but without constant term.
 - `regfactor::Float64`: A regularization factor used to stabilize the inversion of the
     moment matrix. The product of `regfactor * δ^3` is used for the regularization with
     [`invreg`](@ref). The regularization helps to ensure numerical stability by mitigating
@@ -309,11 +315,11 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
     (; bonds, volume) = system
     (; bond_active, gradient_weight, weighted_volume, update_gradients) = storage
     (; reprkernel, regfactor) = mat
-    q_dim = get_q_dim(reprkernel)
-
-    Q∇ᵀ = get_q_triangle(reprkernel)
-
     (; δ) = params
+
+    # get dimenion of the monomial vector and the gradient extraction matrix
+    q_dim = get_q_dim(reprkernel)
+    Q∇ᵀ = get_gradient_extraction_matrix(reprkernel)
 
     # calculate moment matrix M
     M = zero(SMatrix{q_dim,q_dim,Float64,q_dim*q_dim})
@@ -368,9 +374,11 @@ function get_monomial_vector(::Val{reprkernel}, ΔX::AbstractArray) where {reprk
     return throw(ArgumentError(msg))
 end
 
-@inline get_q_triangle(reprkernel::Symbol) = get_q_triangle(Val(reprkernel))
+@inline function get_gradient_extraction_matrix(reprkernel::Symbol)
+    return get_gradient_extraction_matrix(Val(reprkernel))
+end
 
-function get_q_triangle(::Val{reprkernel}) where {reprkernel}
+function get_gradient_extraction_matrix(::Val{reprkernel}) where {reprkernel}
     msg = "Reproducing kernel `$reprkernel` is not implemented!\n"
     return throw(ArgumentError(msg))
 end
@@ -381,7 +389,7 @@ end
     Q = SVector{3,eltype(ΔX)}(x, y, z)
     return Q
 end
-@inline function get_q_triangle(::Val{:C1})
+@inline function get_gradient_extraction_matrix(::Val{:C1})
     Q∇ᵀ = SMatrix{3,3,Int,9}(1, 0, 0, 0, 1, 0, 0, 0, 1)
     return Q∇ᵀ
 end
@@ -392,7 +400,7 @@ end
     Q = SVector{4,eltype(ΔX)}(1.0, x, y, z)
     return Q
 end
-@inline function get_q_triangle(::Val{:RK1})
+@inline function get_gradient_extraction_matrix(::Val{:RK1})
     Q∇ᵀ = SMatrix{3,4,Int,12}(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
     return Q∇ᵀ
 end
@@ -403,7 +411,7 @@ end
     Q = SVector{7,eltype(ΔX)}(1.0, x, y, z, x * x, y * y, z * z)
     return Q
 end
-@inline function get_q_triangle(::Val{:RK2})
+@inline function get_gradient_extraction_matrix(::Val{:RK2})
     Q∇ᵀ = SMatrix{3,7,Int,21}(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
     return Q∇ᵀ
 end
@@ -414,7 +422,7 @@ end
     Q = SVector{9,eltype(ΔX)}(x, y, z, x * x, x * y, x * z, y * y, y * z, z * z)
     return Q
 end
-@inline function get_q_triangle(::Val{:PD2})
+@inline function get_gradient_extraction_matrix(::Val{:PD2})
     Q∇ᵀ = SMatrix{3,9,Int,27}(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                               0, 0, 0, 0, 0, 0, 0, 0, 0)
     return Q∇ᵀ
