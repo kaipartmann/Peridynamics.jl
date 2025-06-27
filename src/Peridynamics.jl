@@ -10,13 +10,13 @@ import LibGit2, Dates
 
 # Material models
 export BBMaterial, DHBBMaterial, OSBMaterial, CMaterial, CRMaterial, BACMaterial,
-       CKIMaterial
+       CKIMaterial, RKCMaterial, RKCRMaterial
 
 # CMaterial related types
 export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling, ZEMWan
 
 # Kernels
-export linear_kernel, cubic_b_spline_kernel
+export const_one_kernel, linear_kernel, cubic_b_spline_kernel, cubic_b_spline_kernel_norm
 
 # Damage models
 export CriticalStretch
@@ -78,6 +78,7 @@ abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 abstract type AbstractBondBasedMaterial{CM} <: AbstractBondSystemMaterial{CM} end
 abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMaterial{ZEM} end
+abstract type AbstractRKCMaterial{CM,C} <: AbstractBondSystemMaterial{C} end
 abstract type AbstractBondAssociatedSystemMaterial <: AbstractMaterial end
 abstract type AbstractConstitutiveModel end
 abstract type AbstractStressIntegration end
@@ -93,6 +94,7 @@ include("auxiliary/mpi.jl")
 include("auxiliary/errors.jl")
 include("auxiliary/static_arrays.jl")
 include("auxiliary/nans.jl")
+include("auxiliary/autoinfiltrate.jl")
 
 include("physics/boundary_conditions.jl")
 include("physics/initial_conditions.jl")
@@ -140,6 +142,8 @@ include("physics/ordinary_state_based.jl")
 include("physics/constitutive_models.jl")
 include("physics/correspondence.jl")
 include("physics/correspondence_rotated.jl")
+include("physics/rk_correspondence.jl")
+include("physics/rk_correspondence_rotated.jl")
 include("physics/ba_correspondence.jl")
 
 include("VtkReader/VtkReader.jl")
