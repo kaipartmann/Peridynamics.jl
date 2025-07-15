@@ -19,18 +19,16 @@ See also: [Infiltrator.jl](https://github.com/JuliaDebug/Infiltrator.jl)
 """
 macro autoinfiltrate(condition=true)
     pkgid = Base.PkgId(Base.UUID("5903a43b-9cc3-4c30-8d17-598619ec4e9b"), "Infiltrator")
-    error_msg = "Cannot load Infiltrator.jl!"
-    error_msg *= "Make sure it is included in your environment stack."
     if !haskey(Base.loaded_modules, pkgid)
         try
             Base.eval(Main, :(using Infiltrator))
-        catch err
-            @error error_msg
-            Base.showerror(stderr, err)
+        catch
         end
     end
     i = get(Base.loaded_modules, pkgid, nothing)
     lnn = LineNumberNode(__source__.line, __source__.file)
+    error_msg = "Cannot load Infiltrator.jl!"
+    error_msg *= "Make sure it is included in your environment stack."
     isnothing(i) && return Expr(:macrocall, Symbol("@warn"), lnn, error_msg)
     return Expr(:macrocall, Expr(:., i, QuoteNode(Symbol("@infiltrate"))), lnn,
                 esc(condition))
