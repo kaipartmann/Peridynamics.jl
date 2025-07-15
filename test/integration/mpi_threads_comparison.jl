@@ -49,7 +49,7 @@
     """
     mpiexec = Peridynamics.MPI.mpiexec()
     jlcmd = Base.julia_cmd()
-    pdir = normpath(joinpath(@__DIR__, "..", ".."))
+    pdir = pkgdir(Peridynamics)
     run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
 
     @test isdir(path_threads_vtk)
@@ -117,7 +117,7 @@ end
     """
     mpiexec = Peridynamics.MPI.mpiexec()
     jlcmd = Base.julia_cmd()
-    pdir = normpath(joinpath(@__DIR__, "..", ".."))
+    pdir = pkgdir(Peridynamics)
     run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
 
     @test isdir(path_threads_vtk)
@@ -190,7 +190,7 @@ end
     """
     mpiexec = Peridynamics.MPI.mpiexec()
     jlcmd = Base.julia_cmd()
-    pdir = normpath(joinpath(@__DIR__, "..", ".."))
+    pdir = pkgdir(Peridynamics)
     run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
 
     @test isdir(path_threads_vtk)
@@ -258,7 +258,7 @@ end
     """
     mpiexec = Peridynamics.MPI.mpiexec()
     jlcmd = Base.julia_cmd()
-    pdir = normpath(joinpath(@__DIR__, "..", ".."))
+    pdir = pkgdir(Peridynamics)
     run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
 
     @test isdir(path_threads_vtk)
@@ -326,7 +326,7 @@ end
     """
     mpiexec = Peridynamics.MPI.mpiexec()
     jlcmd = Base.julia_cmd()
-    pdir = normpath(joinpath(@__DIR__, "..", ".."))
+    pdir = pkgdir(Peridynamics)
     run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
 
     @test isdir(path_threads_vtk)
@@ -395,7 +395,7 @@ end
     """
     mpiexec = Peridynamics.MPI.mpiexec()
     jlcmd = Base.julia_cmd()
-    pdir = normpath(joinpath(@__DIR__, "..", ".."))
+    pdir = pkgdir(Peridynamics)
     run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
 
     @test isdir(path_threads_vtk)

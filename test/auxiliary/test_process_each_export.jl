@@ -74,7 +74,7 @@
     """
     mpiexec = Peridynamics.MPI.mpiexec()
     jlcmd = Base.julia_cmd()
-    pdir = normpath(joinpath(@__DIR__, "..", ".."))
+    pdir = pkgdir(Peridynamics)
     run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
     file_1_mpi = joinpath(root_post_mpi, "max_displacement_1.txt")
     @test isfile(file_1_mpi)
