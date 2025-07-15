@@ -7,15 +7,15 @@ end
 
 @inline function update_tensor!(Mₙ::AbstractMatrix{T}, i::Int,
                                 Tₙ₊₁::StaticMatrix{3,3,T}) where {T}
-    Mₙ[1, i] = Tₙ₊₁[1, 1]
-    Mₙ[2, i] = Tₙ₊₁[1, 2]
-    Mₙ[3, i] = Tₙ₊₁[1, 3]
-    Mₙ[4, i] = Tₙ₊₁[2, 1]
-    Mₙ[5, i] = Tₙ₊₁[2, 2]
-    Mₙ[6, i] = Tₙ₊₁[2, 3]
-    Mₙ[7, i] = Tₙ₊₁[3, 1]
-    Mₙ[8, i] = Tₙ₊₁[3, 2]
-    Mₙ[9, i] = Tₙ₊₁[3, 3]
+    Mₙ[1, i] = Tₙ₊₁[1]
+    Mₙ[2, i] = Tₙ₊₁[2]
+    Mₙ[3, i] = Tₙ₊₁[3]
+    Mₙ[4, i] = Tₙ₊₁[4]
+    Mₙ[5, i] = Tₙ₊₁[5]
+    Mₙ[6, i] = Tₙ₊₁[6]
+    Mₙ[7, i] = Tₙ₊₁[7]
+    Mₙ[8, i] = Tₙ₊₁[8]
+    Mₙ[9, i] = Tₙ₊₁[9]
     return nothing
 end
 
