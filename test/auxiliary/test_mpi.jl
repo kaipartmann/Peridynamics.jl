@@ -37,7 +37,7 @@ end
     """
     mpiexec = Peridynamics.MPI.mpiexec()
     jlcmd = Base.julia_cmd()
-    pdir = normpath(joinpath(@__DIR__, "..", ".."))
+    pdir = pkgdir(Peridynamics)
     cmd = `$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`
     @test success(cmd) # does not print anything
     # for debugging use the run command:

@@ -6,8 +6,9 @@
 const REPO_ROOT = dirname(@__DIR__)
 
 # Make sure the docs environment is active and instantiated
-import Pkg
+using Pkg
 Pkg.activate(@__DIR__)
+Pkg.develop(PackageSpec(path=REPO_ROOT))
 Pkg.instantiate()
 
 # Communicate with make.jl that docs are build in live mode
