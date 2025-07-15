@@ -116,7 +116,7 @@ function find_bonds!(bonds::Vector{Bond}, nhs::PointNeighbors.GridNeighborhoodSe
 end
 
 @inline function check_point_duplicates(L::Float64, i::Int, j::Int)
-    if L == 0
+    if L < eps()
         msg = "point duplicate found!\n"
         msg *= "Point #$(i) has a duplicate #$(j) which will lead to `NaN`s!\n"
         error(msg)
