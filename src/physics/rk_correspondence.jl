@@ -452,7 +452,7 @@ function calc_force_density!(chunk::BodyChunk{<:BondSystem,<:AbstractRKCMaterial
     for i in each_point_idx(chunk)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
-    nancheck(chunk, t)
+    nancheck(chunk, t, Δt)
     return nothing
 end
 
