@@ -24,7 +24,7 @@ the center of the bonds.
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values. \\
-    (default: `0.85`)
+    (default: `1.0`)
 - `reprkernel::Symbol`: A kernel function used for the reproducing kernel approximation
     of the moment matrix. This kernel is used to calculate the moment matrix and the
     gradient weights, which are used to approximate the deformation gradient. \\
@@ -130,7 +130,7 @@ end
 
 function RKCMaterial(; kernel::Function=cubic_b_spline_kernel,
                      model::AbstractConstitutiveModel=LinearElastic(),
-                     dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85,
+                     dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=1.0,
                      reprkernel::Symbol=:C1, regfactor::Real=1e-13)
     get_q_dim(reprkernel) # check if the kernel is implemented
     if !(0 ≤ regfactor ≤ 1)
@@ -467,6 +467,7 @@ end
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
                               mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
                               Δt, i)
+    too_much_damage!(storage, system, mat, i) && return nothing
     ∑P = rkc_stress_integral!(storage, system, mat, params, t, Δt, i)
     rkc_force_density!(storage, system, mat, params, ∑P, t, Δt, i)
     return nothing
@@ -478,7 +479,6 @@ function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSyst
     (; bonds, volume) = system
     (; bond_active, defgrad, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
-    # too_much_damage!(storage, system, mat, Fi, i) && return zero(SMatrix{3,3,Float64,9})
     wi = weighted_volume[i]
     ∑P = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
@@ -532,15 +532,15 @@ function calc_first_piola_kirchhoff!(storage::RKCStorage, mat::RKCMaterial,
     return P
 end
 
-# function too_much_damage!(storage::AbstractStorage, system::BondSystem,
-#                           mat::AbstractRKCMaterial, F, i)
-#     if storage.damage[i] > mat.maxdmg || containsnan(F)
-#         # kill all bonds of this point
-#         storage.bond_active[each_bond_idx(system, i)] .= false
-#         return true
-#     end
-#     return false
-# end
+function too_much_damage!(storage::AbstractStorage, system::BondSystem,
+                          mat::AbstractRKCMaterial, i)
+    if storage.damage[i] > mat.maxdmg
+        # kill all bonds of this point
+        storage.bond_active[each_bond_idx(system, i)] .= false
+        return true
+    end
+    return false
+end
 
 function bond_avg(Fi, Fj, ΔXij, Δxij, L)
     Favg = 0.5 * (Fi + Fj)

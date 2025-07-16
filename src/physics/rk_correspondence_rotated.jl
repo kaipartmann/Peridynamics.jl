@@ -25,7 +25,7 @@ end
 
 function RKCRMaterial(; kernel::Function=cubic_b_spline_kernel,
                         model::AbstractConstitutiveModel=LinearElastic(),
-                        dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85,
+                        dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=1.0,
                         reprkernel::Symbol=:C1, regfactor::Real=1e-13)
     if !(model isa LinearElastic)
         msg = "only `LinearElastic` is supported as model for `RKCRMaterial`!\n"
@@ -126,7 +126,6 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
     (; bond_active, defgrad, defgrad_dot, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
     Ḟi = get_tensor(defgrad_dot, i)
-    # too_much_damage!(storage, system, mat, Fi, i) && return zero(SMatrix{3,3,Float64,9})
     wi = weighted_volume[i]
     ∑P = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
