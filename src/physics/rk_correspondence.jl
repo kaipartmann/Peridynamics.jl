@@ -12,6 +12,7 @@ the center of the bonds.
     - [`const_one_kernel`](@ref)
     - [`linear_kernel`](@ref)
     - [`cubic_b_spline_kernel`](@ref)
+    - [`cubic_b_spline_kernel_norm`](@ref)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
     (default: `LinearElastic()`) \\
     The following models can be used:
@@ -48,7 +49,7 @@ the center of the bonds.
 
 ```julia-repl
 julia> mat = RKCMaterial()
-RKCMaterial{LinearElastic, typeof(linear_kernel), CriticalStretch}(maxdmg=0.85)
+RKCMaterial{LinearElastic, typeof(linear_kernel), CriticalStretch}(maxdmg=1.0)
 ```
 
 ---
