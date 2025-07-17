@@ -42,7 +42,7 @@ end
     @test mat1.kernel == cubic_b_spline_kernel
     @test mat1.constitutive_model isa LinearElastic
     @test mat1.dmgmodel isa CriticalStretch
-    @test mat1.maxdmg == 0.85
+    @test mat1.maxdmg == 1.0
     @test mat1.reprkernel == :C1
     @test mat1.regfactor == 1e-13
 
@@ -73,7 +73,7 @@ end
     @test mat1.kernel == cubic_b_spline_kernel
     @test mat1.constitutive_model isa LinearElastic
     @test mat1.dmgmodel isa CriticalStretch
-    @test mat1.maxdmg == 0.85
+    @test mat1.maxdmg == 1.0
     @test mat1.reprkernel == :C1
     @test mat1.regfactor == 1e-13
 

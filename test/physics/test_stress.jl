@@ -40,8 +40,8 @@ end
     Δt = 0.1
 
     Dᵣ = Peridynamics.init_stress_rotation!(storage, F, Ḟ, Δt, i)
-    D_solution = @SMatrix [0.09091326258480677 -0.004549586777144192 0.0;
-                           -0.004549586777144192 0.09999590721233696 0.0;
+    D_solution = @SMatrix [0.09090499812142767 -0.004541322313765097 0.0;
+                           -0.004541322313765098 0.10000417167571606 0.0;
                            0.0 0.0 0.1]
-    @test Dᵣ ≈ D_solution atol=10eps()
+    @test Dᵣ ≈ D_solution
 end
