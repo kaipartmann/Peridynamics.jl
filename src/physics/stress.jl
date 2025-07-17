@@ -61,7 +61,10 @@ function init_stress_rotation!(storage::AbstractStorage, F, Ḟ, Δt, i)
     ω = w + inv(I * tr(V) - V) * z
 
     # Ω [FT87, eq. (10)]
-    Ωtens = SMatrix{3,3}(0.0, -ω[3], ω[2], ω[3], 0.0, -ω[1], -ω[2], ω[1], 0.0)
+    Ωt1, Ωt4, Ωt7 = 0.0, -ω[3], ω[2]
+    Ωt2, Ωt5, Ωt8 = ω[3], 0.0, -ω[1]
+    Ωt3, Ωt6, Ωt9 = -ω[2], ω[1], 0.0
+    Ωtens = SMatrix{3,3}(Ωt1, Ωt2, Ωt3, Ωt4, Ωt5, Ωt6, Ωt7, Ωt8, Ωt9)
     Ω² = dot(ω, ω)
     Ω = sqrt(Ω²)
 
