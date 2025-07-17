@@ -458,14 +458,6 @@ function calc_force_density!(chunk::BodyChunk{<:BondSystem,<:AbstractRKCMaterial
 end
 
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
-                              mat::AbstractRKCMaterial,
-                              paramhandler::AbstractParameterHandler, t, Δt, i)
-    params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, t, Δt, i)
-    return nothing
-end
-
-function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
                               mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
                               Δt, i)
     too_much_damage!(storage, system, mat, i) && return nothing

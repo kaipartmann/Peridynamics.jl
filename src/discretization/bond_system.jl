@@ -273,6 +273,16 @@ function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem}, t, 
     return nothing
 end
 
+# a placeholder function for all force density calculations with multiple parameters that
+# are not specifially handled by the material
+function force_density_point!(storage::AbstractStorage, system::AbstractBondSystem,
+                              mat::AbstractBondSystemMaterial,
+                              paramhandler::AbstractParameterHandler, t, Δt, i)
+    params = get_params(paramhandler, i)
+    force_density_point!(storage, system, mat, params, t, Δt, i)
+    return nothing
+end
+
 function calc_failure!(storage::AbstractStorage, system::AbstractBondSystem,
                        mat::AbstractMaterial, dmgmodel::CriticalStretch,
                        paramsetup::AbstractParameterSetup, i)

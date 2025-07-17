@@ -201,14 +201,6 @@ end
 
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
                               mat::AbstractCorrespondenceMaterial,
-                              paramhandler::AbstractParameterHandler, t, Δt, i)
-    params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, t, Δt, i)
-    return nothing
-end
-
-function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
-                              mat::AbstractCorrespondenceMaterial,
                               params::AbstractPointParameters, t, Δt, i)
     defgrad_res = calc_deformation_gradient(storage, system, mat, params, i)
     too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
