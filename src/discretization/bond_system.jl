@@ -116,7 +116,7 @@ function find_bonds!(bonds::Vector{Bond}, nhs::PointNeighbors.GridNeighborhoodSe
 end
 
 @inline function check_point_duplicates(L::Float64, i::Int, j::Int)
-    if L == 0
+    if L < eps()
         msg = "point duplicate found!\n"
         msg *= "Point #$(i) has a duplicate #$(j) which will lead to `NaN`s!\n"
         error(msg)
@@ -232,18 +232,18 @@ end
 function break_bonds!(storage::AbstractStorage, system::AbstractBondSystem,
                       set_a::Vector{Int}, set_b::Vector{Int})
     storage.n_active_bonds .= 0
-    for point_id in each_point_idx(system)
-        for bond_id in each_bond_idx(system, point_id)
+    for i in each_point_idx(system)
+        for bond_id in each_bond_idx(system, i)
             bond = system.bonds[bond_id]
             neighbor_id = bond.neighbor
-            point_in_a = in(point_id, set_a)
-            point_in_b = in(point_id, set_b)
+            point_in_a = in(i, set_a)
+            point_in_b = in(i, set_b)
             neigh_in_a = in(neighbor_id, set_a)
             neigh_in_b = in(neighbor_id, set_b)
             if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
                 storage.bond_active[bond_id] = false
             end
-            storage.n_active_bonds[point_id] += storage.bond_active[bond_id]
+            storage.n_active_bonds[i] += storage.bond_active[bond_id]
         end
     end
     return nothing
@@ -264,12 +264,22 @@ function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem}, t, 
     (; dmgmodel) = mat
     storage.b_int .= 0
     storage.n_active_bonds .= 0
-    for point_id in each_point_idx(chunk)
-        calc_failure!(storage, system, mat, dmgmodel, paramsetup, point_id)
-        calc_damage!(storage, system, mat, dmgmodel, paramsetup, point_id)
-        force_density_point!(storage, system, mat, paramsetup, t, Δt, point_id)
+    for i in each_point_idx(chunk)
+        calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
+        calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
+        force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
-    nancheck(chunk, t)
+    nancheck(chunk, t, Δt)
+    return nothing
+end
+
+# a placeholder function for all force density calculations with multiple parameters that
+# are not specifially handled by the material
+function force_density_point!(storage::AbstractStorage, system::AbstractBondSystem,
+                              mat::AbstractBondSystemMaterial,
+                              paramhandler::AbstractParameterHandler, t, Δt, i)
+    params = get_params(paramhandler, i)
+    force_density_point!(storage, system, mat, params, t, Δt, i)
     return nothing
 end
 
@@ -393,7 +403,9 @@ function log_material_property(::Val{:kernel}, mat::AbstractBondSystemMaterial;
     return msg
 end
 
-function log_material(mat::M; indentation::Int=2) where {M<:AbstractCorrespondenceMaterial}
+function log_material(mat::M;
+                      indentation::Int=2) where {M<:Union{AbstractCorrespondenceMaterial,
+                                                          AbstractRKCMaterial}}
     msg = msg_qty("material type", nameof(M); indentation)
     for prop in fieldnames(M)
         msg *= log_material_property(Val(prop), mat; indentation)

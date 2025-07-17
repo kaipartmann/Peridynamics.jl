@@ -5,9 +5,10 @@ function containsnan(K::T) where {T<:AbstractArray}
     return false
 end
 
-function nancheck(chunk::AbstractBodyChunk, t)
+function nancheck(chunk::AbstractBodyChunk, t, Δt)
     if containsnan(chunk.storage.b_int)
-        msg = "NaN's found in field `b_int` at simulation time $(t)!\n"
+        n = (t > 0 && Δt > 0) ? Int(t ÷ Δt) : 0
+        msg = "NaN's found in field `b_int` at simulation time $(t), step $(n)!\n"
         error(msg)
     end
     return nothing

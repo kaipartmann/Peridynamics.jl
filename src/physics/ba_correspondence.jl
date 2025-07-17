@@ -190,14 +190,6 @@ function init_field(::BACMaterial, ::AbstractTimeSolver, system::BondAssociatedS
 end
 
 function force_density_point!(storage::BACStorage, system::BondAssociatedSystem,
-                              mat::BACMaterial, paramhandler::AbstractParameterHandler,
-                              t, Δt, i)
-    params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, t, Δt, i)
-    return nothing
-end
-
-function force_density_point!(storage::BACStorage, system::BondAssociatedSystem,
                               mat::BACMaterial, params::BACPointParameters, t, Δt, i)
     for bond_idx in each_bond_idx(system, i)
         force_density_bond!(storage, system, mat, params, t, Δt, i, bond_idx)

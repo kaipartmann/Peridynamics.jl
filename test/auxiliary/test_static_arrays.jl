@@ -5,14 +5,17 @@
     for i in eachindex(A)
         A[i] = i
     end
-    @test Peridynamics.get_tensor(A, 1) ≈ [1; 2; 3;; 4; 5; 6;; 7; 8; 9]
-    @test Peridynamics.get_tensor(A, 2) ≈ [10; 11; 12;; 13; 14; 15;; 16; 17; 18]
+    B = Peridynamics.get_tensor(A, 1)
+    C = Peridynamics.get_tensor(A, 2)
+    for i in eachindex(B,C)
+        @test B[i] ≈ A[i, 1]
+        @test C[i] ≈ A[i, 2]
+    end
 
-    Peridynamics.update_tensor!(A, 1, SMatrix{3,3}([9 8 7; 6 5 4; 3 2 1]))
-    @test A[:, 1] ≈ [9, 8, 7, 6, 5, 4, 3, 2, 1]
-
-    Peridynamics.update_tensor!(A, 2, SMatrix{3,3}([18 17 16; 15 14 13; 12 11 10]))
-    @test A[:, 2] ≈ [18, 17, 16, 15, 14, 13, 12, 11, 10]
+    Peridynamics.update_tensor!(A, 2, reverse(B))
+    Peridynamics.update_tensor!(A, 1, reverse(C))
+    @test A[:, 1] ≈ [18:-1:10;]
+    @test A[:, 2] ≈ [9:-1:1;]
 end
 
 @testitem "get and update vectors" begin
@@ -25,14 +28,14 @@ end
     @test Peridynamics.get_vector(a, 1) ≈ [1, 2, 3]
     @test Peridynamics.get_vector(a, 2) ≈ [4, 5, 6]
 
-    Peridynamics.update_vector!(a, 1, SVector{3}(3, 2, 1))
+    Peridynamics.update_vector!(a, 1, SVector{3}(3.0, 2.0, 1.0))
     @test a[:, 1] ≈ [3, 2, 1]
 
-    Peridynamics.update_vector!(a, 2, SVector{3}(6, 5, 4))
+    Peridynamics.update_vector!(a, 2, SVector{3}(6.0, 5.0, 4.0))
     @test a[:, 2] ≈ [6, 5, 4]
 
-    Peridynamics.update_add_vector!(a, 1, SVector{3}(1, 1, 1))
-    Peridynamics.update_add_vector!(a, 2, SVector{3}(1, 1, 1))
+    Peridynamics.update_add_vector!(a, 1, SVector{3}(1.0, 1.0, 1.0))
+    Peridynamics.update_add_vector!(a, 2, SVector{3}(1.0, 1.0, 1.0))
     @test a ≈ [4; 3; 2;; 7; 6; 5]
 
     @test Peridynamics.get_vector_diff(a, 1, 2) ≈ [3, 3, 3]
