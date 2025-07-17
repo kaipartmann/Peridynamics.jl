@@ -57,6 +57,11 @@ jobs:
           version: '1'
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
+      - run: |
+          julia --project=docs -e '
+            using Pkg;
+            Pkg.develop(PackageSpec(path=pwd()));
+            Pkg.instantiate()' 
       - uses: julia-actions/julia-docdeploy@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

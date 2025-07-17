@@ -316,7 +316,10 @@ end
         @test dh.chunk.storage.b_int[:,3:4] ≈ randbint[:,1:2]
     end
     """
-    cmd = `$(Peridynamics.MPI.mpiexec()) -n 2 $(Base.julia_cmd()) --project -e $(mpi_cmd)`
+    mpiexec = Peridynamics.MPI.mpiexec()
+    jlcmd = Base.julia_cmd()
+    pdir = pkgdir(Peridynamics)
+    cmd = `$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`
     @test success(cmd) # does not print anything
     # for debugging use the run command:
     # run(cmd)
@@ -363,7 +366,10 @@ end
         @test dh.chunk.storage.position[:,1:2] ≈ position[:,1:2] + randpos[:,3:4]
     end
     """
-    cmd = `$(Peridynamics.MPI.mpiexec()) -n 2 $(Base.julia_cmd()) --project -e $(mpi_cmd)`
+    mpiexec = Peridynamics.MPI.mpiexec()
+    jlcmd = Base.julia_cmd()
+    pdir = pkgdir(Peridynamics)
+    cmd = `$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`
     @test success(cmd) # does not print anything
     # for debugging use the run command:
     # run(cmd)

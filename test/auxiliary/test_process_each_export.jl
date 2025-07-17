@@ -72,7 +72,10 @@
         return nothing
     end
     """
-    run(`$(Peridynamics.MPI.mpiexec()) -n 3 $(Base.julia_cmd()) --project -e $(mpi_cmd)`)
+    mpiexec = Peridynamics.MPI.mpiexec()
+    jlcmd = Base.julia_cmd()
+    pdir = pkgdir(Peridynamics)
+    run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
     file_1_mpi = joinpath(root_post_mpi, "max_displacement_1.txt")
     @test isfile(file_1_mpi)
     @test contains(read(file_1_mpi, String), "maximum displacement x: 0.0")
