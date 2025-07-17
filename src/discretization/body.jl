@@ -12,8 +12,12 @@ Construct a `Body` for a peridynamics simulation.
     - [`OSBMaterial`](@ref): Ordinary state-based peridynamics, also called linear
         peridynamic solid (LPS).
     - [`CMaterial`](@ref): Correspondence formulation.
-    - [`CRMaterial`](@ref): Correspondence formulation stress rotation for objectivity
+    - [`CRMaterial`](@ref): Correspondence formulation with stress rotation for objectivity
         enforcement.
+    - [`RKCMaterial`](@ref): Reproducing kernel peridynamics with bond-associated
+        higher-order integration.
+    - [`RKCRMaterial`](@ref): Reproducing kernel peridynamics with bond-associated
+        higher-order integration with stress rotation for objectivity enforcement.
     - [`BACMaterial`](@ref): Bond-associated correspondence formulation of Chen and Spencer.
     - [`CKIMaterial`](@ref): Continuum-kinematics-inspired peridynamics.
 - `position::AbstractMatrix`: A `3×n` matrix with the point position of the `n` points.
