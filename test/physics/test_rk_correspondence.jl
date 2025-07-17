@@ -460,70 +460,40 @@ end
     end
 end
 
-# @testitem "reproducing kernel polynomial reproduction test" begin
-#     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
+@testitem "Maximum damage switch in the RKCMaterial" begin
+    using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
 
-#     # Test polynomial reproduction property for each kernel
-#     # This tests the fundamental property that reproducing kernels should work
-#     # correctly for basic deformation scenarios
+    pos, vol = uniform_box(1, 1, 1, 0.25)
+    body = Body(RKCMaterial(maxdmg = 0.5), pos, vol)
+    material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
+    velocity_ic!(p -> 0.1 * p[1], body, :all_points, :x)
 
-#     kernels = [:C1, :RK1]#, :RK2, :PD2]
+    ts = VelocityVerlet(steps=1)
+    dh = Peridynamics.threads_data_handler(body, ts, 1)
+    Peridynamics.init_time_solver!(ts, dh)
+    Peridynamics.calc_force_density!(dh, 0.0, ts.Δt)
 
-#     for kernel in kernels
-#         # Test with a simple 1x1x1 box for now (simpler case)
-#         pos, vol = uniform_box(1, 1, 1, 0.4)
-#         body = Body(RKCMaterial(reprkernel=kernel), pos, vol)
-#         material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
+    chunk = dh.chunks[1]
+    (; storage, system, paramsetup, mat) = chunk
+    params = paramsetup
+    (; b_int, damage) = storage
+    point_id = 1
 
-#         dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
-#         chunk = dh.chunks[1]
-#         (; storage) = chunk
-#         (; position, defgrad) = storage
+    b0 = Peridynamics.get_vector(b_int, point_id)
+    @test norm(b0) > 0
 
-#         original_pos = copy(position)
+    # -- next step --
+    b_int .= 0.0
+    Peridynamics.force_density_point!(storage, system, mat, params, 0.0, ts.Δt, point_id)
+    b1 = Peridynamics.get_vector(b_int, point_id)
+    @test norm(b0) > 0
 
-#         # Test 1: Identity deformation (should yield identity deformation gradient)
-#         Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-
-#         # Check that we get approximately identity matrices for most points
-#         identity_successful = 0
-#         I_matrix = SMatrix{3,3}([1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0])
-#         for i in axes(position, 2)
-#             F = Peridynamics.get_tensor(defgrad, i)
-#             # For kernels that work well, this should be very close to identity
-#             if norm(F - I_matrix) < 0.2  # Allow some tolerance for all kernels
-#                 identity_successful += 1
-#             end
-#         end
-
-#         # All kernels should at least get identity approximately right for most points
-#         @test identity_successful >= div(length(vol), 2)
-
-#         # Test 2: Simple uniform scaling (isotropic deformation)
-#         # This should be exactly representable by any reproducing kernel
-#         scale_factor = 1.1
-#         scale_F = SMatrix{3,3}([scale_factor 0.0 0.0; 0.0 scale_factor 0.0; 0.0 0.0 scale_factor])
-
-#         for i in axes(position, 2)
-#             position[:, i] = scale_factor * original_pos[:, i]
-#         end
-
-#         Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-
-#         # Check uniform scaling reproduction
-#         scaling_successful = 0
-#         for i in axes(position, 2)
-#             F = Peridynamics.get_tensor(defgrad, i)
-#             # Uniform scaling should be captured well by all kernels
-#             if norm(F - scale_F) < 0.3  # Allow more tolerance for all kernels
-#                 scaling_successful += 1
-#             end
-#         end
-
-#         # At least some points should reproduce uniform scaling reasonably well
-#         @test scaling_successful >= div(length(vol), 4)
-
-#         # Reset positions for next kernel test
-#         position .= original_pos
-#     end
-# end
+    # -- next step --
+    b_int .= 0.0
+    # somehow the damage field changed and is now higher than the maxdmg value
+    damage[point_id] = 0.8
+    Peridynamics.force_density_point!(storage, system, mat, params, 0.0, ts.Δt, point_id)
+    # now the force density should be zero and the point excluded from the calculations
+    b1 = Peridynamics.get_vector(b_int, point_id)
+    @test norm(b1) ≈ 0 atol=eps()
+end
