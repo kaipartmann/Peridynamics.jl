@@ -1,7 +1,7 @@
 # Materials
 
-!!! warning "Work in progress"
-    This page is currently worked on.
+!!! warning "Draft & Work in Progress"
+    This documentation is a draft and work in progress. It will be extended and improved in the future.
 
 The selected material specifies, which peridynamic formulation is employed in calculations.
 
@@ -11,7 +11,9 @@ The selected material specifies, which peridynamic formulation is employed in ca
 - [`DHBBMaterial`](@ref): Dual-horizon bond-based peridynamics.
 - [`OSBMaterial`](@ref): Ordinary state-based peridynamics, also called linear peridynamic solid (LPS).
 - [`CMaterial`](@ref): Correspondence formulation.
-- [`CRMaterial`](@ref): Correspondence formulation stress rotation for objectivity enforcement.
+- [`CRMaterial`](@ref): Correspondence formulation with stress rotation for objectivity enforcement.
+- [`RKCMaterial`](@ref): Reproducing kernel peridynamics with bond-associated higher-order integration.
+- [`RKCRMaterial`](@ref): Reproducing kernel peridynamics with bond-associated higher-order integration with stress rotation for objectivity enforcement.
 - [`BACMaterial`](@ref): Bond-associated correspondence formulation of Chen and Spencer.
 - [`CKIMaterial`](@ref): Continuum-kinematics-inspired peridynamics.
 

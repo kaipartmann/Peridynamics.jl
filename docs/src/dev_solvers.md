@@ -1,7 +1,7 @@
 # Time solvers
 
-!!! warning "Work in progress"
-    This page is currently worked on.
+!!! warning "Draft & Work in Progress"
+    This documentation is a draft and work in progress. It will be extended and improved in the future.
 
 ## VelocityVerlet
 

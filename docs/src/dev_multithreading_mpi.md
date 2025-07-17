@@ -1,7 +1,7 @@
 # Multithreading & MPI  
 
-!!! warning "Work in progress"
-    This page is currently worked on.
+!!! warning "Draft & Work in Progress"
+    This documentation is a draft and work in progress. It will be extended and improved in the future.
 
 Multithreading and MPI are implemented based on a similar approach. The body is split into several chunks, that each have their own process.
 ```@raw html

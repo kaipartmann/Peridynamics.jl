@@ -1,7 +1,7 @@
 # Systems
 
-!!! warning "Work in progress"
-    This page is currently worked on.
+!!! warning "Draft & Work in Progress"
+    This documentation is a draft and work in progress. It will be extended and improved in the future.
 
 Systems are the backbone of the simulations.
 They contain all the required pre-defined data structures (e.g. bonds, point-families, interactions, ...).
