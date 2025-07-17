@@ -20,8 +20,8 @@ end
     chunk = dh.chunks[1]
     (; b_int) = chunk.storage
 
-    @test Peridynamics.nancheck(chunk, 0.0) === nothing
+    @test Peridynamics.nancheck(chunk, 0.0, 0.0) === nothing
 
     b_int[3, end] = NaN
-    @test_throws ErrorException Peridynamics.nancheck(chunk, 0.0)
+    @test_throws ErrorException Peridynamics.nancheck(chunk, 0.0, 0.0)
 end

@@ -25,6 +25,7 @@ Peridynamics.apply_precrack!
 Peridynamics.point_sets_intersect
 Peridynamics.velocity_databc!
 Peridynamics.forcedensity_databc!
+Peridynamics.invreg
 
 Peridynamics.InterfaceError
 Peridynamics.HaloExchange
@@ -55,4 +56,5 @@ Peridynamics.PosDepSingleDimIC
 Peridynamics.ShortRangeForceContact
 
 Peridynamics.@storage
+Peridynamics.@autoinfiltrate
 ```

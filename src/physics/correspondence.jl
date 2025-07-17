@@ -8,6 +8,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 - `kernel::Function`: Kernel function used for weighting the interactions between points. \\
     (default: `linear_kernel`) \\
     The following kernels can be used:
+    - [`const_one_kernel`](@ref)
     - [`linear_kernel`](@ref)
     - [`cubic_b_spline_kernel`](@ref)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
@@ -196,14 +197,6 @@ end
 function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:von_mises_stress})
     return zeros(get_n_loc_points(system))
-end
-
-function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
-                              mat::AbstractCorrespondenceMaterial,
-                              paramhandler::AbstractParameterHandler, t, Δt, i)
-    params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, t, Δt, i)
-    return nothing
 end
 
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
