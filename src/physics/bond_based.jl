@@ -125,6 +125,7 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
+    @pointfield weighted_volume::Vector{Float64}
     bond_stretch::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
@@ -133,6 +134,21 @@ end
 function init_field(::BBMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:bond_stretch})
     return zeros(get_n_bonds(system))
+end
+
+function init_field(::BBMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:weighted_volume})
+    weighted_volume = zeros(get_n_loc_points(system))
+    for i in each_point_idx(system)
+        wv = 0.0
+        for bond_id in each_bond_idx(system, i)
+            bond = system.bonds[bond_id]
+            j, L = bond.neighbor, bond.length
+            wv += L * system.volume[j]
+        end
+        weighted_volume[i] = wv
+    end
+    return weighted_volume
 end
 
 # Customized calc_failure to save the bond stretch ε for force density calculation
@@ -159,15 +175,16 @@ end
 
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
                               params::StandardPointParameters, t, Δt, i)
-    (; position, bond_stretch, bond_active, b_int) = storage
+    (; position, bond_stretch, bond_active, b_int, weighted_volume) = storage
     (; bonds, correction, volume) = system
+    bond_constant = 18 * params.K / weighted_volume[i]
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
         Δxij = get_vector_diff(position, i, j)
         ε = bond_stretch[bond_id]
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * params.bc * ε * volume[j] .* Δxij
+        b = ω * bond_constant * ε * volume[j] .* Δxij
         update_add_vector!(b_int, i, b)
     end
     return nothing
@@ -185,7 +202,8 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
         ε = bond_stretch[bond_id]
         params_j = get_params(paramhandler, j)
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * (params_i.bc + params_j.bc) / 2 * ε * volume[j] .* Δxij
+        bond_constant = 9 * (params_i.K + params_j.K) / weighted_volume[i]
+        b = ω * bond_constant * ε * volume[j] .* Δxij
         update_add_vector!(b_int, i, b)
     end
     return nothing
