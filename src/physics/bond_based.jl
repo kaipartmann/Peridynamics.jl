@@ -178,6 +178,7 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
     (; position, bond_stretch, bond_active, b_int, weighted_volume) = storage
     (; bonds, correction, volume) = system
     bond_constant = 18 * params.K / weighted_volume[i]
+    # bond_constant = 18 * params.K / (8 * params.δ^4)
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
