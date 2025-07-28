@@ -105,10 +105,26 @@ function find_bonds!(bonds::Vector{Bond}, nhs::PointNeighbors.GridNeighborhoodSe
                      position::Matrix{Float64}, fail_permit::Vector{Bool}, δ::Float64,
                      point_id::Int)
     n_bonds_pre = length(bonds)
-    foreach_neighbor(position, position, nhs, point_id; search_radius=δ) do i, j, _, L
+
+    # --- STANDARD NEIGHBORHOOD SEARCH ---
+    # foreach_neighbor(position, position, nhs, point_id; search_radius=δ) do i, j, _, L
+    #     if i != j
+    #         check_point_duplicates(L, i, j)
+    #         push!(bonds, Bond(j, L, fail_permit[i] & fail_permit[j]))
+    #     end
+    # end
+
+    # --- CUBE NEIGHBORHOOD SEARCH ---
+    i = point_id
+    for j in axes(position, 2)
         if i != j
-            check_point_duplicates(L, i, j)
-            push!(bonds, Bond(j, L, fail_permit[i] & fail_permit[j]))
+            Δxij = get_vector_diff(position, i, j)
+            # check if the neighbor is within a cube of side length 2δ
+            if abs(Δxij[1]) ≤ δ && abs(Δxij[2]) ≤ δ && abs(Δxij[3]) ≤ δ
+                L = norm(Δxij)
+                check_point_duplicates(L, i, j)
+                push!(bonds, Bond(j, L, fail_permit[i] & fail_permit[j]))
+            end
         end
     end
     n_neighbors = length(bonds) - n_bonds_pre
