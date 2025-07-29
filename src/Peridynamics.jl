@@ -9,8 +9,8 @@ end
 import LibGit2, Dates
 
 # Material models
-export BBMaterial, DHBBMaterial, OSBMaterial, CMaterial, CRMaterial, BACMaterial,
-       CKIMaterial, RKCMaterial, RKCRMaterial
+export BBMaterial, GBBMaterial, DHBBMaterial, OSBMaterial, CMaterial, CRMaterial,
+       BACMaterial, CKIMaterial, RKCMaterial, RKCRMaterial
 
 # CMaterial related types
 export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling, ZEMWan
@@ -136,6 +136,7 @@ include("time_solvers/velocity_verlet.jl")
 include("time_solvers/dynamic_relaxation.jl")
 
 include("physics/bond_based.jl")
+include("physics/generalized_bond_based.jl")
 include("physics/dh_bond_based.jl")
 include("physics/continuum_kinematics_inspired.jl")
 include("physics/ordinary_state_based.jl")

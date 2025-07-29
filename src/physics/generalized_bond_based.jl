@@ -1,9 +1,9 @@
 """
-    BBMaterial()
-    BBMaterial{Correction}()
+    GBBMaterial()
+    GBBMaterial{Correction}()
 
-A material type used to assign the material of a [`Body`](@ref) with the standard bond-based
-formulation of peridynamics.
+A material type used to assign the material of a [`Body`](@ref) with the generalized
+bond-based formulation of peridynamics.
 
 # Keywords
 - `dmgmodel::AbstractDamageModel`: Damage model defining the fracture behavior.
@@ -17,16 +17,16 @@ Possible correction methods are:
 # Examples
 
 ```julia-repl
-julia> mat = BBMaterial()
-BBMaterial{NoCorrection}()
+julia> mat = GBBMaterial()
+GBBMaterial{NoCorrection}()
 
-julia> mat = BBMaterial{EnergySurfaceCorrection}()
-BBMaterial{EnergySurfaceCorrection}()
+julia> mat = GBBMaterial{EnergySurfaceCorrection}()
+GBBMaterial{EnergySurfaceCorrection}()
 ```
 ---
 
 ```julia
-BBMaterial{Correction}
+GBBMaterial{Correction}
 ```
 
 Material type for the bond-based peridynamics formulation.
@@ -36,7 +36,7 @@ Material type for the bond-based peridynamics formulation.
 - `DM`: A damage model type.
 
 # Allowed material parameters
-When using [`material!`](@ref) on a [`Body`](@ref) with `BBMaterial`, then the following
+When using [`material!`](@ref) on a [`Body`](@ref) with `GBBMaterial`, then the following
 parameters are allowed:
 Material parameters:
 - `horizon::Float64`: Radius of point interactions.
@@ -59,7 +59,7 @@ Fracture parameters:
 
 # Allowed export fields
 When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
-`BBMaterial`, the following fields are allowed:
+`GBBMaterial`, the following fields are allowed:
 - `position::Matrix{Float64}`: Position of each point.
 - `displacement::Matrix{Float64}`: Displacement of each point.
 - `velocity::Matrix{Float64}`: Velocity of each point.
@@ -70,19 +70,19 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `damage::Vector{Float64}`: Damage of each point.
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
 """
-struct BBMaterial{Correction,DM} <: AbstractBondBasedMaterial{Correction}
+struct GBBMaterial{Correction,DM} <: AbstractBondBasedMaterial{Correction}
     dmgmodel::DM
-    function BBMaterial{C}(dmgmodel::DM) where {C,DM}
+    function GBBMaterial{C}(dmgmodel::DM) where {C,DM}
         new{C,DM}(dmgmodel)
     end
 end
 
-function BBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) where {C}
-    return BBMaterial{C}(dmgmodel)
+function GBBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) where {C}
+    return GBBMaterial{C}(dmgmodel)
 end
-BBMaterial(; kwargs...) = BBMaterial{NoCorrection}(; kwargs...)
+GBBMaterial(; kwargs...) = GBBMaterial{NoCorrection}(; kwargs...)
 
-function StandardPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
+function StandardPointParameters(mat::GBBMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters_bb(mat, p)
     (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
     # for a cubic neighborhood, the weighted volume is the integral
@@ -92,31 +92,9 @@ function StandardPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
     return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 
-function get_required_point_parameters_bb(mat::AbstractBondBasedMaterial,
-                                          p::Dict{Symbol,Any})
-    par = get_given_elastic_params(p)
-    (; E, nu, G, K, λ, μ) = par
-    if isfinite(nu) && !isapprox(nu, 0.25)
-        msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
-        msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
-        throw(ArgumentError(msg))
-    elseif !isfinite(nu) && length(findall(isfinite, par)) == 1
-        p[:nu] = 0.25
-    end
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    if !isapprox(nu, 0.25)
-        msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
-        msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
-        msg *= "The submitted parameter combination results in an illegal value for nu!\n"
-        msg *= "Please define either only one or two fitting elastic parameters!\n"
-        throw(ArgumentError(msg))
-    end
-    return (; δ, rho, E, nu, G, K, λ, μ)
-end
+@params GBBMaterial StandardPointParameters
 
-@params BBMaterial StandardPointParameters
-
-@storage BBMaterial struct BBStorage <: AbstractStorage
+@storage GBBMaterial struct GBBStorage <: AbstractStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
@@ -128,23 +106,31 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
+    @pointfield weighted_volume::Vector{Float64}
     bond_stretch::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
 end
 
-function init_field(::BBMaterial, ::AbstractTimeSolver, system::BondSystem,
+function init_field(::GBBMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:bond_stretch})
     return zeros(get_n_bonds(system))
 end
 
+function init_field(::GBBMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:weighted_volume})
+    return zeros(get_n_loc_points(system))
+end
+
 # Customized calc_failure to save the bond stretch ε for force density calculation
-function calc_failure!(storage::AbstractStorage, system::BondSystem,
-                       ::AbstractBondBasedMaterial, ::CriticalStretch,
+# and to calculate the weighted volume of each point
+function calc_failure!(storage::GBBStorage, system::BondSystem,
+                       ::GBBMaterial, ::CriticalStretch,
                        paramsetup::AbstractParameterSetup, i)
     (; εc) = get_params(paramsetup, i)
-    (; position, n_active_bonds, bond_active, bond_stretch) = storage
+    (; position, n_active_bonds, bond_active, bond_stretch, weighted_volume) = storage
     (; bonds) = system
+    wv = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
@@ -156,27 +142,30 @@ function calc_failure!(storage::AbstractStorage, system::BondSystem,
             bond_active[bond_id] = false
         end
         n_active_bonds[i] += bond_active[bond_id]
+        wv += bond_active[bond_id] * L * system.volume[j]
     end
+    weighted_volume[i] = wv
     return nothing
 end
 
-function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
+function force_density_point!(storage::GBBStorage, system::BondSystem, ::GBBMaterial,
                               params::StandardPointParameters, t, Δt, i)
-    (; position, bond_stretch, bond_active, b_int) = storage
+    (; position, bond_stretch, bond_active, b_int, weighted_volume) = storage
     (; bonds, correction, volume) = system
+    bond_constant = 18 * params.K / weighted_volume[i]
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
         Δxij = get_vector_diff(position, i, j)
         ε = bond_stretch[bond_id]
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * params.bc * ε * volume[j] .* Δxij
+        b = ω * bond_constant * ε * volume[j] .* Δxij
         update_add_vector!(b_int, i, b)
     end
     return nothing
 end
 
-function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
+function force_density_point!(storage::GBBStorage, system::BondSystem, ::GBBMaterial,
                               paramhandler::ParameterHandler, t, Δt, i)
     (; position, bond_stretch, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
@@ -188,7 +177,7 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
         ε = bond_stretch[bond_id]
         params_j = get_params(paramhandler, j)
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        bond_constant = (params_i.bc + params_j.bc) / 2
+        bond_constant = 9 * (params_i.K + params_j.K) / weighted_volume[i]
         b = ω * bond_constant * ε * volume[j] .* Δxij
         update_add_vector!(b_int, i, b)
     end
