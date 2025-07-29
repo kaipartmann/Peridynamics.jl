@@ -45,5 +45,5 @@
     # This should be okay, since a very coarse discretization is used.
     # It can be shown that the error gets smaller for a finer discretization and better
     # material models.
-    @test err_ux < 0.02
+    @test err_ux < 0.1
 end

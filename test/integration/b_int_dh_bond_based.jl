@@ -21,7 +21,7 @@
 
     Peridynamics.calc_force_density!(chunk, 0, 0)
 
-    b12 = 18 * E / (3 * (1 - 2 * 0.25)) / (π * δ^4) * 1.0015 * 0.0015/1.0015 * 1.0
+    b12 = 18 * E / (3 * (1 - 2 * 0.25)) / (8 * δ^4 * 0.9605919564548167) * 1.0015 * 0.0015/1.0015 * 1.0
     @test b_int ≈ [b12 -b12; 0.0 0.0; 0.0 0.0]
 end
 
@@ -50,10 +50,11 @@ end
 
     Peridynamics.calc_force_density!(chunk, 0, 0)
 
-    sc = 2 * 3.1808625617603665 # double the normal surface correction factor
+    # double the normal surface correction factor
+    sc = 2 * 3.1808625617603665 / π * 8 * 0.9605919564548167
     @test all(x -> x ≈ sc, chunk.system.correction.scfactor)
 
-    b12 = sc * 18 * E / (3 * (1 - 2 * 0.25)) / (π * δ^4) * 1.0015 * 0.0015/1.0015 * 1.0
+    b12 = sc * 18 * E / (3 * (1 - 2 * 0.25)) / (8 * δ^4 * 0.9605919564548167) * 1.0015 * 0.0015/1.0015 * 1.0
     @test b_int ≈ [b12 -b12; 0.0 0.0; 0.0 0.0]
 end
 
@@ -85,6 +86,6 @@ end
 
     Peridynamics.calc_force_density!(chunk, 0, 0)
 
-    b12 = 18 * E / (3 * (1 - 2 * 0.25)) / (π * δ^4) * 1.0015 * 0.0015/1.0015 * 1.0
+    b12 = 18 * E / (3 * (1 - 2 * 0.25)) / (8 * δ^4 * 0.9605919564548167) * 1.0015 * 0.0015/1.0015 * 1.0
     @test b_int ≈ [b12 -b12; 0.0 0.0; 0.0 0.0]
 end

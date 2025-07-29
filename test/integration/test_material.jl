@@ -23,7 +23,7 @@ end
 function TestPointParameters(mat::TestMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ) = Peridynamics.get_required_point_parameters(mat, p)
     (; Gc, εc) = Peridynamics.get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
+    bc = 18 * K / (8 * δ^4 * 0.9605919564548167) # bond constant
     return TestPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
 Peridynamics.@params TestMaterial TestPointParameters

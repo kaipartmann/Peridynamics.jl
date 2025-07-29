@@ -107,7 +107,7 @@ end
     @test b1_params.μ ≈ 0.4
     @test b1_params.Gc ≈ 1.0
     @test b1_params.εc ≈ 0.6454972243679028
-    @test b1_params.bc ≈ 0.238732414637843
+    @test b1_params.bc ≈ 0.238732414637843 * π / (8 * 0.9605919564548167) # correction factor for cube neighborhood
     @test b1_params == Peridynamics.get_params(b1, 2)
     @test b1_params == Peridynamics.get_params(b1, 100)
 
@@ -170,7 +170,7 @@ end
     @test b2_params.μ ≈ 0.4
     @test b2_params.Gc ≈ 1.0
     @test b2_params.εc ≈ 0.6454972243679028
-    @test b2_params.bc ≈ 0.238732414637843
+    @test b2_params.bc ≈ 0.238732414637843 * π / (8 * 0.9605919564548167) # correction factor for cube neighborhood
     @test b2_params == Peridynamics.get_params(b2, 2)
     @test b2_params == Peridynamics.get_params(b2, 100)
 
@@ -258,7 +258,7 @@ end
     @test pp1.μ ≈ 0.4
     @test pp1.Gc ≈ 1.0
     @test pp1.εc ≈ 0.6454972243679028
-    @test pp1.bc ≈ 0.238732414637843
+    @test pp1.bc ≈ 0.238732414637843 * π / (8 * 0.9605919564548167) # correction factor for cube neighborhood
 
     pp2 = Peridynamics.get_params(b1, 2)
     @test pp2 isa Peridynamics.StandardPointParameters
@@ -272,7 +272,7 @@ end
     @test pp2.μ ≈ 0.4
     @test pp2.Gc ≈ 1.0
     @test pp2.εc ≈ 0.6454972243679028
-    @test pp2.bc ≈ 0.238732414637843
+    @test pp2.bc ≈ 0.238732414637843 * π / (8 * 0.9605919564548167) # correction factor for cube neighborhood
 
     pp3 = Peridynamics.get_params(b1, 3)
     @test pp3 isa Peridynamics.StandardPointParameters
@@ -286,7 +286,7 @@ end
     @test pp3.μ ≈ 0.8
     @test pp3.Gc ≈ 2.0
     @test pp3.εc ≈ 0.5270462766947299
-    @test pp3.bc ≈ 0.0943140403507528
+    @test pp3.bc ≈ 0.0943140403507528 * π / (8 * 0.9605919564548167) # correction factor for cube neighborhood
 
     pp4= Peridynamics.get_params(b1, 4)
     @test pp4 isa Peridynamics.StandardPointParameters
@@ -300,7 +300,7 @@ end
     @test pp4.μ ≈ 0.8
     @test pp4.Gc ≈ 2.0
     @test pp4.εc ≈ 0.5270462766947299
-    @test pp4.bc ≈ 0.0943140403507528
+    @test pp4.bc ≈ 0.0943140403507528 * π / (8 * 0.9605919564548167) # correction factor for cube neighborhood
 
     @test b1.psets[:a] == [1, 2]
     @test b1.psets[:b] == []
@@ -363,7 +363,7 @@ end
     @test pp3.μ ≈ 0.8
     @test pp3.Gc ≈ 2.0
     @test pp3.εc ≈ 0.5270462766947299
-    @test pp3.bc ≈ 0.0943140403507528
+    @test pp3.bc ≈ 0.0943140403507528 * π / (8 * 0.9605919564548167) # correction factor for cube neighborhood
 
     pp4 = Peridynamics.get_params(b2, 2)
     @test pp4 isa Peridynamics.StandardPointParameters
@@ -377,7 +377,7 @@ end
     @test pp4.μ ≈ 0.8
     @test pp4.Gc ≈ 2.0
     @test pp4.εc ≈ 0.5270462766947299
-    @test pp4.bc ≈ 0.0943140403507528
+    @test pp4.bc ≈ 0.0943140403507528 * π / (8 * 0.9605919564548167) # correction factor for cube neighborhood
 
     pp1 = Peridynamics.get_params(b2, 3)
     @test pp1 isa Peridynamics.StandardPointParameters
@@ -391,7 +391,7 @@ end
     @test pp1.μ ≈ 0.4
     @test pp1.Gc ≈ 1.0
     @test pp1.εc ≈ 0.6454972243679028
-    @test pp1.bc ≈ 0.238732414637843
+    @test pp1.bc ≈ 0.238732414637843 * π / (8 * 0.9605919564548167) # correction factor for cube neighborhood
 
     pp2 = Peridynamics.get_params(b2, 4)
     @test pp2 isa Peridynamics.StandardPointParameters
@@ -405,7 +405,7 @@ end
     @test pp2.μ ≈ 0.4
     @test pp2.Gc ≈ 1.0
     @test pp2.εc ≈ 0.6454972243679028
-    @test pp2.bc ≈ 0.238732414637843
+    @test pp2.bc ≈ 0.238732414637843 * π / (8 * 0.9605919564548167) # correction factor for cube neighborhood
 
     @test b2.psets[:a] == []
     @test b2.psets[:b] == [1, 2]

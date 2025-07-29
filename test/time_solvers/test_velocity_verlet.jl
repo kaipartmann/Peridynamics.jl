@@ -50,7 +50,7 @@ end
     dh = Peridynamics.threads_data_handler(body, vv, 1)
     Peridynamics.init_time_solver!(vv, dh)
 
-    bc = 18 * E / (3 * (1 - 2 * nu)) / (π * δ^4)
+    bc = 18 * E / (3 * (1 - 2 * nu)) / (8 * δ^4 * 0.9605919564548167)
     Δt = 0.7 * sqrt(2 * rho / bc)
     @test vv.Δt ≈ Δt atol=eps()
     @test vv.end_time ≈ 10Δt atol=eps()
@@ -62,10 +62,10 @@ end
     dh = Peridynamics.threads_data_handler(body, vv, 1)
     Peridynamics.init_time_solver!(vv, dh)
 
-    bc = 18 * E / (3 * (1 - 2 * nu)) / (π * δ^4)
+    bc = 18 * E / (3 * (1 - 2 * nu)) / (8 * δ^4 * 0.9605919564548167)
     Δt = 0.7 * sqrt(2 * rho / bc)
     @test vv.Δt ≈ Δt atol=eps()
-    @test vv.n_steps == 10
+    @test vv.n_steps == 7
     @test vv.end_time ≈ 11
     @test vv.safety_factor ≈ 0.7
 end
