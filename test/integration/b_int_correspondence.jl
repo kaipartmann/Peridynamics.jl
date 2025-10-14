@@ -102,7 +102,7 @@ end
     volume = fill(1.0, 5)
     δ = 1.5
     body = Body(CRMaterial(model=LinearElastic()), ref_position, volume)
-    material!(body, horizon=δ, rho=1, E=1, nu=0.25, Gc=1.0)
+    material!(body, horizon=δ, rho=8000, E=210e9, nu=0.25, Gc=100.0)
     no_failure!(body)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
@@ -119,11 +119,14 @@ end
 
     Peridynamics.calc_force_density!(chunk, 1e-7, 1e-7)
 
-    @test isapprox(b_int, [
-        -3.85668e-16  -2.9442e-14    1.49138e-14   1.49138e-14  0.0
-         1.34581e-14   9.0082e-15   -2.36931e-14   1.22675e-15  0.0
-         1.59116e-14   1.39152e-14  -1.22675e-15  -2.86001e-14  0.0
-    ]; atol=3eps())
+    b_int_theory = [
+        -8.099025016376985e-5 0.0028262077869458213 0.0033414425751225967
+        -0.006182817458121304 0.0018917220726569904 0.002922191649010541
+        0.0031319038541425363 -0.004975547253691199 -0.00025761739408838765
+        0.0031319038541425363 0.00025761739408838765 -0.006006016830044749
+        0.0 0.0 0.0
+    ]'
+    @test isapprox(b_int, b_int_theory; atol=5eps())
 end
 
 @testitem "Internal force density correspondence rotated ZEMWan" begin
@@ -133,7 +136,7 @@ end
     volume = fill(1.0, 5)
     δ = 1.5
     body = Body(CRMaterial(model=LinearElastic(), zem=ZEMWan()), ref_position, volume)
-    material!(body, horizon=δ, rho=1, E=1, nu=0.25, Gc=1.0)
+    material!(body, horizon=δ, rho=8000, E=210e9, nu=0.25, Gc=100.0)
     no_failure!(body)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
@@ -148,11 +151,14 @@ end
     # Boundary Condition:
     position[1, 2] = 1.1
 
-    Peridynamics.calc_force_density!(chunk, 1e-7, 1e-7)
+    Peridynamics.calc_force_density!(chunk, 1e-6, 1e-6)
 
-    @test isapprox(b_int, [
-        6.99192e-16  -2.71841e-15   1.04101e-15   9.78208e-16  0.0
-        1.73062e-15   6.53589e-16  -2.2012e-15   -1.83013e-16  0.0
-        2.00246e-15   1.01964e-15  -3.9205e-16   -2.63005e-15  0.0
-    ]; atol=3eps())
+    b_int_theory = [
+        0.00014683041547799297 0.0003634300940072372 0.00042051675261405805
+        -0.0005708665860682082 0.00013725367635629307 0.0002141234999425295
+        0.00021861247362157948 -0.00046225107895982024 -8.233057335758719e-5
+        0.0002054236969686358 -3.843269140371008e-5 -0.0005523096791990004
+        0.0 0.0 0.0
+    ]'
+    @test isapprox(b_int, b_int_theory; atol=5eps())
 end
