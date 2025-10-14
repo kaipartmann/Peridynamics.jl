@@ -14,12 +14,9 @@ end
 
 function BondAssociatedSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     check_bond_associated_system_compat(body.mat)
-    loc_points = pd.decomp[chunk_id]
-    bonds, n_neighbors = find_bonds(body, loc_points)
-    bond_ids = find_bond_ids(n_neighbors)
-    intersection_bond_ids = find_intersection_bond_ids(body, loc_points, bonds, bond_ids)
-    chunk_handler = get_chunk_handler(bonds, pd, chunk_id)
-    localize!(bonds, chunk_handler.localizer)
+    bonds, n_neighbors, bond_ids, chunk_handler = get_bond_data(body, pd, chunk_id)
+    intersection_bond_ids = find_intersection_bond_ids(body, chunk_handler.loc_points,
+                                                       bonds, bond_ids)
     position, volume = get_pos_and_vol_chunk(body, chunk_handler.point_ids)
     hood_volume = zeros(get_n_points(chunk_handler))
     ba_hood_volume = zeros(length(bonds))

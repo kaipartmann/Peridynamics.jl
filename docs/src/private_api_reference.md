@@ -23,6 +23,7 @@ Peridynamics.find_points
 Peridynamics.apply_precracks!
 Peridynamics.apply_precrack!
 Peridynamics.point_sets_intersect
+Peridynamics.displacement_bc!
 Peridynamics.velocity_databc!
 Peridynamics.forcedensity_databc!
 Peridynamics.invreg
@@ -48,6 +49,7 @@ Peridynamics.InteractionSystem
 Peridynamics.PointSetsPreCrack
 Peridynamics.StandardPointParameters
 Peridynamics.SingleDimBC
+Peridynamics.PosSingleDimBC
 Peridynamics.PosDepSingleDimBC
 Peridynamics.CKIPointParameters
 Peridynamics.BACPointParameters
