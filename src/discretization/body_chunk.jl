@@ -34,10 +34,7 @@ struct BodyChunk{System<:AbstractSystem,
     mat::Material
     paramsetup::Params
     storage::Storage
-    psets::Dict{Symbol,Vector{Int}}
-    sdbcs::Vector{SingleDimBC}
-    pdsdbcs::Vector{PosDepSingleDimBC}
-    databcs::Vector{DataBC}
+    condhandler::ConditionHandler
     cells::Vector{MeshCell{VTKCellType,Tuple{Int64}}}
 end
 
@@ -48,13 +45,9 @@ function BodyChunk(body::AbstractBody, solver::AbstractTimeSolver, pd::PointDeco
     system = get_system(body, pd, chunk_id)
     paramsetup = get_paramsetup(body, system.chunk_handler, param_spec)
     storage = get_storage(mat, solver, system)
-    psets = localized_point_sets(body.point_sets, system.chunk_handler)
-    sdbcs = body.single_dim_bcs
-    pdsdbcs = body.posdep_single_dim_bcs
-    databcs = body.data_bcs
+    condhandler = ConditionHandler(body, system)
     cells = get_cells(get_n_loc_points(system))
-    chunk = BodyChunk(body_name, system, mat, paramsetup, storage, psets, sdbcs,
-                      pdsdbcs, databcs, cells)
+    chunk = BodyChunk(body_name, system, mat, paramsetup, storage, condhandler, cells)
     return chunk
 end
 
@@ -71,10 +64,22 @@ end
 end
 
 @inline each_point_idx(chunk::AbstractBodyChunk) = each_point_idx(chunk.system)
+@inline each_halo_idx(chunk::AbstractBodyChunk) = each_halo_idx(chunk.system)
 @inline each_point_idx_pair(chunk::AbstractBodyChunk) = each_point_idx_pair(chunk.system)
+@inline each_dof_idx(chunk::AbstractBodyChunk) = each_dof_idx(chunk.system)
+@inline each_loc_dof_idx(chunk::AbstractBodyChunk) = each_loc_dof_idx(chunk.system)
+@inline each_dof(chunk::AbstractBodyChunk) = each_dof(chunk.system)
+@inline each_loc_dof(chunk::AbstractBodyChunk) = each_loc_dof(chunk.system)
+@inline each_dim(chunk::AbstractBodyChunk) = each_dim(chunk.system)
 
 @inline n_loc_points(chunk::AbstractBodyChunk) = get_n_loc_points(chunk.system)
 @inline n_points(chunk::AbstractBodyChunk) = get_n_points(chunk.system)
+@inline n_dofs(chunk::AbstractBodyChunk) = get_n_dof(chunk.system)
+@inline n_loc_dof(chunk::AbstractBodyChunk) = get_n_loc_dof(chunk.system)
+@inline n_dim(chunk::AbstractBodyChunk) = get_n_dim(chunk.system)
+
+@inline free_dofs(chunk::AbstractBodyChunk) = free_dofs(chunk.condhandler)
+@inline constrained_dofs(chunk::AbstractBodyChunk) = constrained_dofs(chunk.condhandler)
 
 function initialize!(::AbstractBodyChunk)
     return nothing

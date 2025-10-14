@@ -116,6 +116,7 @@ include("discretization/bond_system_corrections.jl")
 include("discretization/zem_stabilization.jl")
 include("discretization/bond_associated_system.jl")
 include("discretization/interaction_system.jl")
+include("discretization/condition_handler.jl")
 include("discretization/body_chunk.jl")
 
 include("core/job.jl")

@@ -23,7 +23,31 @@
     @test b_ext ≈ [2.345 2.345; 0.0 2.345; 0.0 0.0]
 end
 
+@testitem "Displacement BCs" begin
+    using Peridynamics: displacement_bc!
+    position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
+    volume = [1.0, 1.0]
+    body = Body(BBMaterial(), position, volume)
+    material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)
+    point_set!(body, :a, 1:2)
+    displacement_bc!(p -> 2, body, :a, :y)
+    ts = DynamicRelaxation(; steps=10, stepsize=1.0)
+    dh = Peridynamics.threads_data_handler(body, ts, 1)
+    chunk = dh.chunks[1]
+    (; displacement) = chunk.storage
+
+    @test displacement ≈ [0.0 0.0; 0.0 0.0; 0.0 0.0]
+
+    Peridynamics.apply_incr_boundary_conditions!(chunk, 0.5)
+    @test displacement ≈ [0.0 0.0; 1.0 1.0; 0.0 0.0]
+
+    Peridynamics.apply_incr_boundary_conditions!(chunk, 1.0)
+    @test displacement ≈ [0.0 0.0; 2.0 2.0; 0.0 0.0]
+end
+
 @testitem "Condition errors" begin
+    using Peridynamics: displacement_bc!
+
     position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
     volume = [1.0, 1.0]
     body = Body(BBMaterial(), position, volume)
@@ -62,6 +86,10 @@ end
     @test_throws ArgumentError velocity_ic!(body, :a, :y, 1.234)
     @test_throws ArgumentError velocity_ic!(body, :b, :y, 1.234)
 
+    displacement_bc!(p -> 2, body, :a, :y)
+    @test_throws ArgumentError displacement_bc!(p -> 3, body, :a, :y)
+    @test_throws ArgumentError displacement_bc!(p -> 3, body, :b, :y)
+
     # Wrong condition function arguments
     @test_throws ArgumentError velocity_bc!((a, b) -> a * b, body, :a, :z)
     @test_throws ArgumentError velocity_bc!((k, t, u) -> k * t * u, body, :a, :z)
@@ -69,6 +97,10 @@ end
     @test_throws ArgumentError forcedensity_bc!((k, t, u) -> k * t * u, body, :a, :z)
     @test_throws ArgumentError velocity_ic!(k -> 3.456, body, :a, :z)
     @test_throws ArgumentError velocity_ic!((a, b) -> 3.456, body, :a, :z)
+    @test_throws ArgumentError displacement_bc!(k -> 3.456, body, :a, :z)
+    @test_throws ArgumentError displacement_bc!((a, b) -> 1.23, body, :a, :z)
+    @test_throws ArgumentError displacement_bc!(t -> 1.23, body, :a, :z)
+    @test_throws ArgumentError displacement_bc!((p,t) -> 1.23, body, :a, :z)
 
     # unknown symbols
     @test_throws ArgumentError velocity_bc!(t -> 1, body, :a, :k)

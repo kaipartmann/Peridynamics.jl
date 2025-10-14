@@ -107,6 +107,75 @@ end
     return nothing
 end
 
+"""
+    PosSingleDimBC{F}
+
+$(internal_api_warning())
+
+Type for a position dependent boundary condition in a single dimension for a peridynamic
+simulation.
+
+# Type Parameters
+
+- `F<:Function`: A position dependent function which describes the boundary
+    condition, not time dependent.
+
+# Fields
+
+- `fun::F`: Position dependent function which describes the boundary condition.
+- `field::Symbol`: Field of the condition (e.g. velocity, force density).
+- `point_set::Symbol`: Point set on which the condition is applied.
+- `dim::UInt8`: Dimension in which the condition is applied.
+"""
+struct PosSingleDimBC{F<:Function} <: AbstractCondition
+    fun::F
+    field::Symbol
+    point_set::Symbol
+    dim::UInt8
+end
+
+function Base.show(io::IO, @nospecialize(bc::PosSingleDimBC))
+    print(io, "Pos. BC on ", field_to_name(bc.field), ": ")
+    print(io, msg_fields_inline(bc, (:point_set, :dim)))
+    return nothing
+end
+
+@inline function (b::PosSingleDimBC{F})(p::AbstractVector) where {F}
+    value::Float64 = b.fun(p)
+    return value
+end
+
+function apply_bc!(s::AbstractStorage, psets::Dict{Symbol,Vector{Int}},
+                   bc::PosSingleDimBC{F}, position::Matrix{Float64}, β::Float64) where {F}
+    apply_psdbc!(get_point_data(s, bc.field), position, bc, psets[bc.point_set], β)
+    return nothing
+end
+
+@inline function apply_psdbc!(field::Matrix{Float64}, pos::Matrix{Float64},
+                              bc::PosSingleDimBC{F}, point_ids::Vector{Int},
+                              β::Float64) where {F}
+    @simd for i in point_ids
+        value = β * bc(SVector{3}(pos[1, i], pos[2, i], pos[3, i]))
+        if isfinite(value)
+            field[bc.dim, i] = value
+        end
+    end
+    return nothing
+end
+
+function constrained_dofs!(constrained_dofs::Vector{Int}, system::AbstractSystem,
+                           bc::PosSingleDimBC, loc_point_sets::Dict{Symbol,Vector{Int}})
+    if bc.field === :displacement
+        points = loc_point_sets[bc.point_set]
+        for (dof, d, _) in each_dof_idx(system, points)
+            if d == bc.dim
+                push!(constrained_dofs, dof)
+            end
+        end
+    end
+    return nothing
+end
+
 struct DataBC <: AbstractCondition
     data::Matrix{Float64}
     field::Symbol
@@ -140,15 +209,37 @@ end
     return nothing
 end
 
-function apply_boundary_conditions!(chunk::AbstractBodyChunk, time::Float64)
-    for bc in chunk.sdbcs
-        apply_bc!(chunk.storage, chunk.psets, bc, time)
+function apply_boundary_conditions!(chunk::AbstractBodyChunk, t)
+    (; storage, condhandler) = chunk
+    (; single_dim_bcs, posdep_single_dim_bcs, data_bcs) = condhandler
+    (; loc_point_sets) = condhandler
+    for bc in single_dim_bcs
+        apply_bc!(storage, loc_point_sets, bc, t)
     end
-    for bc in chunk.pdsdbcs
-        apply_bc!(chunk.storage, chunk.psets, bc, chunk.system.position, time)
+    for bc in posdep_single_dim_bcs
+        apply_bc!(storage, loc_point_sets, bc, chunk.system.position, t)
     end
-    for bc in chunk.databcs
-        apply_bc!(chunk.storage, chunk.psets, bc, chunk.system.chunk_handler.point_ids)
+    for bc in data_bcs
+        apply_bc!(storage, loc_point_sets, bc, chunk.system.chunk_handler.point_ids)
+    end
+    return nothing
+end
+
+# Only for the Newton-Raphson solver, incremental displacement BCs
+function apply_incr_boundary_conditions!(chunk::AbstractBodyChunk, β)
+    (; storage, condhandler) = chunk
+    (; pos_single_dim_bcs, loc_point_sets) = condhandler
+    for bc in pos_single_dim_bcs
+        apply_bc!(storage, loc_point_sets, bc, chunk.system.position, β)
+    end
+    return nothing
+end
+
+function constrained_dofs!(constrained_dofs::Vector{Int}, body::AbstractBody,
+                           system::AbstractSystem, loc_point_sets::Dict{Symbol,Vector{Int}})
+    (; pos_single_dim_bcs) = body # for now, only single dim bcs constrain dofs
+    for bc in pos_single_dim_bcs
+        constrained_dofs!(constrained_dofs, system, bc, loc_point_sets)
     end
     return nothing
 end
@@ -206,6 +297,9 @@ function has_boundary_condition_conflict(body::AbstractBody, condition::BC) wher
     for existing_condition in body.posdep_single_dim_bcs
         conditions_conflict(body, existing_condition, condition) && return true
     end
+    for existing_condition in body.pos_single_dim_bcs
+        conditions_conflict(body, existing_condition, condition) && return true
+    end
     for existing_condition in body.data_bcs
         conditions_conflict(body, existing_condition, condition) && return true
     end
@@ -244,13 +338,16 @@ function check_boundary_condition_function(f::F) where {F<:Function}
     args = get_argument_names_of_function(func_method)
     if length(args) == 1 && args[1] === :t
         type = :sdbc
+    elseif length(args) == 1 && args[1] === :p
+        type = :psdbc
     elseif length(args) == 2 && args[1] === :p && args[2] === :t
         type = :pdsdbc
     else
         msg = "wrong arguments or argument names for condition function!\n"
-        msg *= "Boundary conditions support only two type of functions:\n"
+        msg *= "Boundary conditions support only three type of functions:\n"
         msg *= "  `f(p, t)`\n"
         msg *= "  `f(t)`\n"
+        msg *= "  `f(p)`\n"
         msg *= "with `t` beeing the current time and `p` a the position vector [x, y, z] "
         msg *= "of each point in the point set!\n"
         throw(ArgumentError(msg))
@@ -466,6 +563,9 @@ function forcedensity_bc!(f::F, body::AbstractBody, point_set::Symbol,
     if type === :sdbc
         sdbc = SingleDimBC(f, :b_ext, point_set, dim)
         add_boundary_condition!(body, body.single_dim_bcs, sdbc)
+    elseif type === :psdbc
+        psdbc = PosSingleDimBC(f, :b_ext, point_set, dim)
+        add_boundary_condition!(body, body.pos_single_dim_bcs, psdbc)
     elseif type === :pdsdbc
         pdsdbc = PosDepSingleDimBC(f, :b_ext, point_set, dim)
         add_boundary_condition!(body, body.posdep_single_dim_bcs, pdsdbc)
@@ -524,5 +624,66 @@ function forcedensity_databc!(body::AbstractBody, data::Matrix, name::Symbol,
     dims = get_dims(dimspec)
     databc = DataBC(data, :b_ext, name, dims)
     add_boundary_condition!(body, body.data_bcs, databc)
+    return nothing
+end
+
+
+
+"""
+    displacement_bc!(f::Function, body::Body, points::Vector{Int}, dim::Int)
+
+$(internal_api_warning())
+
+Apply a displacement boundary condition to specified points in a given dimension.
+
+!!! warn "Compatibility limited"
+    This boundary condition type only works with static solvers for now.
+
+A factor `β` is calculated as `n / n_steps`, where `n` is the current step number and
+`n_steps` is the total number of steps. Then the return value of the function `f` is
+multiplicated with `β` at each time step. This means that the displacement will be applied
+gradually over the course of the simulation.
+
+# Arguments:
+- `fun::Function`: Condition function for the calculation of a value, should return a
+    `Float64`. If the condition function returns a `NaN`, then this value is ignored, which
+    can be used to turn conditions off. This function accepts only one argument and is aware
+    of the argument names. Possible arguments and names:
+    - `fun(p)`: This function will be processed for every point of `set_name` and
+        receives the reference position of a point as `SVector{3}` at every time step.
+        This makes it possible to specify conditions that depend on the position of a point.
+- `body::AbstractBody`: [`Body`](@ref) the condition is specified on.
+- `set_name::Symbol`: The name of a point set of this body.
+- `dim::Union{Integer,Symbol}`: Direction of the condition, either specified as Symbol or
+    integer.
+    -  x-direction: `:x` or `1`
+    -  y-direction: `:y` or `2`
+    -  z-direction: `:z` or `3`
+
+# Returns:
+- `nothing`: No return value. The boundary condition is added to the body.
+
+# Example:
+```julia
+# Apply constant prescribed displacement
+points = [1, 2, 3, 4, 5]
+displacement_bc!(p -> 0.1, body, points, 1)
+
+# Apply prescribed displacement based on position
+displacement_bc!(p -> 0.01 * p[1], body, points, 2)
+```
+"""
+function displacement_bc!(f::F, body::AbstractBody, point_set::Symbol,
+                          dimension::Union{Integer,Symbol}) where {F}
+    check_if_set_is_defined(body.point_sets, point_set)
+    type = check_boundary_condition_function(f)
+    if type !== :psdbc
+        msg = "the function for a displacement boundary condition must be of the form\n"
+        msg *= "`f(p)`!\n"
+        throw(ArgumentError(msg))
+    end
+    dim = get_dim(dimension)
+    psdbc = PosSingleDimBC(f, :displacement, point_set, dim)
+    add_boundary_condition!(body, body.pos_single_dim_bcs, psdbc)
     return nothing
 end
