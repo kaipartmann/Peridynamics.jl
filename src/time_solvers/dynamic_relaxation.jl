@@ -169,9 +169,9 @@ end
     n_one_nis = system.n_one_nis[i]
     k = 5π * params.δ^2 * params.C1
     Λ = dr.Λ * 1 / 4 * dr.Δt^2 * n_one_nis * k
-    density_matrix[1, i] = Λ
-    density_matrix[2, i] = Λ
-    density_matrix[3, i] = Λ
+    for dim in each_dim(system)
+        @inbounds density_matrix[dim, i] = Λ
+    end
     return nothing
 end
 
@@ -182,9 +182,9 @@ end
     n_bonds = system.n_neighbors[i]
     k = 5π * params.δ^2 * params.bc
     Λ = dr.Λ * 1 / 4 * dr.Δt^2 * n_bonds * k
-    density_matrix[1, i] = Λ
-    density_matrix[2, i] = Λ
-    density_matrix[3, i] = Λ
+    for dim in each_dim(system)
+        @inbounds density_matrix[dim, i] = Λ
+    end
     return nothing
 end
 
@@ -258,16 +258,17 @@ function relaxation_timestep!(dh::AbstractThreadsMultibodyDataHandler,
 end
 
 function calc_damping(chunk::AbstractBodyChunk, Δt::Float64)
-    s = chunk.storage
+    (; displacement, velocity_half, velocity_half_old,
+       b_int, b_int_old, density_matrix) = chunk.storage
     cn1 = 0.0
     cn2 = 0.0
-    for i in each_point_idx(chunk), d in 1:3
-        if s.velocity_half_old[d, i] != 0.0
-            Δb_int = s.b_int[d, i] - s.b_int_old[d, i]
-            temp = Δt * s.density_matrix[d, i] * s.velocity_half_old[d, i]
-            cn1 -= s.displacement[d, i]^2 * Δb_int / temp
+    for dof in each_loc_dof(chunk)
+        if velocity_half[dof] != 0.0
+            Δb_int = b_int[dof] - b_int_old[dof]
+            temp = Δt * density_matrix[dof] * velocity_half_old[dof]
+            cn1 -= displacement[dof]^2 * Δb_int / temp
         end
-        cn2 += s.displacement[d, i]^2
+        cn2 += displacement[dof]^2
     end
     if cn2 != 0.0
         if cn1 / cn2 > 0.0
@@ -285,30 +286,29 @@ function calc_damping(chunk::AbstractBodyChunk, Δt::Float64)
 end
 
 function relaxation_first_step!(chunk::AbstractBodyChunk, Δt::Float64)
-    s = chunk.storage
-    for i in each_point_idx(chunk), d in 1:3
-        s.velocity_half[d, i] = 0.5 * Δt * (s.b_int[d, i] + s.b_ext[d, i]) /
-                                s.density_matrix[d, i]
-        relaxation_updates!(s, d, i)
+    (; velocity_half, b_int, b_ext, density_matrix) = chunk.storage
+    for dof in each_loc_dof(chunk)
+        velocity_half[dof] = 0.5 * Δt * (b_int[dof] + b_ext[dof]) / density_matrix[dof]
+        relaxation_updates!(chunk.storage, dof)
     end
     return nothing
 end
 
 function relaxation_step!(chunk::AbstractBodyChunk, Δt::Float64, cn::Float64)
-    s = chunk.storage
-    for i in each_point_idx(chunk), d in 1:3
-        a = (s.b_int[d, i] + s.b_ext[d, i]) / s.density_matrix[d, i]
-        v½_old = s.velocity_half_old[d, i]
-        s.velocity_half[d, i] = ((2 - cn * Δt) * v½_old + 2 * Δt * a) / (2 + cn * Δt)
-        relaxation_updates!(s, d, i)
+    (; velocity_half, b_int, b_ext, density_matrix) = chunk.storage
+    for dof in each_loc_dof(chunk)
+        a = (b_int[dof] + b_ext[dof]) / density_matrix[dof]
+        v½_old = velocity_half[dof]
+        velocity_half[dof] = ((2 - cn * Δt) * v½_old + 2 * Δt * a) / (2 + cn * Δt)
+        relaxation_updates!(chunk.storage, dof)
     end
     return nothing
 end
 
-function relaxation_updates!(s::AbstractStorage, d::Int, i::Int)
-    s.velocity[d, i] = 0.5 * (s.velocity_half_old[d, i] + s.velocity_half[d, i])
-    s.velocity_half_old[d, i] = s.velocity_half[d, i]
-    s.b_int_old[d, i] = s.b_int[d, i]
+function relaxation_updates!(s::AbstractStorage, dof::Int)
+    s.velocity[dof] = 0.5 * (s.velocity_half_old[dof] + s.velocity_half[dof])
+    s.velocity_half_old[dof] = s.velocity_half[dof]
+    s.b_int_old[dof] = s.b_int[dof]
     return nothing
 end
 

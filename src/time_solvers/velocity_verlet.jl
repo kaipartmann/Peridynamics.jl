@@ -236,77 +236,60 @@ function verlet_timestep!(dh::AbstractMPIBodyDataHandler, options::AbstractJobOp
     return nothing
 end
 
-function update_vel_half!(b::AbstractBodyChunk, Δt½::Float64)
-    _update_vel_half!(b.storage.velocity_half, b.storage.velocity, b.storage.acceleration,
-                      Δt½, each_point_idx(b))
-    return nothing
-end
-
-function _update_vel_half!(velocity_half, velocity, acceleration, Δt½, each_point)
-    for i in each_point
-        velocity_half[1, i] = velocity[1, i] + acceleration[1, i] * Δt½
-        velocity_half[2, i] = velocity[2, i] + acceleration[2, i] * Δt½
-        velocity_half[3, i] = velocity[3, i] + acceleration[3, i] * Δt½
+function update_vel_half!(chunk::AbstractBodyChunk, Δt½::Float64)
+    (; velocity_half, velocity, acceleration) = chunk.storage
+    for dof in each_loc_dof(chunk)
+        @inbounds velocity_half[dof] = velocity[dof] + acceleration[dof] * Δt½
     end
     return nothing
 end
 
-function update_disp_and_pos!(b::AbstractBodyChunk, Δt::Float64)
-    _update_disp_and_pos!(b.storage.displacement, b.storage.position,
-                          b.storage.velocity_half, Δt, each_point_idx(b))
-    return nothing
-end
-
-function _update_disp_and_pos!(displacement, position, velocity_half, Δt, each_point)
-    for i in each_point
-        u_x = velocity_half[1, i] * Δt
-        u_y = velocity_half[2, i] * Δt
-        u_z = velocity_half[3, i] * Δt
-        displacement[1, i] += u_x
-        displacement[2, i] += u_y
-        displacement[3, i] += u_z
-        position[1, i] += u_x
-        position[2, i] += u_y
-        position[3, i] += u_z
+function update_disp_and_pos!(chunk::AbstractBodyChunk, Δt::Float64)
+    (; displacement, position, velocity_half) = chunk.storage
+    for dof in each_loc_dof(chunk)
+        @inbounds u = velocity_half[dof] * Δt
+        @inbounds displacement[dof] += u
+        @inbounds position[dof] += u
     end
     return nothing
 end
 
-function update_acc_and_vel!(b::AbstractBodyChunk, Δt½::Float64)
-    _update_acc_and_vel!(b.storage, b.paramsetup, Δt½, each_point_idx(b))
+function update_acc_and_vel!(chunk::AbstractBodyChunk, Δt½::Float64)
+    _update_acc_and_vel!(chunk, chunk.paramsetup, Δt½)
     return nothing
 end
 
-function _update_acc_and_vel!(s::AbstractStorage, paramhandler::AbstractParameterHandler,
-                              Δt½::Float64, each_point)
-    for point_id in each_point
-        param = get_params(paramhandler, point_id)
-        _update_acc!(s.acceleration, s.b_int, s.b_ext, param.rho, point_id)
-        _update_vel!(s.velocity, s.velocity_half, s.acceleration, Δt½, point_id)
+function _update_acc_and_vel!(chunk::AbstractBodyChunk,
+                              paramhandler::AbstractParameterHandler, Δt½::Float64)
+    (; acceleration, velocity, velocity_half, b_int, b_ext) = chunk.storage
+    for i in each_point_idx(chunk)
+        params = get_params(paramhandler, i)
+        for dim in each_dim(system)
+            dof = get_dof(system, dim, i)
+            _update_acc!(acceleration, b_int, b_ext, params.rho, dof)
+            _update_vel!(velocity, velocity_half, acceleration, Δt½, dof)
+        end
     end
     return nothing
 end
 
-function _update_acc_and_vel!(s::AbstractStorage, params::AbstractPointParameters,
-                              Δt½::Float64, each_point)
-    for point_id in each_point
-        _update_acc!(s.acceleration, s.b_int, s.b_ext, params.rho, point_id)
-        _update_vel!(s.velocity, s.velocity_half, s.acceleration, Δt½, point_id)
+function _update_acc_and_vel!(chunk::AbstractBodyChunk, params::AbstractPointParameters,
+                              Δt½::Float64)
+    (; acceleration, velocity, velocity_half, b_int, b_ext) = chunk.storage
+    for dof in each_loc_dof(chunk)
+        _update_acc!(acceleration, b_int, b_ext, params.rho, dof)
+        _update_vel!(velocity, velocity_half, acceleration, Δt½, dof)
     end
     return nothing
 end
 
-function _update_acc!(acceleration, b_int, b_ext, rho, i)
-    acceleration[1, i] = (b_int[1, i] + b_ext[1, i]) / rho
-    acceleration[2, i] = (b_int[2, i] + b_ext[2, i]) / rho
-    acceleration[3, i] = (b_int[3, i] + b_ext[3, i]) / rho
+@inline function _update_acc!(acceleration, b_int, b_ext, rho, dof)
+    @inbounds acceleration[dof] = (b_int[dof] + b_ext[dof]) / rho
     return nothing
 end
 
-function _update_vel!(velocity, velocity_half, acceleration, Δt½, i)
-    velocity[1, i] = velocity_half[1, i] + acceleration[1, i] * Δt½
-    velocity[2, i] = velocity_half[2, i] + acceleration[2, i] * Δt½
-    velocity[3, i] = velocity_half[3, i] + acceleration[3, i] * Δt½
+@inline function _update_vel!(velocity, velocity_half, acceleration, Δt½, dof)
+    @inbounds velocity[dof] = velocity_half[dof] + acceleration[dof] * Δt½
     return nothing
 end
 
@@ -321,13 +304,22 @@ end
 function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:velocity})
     return zeros(3, get_n_loc_points(system))
 end
+function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:velocity})
+    return Array{Float64,2}(undef, 0, 0)
+end
 
 function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:velocity_half})
     return zeros(3, get_n_loc_points(system))
 end
+function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:velocity_half})
+    return Array{Float64,2}(undef, 0, 0)
+end
 
 function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:acceleration})
     return zeros(3, get_n_loc_points(system))
+end
+function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:acceleration})
+    return Array{Float64,2}(undef, 0, 0)
 end
 
 function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:b_int})
