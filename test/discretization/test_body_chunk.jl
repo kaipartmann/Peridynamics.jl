@@ -13,7 +13,7 @@
     forcedensity_bc!(t->t, body, :a, :x)
     precrack!(body, :a, :b)
     ts = VelocityVerlet(steps=10)
-    pd = Peridynamics.PointDecomposition(body, ts, 2)
+    pd = Peridynamics.PointDecomposition(body, 2)
     ps = Peridynamics.get_param_spec(body)
     chunk = Peridynamics.BodyChunk(body, ts, pd, 1, ps)
 
