@@ -64,7 +64,6 @@ end
 end
 
 @inline each_point_idx(chunk::AbstractBodyChunk) = each_point_idx(chunk.system)
-@inline each_halo_idx(chunk::AbstractBodyChunk) = each_halo_idx(chunk.system)
 @inline each_point_idx_pair(chunk::AbstractBodyChunk) = each_point_idx_pair(chunk.system)
 @inline each_dof_idx(chunk::AbstractBodyChunk) = each_dof_idx(chunk.system)
 @inline each_loc_dof_idx(chunk::AbstractBodyChunk) = each_loc_dof_idx(chunk.system)
@@ -72,11 +71,11 @@ end
 @inline each_loc_dof(chunk::AbstractBodyChunk) = each_loc_dof(chunk.system)
 @inline each_dim(chunk::AbstractBodyChunk) = each_dim(chunk.system)
 
-@inline n_loc_points(chunk::AbstractBodyChunk) = get_n_loc_points(chunk.system)
-@inline n_points(chunk::AbstractBodyChunk) = get_n_points(chunk.system)
-@inline n_dofs(chunk::AbstractBodyChunk) = get_n_dof(chunk.system)
-@inline n_loc_dof(chunk::AbstractBodyChunk) = get_n_loc_dof(chunk.system)
-@inline n_dim(chunk::AbstractBodyChunk) = get_n_dim(chunk.system)
+@inline get_n_loc_points(chunk::AbstractBodyChunk) = get_n_loc_points(chunk.system)
+@inline get_n_points(chunk::AbstractBodyChunk) = get_n_points(chunk.system)
+@inline get_n_dof(chunk::AbstractBodyChunk) = get_n_dof(chunk.system)
+@inline get_n_loc_dof(chunk::AbstractBodyChunk) = get_n_loc_dof(chunk.system)
+@inline get_n_dim(chunk::AbstractBodyChunk) = get_n_dim(chunk.system)
 
 @inline free_dofs(chunk::AbstractBodyChunk) = free_dofs(chunk.condhandler)
 @inline constrained_dofs(chunk::AbstractBodyChunk) = constrained_dofs(chunk.condhandler)

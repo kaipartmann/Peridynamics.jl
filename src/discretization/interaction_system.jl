@@ -95,8 +95,7 @@ end
 function InteractionSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     check_interaction_system_compat(body.mat)
     loc_points = pd.decomp[chunk_id]
-    bonds, n_one_nis = find_bonds(body, loc_points)
-    one_ni_idxs = find_bond_ids(n_one_nis)
+    bonds, n_one_nis, one_ni_idxs, chunk_handler = get_bond_data(body, pd, chunk_id)
     volume_one_nis = zeros(length(n_one_nis))
     if has_two_nis(body)
         two_nis, n_two_nis, two_ni_idxs = find_two_nis(body, loc_points, bonds, one_ni_idxs)
@@ -117,8 +116,6 @@ function InteractionSystem(body::AbstractBody, pd::PointDecomposition, chunk_id:
         volume_three_nis = Vector{Float64}()
         three_ni_idxs = Vector{UnitRange{Int}}()
     end
-    chunk_handler = get_chunk_handler(bonds, pd, chunk_id)
-    localize!(bonds, chunk_handler.localizer)
     position, volume = get_pos_and_vol_chunk(body, chunk_handler.point_ids)
     system = InteractionSystem(position, bonds, two_nis, three_nis, volume, volume_one_nis,
                                volume_two_nis, volume_three_nis, n_one_nis, n_two_nis,
@@ -342,7 +339,7 @@ end
     system = chunk.system
     δ = [get_params(chunk, i).δ for i in each_point_idx(chunk)]
     full_volume_hoods = 4 / 3 * π .* δ .^ 3
-    discrete_volume_hoods = zeros(n_loc_points(chunk))
+    discrete_volume_hoods = zeros(get_n_loc_points(chunk))
     for i in each_point_idx(chunk)
         volume_hood_point = system.volume[i]
         for bond_id in each_one_ni_idx(system, i)

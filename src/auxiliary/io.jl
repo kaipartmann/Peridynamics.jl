@@ -167,5 +167,5 @@ function export_fields!(vtk, chunk, fields_spec::Dict{Symbol,Vector{Symbol}})
 end
 
 @inline function get_loc_position(chunk::AbstractBodyChunk)
-    return @views chunk.storage.position[:, 1:n_loc_points(chunk)]
+    return @views chunk.storage.position[:, 1:get_n_loc_points(chunk)]
 end

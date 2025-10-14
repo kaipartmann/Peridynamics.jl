@@ -44,10 +44,6 @@ end
     return each_point_idx(system.chunk_handler)
 end
 
-@inline function each_halo_idx(system::AbstractSystem)
-    return each_halo_idx(system.chunk_handler)
-end
-
 @inline function each_point_idx_pair(system::AbstractSystem)
     return each_point_idx_pair(system.chunk_handler)
 end

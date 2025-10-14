@@ -40,8 +40,8 @@
     for i in 1:4
         @test ch.localizer[i] == i
     end
-    @test Peridynamics.n_loc_points(chunk) == 2
-    @test Peridynamics.n_points(chunk) == 4
+    @test Peridynamics.get_n_loc_points(chunk) == 2
+    @test Peridynamics.get_n_points(chunk) == 4
 
     #TODO: test the other fields!
 end
@@ -97,10 +97,12 @@ end
           chunk.storage.displacement[:, 1:5]
 
     @test Peridynamics.each_point_idx(chunk.system) == 1:5
-    @test collect(Peridynamics.each_loc_dof(chunk.system))[:] == [1:3:13; 2:3:14; 3:3:15]
-    @test collect(Peridynamics.each_dof(chunk.system))[:] == [1:3:16; 2:3:17; 3:3:18]
+    @test collect(Peridynamics.each_loc_dof(chunk))[:] == [1:3:13; 2:3:14; 3:3:15]
+    @test collect(Peridynamics.each_dof(chunk))[:] == [1:3:16; 2:3:17; 3:3:18]
     @test setdiff(chunk.condhandler.free_dofs,
-                  collect(Peridynamics.each_dof(chunk.system))[:]) == Int[]
+                  collect(Peridynamics.each_dof(chunk))[:]) == Int[]
+    @test Peridynamics.get_n_loc_dof(chunk) == 15
+    @test Peridynamics.get_n_dof(chunk) == 18
 
     # second chunk
     chunk = Peridynamics.BodyChunk(body, ts, pd, 2, ps)
