@@ -182,7 +182,7 @@ end
     @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
-    @pointfield stress::Matrix{Float64}
+    @pointfield cauchy_stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
 end
 
@@ -190,7 +190,8 @@ function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val
     return zeros(3, get_n_points(system))
 end
 
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
+function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:cauchy_stress})
     return zeros(9, get_n_loc_points(system))
 end
 
@@ -239,8 +240,7 @@ function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
     PKinv = P * Kinv
     σ = cauchy_stress(P, F)
-    update_tensor!(storage.stress, i, σ)
-    storage.von_mises_stress[i] = von_mises_stress(σ)
+    update_tensor!(storage.cauchy_stress, i, σ)
     return PKinv
 end
 
@@ -314,4 +314,14 @@ function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
         return true
     end
     return false
+end
+
+# calculate the von Mises stress from the Cauchy stress tensor just when exporting
+function export_field(::Val{:von_mises_stress}, ::CMaterial, system::BondSystem,
+                      storage::AbstractStorage, t)
+    for i in each_point_idx(system)
+        σ = get_tensor(storage.cauchy_stress, i)
+        storage.von_mises_stress[i] = von_mises_stress(σ)
+    end
+    return storage.von_mises_stress
 end

@@ -161,7 +161,7 @@ end
 
 function export_fields!(vtk, chunk, fields::Vector{Symbol}, t)
     for field in fields
-        point_data = export_field(Val(field), chunk, t)
+        point_data = export_field(Val(field), chunk.mat, chunk.system, chunk.storage, t)
         vtk[string(field), VTKPointData()] = point_data
     end
     return nothing
@@ -174,8 +174,8 @@ function export_fields!(vtk, chunk, fields_spec::Dict{Symbol,Vector{Symbol}}, t)
 end
 
 # this function can be specialized for each field, even custom export fields can be written!
-function export_field(::Val{field}, chunk, t) where {field}
-    return get_loc_point_data(chunk.storage, chunk.system, field)
+function export_field(::Val{field}, mat, system, storage, t) where {field}
+    return get_loc_point_data(storage, system, field)
 end
 
 @inline function get_loc_position(chunk::AbstractBodyChunk)
