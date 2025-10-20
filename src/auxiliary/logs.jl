@@ -214,6 +214,224 @@ function msg_qty(descr::Any, qty::Any; kwargs...)
     return msg_qty(string(descr), string(qty); kwargs...)
 end
 
+function msg_path(descr_raw::AbstractString, path_raw::AbstractString;
+                  linewidth::Union{Int,Nothing}=nothing,
+                  leftwidth::Union{Int,Nothing}=nothing, indentation::Int=2,
+                  filler::Char='.', separator::AbstractString="",
+                  delimiter::AbstractString=" ",
+                  continuation_label::AbstractString="(continued)")
+    descr, path = strip(descr_raw), strip(path_raw)
+
+    # Determine effective linewidth
+    effective_linewidth = something(linewidth, leftwidth !== nothing ? default_linewidth() : nothing, default_linewidth())
+
+    # Try to fit on one line
+    len_filling = get_len_filling(linewidth, leftwidth, indentation, descr, separator, path)
+    required_length = indentation + length(descr) + length(separator) + max(len_filling, 1) + length(path)
+
+    if required_length <= effective_linewidth
+        # Fits on one line - use msg_qty
+        return msg_qty(descr, path; linewidth=linewidth, leftwidth=leftwidth,
+                      indentation=indentation, filler=filler, separator=separator,
+                      delimiter=delimiter, newline=true)
+    end
+
+    # Path is too long - split into multiple lines
+    return _msg_path_multiline(descr, path, effective_linewidth, indentation, filler,
+                               separator, delimiter, continuation_label)
+end
+
+function _msg_path_multiline(descr, path, linewidth, indentation, filler, separator, delimiter, continuation_label)
+    min_filler = 2 * length(delimiter)
+
+    # First line: calculate budget for path
+    first_line_budget = linewidth - indentation - length(descr) - length(separator) - min_filler
+    break_idx = _find_path_break(path, first_line_budget)
+
+    path_first = break_idx > 0 ? path[1:break_idx] : ""
+    path_rest = break_idx > 0 ? path[break_idx+1:end] : path
+
+    # Build first line
+    first_line = if !isempty(path_first)
+        len_fill = linewidth - indentation - length(descr) - length(separator) - length(path_first)
+        _msg_qty(descr, path_first, len_fill, indentation, filler, separator, delimiter, true)
+    else
+        len_fill = linewidth - indentation - length(descr) - length(separator)
+        _msg_qty(descr, "", len_fill, indentation, filler, separator, delimiter, true)
+    end
+
+    # Build continuation lines
+    continuation_lines = _build_continuation_lines(path_rest, continuation_label, linewidth,
+                                                   indentation, filler, delimiter)
+
+    return first_line * continuation_lines
+end
+
+function _build_continuation_lines(remaining_path, label, linewidth, indentation, filler, delimiter)
+    isempty(remaining_path) && return ""
+
+    result = ""
+    min_filler = 2 * length(delimiter)
+    prefix_len = indentation + length(label)
+
+    while !isempty(remaining_path)
+        budget = linewidth - prefix_len - min_filler
+
+        if length(remaining_path) <= budget
+            # Last piece fits
+            len_fill = linewidth - prefix_len - length(remaining_path)
+            result *= _msg_qty(label, remaining_path, len_fill, indentation, filler, "", delimiter, true)
+            break
+        else
+            # Need another split
+            break_idx = _find_path_break(remaining_path, budget)
+            piece = break_idx > 0 ? remaining_path[1:break_idx] : remaining_path[1:min(budget, end)]
+            remaining_path = length(piece) < length(remaining_path) ? remaining_path[length(piece)+1:end] : ""
+
+            len_fill = linewidth - prefix_len - length(piece)
+            result *= _msg_qty(label, piece, len_fill, indentation, filler, "", delimiter, true)
+        end
+    end
+
+    return result
+end
+
+function _find_path_break(path::AbstractString, max_length::Int)
+    length(path) <= max_length && return length(path)
+    max_length <= 0 && return 0
+
+    # Find last directory separator within budget
+    last_sep = findlast(c -> c == '/' || c == '\\', @view path[1:min(max_length, end)])
+
+    return something(last_sep, min(max_length, length(path)))
+end
+
+function msg_vec(descr_raw::AbstractString, vec::AbstractVector;
+                 linewidth::Union{Int,Nothing}=nothing,
+                 leftwidth::Union{Int,Nothing}=nothing, indentation::Int=2,
+                 filler::Char='.', separator::AbstractString="",
+                 delimiter::AbstractString=" ",
+                 continuation_label::AbstractString="(continued)",
+                 vec_delimiter::AbstractString=", ",
+                 vec_brackets::Tuple{AbstractString,AbstractString}=("[", "]"))
+    descr = strip(descr_raw)
+
+    # Format vector as string
+    vec_str = _format_vector(vec, vec_delimiter, vec_brackets)
+
+    # Determine effective linewidth
+    effective_linewidth = something(linewidth, leftwidth !== nothing ? default_linewidth() : nothing, default_linewidth())
+
+    # Try to fit on one line
+    len_filling = get_len_filling(linewidth, leftwidth, indentation, descr, separator, vec_str)
+    required_length = indentation + length(descr) + length(separator) + max(len_filling, 1) + length(vec_str)
+
+    if required_length <= effective_linewidth
+        # Fits on one line - use msg_qty
+        return msg_qty(descr, vec_str; linewidth=linewidth, leftwidth=leftwidth,
+                      indentation=indentation, filler=filler, separator=separator,
+                      delimiter=delimiter, newline=true)
+    end
+
+    # Vector string is too long - split into multiple lines
+    return _msg_vec_multiline(descr, vec_str, effective_linewidth, indentation, filler,
+                              separator, delimiter, continuation_label)
+end
+
+function _format_vector(vec::AbstractVector, vec_delimiter::AbstractString,
+                       vec_brackets::Tuple{AbstractString,AbstractString})
+    isempty(vec) && return vec_brackets[1] * vec_brackets[2]
+    elements = _format_elements(vec)
+    vec_str = vec_brackets[1] * join(elements, vec_delimiter) * vec_brackets[2]
+    return vec_str
+end
+
+function _format_elements(vec::AbstractVector{<:Real})
+    return [@sprintf("%.7g", x) for x in vec]
+end
+function _format_elements(vec::AbstractVector{T}) where {T}
+    return [string(x) for x in vec]
+end
+
+function _msg_vec_multiline(descr, vec_str, linewidth, indentation, filler, separator,
+                            delimiter, continuation_label)
+    min_filler = 2 * length(delimiter)
+
+    # First line: calculate budget for vector string
+    first_line_budget = linewidth - indentation - length(descr) - length(separator) - min_filler
+    break_idx = _find_vec_break(vec_str, first_line_budget)
+
+    vec_first = break_idx > 0 ? vec_str[1:break_idx] : ""
+    vec_rest = break_idx > 0 ? vec_str[break_idx+1:end] : vec_str
+
+    # Build first line
+    first_line = if !isempty(vec_first)
+        len_fill = linewidth - indentation - length(descr) - length(separator) - length(vec_first)
+        _msg_qty(descr, vec_first, len_fill, indentation, filler, separator, delimiter, true)
+    else
+        len_fill = linewidth - indentation - length(descr) - length(separator)
+        _msg_qty(descr, "", len_fill, indentation, filler, separator, delimiter, true)
+    end
+
+    # Build continuation lines
+    continuation_lines = _build_vec_continuation_lines(vec_rest, continuation_label, linewidth,
+                                                       indentation, filler, delimiter)
+
+    return first_line * continuation_lines
+end
+
+function _build_vec_continuation_lines(remaining_vec, label, linewidth, indentation, filler, delimiter)
+    isempty(remaining_vec) && return ""
+
+    result = ""
+    min_filler = 2 * length(delimiter)
+    prefix_len = indentation + length(label)
+
+    while !isempty(remaining_vec)
+        budget = linewidth - prefix_len - min_filler
+
+        if length(remaining_vec) <= budget
+            # Last piece fits
+            len_fill = linewidth - prefix_len - length(remaining_vec)
+            result *= _msg_qty(label, remaining_vec, len_fill, indentation, filler, "", delimiter, true)
+            break
+        else
+            # Need another split
+            break_idx = _find_vec_break(remaining_vec, budget)
+            piece = break_idx > 0 ? remaining_vec[1:break_idx] : remaining_vec[1:min(budget, end)]
+            remaining_vec = length(piece) < length(remaining_vec) ? remaining_vec[length(piece)+1:end] : ""
+
+            len_fill = linewidth - prefix_len - length(piece)
+            result *= _msg_qty(label, piece, len_fill, indentation, filler, "", delimiter, true)
+        end
+    end
+
+    return result
+end
+
+function _find_vec_break(vec_str::AbstractString, max_length::Int)
+    length(vec_str) <= max_length && return length(vec_str)
+    max_length <= 0 && return 0
+
+    # Find last comma or space within budget (prefer comma)
+    last_comma = findlast(==(','), @view vec_str[1:min(max_length, end)])
+
+    if last_comma !== nothing
+        # Include the comma and any following spaces
+        break_point = last_comma
+        while break_point < min(max_length, length(vec_str)) &&
+              vec_str[break_point + 1] == ' '
+            break_point += 1
+        end
+        return break_point
+    end
+
+    # If no comma, look for space
+    last_space = findlast(==(' '), @view vec_str[1:min(max_length, end)])
+
+    return something(last_space, min(max_length, length(vec_str)))
+end
+
 function msg_fields_inline(obj::T) where {T}
     fields = fieldnames(T)
     values = Tuple(getfield(obj, field) for field in fields)

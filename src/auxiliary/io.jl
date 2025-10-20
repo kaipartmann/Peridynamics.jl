@@ -102,9 +102,11 @@ end
 function check_export_fields(::Type{S}, fields::Vector{Symbol}) where {S}
     allowed_fields = point_data_fields(S)
     for f in fields
-        if !in(f, allowed_fields)
+        if !in(f, allowed_fields) && !custom_field(f)
             msg = "unknown point data field `:$(f)` specified for export!\n"
-            msg *= "All point data fields of $S:\n"
+            msg *= "If you intend to export a custom field, please define a method:"
+            msg *= "\n   `custom_field(::Val{:$(f)}) = true`\n"
+            msg *= "Otherwise, see here all available point data fields of $S:\n"
             for allowed_name in allowed_fields
                 msg *= "  - $allowed_name\n"
             end
@@ -113,6 +115,11 @@ function check_export_fields(::Type{S}, fields::Vector{Symbol}) where {S}
     end
     return nothing
 end
+
+custom_field(field::Symbol) = custom_field(Val(field))
+# this function can be specialized to indicate custom fields
+# if this is not done, the export_field function will error out!
+custom_field(::Val{field}) where {field} = false
 
 function get_vtk_filebase(body::AbstractBody, root::AbstractString)
     body_name = replace(string(get_name(body)), " " => "_")
@@ -134,7 +141,7 @@ function _export_results(options::AbstractJobOptions, chunk::AbstractBodyChunk,
     filename = get_filename(options, chunk.body_name, n)
     position = get_loc_position(chunk)
     pvtk_grid(filename, position, chunk.cells; part=chunk_id, nparts=n_chunks) do vtk
-        export_fields!(vtk, chunk, options.fields)
+        export_fields!(vtk, chunk, options.fields, t)
         vtk["time", VTKFieldData()] = t
     end
     return nothing
@@ -152,20 +159,40 @@ end
     return @sprintf("%s_%d", vtk_filebase[body_name], n)
 end
 
-function export_fields!(vtk, chunk, fields::Vector{Symbol})
+function export_fields!(vtk, chunk, fields::Vector{Symbol}, t)
     for field in fields
-        point_data = get_loc_point_data(chunk.storage, chunk.system, field)
+        point_data = export_field(Val(field), chunk, t)
         vtk[string(field), VTKPointData()] = point_data
     end
     return nothing
 end
 
-function export_fields!(vtk, chunk, fields_spec::Dict{Symbol,Vector{Symbol}})
+function export_fields!(vtk, chunk, fields_spec::Dict{Symbol,Vector{Symbol}}, t)
     fields = fields_spec[chunk.body_name]
-    export_fields!(vtk, chunk, fields)
+    export_fields!(vtk, chunk, fields, t)
     return nothing
+end
+
+# this function can be specialized for each field, even custom export fields can be written!
+function export_field(::Val{field}, chunk, t) where {field}
+    return get_loc_point_data(chunk.storage, chunk.system, field)
 end
 
 @inline function get_loc_position(chunk::AbstractBodyChunk)
     return @views chunk.storage.position[:, 1:get_n_loc_points(chunk)]
+end
+
+function msg_export_fields(fields::Vector{Symbol}; indentation=2)
+    return msg_vec("exported fields", fields; continuation_label=" "^15, indentation)
+end
+
+function msg_export_fields(fields_spec::Dict{Symbol,Vector{Symbol}}; indentation=2)
+    msg = " "^indentation * "EXPORTED FIELDS PER BODY\n"
+    for (body_name, fields) in fields_spec
+        body_name_str = string(body_name)
+        n = length(body_name_str)
+        ind = indentation + 2
+        msg *= msg_vec(body_name_str, fields; continuation_label=" "^n, indentation=ind)
+    end
+    return msg
 end
