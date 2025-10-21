@@ -109,6 +109,7 @@ OSBMaterial(; kwargs...) = OSBMaterial{NoCorrection}(; kwargs...)
     bond_length::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
+    @pointfield strain_energy_density::Vector{Float64}
 end
 
 function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
@@ -118,6 +119,11 @@ end
 function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:bond_length})
     return zeros(get_n_bonds(system))
+end
+
+function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:strain_energy_density})
+    return zeros(get_n_loc_points(system))
 end
 
 # Customized calc_failure to save the bond length for force density calculation
@@ -218,4 +224,35 @@ function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMateri
         dil += ωij * β * c1 * L * (l - L) * system.volume[j]
     end
     return dil
+end
+
+function export_field(::Val{:strain_energy_density}, mat::OSBMaterial, system::BondSystem,
+                      storage::AbstractStorage, paramsetup::AbstractParameterSetup, t)
+    (; bond_active, bond_length, strain_energy_density) = storage
+    (; bonds, correction, volume) = system
+    strain_energy_density .= 0.0
+    for i in each_point_idx(system)
+        params_i = get_params(paramsetup, i)
+        wvol = calc_weighted_volume(storage, system, mat, params_i, i)
+        iszero(wvol) && continue
+        dil = calc_dilatation(storage, system, mat, params_i, wvol, i)
+        Ψvol = 0.5 * params_i.K * dil^2
+        Ψdev = 0.0
+        for bond_id in each_bond_idx(system, i)
+            bond = bonds[bond_id]
+            j, L = bond.neighbor, bond.length
+            l = bond_length[bond_id]
+            e = l - L
+            edev = e - 1/3 * dil * L
+            ωij = kernel(system, bond_id) * bond_active[bond_id]
+            β = surface_correction_factor(correction, bond_id)
+            params_j = get_params(paramsetup, j)
+            G = (params_i.G + params_j.G) / 2
+            cdev = 15.0 * G / (2 * wvol)
+            Ψdev += cdev * ωij * β * edev * edev * volume[j]
+        end
+        Ψ = Ψvol + Ψdev
+        strain_energy_density[i] = Ψ
+    end
+    return strain_energy_density
 end

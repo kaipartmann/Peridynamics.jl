@@ -125,14 +125,20 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
-    bond_stretch::Vector{Float64}
+    bond_length::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
+    @pointfield strain_energy_density::Vector{Float64}
 end
 
-function init_field(::BBMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:bond_stretch})
+function init_field(::AbstractBondBasedMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:bond_length})
     return zeros(get_n_bonds(system))
+end
+
+function init_field(::AbstractBondBasedMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:strain_energy_density})
+    return zeros(get_n_loc_points(system))
 end
 
 # Customized calc_failure to save the bond stretch ε for force density calculation
@@ -140,7 +146,7 @@ function calc_failure!(storage::AbstractStorage, system::BondSystem,
                        ::AbstractBondBasedMaterial, ::CriticalStretch,
                        paramsetup::AbstractParameterSetup, i)
     (; εc) = get_params(paramsetup, i)
-    (; position, n_active_bonds, bond_active, bond_stretch) = storage
+    (; position, n_active_bonds, bond_active, bond_length) = storage
     (; bonds) = system
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
@@ -148,7 +154,7 @@ function calc_failure!(storage::AbstractStorage, system::BondSystem,
         Δxij = get_vector_diff(position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
-        bond_stretch[bond_id] = ε / l # note that this is  ε / l!
+        bond_length[bond_id] = l # store current bond length
         if ε > εc && bond.fail_permit
             bond_active[bond_id] = false
         end
@@ -159,15 +165,16 @@ end
 
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
                               params::StandardPointParameters, t, Δt, i)
-    (; position, bond_stretch, bond_active, b_int) = storage
+    (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
-        j = bond.neighbor
+        j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(position, i, j)
-        ε = bond_stretch[bond_id]
+        l = bond_length[bond_id]
+        ε = (l - L) / L
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * params.bc * ε * volume[j] .* Δxij
+        b = ω * params.bc * ε * volume[j] .* Δxij / l
         update_add_vector!(b_int, i, b)
     end
     return nothing
@@ -175,18 +182,49 @@ end
 
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
                               paramhandler::ParameterHandler, t, Δt, i)
-    (; position, bond_stretch, bond_active, b_int) = storage
+    (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     params_i = get_params(paramhandler, i)
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
-        j = bond.neighbor
+        j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(position, i, j)
-        ε = bond_stretch[bond_id]
+        l = bond_length[bond_id]
+        ε = (l - L) / L
         params_j = get_params(paramhandler, j)
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * (params_i.bc + params_j.bc) / 2 * ε * volume[j] .* Δxij
+        b = ω * (params_i.bc + params_j.bc) / 2 * ε * volume[j] .* Δxij / l
         update_add_vector!(b_int, i, b)
     end
     return nothing
+end
+
+function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
+                                      ::AbstractBondBasedMaterial,
+                                      paramsetup::AbstractParameterSetup, i)
+    (; bond_active, bond_length, strain_energy_density) = storage
+    (; bonds, correction, volume) = system
+    params_i = get_params(paramsetup, i)
+    Ψ = 0.0
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        l = bond_length[bond_id]
+        ε = (l - L) / L
+        params_j = get_params(paramsetup, j)
+        ωij = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        bc = (params_i.bc + params_j.bc) / 2
+        Ψ += 0.25 * ωij * bc * ε * ε * L * volume[j]
+    end
+    strain_energy_density[i] = Ψ
+    return nothing
+end
+
+function export_field(::Val{:strain_energy_density}, mat::AbstractBondBasedMaterial,
+                      system::BondSystem, storage::AbstractStorage,
+                      paramsetup::AbstractParameterSetup, t)
+    for i in each_point_idx(system)
+        strain_energy_density_point!(storage, system, mat, paramsetup, i)
+    end
+    return storage.strain_energy_density
 end
