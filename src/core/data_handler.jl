@@ -1,4 +1,5 @@
 function initialize!(dh, solver)
+    calc_force_density!(dh, 0.0, solver.Δt)
     return nothing
 end
 
