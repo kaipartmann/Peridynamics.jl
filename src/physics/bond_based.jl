@@ -69,6 +69,7 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `b_ext::Matrix{Float64}`: External force density of each point.
 - `damage::Vector{Float64}`: Damage of each point.
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
+- `strain_energy_density::Vector{Float64}`: Strain energy density of each point.
 """
 struct BBMaterial{Correction,DM} <: AbstractBondBasedMaterial{Correction}
     dmgmodel::DM
@@ -200,8 +201,7 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
 end
 
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
-                                      ::AbstractBondBasedMaterial,
-                                      paramsetup::AbstractParameterSetup, i)
+                                      ::BBMaterial, paramsetup::AbstractParameterSetup, i)
     (; bond_active, bond_length, strain_energy_density) = storage
     (; bonds, correction, volume) = system
     params_i = get_params(paramsetup, i)

@@ -36,7 +36,6 @@
         @printf("  mean error:      %7.2f %%\n", (Ψ̂_pd - Ψ_a) / Ψ_a * 100)
         @printf("  min rel. error:  %7.2f %%\n", ΔΨ_min * 100)
         @printf("  max rel. error:  %7.2f %%\n", ΔΨ_max * 100)
-        println("-"^50)
 
         @test ΔΨ_min > tols[1]
         @test ΔΨ_max < tols[2]
@@ -52,6 +51,42 @@ end
     λ = 1.05
     pos, vol = uniform_box(1,1,1,Δx)
     mat = BBMaterial{NoCorrection}()
+    body = Body(mat, pos, vol)
+    material!(body; horizon, rho=8000, E, nu)
+    params = body.point_params[1]
+    ts = VelocityVerlet(steps=1)
+
+    testcase = "homogeneous isotropic extension"
+    ε = λ - 1
+    F_a = @SMatrix [λ 0 0; 0 λ 0; 0 0 λ]
+    Ψ_a = 9/2 * params.K * ε^2
+    tols = (-0.9, 0.3)
+    test_stendens(body, ts, F_a, Ψ_a, tols; testcase)
+
+    testcase = "pure shear deformation"
+    β = 0.1
+    F_a = @SMatrix [1 β 0; 0 1 0; 0 0 1]
+    Ψ_a = 1/2 * params.G * β^2
+    tols = (-0.9, 0.3)
+    test_stendens(body, ts, F_a, Ψ_a, tols; testcase)
+
+    testcase = "uniform extension in x-direction"
+    λ = 1.1
+    ε = λ - 1
+    F_a = @SMatrix [λ 0 0; 0 1 0; 0 0 1]
+    Ψ_a = 3/5 * params.E * ε^2
+    tols = (-0.9, 0.3)
+    test_stendens(body, ts, F_a, Ψ_a, tols; testcase)
+end
+
+@testitem "Strain energy density export DHBBMaterial" setup=[PsiExport] begin
+    Δx = 0.2
+    horizon = 3.01Δx
+    E = 210e9
+    nu = 0.25
+    λ = 1.05
+    pos, vol = uniform_box(1,1,1,Δx)
+    mat = DHBBMaterial{NoCorrection}()
     body = Body(mat, pos, vol)
     material!(body; horizon, rho=8000, E, nu)
     params = body.point_params[1]

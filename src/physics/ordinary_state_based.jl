@@ -77,6 +77,7 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `b_ext::Matrix{Float64}`: External force density of each point.
 - `damage::Vector{Float64}`: Damage of each point.
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
+- `strain_energy_density::Vector{Float64}`: Strain energy density of each point.
 """
 struct OSBMaterial{Correction,K,DM} <: AbstractBondSystemMaterial{Correction}
     kernel::K
@@ -226,33 +227,39 @@ function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMateri
     return dil
 end
 
-function export_field(::Val{:strain_energy_density}, mat::OSBMaterial, system::BondSystem,
-                      storage::AbstractStorage, paramsetup::AbstractParameterSetup, t)
+function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
+                                      mat::OSBMaterial, paramsetup::AbstractParameterSetup,
+                                      i)
     (; bond_active, bond_length, strain_energy_density) = storage
     (; bonds, correction, volume) = system
-    strain_energy_density .= 0.0
-    for i in each_point_idx(system)
-        params_i = get_params(paramsetup, i)
-        wvol = calc_weighted_volume(storage, system, mat, params_i, i)
-        iszero(wvol) && continue
-        dil = calc_dilatation(storage, system, mat, params_i, wvol, i)
-        Ψvol = 0.5 * params_i.K * dil^2
-        Ψdev = 0.0
-        for bond_id in each_bond_idx(system, i)
-            bond = bonds[bond_id]
-            j, L = bond.neighbor, bond.length
-            l = bond_length[bond_id]
-            e = l - L
-            edev = e - 1/3 * dil * L
-            ωij = kernel(system, bond_id) * bond_active[bond_id]
-            β = surface_correction_factor(correction, bond_id)
-            params_j = get_params(paramsetup, j)
-            G = (params_i.G + params_j.G) / 2
-            cdev = 15.0 * G / (2 * wvol)
-            Ψdev += cdev * ωij * β * edev * edev * volume[j]
-        end
-        Ψ = Ψvol + Ψdev
-        strain_energy_density[i] = Ψ
+    params_i = get_params(paramsetup, i)
+    wvol = calc_weighted_volume(storage, system, mat, params_i, i)
+    iszero(wvol) && return nothing
+    dil = calc_dilatation(storage, system, mat, params_i, wvol, i)
+    Ψvol = 0.5 * params_i.K * dil^2
+    Ψdev = 0.0
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        l = bond_length[bond_id]
+        e = l - L
+        edev = e - 1/3 * dil * L
+        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        β = surface_correction_factor(correction, bond_id)
+        params_j = get_params(paramsetup, j)
+        G = (params_i.G + params_j.G) / 2
+        cdev = 15.0 * G / (2 * wvol)
+        Ψdev += cdev * ωij * β * edev * edev * volume[j]
     end
-    return strain_energy_density
+    Ψ = Ψvol + Ψdev
+    strain_energy_density[i] = Ψ
+    return nothing
+end
+
+function export_field(::Val{:strain_energy_density}, mat::OSBMaterial, system::BondSystem,
+                      storage::AbstractStorage, paramsetup::AbstractParameterSetup, t)
+    for i in each_point_idx(system)
+        strain_energy_density_point!(storage, system, mat, paramsetup, i)
+    end
+    return storage.strain_energy_density
 end
