@@ -188,7 +188,7 @@ function log_job_options(options::JobOptions)
         msg *= msg_path("root path", options.root; continuation_label="         ")
         msg *= msg_export_fields(options.fields)
     else
-        msg *= msg_qty("export allowed", options.export_allowed)
+        msg *= msg_qty("export allowed", "false")
     end
     log_it(options, msg)
     return nothing

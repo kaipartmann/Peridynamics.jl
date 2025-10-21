@@ -387,7 +387,9 @@ end
 
 function log_material(mat::M; indentation::Int=2) where {M<:AbstractBondSystemMaterial}
     msg = msg_qty("material type", nameof(M); indentation)
-    msg *= msg_qty("correction type", correction_type(mat); indentation)
+    if !(correction_type(mat) <: Nothing)
+        msg *= msg_qty("correction type", correction_type(mat); indentation)
+    end
     for prop in fieldnames(M)
         msg *= log_material_property(Val(prop), mat; indentation)
     end
