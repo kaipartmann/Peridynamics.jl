@@ -3,16 +3,31 @@
 
 Linear elastic constitutive model that can be specified when using a [`CMaterial`](@ref) and
 [`BACMaterial`](@ref).
-The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
+
+The strain energy density ``\Psi`` is given by
 ```math
-\boldsymbol{P} = \mathbb{C} : \boldsymbol{E} \; ,
+\Psi = \frac{1}{2} \lambda \, \mathrm{tr}(\boldsymbol{E})^2 + \mu \, \mathrm{tr}(\boldsymbol{E} \cdot \boldsymbol{E}) \; ,
 ```
-with the elastic stiffness tensor  ``\mathbb{C}`` and the Green-Lagrange strain tensor
-``\boldsymbol{E}`` with
+with the first and second Lamé parameters ``\lambda`` and ``\mu``, and the Green-Lagrange
+strain tensor ``\boldsymbol{E}``
 ```math
 \boldsymbol{E} = \frac{1}{2} \left( \boldsymbol{F}^{\top} \boldsymbol{F} - \boldsymbol{I}
                              \right) \; .
 ```
+
+The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
+```math
+\begin{aligned}
+\boldsymbol{S} &= \mathbb{C} : \boldsymbol{E} \; , \\
+\boldsymbol{P} &= \boldsymbol{F} \, \boldsymbol{S} \; ,
+\end{aligned}
+```
+with the deformation gradient ``\boldsymbol{F}``, the elastic stiffness tensor ``\mathbb{C}``,
+and the second Piola-Kirchhoff stress ``\boldsymbol{S}``.
+
+!!! note
+    This model is equivalent to the Saint-Venant-Kirchhoff model, but uses a Voigt notation
+    representation for the stress calculation.
 """
 struct LinearElastic <: AbstractConstitutiveModel end
 
@@ -74,6 +89,16 @@ end
 
 Neo-Hookean constitutive model that can be specified when using a [`CMaterial`](@ref) and
 [`BACMaterial`](@ref).
+
+The strain energy density ``\Psi`` is given by
+```math
+\Psi = \frac{1}{2} \mu \left( I_1 - 3 \right) - \mu \log(J) + \frac{1}{2} \lambda \log(J)^2 \; ,
+```
+with the first invariant ``I_1 = \mathrm{tr}(\boldsymbol{C})`` of the right Cauchy-Green
+deformation tensor ``\boldsymbol{C} = \boldsymbol{F}^{\top} \boldsymbol{F}``, the Jacobian
+``J = \mathrm{det}(\boldsymbol{F})``, and the first and second Lamé parameters ``\lambda``
+and ``\mu``.
+
 The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
 ```math
 \begin{aligned}
@@ -83,10 +108,8 @@ The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
 \boldsymbol{P} &= \boldsymbol{F} \, \boldsymbol{S} \; ,
 \end{aligned}
 ```
-with the deformation gradient ``\boldsymbol{F}``, the right Cauchy-Green deformation tensor
-``\boldsymbol{C}``, the Jacobian ``J = \mathrm{det}(\boldsymbol{F})``, the second
-Piola-Kirchhoff stress ``\boldsymbol{S}``, and the first and second Lamé parameters
-``\lambda`` and ``\mu``.
+with the deformation gradient ``\boldsymbol{F}`` and the second Piola-Kirchhoff stress
+``\boldsymbol{S}``.
 """
 struct NeoHooke <: AbstractConstitutiveModel end
 
@@ -113,6 +136,15 @@ end
 
 Mooney-Rivlin constitutive model that can be specified when using a [`CMaterial`](@ref) and
 [`BACMaterial`](@ref).
+
+The strain energy density ``\Psi`` is given by
+```math
+\Psi = \frac{1}{2} G \left( I_1 \, J^{-\frac{2}{3}} - 3 \right) + \frac{K}{8} \left( J^2 + J^{-2} - 2 \right) \; ,
+```
+with the first invariant ``I_1 = \mathrm{tr}(\boldsymbol{C})`` of the right Cauchy-Green
+deformation tensor ``\boldsymbol{C} = \boldsymbol{F}^{\top} \boldsymbol{F}``, the Jacobian
+``J = \mathrm{det}(\boldsymbol{F})``, the shear modulus ``G``, and the bulk modulus ``K``.
+
 The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
 ```math
 \begin{aligned}
@@ -123,14 +155,13 @@ The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
 \boldsymbol{P} &= \boldsymbol{F} \, \boldsymbol{S} \; ,
 \end{aligned}
 ```
-with the deformation gradient ``\boldsymbol{F}``, the right Cauchy-Green deformation tensor
-``\boldsymbol{C}``, the Jacobian ``J = \mathrm{det}(\boldsymbol{F})``, the second
-Piola-Kirchhoff stress ``\boldsymbol{S}``, the shear modulus ``G``, and the
-bulk modulus ``K``.
+with the deformation gradient ``\boldsymbol{F}`` and the second Piola-Kirchhoff stress
+``\boldsymbol{S}``.
 
 # Error handling
-If the Jacobian ``J`` is smaller than the machine precision `eps()` or a `NaN`, the first
-Piola-Kirchhoff stress tensor is defined as ``\boldsymbol{P} = \boldsymbol{0}``.
+If the Jacobian ``J`` is smaller than the machine precision `eps()` or a `NaN`, the strain
+energy density and first Piola-Kirchhoff stress tensor are defined as zero:
+``\Psi = 0`` and ``\boldsymbol{P} = \boldsymbol{0}``.
 """
 struct MooneyRivlin <: AbstractConstitutiveModel end
 
@@ -163,19 +194,32 @@ end
 
 Saint-Venant-Kirchhoff constitutive model that can be specified when using a
 [`CMaterial`](@ref) and [`BACMaterial`](@ref).
+
+The strain energy density ``\Psi`` is given by
+```math
+\Psi = \frac{1}{2} \lambda \, \mathrm{tr}(\boldsymbol{E})^2 + \mu \, \mathrm{tr}(\boldsymbol{E} \cdot \boldsymbol{E}) \; ,
+```
+with the first and second Lamé parameters ``\lambda`` and ``\mu``, and the Green-Lagrange
+strain tensor
+```math
+\boldsymbol{E} = \frac{1}{2} \left( \boldsymbol{F}^{\top} \boldsymbol{F} - \boldsymbol{I}
+                              \right) \; .
+```
+
 The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
 ```math
 \begin{aligned}
-\boldsymbol{E} &= \frac{1}{2} \left( \boldsymbol{F}^{\top} \boldsymbol{F} - \boldsymbol{I}
-                              \right) \; , \\
 \boldsymbol{S} &= \lambda \, \mathrm{tr}(\boldsymbol{E}) \, \boldsymbol{I}
                 + 2 \mu \boldsymbol{E} \; , \\
 \boldsymbol{P} &= \boldsymbol{F} \, \boldsymbol{S} \; ,
 \end{aligned}
 ```
-with the deformation gradient ``\boldsymbol{F}``, the Green-Lagrange strain tensor
-``\boldsymbol{E}``, the second Piola-Kirchhoff stress ``\boldsymbol{S}``, and the first and
-second Lamé parameters ``\lambda`` and ``\mu``.
+with the deformation gradient ``\boldsymbol{F}`` and the second Piola-Kirchhoff stress
+``\boldsymbol{S}``.
+
+!!! note
+    This model is equivalent to the [`LinearElastic`](@ref) model, both using the same
+    strain energy density function.
 """
 struct SaintVenantKirchhoff <: AbstractConstitutiveModel end
 
