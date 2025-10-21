@@ -21,11 +21,23 @@ function first_piola_kirchhoff(::LinearElastic, storage::AbstractStorage,
     E = 0.5 .* (F' * F - I)
     Evoigt = SVector{6,Float64}(E[1,1], E[2,2], E[3,3], 2 * E[2,3], 2 * E[3,1], 2 * E[1,2])
     Cvoigt = get_hooke_matrix_voigt(params.nu, params.λ, params.μ)
-    Pvoigt = Cvoigt * Evoigt
-    P = SMatrix{3,3,Float64,9}(Pvoigt[1], Pvoigt[6], Pvoigt[5],
-                               Pvoigt[6], Pvoigt[2], Pvoigt[4],
-                               Pvoigt[5], Pvoigt[4], Pvoigt[3])
+    Svoigt = Cvoigt * Evoigt
+    # Convert second Piola-Kirchhoff stress from Voigt to tensor form
+    S = SMatrix{3,3,Float64,9}(Svoigt[1], Svoigt[6], Svoigt[5],
+                               Svoigt[6], Svoigt[2], Svoigt[4],
+                               Svoigt[5], Svoigt[4], Svoigt[3])
+    # First Piola-Kirchhoff stress: P = F * S
+    P = F * S
     return P
+end
+
+function strain_energy_density(::LinearElastic, storage::AbstractStorage,
+                               params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
+    E = 0.5 .* (F' * F - I)
+    # For energy density, use the standard form: Ψ = 0.5 * λ * tr(E)^2 + μ * tr(E*E)
+    # This is equivalent to the Saint-Venant-Kirchhoff model
+    Ψ = 0.5 * params.λ * tr(E)^2 + params.μ * tr(E * E)
+    return Ψ
 end
 
 function get_hooke_matrix_voigt(nu, λ, μ)
@@ -87,6 +99,15 @@ function first_piola_kirchhoff(::NeoHooke, storage::AbstractStorage,
     return P
 end
 
+function strain_energy_density(::NeoHooke, storage::AbstractStorage,
+                               params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
+    J = det(F)
+    C = F' * F
+    I₁ = tr(C)
+    Ψ = 0.5 * params.μ * (I₁ - 3) - params.μ * log(J) + 0.5 * params.λ * log(J)^2
+    return Ψ
+end
+
 @doc raw"""
     MooneyRivlin
 
@@ -126,6 +147,17 @@ function first_piola_kirchhoff(::MooneyRivlin, storage::AbstractStorage,
     return P
 end
 
+function strain_energy_density(::MooneyRivlin, storage::AbstractStorage,
+                               params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
+    J = det(F)
+    J < eps() && return zero(T)
+    isnan(J) && return zero(T)
+    C = F' * F
+    I₁ = tr(C)
+    Ψ = 0.5 * params.G * (I₁ * J^(-2 / 3) - 3) + params.K / 8 * (J^2 + J^(-2) - 2)
+    return Ψ
+end
+
 @doc raw"""
     SaintVenantKirchhoff
 
@@ -153,4 +185,11 @@ function first_piola_kirchhoff(::SaintVenantKirchhoff, storage::AbstractStorage,
     S = params.λ * tr(E) * I + 2 * params.μ * E
     P = F * S
     return P
+end
+
+function strain_energy_density(::SaintVenantKirchhoff, storage::AbstractStorage,
+                               params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
+    E = 0.5 .* (F' * F - I)
+    Ψ = 0.5 * params.λ * tr(E)^2 + params.μ * tr(E * E)
+    return Ψ
 end
