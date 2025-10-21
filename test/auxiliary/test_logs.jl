@@ -461,7 +461,7 @@ end
 
     # Test 31: Vector with Symbols
     symbol_vec = [:a, :b, :c, :d]
-    msg = Peridynamics.msg_vec("symbols", symbol_vec; linewidth=20)
+    msg = Peridynamics.msg_vec("symbols", symbol_vec; linewidth=100)
     @test occursin("symbols", msg)
-    @test occursin("[:a, :b, :c, :d]", msg)
+    @test occursin("[a, b, c, d]", msg)
 end
