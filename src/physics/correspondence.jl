@@ -16,7 +16,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     The following models can be used:
     - [`LinearElastic`](@ref)
     - [`NeoHooke`](@ref)
-    - [`NeoHookeanPenalty`](@ref)
+    - [`NeoHookePenalty`](@ref)
     - [`SaintVenantKirchhoff`](@ref)
 - `zem::AbstractZEMStabilization`: Algorithm of zero-energy mode stabilization. \\
     (default: [`ZEMSilling`](@ref)) \\

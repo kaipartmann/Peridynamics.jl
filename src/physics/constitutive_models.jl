@@ -137,7 +137,7 @@ function strain_energy_density(::NeoHooke, storage::AbstractStorage,
 end
 
 @doc raw"""
-    NeoHookeanPenalty
+    NeoHookePenalty
 
 Compressible Neo-Hookean hyperelastic model with a penalty-type volumetric formulation,
 suitable for modeling rubber-like and biological materials. Can be specified when using a
@@ -180,9 +180,9 @@ If the Jacobian ``J`` is smaller than the machine precision `eps()` or a `NaN`, 
 energy density and first Piola-Kirchhoff stress tensor are defined as zero:
 ``\Psi = 0`` and ``\boldsymbol{P} = \boldsymbol{0}``.
 """
-struct NeoHookeanPenalty <: AbstractConstitutiveModel end
+struct NeoHookePenalty <: AbstractConstitutiveModel end
 
-function first_piola_kirchhoff(::NeoHookeanPenalty, storage::AbstractStorage,
+function first_piola_kirchhoff(::NeoHookePenalty, storage::AbstractStorage,
                                params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
     J = det(F)
     J < eps() && return zero(SMatrix{3,3,T,9})
@@ -195,7 +195,7 @@ function first_piola_kirchhoff(::NeoHookeanPenalty, storage::AbstractStorage,
     return P
 end
 
-function strain_energy_density(::NeoHookeanPenalty, storage::AbstractStorage,
+function strain_energy_density(::NeoHookePenalty, storage::AbstractStorage,
                                params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
     J = det(F)
     J < eps() && return zero(T)

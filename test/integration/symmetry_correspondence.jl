@@ -8,7 +8,7 @@
     pos = hcat(([x;y;z] for x in grid for y in grid for z in grid)...)
     n_points = size(pos, 2)
     vol = fill(Δx^3, n_points)
-    body = Body(CMaterial(model=NeoHookeanPenalty()), pos, vol)
+    body = Body(CMaterial(model=NeoHookePenalty()), pos, vol)
     material!(body, horizon=3.015Δx, rho=7850, E=210e9, nu=0.25)
     point_set!(z -> z > width/2 - 0.6Δx, body, :set_a)
     point_set!(z -> z < -width/2 + 0.6Δx, body, :set_b)

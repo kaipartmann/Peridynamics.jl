@@ -18,7 +18,7 @@ the center of the bonds.
     The following models can be used:
     - [`LinearElastic`](@ref)
     - [`NeoHooke`](@ref)
-    - [`NeoHookeanPenalty`](@ref)
+    - [`NeoHookePenalty`](@ref)
     - [`SaintVenantKirchhoff`](@ref)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
     (default: [`CriticalStretch`](@ref))

@@ -30,7 +30,7 @@ ZEMSilling
 ZEMWan
 LinearElastic
 NeoHooke
-MooneyRivlin
+NeoHookePenalty
 SaintVenantKirchhoff
 const_one_kernel
 linear_kernel
