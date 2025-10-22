@@ -124,10 +124,10 @@ end
     # Test 1: Zero stress at reference configuration
     F = @SMatrix [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
-    @test norm(P) < 1e-10
+    @test iszero(P)
 
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
-    @test abs(Ψ) < 1e-10
+    @test iszero(Ψ)
 end
 
 @testitem "LinearElastic - Small Strain Limit" setup=[AnalyticalTestCases] begin
@@ -139,22 +139,22 @@ end
     F = @SMatrix [1.0 γ 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
     P_analytical = analytical_pure_shear_small_strain(params.λ, params.μ, γ)
-    @test P ≈ P_analytical rtol=1e-3
+    @test P ≈ P_analytical
 
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
     Ψ_analytical = analytical_energy_pure_shear(params.λ, params.μ, γ)
-    @test Ψ ≈ Ψ_analytical rtol=1e-4
+    @test Ψ ≈ Ψ_analytical
 
     # Test 3: Uniaxial tension (small strain)
     ε = 0.01  # Small normal strain
     F = @SMatrix [1.0+ε 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
     P_analytical = analytical_uniaxial_small_strain(params.λ, params.μ, ε)
-    @test P ≈ P_analytical rtol=1e-3
+    @test P ≈ P_analytical
 
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
     Ψ_analytical = analytical_energy_uniaxial(params.λ, params.μ, ε)
-    @test Ψ ≈ Ψ_analytical rtol=1e-4
+    @test Ψ ≈ Ψ_analytical
 end
 
 @testitem "LinearElastic - Finite Strain" setup=[AnalyticalTestCases] begin
@@ -166,7 +166,7 @@ end
     F = @SMatrix [λ_stretch 0.0 0.0; 0.0 λ_stretch 0.0; 0.0 0.0 λ_stretch]
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
     Ψ_analytical = analytical_energy_volumetric(params.λ, params.μ, λ_stretch)
-    @test Ψ ≈ Ψ_analytical rtol=1e-10
+    @test Ψ ≈ Ψ_analytical
 end
 
 @testitem "SaintVenantKirchhoff - All Tests" setup=[AnalyticalTestCases] begin
@@ -176,36 +176,36 @@ end
     # Reference configuration
     F = @SMatrix [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
-    @test norm(P) < 1e-10
+    @test iszero(P)
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
-    @test abs(Ψ) < 1e-10
+    @test iszero(Ψ)
 
     # Small strain - pure shear
     γ = 0.01
     F = @SMatrix [1.0 γ 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
     P_analytical = analytical_pure_shear_small_strain(params.λ, params.μ, γ)
-    @test P ≈ P_analytical rtol=1e-3
+    @test P ≈ P_analytical
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
     Ψ_analytical = analytical_energy_pure_shear(params.λ, params.μ, γ)
-    @test Ψ ≈ Ψ_analytical rtol=1e-4
+    @test Ψ ≈ Ψ_analytical
 
     # Small strain - uniaxial tension
     ε = 0.01
     F = @SMatrix [1.0+ε 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
     P_analytical = analytical_uniaxial_small_strain(params.λ, params.μ, ε)
-    @test P ≈ P_analytical rtol=1e-3
+    @test P ≈ P_analytical
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
     Ψ_analytical = analytical_energy_uniaxial(params.λ, params.μ, ε)
-    @test Ψ ≈ Ψ_analytical rtol=1e-4
+    @test Ψ ≈ Ψ_analytical
 
     # Finite strain - volumetric
     λ_stretch = 1.1
     F = @SMatrix [λ_stretch 0.0 0.0; 0.0 λ_stretch 0.0; 0.0 0.0 λ_stretch]
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
     Ψ_analytical = analytical_energy_volumetric(params.λ, params.μ, λ_stretch)
-    @test Ψ ≈ Ψ_analytical rtol=1e-10
+    @test Ψ ≈ Ψ_analytical
 end
 
 @testitem "NeoHooke - Reference and Small Strain" setup=[AnalyticalTestCases] begin
@@ -215,20 +215,20 @@ end
     # Reference configuration
     F = @SMatrix [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
-    @test norm(P) < 1e-10
+    @test iszero(P)
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
-    @test abs(Ψ) < 1e-10
+    @test iszero(Ψ)
 
     # Small strain limit - should match linear elasticity
     γ = 0.001  # Very small for linearization
     F = @SMatrix [1.0 γ 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
     P_analytical = analytical_pure_shear_small_strain(params.λ, params.μ, γ)
-    @test P ≈ P_analytical rtol=0.01
+    @test P ≈ P_analytical rtol=1e-2
 
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
     Ψ_analytical = analytical_energy_pure_shear(params.λ, params.μ, γ)
-    @test Ψ ≈ Ψ_analytical rtol=0.01
+    @test Ψ ≈ Ψ_analytical rtol=1e-4
 end
 
 @testitem "NeoHooke - Incompressibility Check" setup=[AnalyticalTestCases] begin
@@ -241,7 +241,6 @@ end
     # Pure shear should give det(F) = 1
     γ = 0.5
     F = @SMatrix [1.0 γ 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
-    @test abs(det(F) - 1.0) < 1e-10
 
     # Verify stress exists and is finite
     P = Peridynamics.first_piola_kirchhoff(model, storage_incomp, params_incomp, F)
@@ -256,9 +255,9 @@ end
     # Reference configuration
     F = @SMatrix [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
-    @test norm(P) < 1e-10
+    @test iszero(P)
     Ψ = Peridynamics.strain_energy_density(model, storage, params, F)
-    @test abs(Ψ) < 1e-10
+    @test iszero(Ψ)
 
     # Small strain limit
     γ = 0.001
@@ -266,7 +265,7 @@ end
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
     P_analytical = analytical_pure_shear_small_strain(params.λ, params.μ, γ)
     # NeoHookePenalty has different formulation, so tolerance is higher
-    @test P ≈ P_analytical rtol=0.1
+    @test P ≈ P_analytical rtol=1e-2
 end
 
 @testitem "NeoHookePenalty - Volume Preservation" setup=[AnalyticalTestCases] begin
@@ -276,7 +275,6 @@ end
     # Isochoric deformation: stretch in one direction, compress in others
     λ = 1.2
     F = @SMatrix [λ 0.0 0.0; 0.0 1/sqrt(λ) 0.0; 0.0 0.0 1/sqrt(λ)]
-    @test abs(det(F) - 1.0) < 1e-10
 
     # Verify stress is finite and non-zero
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
@@ -293,7 +291,7 @@ end
 # ============================================================================ #
 
 @testsnippet ConsistencyChecker begin
-    using Peridynamics.StaticArrays, Peridynamics.Printf
+    using Peridynamics.StaticArrays, Peridynamics.Printf, Peridynamics.LinearAlgebra
     using ForwardDiff
 
     function get_storage_params_test_setup(model)
@@ -342,9 +340,9 @@ end
     storage_nh, params_nh = get_storage_params_test_setup(model_nh)
     setup_nh = (; model=model_nh, storage=storage_nh, params=params_nh)
 
-    model_mr = NeoHookePenalty()
-    storage_mr, params_mr = get_storage_params_test_setup(model_mr)
-    setup_mr = (; model=model_mr, storage=storage_mr, params=params_mr)
+    model_nhp = NeoHookePenalty()
+    storage_nhp, params_nhp = get_storage_params_test_setup(model_nhp)
+    setup_nhp = (; model=model_nhp, storage=storage_nhp, params=params_nhp)
 
     # Test 1: Isotropic extension
     λxyz = 1.2
@@ -352,7 +350,7 @@ end
     @test pk1(setup_le, F) ≈ pk1_ad(setup_le, F)
     @test pk1(setup_svk, F) ≈ pk1_ad(setup_svk, F)
     @test pk1(setup_nh, F) ≈ pk1_ad(setup_nh, F)
-    @test pk1(setup_mr, F) ≈ pk1_ad(setup_mr, F)
+    @test pk1(setup_nhp, F) ≈ pk1_ad(setup_nhp, F)
 
     # Test 2: Pure shear
     β = 0.1
@@ -360,7 +358,7 @@ end
     @test pk1(setup_le, F) ≈ pk1_ad(setup_le, F)
     @test pk1(setup_svk, F) ≈ pk1_ad(setup_svk, F)
     @test pk1(setup_nh, F) ≈ pk1_ad(setup_nh, F)
-    @test pk1(setup_mr, F) ≈ pk1_ad(setup_mr, F)
+    @test pk1(setup_nhp, F) ≈ pk1_ad(setup_nhp, F)
 
     # Test 3: Uniaxial tension in x-direction
     λx = 1.1
@@ -368,7 +366,7 @@ end
     @test pk1(setup_le, F) ≈ pk1_ad(setup_le, F)
     @test pk1(setup_svk, F) ≈ pk1_ad(setup_svk, F)
     @test pk1(setup_nh, F) ≈ pk1_ad(setup_nh, F)
-    @test pk1(setup_mr, F) ≈ pk1_ad(setup_mr, F)
+    @test pk1(setup_nhp, F) ≈ pk1_ad(setup_nhp, F)
 
     # Test 4: Uniaxial tension in y-direction
     λy = 1.2
@@ -376,7 +374,7 @@ end
     @test pk1(setup_le, F) ≈ pk1_ad(setup_le, F)
     @test pk1(setup_svk, F) ≈ pk1_ad(setup_svk, F)
     @test pk1(setup_nh, F) ≈ pk1_ad(setup_nh, F)
-    @test pk1(setup_mr, F) ≈ pk1_ad(setup_mr, F)
+    @test pk1(setup_nhp, F) ≈ pk1_ad(setup_nhp, F)
 
     # Test 5: Uniaxial tension in z-direction
     λz = 1.3
@@ -384,12 +382,149 @@ end
     @test pk1(setup_le, F) ≈ pk1_ad(setup_le, F)
     @test pk1(setup_svk, F) ≈ pk1_ad(setup_svk, F)
     @test pk1(setup_nh, F) ≈ pk1_ad(setup_nh, F)
-    @test pk1(setup_mr, F) ≈ pk1_ad(setup_mr, F)
+    @test pk1(setup_nhp, F) ≈ pk1_ad(setup_nhp, F)
 
     # Test 6: Combined shear and extension
     F = @SMatrix [1.1 0.05 0.0; 0.0 1.15 0.0; 0.0 0.0 1.05]
     @test pk1(setup_le, F) ≈ pk1_ad(setup_le, F)
     @test pk1(setup_svk, F) ≈ pk1_ad(setup_svk, F)
     @test pk1(setup_nh, F) ≈ pk1_ad(setup_nh, F)
-    @test pk1(setup_mr, F) ≈ pk1_ad(setup_mr, F)
+    @test pk1(setup_nhp, F) ≈ pk1_ad(setup_nhp, F)
+
+    # Test 7: Combined large deformation
+    F = 2 * @SMatrix [1.1 0.05 0.1; 0.02 1.15 0.2; 0.4 0.01 1.05]
+    @test pk1(setup_le, F) ≈ pk1_ad(setup_le, F)
+    @test pk1(setup_svk, F) ≈ pk1_ad(setup_svk, F)
+    @test pk1(setup_nh, F) ≈ pk1_ad(setup_nh, F)
+    @test pk1(setup_nhp, F) ≈ pk1_ad(setup_nhp, F)
+
+    # Test 8: Random large deformation
+    F = 2I + @SMatrix rand(3, 3)
+    @test pk1(setup_le, F) ≈ pk1_ad(setup_le, F)
+    @test pk1(setup_svk, F) ≈ pk1_ad(setup_svk, F)
+    @test pk1(setup_nh, F) ≈ pk1_ad(setup_nh, F)
+    @test pk1(setup_nhp, F) ≈ pk1_ad(setup_nhp, F)
+end
+
+# ============================================================================ #
+# CAUCHY STRESS VERIFICATION TESTS
+# ============================================================================ #
+# These tests verify the physical properties that Cauchy stress must satisfy
+# for all hyperelastic materials. The Cauchy stress is computed as:
+# σ = (1/J) * P * F^T, where J = det(F)
+#
+# Note: We test physical properties (symmetry, zero stress at reference, etc.)
+# rather than specific analytical values, since the constitutive models may
+# use formulations that differ from classical textbook solutions while still
+# being thermodynamically consistent (verified by P = ∂Ψ/∂F tests above).
+# ============================================================================ #
+
+@testitem "Cauchy Stress: Physical Properties" begin
+    using Peridynamics.StaticArrays
+    using LinearAlgebra
+
+    # Test physical properties that should hold for all hyperelastic materials
+    E = 210e9
+    nu = 0.3
+    pos, vol = uniform_box(1.0, 1.0, 1.0, 0.5)
+
+    # Test 1: Symmetry of Cauchy stress tensor for general deformation
+    F = @SMatrix [1.2 0.1 0.05; 0.05 1.15 0.08; 0.03 0.06 1.1]
+
+    for model in [LinearElastic(), SaintVenantKirchhoff(), NeoHooke(), NeoHookePenalty()]
+        mat = CMaterial(; model)
+        body = Body(mat, pos, vol)
+        material!(body; horizon=1, E, nu, rho=7850)
+
+        decomp = Peridynamics.PointDecomposition(body, 1)
+        system = Peridynamics.get_system(body, decomp, 1)
+        solver = VelocityVerlet(steps=1)
+        storage = Peridynamics.CStorage(mat, solver, system)
+        params = body.point_params[1]
+
+        P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
+        σ = Peridynamics.cauchy_stress(P, F)
+
+        # Cauchy stress must be symmetric
+        @test σ ≈ σ'
+    end
+
+    # Test 2: Zero stress at reference configuration
+    F = @SMatrix [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
+
+    for model in [LinearElastic(), SaintVenantKirchhoff(), NeoHooke(), NeoHookePenalty()]
+        mat = CMaterial(; model)
+        body = Body(mat, pos, vol)
+        material!(body; horizon=1, E, nu, rho=7850)
+
+        decomp = Peridynamics.PointDecomposition(body, 1)
+        system = Peridynamics.get_system(body, decomp, 1)
+        solver = VelocityVerlet(steps=1)
+        storage = Peridynamics.CStorage(mat, solver, system)
+        params = body.point_params[1]
+
+        P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
+        σ = Peridynamics.cauchy_stress(P, F)
+
+        @test norm(σ) ≈ 0.0 atol=eps()
+    end
+
+    # Test 3: Positive normal stress under tension
+    F = @SMatrix [1.1 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
+
+    for model in [LinearElastic(), SaintVenantKirchhoff(), NeoHooke(), NeoHookePenalty()]
+        mat = CMaterial(; model)
+        body = Body(mat, pos, vol)
+        material!(body; horizon=1, E, nu, rho=7850)
+
+        decomp = Peridynamics.PointDecomposition(body, 1)
+        system = Peridynamics.get_system(body, decomp, 1)
+        solver = VelocityVerlet(steps=1)
+        storage = Peridynamics.CStorage(mat, solver, system)
+        params = body.point_params[1]
+
+        P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
+        σ = Peridynamics.cauchy_stress(P, F)
+
+        # Under uniaxial tension, σ11 should be positive
+        @test σ[1,1] > 0
+    end
+
+    # Test 4: Test Cauchy stress under triaxial deformation
+    λ1, λ2, λ3 = 1.01, 1.02, 1.03
+    F = @SMatrix [λ1 0 0; 0 λ2 0; 0 0 λ3]
+    for model in [LinearElastic(), SaintVenantKirchhoff(), NeoHooke(), NeoHookePenalty()]
+        mat = CMaterial(; model)
+        body = Body(mat, pos, vol)
+        material!(body; horizon=1, E, nu, rho=7850)
+
+        decomp = Peridynamics.PointDecomposition(body, 1)
+        system = Peridynamics.get_system(body, decomp, 1)
+        solver = VelocityVerlet(steps=1)
+        storage = Peridynamics.CStorage(mat, solver, system)
+        params = body.point_params[1]
+
+        P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
+        σ = Peridynamics.cauchy_stress(P, F)
+
+        # Check that normal stresses correspond to stretches
+        @test P[1,1] > 0
+        @test P[2,2] > 0
+        @test P[3,3] > 0
+        @test P[1,2] ≈ 0.0 atol=eps()
+        @test P[2,1] ≈ 0.0 atol=eps()
+        @test P[1,3] ≈ 0.0 atol=eps()
+        @test P[3,1] ≈ 0.0 atol=eps()
+        @test P[2,3] ≈ 0.0 atol=eps()
+        @test P[3,2] ≈ 0.0 atol=eps()
+        @test σ[1,1] > 0
+        @test σ[2,2] > 0
+        @test σ[3,3] > 0
+        @test σ[1,2] ≈ 0.0 atol=eps()
+        @test σ[2,1] ≈ 0.0 atol=eps()
+        @test σ[1,3] ≈ 0.0 atol=eps()
+        @test σ[3,1] ≈ 0.0 atol=eps()
+        @test σ[2,3] ≈ 0.0 atol=eps()
+        @test σ[3,2] ≈ 0.0 atol=eps()
+    end
 end
