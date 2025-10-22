@@ -421,7 +421,8 @@ function export_reference_results(dh::MPIBodyDataHandler, options::AbstractJobOp
     return nothing
 end
 
-function initialize!(::AbstractMPIBodyDataHandler, ::AbstractTimeSolver)
+function initialize!(dh::AbstractMPIBodyDataHandler, solver::AbstractTimeSolver)
+    calc_force_density!(dh, 0.0, solver.Δt)
     return nothing
 end
 

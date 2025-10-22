@@ -180,3 +180,16 @@ function get_root_and_freq(o::Dict{Symbol,Any})
 
     return root, freq
 end
+
+function log_job_options(options::JobOptions)
+    msg = "EXPORT OPTIONS:\n"
+    if options.export_allowed
+        msg *= msg_qty("export frequency (export every nth step)", options.freq)
+        msg *= msg_path("root path", options.root; continuation_label="         ")
+        msg *= msg_export_fields(options.fields)
+    else
+        msg *= msg_qty("export allowed", "false")
+    end
+    log_it(options, msg)
+    return nothing
+end

@@ -447,13 +447,14 @@ function rkc_defgrad!(storage::AbstractStorage, system::AbstractBondSystem,
     return nothing
 end
 
-function calc_force_density!(chunk::BodyChunk{<:BondSystem,<:AbstractRKCMaterial}, t, Δt)
-    (; system, mat, paramsetup, storage) = chunk
-    storage.b_int .= 0
-    for i in each_point_idx(chunk)
+function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
+                             mat::AbstractRKCMaterial, paramsetup::AbstractParameterSetup,
+                             t, Δt)
+    storage.b_int .= 0.0
+    for i in each_point_idx(system)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
-    nancheck(chunk, t, Δt)
+    nancheck(storage, t, Δt)
     return nothing
 end
 

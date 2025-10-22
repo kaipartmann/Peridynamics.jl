@@ -69,6 +69,7 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `b_ext::Matrix{Float64}`: External force density of each point.
 - `damage::Vector{Float64}`: Damage of each point.
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
+- `strain_energy_density::Vector{Float64}`: Strain energy density of each point.
 """
 struct DHBBMaterial{Correction,DM} <: AbstractBondBasedMaterial{Correction}
     dmgmodel::DM
@@ -103,31 +104,24 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
-    bond_stretch::Vector{Float64}
+    bond_length::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
-end
-
-function init_field(::DHBBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
-    return zeros(3, get_n_points(system))
-end
-
-function init_field(::DHBBMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:bond_stretch})
-    return zeros(get_n_bonds(system))
+    @pointfield strain_energy_density::Vector{Float64}
 end
 
 function force_density_point!(storage::DHBBStorage, system::BondSystem, ::DHBBMaterial,
                               params::StandardPointParameters, t, Δt, i)
-    (; position, bond_stretch, bond_active, b_int) = storage
+    (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
-        j = bond.neighbor
+        j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(position, i, j)
-        ε = bond_stretch[bond_id]
+        l = bond_length[bond_id]
+        ε = (l - L) / L
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * params.bc * ε .* Δxij
+        b = ω * params.bc * ε .* Δxij / l
         update_add_vector!(b_int, i, b * volume[j])
         update_add_vector!(b_int, j, -b * volume[i])
     end
@@ -136,19 +130,40 @@ end
 
 function force_density_point!(storage::DHBBStorage, system::BondSystem, ::DHBBMaterial,
                               paramhandler::ParameterHandler, t, Δt, i)
-    (; position, bond_stretch, bond_active, b_int) = storage
+    (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     params_i = get_params(paramhandler, i)
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
-        j = bond.neighbor
+        j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(position, i, j)
-        ε = bond_stretch[bond_id]
+        l = bond_length[bond_id]
+        ε = (l - L) / L
         params_j = get_params(paramhandler, j)
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * (params_i.bc + params_j.bc) / 2 * ε .* Δxij
+        b = ω * (params_i.bc + params_j.bc) / 2 * ε .* Δxij / l
         update_add_vector!(b_int, i, b * volume[j])
         update_add_vector!(b_int, j, -b * volume[i])
     end
+    return nothing
+end
+
+function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
+                                      ::DHBBMaterial, paramsetup::AbstractParameterSetup, i)
+    (; bond_active, bond_length, strain_energy_density) = storage
+    (; bonds, correction, volume) = system
+    params_i = get_params(paramsetup, i)
+    Ψ = 0.0
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        l = bond_length[bond_id]
+        ε = (l - L) / L
+        params_j = get_params(paramsetup, j)
+        ωij = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        bc = (params_i.bc + params_j.bc) / 2
+        Ψ += 0.5 * ωij * bc * ε * ε * L * volume[j] # added factor 2 here!
+    end
+    strain_energy_density[i] = Ψ
     return nothing
 end

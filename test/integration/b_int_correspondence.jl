@@ -166,3 +166,70 @@ end
     # @test isapprox(b_int, b_int_theory; atol=5eps())
     @test b_int[:,5] ≈ [0.0, 0.0, 0.0]
 end
+
+@testitem "Exported von Mises stress CMaterial" begin
+    using Peridynamics.StaticArrays
+
+    ref_position = [0.0 1.0 0.0 0.0 2.0
+                    0.0 0.0 1.0 0.0 2.0
+                    0.0 0.0 0.0 1.0 2.0]
+    volume = fill(1.0, 5)
+    δ = 1.5
+    body = Body(CMaterial(), ref_position, volume)
+    material!(body, horizon=δ, rho=8000, E=210e9, nu=0.25, Gc=100.0)
+    no_failure!(body)
+
+    dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+    chunk = dh.chunks[1]
+    (; mat, storage, system, paramsetup) = chunk
+    (; cauchy_stress) = storage
+
+    # set some stresses
+    σx, σy, σz = 100.0, 100.0, 100.0
+    τxy, τyz, τzx = 100.0, 100.0, 100.0
+    σ = @SMatrix [σx τxy τzx; τxy σy τyz; τzx τyz σz]
+    for i in 1:5
+        Peridynamics.update_tensor!(cauchy_stress, i, σ)
+    end
+
+    field_val = Val(:von_mises_stress)
+    σvm = Peridynamics.export_field(field_val, mat, system, storage, paramsetup, 0.0)
+
+    @test all(σvm .≈ 300.0)
+end
+
+@testitem "Exported von Mises stress CRMaterial" begin
+    using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
+
+    ref_position = [0.0 1.0 0.0 0.0 2.0
+                    0.0 0.0 1.0 0.0 2.0
+                    0.0 0.0 0.0 1.0 2.0]
+    volume = fill(1.0, 5)
+    δ = 1.5
+    body = Body(CRMaterial(), ref_position, volume)
+    material!(body, horizon=δ, rho=8000, E=210e9, nu=0.25, Gc=100.0)
+    no_failure!(body)
+
+    dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+    chunk = dh.chunks[1]
+    (; mat, storage, system, paramsetup) = chunk
+    (; unrotated_stress) = storage
+
+    # rotation should be identity at initialization
+    for i in 1:5
+        R = Peridynamics.get_tensor(storage.rotation, i)
+        @test R ≈ I
+    end
+
+    # set some stresses
+    σx, σy, σz = 100.0, 100.0, 100.0
+    τxy, τyz, τzx = 100.0, 100.0, 100.0
+    σ = @SMatrix [σx τxy τzx; τxy σy τyz; τzx τyz σz]
+    for i in 1:5
+        Peridynamics.update_tensor!(unrotated_stress, i, σ)
+    end
+
+    field_val = Val(:von_mises_stress)
+    σvm = Peridynamics.export_field(field_val, mat, system, storage, paramsetup, 0.0)
+    @test all(σvm .≈ 300.0)
+end

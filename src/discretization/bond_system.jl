@@ -257,15 +257,22 @@ end
 
 function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem}, t, Δt)
     (; system, mat, paramsetup, storage) = chunk
+    calc_force_density!(storage, system, mat, paramsetup, t, Δt)
+    return nothing
+end
+
+function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
+                             mat::AbstractBondSystemMaterial,
+                             paramsetup::AbstractParameterSetup, t, Δt)
     (; dmgmodel) = mat
-    storage.b_int .= 0
+    storage.b_int .= 0.0
     storage.n_active_bonds .= 0
-    for i in each_point_idx(chunk)
+    for i in each_point_idx(system)
         calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
-    nancheck(chunk, t, Δt)
+    nancheck(storage, t, Δt)
     return nothing
 end
 
@@ -380,7 +387,9 @@ end
 
 function log_material(mat::M; indentation::Int=2) where {M<:AbstractBondSystemMaterial}
     msg = msg_qty("material type", nameof(M); indentation)
-    msg *= msg_qty("correction type", correction_type(mat); indentation)
+    if !(correction_type(mat) <: Nothing)
+        msg *= msg_qty("correction type", correction_type(mat); indentation)
+    end
     for prop in fieldnames(M)
         msg *= log_material_property(Val(prop), mat; indentation)
     end

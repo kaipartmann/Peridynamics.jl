@@ -17,11 +17,11 @@ end
     body = Body(BBMaterial(), ref_position, volume)
     material!(body, horizon=δ, rho=1, E=E)
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
-    chunk = dh.chunks[1]
-    (; b_int) = chunk.storage
+    (; storage) = dh.chunks[1]
+    (; b_int) = storage
 
-    @test Peridynamics.nancheck(chunk, 0.0, 0.0) === nothing
+    @test Peridynamics.nancheck(storage, 0.0, 0.0) === nothing
 
     b_int[3, end] = NaN
-    @test_throws ErrorException Peridynamics.nancheck(chunk, 0.0, 0.0)
+    @test_throws ErrorException Peridynamics.nancheck(storage, 0.0, 0.0)
 end
