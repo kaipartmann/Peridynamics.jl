@@ -13,7 +13,7 @@ export BBMaterial, DHBBMaterial, OSBMaterial, CMaterial, CRMaterial, BACMaterial
        CKIMaterial, RKCMaterial, RKCRMaterial
 
 # CMaterial related types
-export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling, ZEMWan
+export LinearElastic, NeoHooke, NeoHookeanPenalty, SaintVenantKirchhoff, ZEMSilling, ZEMWan
 
 # Kernels
 export const_one_kernel, linear_kernel, cubic_b_spline_kernel, cubic_b_spline_kernel_norm

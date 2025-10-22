@@ -2,7 +2,7 @@
     mat = CRMaterial()
     @test mat.constitutive_model isa LinearElastic
 
-    @test_throws ArgumentError CRMaterial(model=MooneyRivlin())
+    @test_throws ArgumentError CRMaterial(model=NeoHookeanPenalty())
 
     io = IOBuffer()
     show(IOContext(io, :compact=>true), MIME("text/plain"), mat)

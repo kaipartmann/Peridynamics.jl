@@ -249,8 +249,8 @@ end
     @test norm(P) > 0
 end
 
-@testitem "MooneyRivlin - Reference and Small Strain" setup=[AnalyticalTestCases] begin
-    model = MooneyRivlin()
+@testitem "NeoHookeanPenalty - Reference and Small Strain" setup=[AnalyticalTestCases] begin
+    model = NeoHookeanPenalty()
     storage, params = setup_material(model; E=210e9, nu=0.3, rho=7850)
 
     # Reference configuration
@@ -265,12 +265,12 @@ end
     F = @SMatrix [1.0 γ 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     P = Peridynamics.first_piola_kirchhoff(model, storage, params, F)
     P_analytical = analytical_pure_shear_small_strain(params.λ, params.μ, γ)
-    # MooneyRivlin has different formulation, so tolerance is higher
+    # NeoHookeanPenalty has different formulation, so tolerance is higher
     @test P ≈ P_analytical rtol=0.1
 end
 
-@testitem "MooneyRivlin - Volume Preservation" setup=[AnalyticalTestCases] begin
-    model = MooneyRivlin()
+@testitem "NeoHookeanPenalty - Volume Preservation" setup=[AnalyticalTestCases] begin
+    model = NeoHookeanPenalty()
     storage, params = setup_material(model; E=210e9, nu=0.3, rho=7850)
 
     # Isochoric deformation: stretch in one direction, compress in others
@@ -342,7 +342,7 @@ end
     storage_nh, params_nh = get_storage_params_test_setup(model_nh)
     setup_nh = (; model=model_nh, storage=storage_nh, params=params_nh)
 
-    model_mr = MooneyRivlin()
+    model_mr = NeoHookeanPenalty()
     storage_mr, params_mr = get_storage_params_test_setup(model_mr)
     setup_mr = (; model=model_mr, storage=storage_mr, params=params_mr)
 

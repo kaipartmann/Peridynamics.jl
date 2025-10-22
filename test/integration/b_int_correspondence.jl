@@ -4,7 +4,7 @@
                     0.0 0.0 0.0 1.0 2.0]
     volume = fill(1.0, 5)
     δ = 1.5
-    body = Body(CMaterial(model=MooneyRivlin()), ref_position, volume)
+    body = Body(CMaterial(model=NeoHookeanPenalty()), ref_position, volume)
     material!(body, horizon=δ, rho=1, E=1, nu=0.25, Gc=1.0)
     no_failure!(body)
 
@@ -36,7 +36,7 @@ end
                     0.0 0.0 0.0 1.0 2.0]
     volume = fill(1.0, 5)
     δ = 1.5
-    body = Body(CMaterial(model=MooneyRivlin(), zem=ZEMWan()), ref_position, volume)
+    body = Body(CMaterial(model=NeoHookeanPenalty(), zem=ZEMWan()), ref_position, volume)
     material!(body, horizon=δ, rho=1, E=1, nu=0.25, Gc=1.0)
     no_failure!(body)
 
@@ -68,7 +68,7 @@ end
                     0.0 0.0 0.0 1.0 2.0]
     volume = fill(1.0, 5)
     δ = 1.5
-    body = Body(CMaterial(model=MooneyRivlin()), ref_position, volume)
+    body = Body(CMaterial(model=NeoHookeanPenalty()), ref_position, volume)
     point_set!(body, :a, [1])
     point_set!(body, :b, [2,3,4,5])
     material!(body, :a, horizon=δ, rho=1, E=1, nu=0.25, Gc=1.0)

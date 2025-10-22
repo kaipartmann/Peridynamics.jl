@@ -87,8 +87,8 @@ end
 @doc raw"""
     NeoHooke
 
-Neo-Hookean constitutive model that can be specified when using a [`CMaterial`](@ref) and
-[`BACMaterial`](@ref).
+Compressible Neo-Hookean hyperelastic constitutive model that can be specified when using
+a [`CMaterial`](@ref) and [`BACMaterial`](@ref).
 
 The strain energy density ``\Psi`` is given by
 ```math
@@ -110,6 +110,11 @@ The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
 ```
 with the deformation gradient ``\boldsymbol{F}`` and the second Piola-Kirchhoff stress
 ``\boldsymbol{S}``.
+
+# Reference
+Treloar, L. R. G. (1943). "The elasticity of a network of long-chain molecules—II."
+*Transactions of the Faraday Society*, 39, 241–246.
+DOI: [10.1039/TF9433900241](https://doi.org/10.1039/TF9433900241)
 """
 struct NeoHooke <: AbstractConstitutiveModel end
 
@@ -132,16 +137,18 @@ function strain_energy_density(::NeoHooke, storage::AbstractStorage,
 end
 
 @doc raw"""
-    MooneyRivlin
+    NeoHookeanPenalty
 
-Mooney-Rivlin constitutive model that can be specified when using a [`CMaterial`](@ref) and
-[`BACMaterial`](@ref).
+Compressible Neo-Hookean hyperelastic model with a penalty-type volumetric formulation,
+suitable for modeling rubber-like and biological materials. Can be specified when using a
+[`CMaterial`](@ref) and [`BACMaterial`](@ref).
 
 The strain energy density ``\Psi`` is given by
 ```math
-\Psi = \frac{1}{2} G \left( I_1 \, J^{-\frac{2}{3}} - 3 \right) + \frac{K}{8} \left( J^2 + J^{-2} - 2 \right) \; ,
+\Psi = \frac{1}{2} G \left( \bar{I}_1 - 3 \right) + \frac{K}{8} \left( J^2 + J^{-2} - 2 \right) \; ,
 ```
-with the first invariant ``I_1 = \mathrm{tr}(\boldsymbol{C})`` of the right Cauchy-Green
+with the modified first invariant ``\bar{I}_1 = I_1 J^{-2/3}`` where
+``I_1 = \mathrm{tr}(\boldsymbol{C})`` is the first invariant of the right Cauchy-Green
 deformation tensor ``\boldsymbol{C} = \boldsymbol{F}^{\top} \boldsymbol{F}``, the Jacobian
 ``J = \mathrm{det}(\boldsymbol{F})``, the shear modulus ``G``, and the bulk modulus ``K``.
 
@@ -150,7 +157,7 @@ The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
 \begin{aligned}
 \boldsymbol{C} &= \boldsymbol{F}^{\top} \boldsymbol{F} \; , \\
 \boldsymbol{S} &= G \left( \boldsymbol{I} - \frac{1}{3} \mathrm{tr}(\boldsymbol{C})
-                           \boldsymbol{C}^{-1} \right) \cdot J^{-\frac{2}{3}}
+                           \boldsymbol{C}^{-1} \right) J^{-\frac{2}{3}}
                 + \frac{K}{4} \left( J^2 - J^{-2} \right) \boldsymbol{C}^{-1} \; , \\
 \boldsymbol{P} &= \boldsymbol{F} \, \boldsymbol{S} \; ,
 \end{aligned}
@@ -158,14 +165,24 @@ The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
 with the deformation gradient ``\boldsymbol{F}`` and the second Piola-Kirchhoff stress
 ``\boldsymbol{S}``.
 
+!!! note "Penalty-type volumetric formulation"
+    This model uses a penalty-type volumetric term ``\Psi_{\mathrm{vol}} = \frac{K}{8}(J^2 + J^{-2} - 2)``,
+    which is computationally efficient and widely used in commercial finite element codes
+    for nearly-incompressible materials. The term penalizes volume changes from the
+    reference configuration (``J = 1``).
+
+    This differs from other volumetric formulations such as:
+    - Standard Neo-Hookean (logarithmic): ``\Psi_{\mathrm{vol}} = -\mu \ln J + \frac{\lambda}{2}\ln^2 J``
+    - Simo-Miehe (polyconvex): ``\Psi_{\mathrm{vol}} = \frac{K}{4}(J^2 - 1 - 2\ln J)``
+
 # Error handling
 If the Jacobian ``J`` is smaller than the machine precision `eps()` or a `NaN`, the strain
 energy density and first Piola-Kirchhoff stress tensor are defined as zero:
 ``\Psi = 0`` and ``\boldsymbol{P} = \boldsymbol{0}``.
 """
-struct MooneyRivlin <: AbstractConstitutiveModel end
+struct NeoHookeanPenalty <: AbstractConstitutiveModel end
 
-function first_piola_kirchhoff(::MooneyRivlin, storage::AbstractStorage,
+function first_piola_kirchhoff(::NeoHookeanPenalty, storage::AbstractStorage,
                                params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
     J = det(F)
     J < eps() && return zero(SMatrix{3,3,T,9})
@@ -178,7 +195,7 @@ function first_piola_kirchhoff(::MooneyRivlin, storage::AbstractStorage,
     return P
 end
 
-function strain_energy_density(::MooneyRivlin, storage::AbstractStorage,
+function strain_energy_density(::NeoHookeanPenalty, storage::AbstractStorage,
                                params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
     J = det(F)
     J < eps() && return zero(T)
