@@ -465,3 +465,33 @@ end
     @test occursin("symbols", msg)
     @test occursin("[a, b, c, d]", msg)
 end
+
+@testitem "msg_fields*" begin
+    struct MyTestObject
+        integer::Int
+        float::Float64
+        string::String
+        vector::Vector{Float64}
+    end
+
+    data = MyTestObject(42, 3.14159, "hello", [1.0, 2.0, 3.0])
+
+    msg = Peridynamics.msg_fields(data)
+    @test occursin("integer", msg)
+    @test occursin("42", msg)
+    @test occursin("float", msg)
+    @test occursin("3.14159", msg)
+    @test occursin("string", msg)
+    @test occursin("hello", msg)
+    @test occursin("vector", msg)
+    @test occursin("[1.0, 2.0, 3.0]", msg)
+
+    msg_inline = Peridynamics.msg_fields_inline(data)
+    @test occursin("integer=42", msg_inline)
+    @test occursin("float=3.14159", msg_inline)
+    @test occursin("string=hello", msg_inline)
+    @test occursin("vector=[1.0, 2.0, 3.0]", msg_inline)
+
+    msg_brackets = Peridynamics.msg_fields_in_brackets(data)
+    @test msg_brackets == "(" * msg_inline * ")"
+end
