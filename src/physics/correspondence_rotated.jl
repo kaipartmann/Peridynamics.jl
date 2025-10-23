@@ -27,8 +27,8 @@ function CRMaterial(; kernel::Function=linear_kernel,
                     model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                     zem::AbstractZEMStabilization=ZEMSilling(),
                     dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85)
-    if !(model <: Union{SaintVenantKirchhoff,LinearElastic})
-        msg = "model `$(model)` is currently not supported for `CRMaterial`!\n"
+    if !(typeof(model) <: Union{SaintVenantKirchhoff,LinearElastic})
+        msg = "model `$(typeof(model))` is currently not supported for `CRMaterial`!\n"
         throw(ArgumentError(msg))
     end
     return CRMaterial(kernel, model, zem, dmgmodel, maxdmg)

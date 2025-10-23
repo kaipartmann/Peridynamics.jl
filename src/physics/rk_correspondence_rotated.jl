@@ -28,8 +28,8 @@ function RKCRMaterial(; kernel::Function=cubic_b_spline_kernel,
                         model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                         dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=1.0,
                         reprkernel::Symbol=:C1, regfactor::Real=1e-13)
-    if !(model <: Union{SaintVenantKirchhoff,LinearElastic})
-        msg = "model `$(model)` is currently not supported for `CRMaterial`!\n"
+    if !(typeof(model) <: Union{SaintVenantKirchhoff,LinearElastic})
+        msg = "model `$(typeof(model))` is currently not supported for `RKCRMaterial`!\n"
         throw(ArgumentError(msg))
     end
     get_q_dim(reprkernel) # check if the kernel is implemented
