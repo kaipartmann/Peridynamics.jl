@@ -53,7 +53,7 @@ end
 end
 
 function initialize!(dh::AbstractThreadsBodyDataHandler{BondSystem{EnergySurfaceCorrection}},
-                     ::AbstractTimeSolver)
+                     solver::AbstractTimeSolver)
     @threads :static for chunk in dh.chunks
         calc_mfactor!(chunk)
     end
@@ -61,14 +61,16 @@ function initialize!(dh::AbstractThreadsBodyDataHandler{BondSystem{EnergySurface
         exchange_loc_to_halo!(get_mfactor, dh, chunk_id)
         calc_scfactor!(dh.chunks[chunk_id])
     end
+    calc_force_density!(dh, 0.0, solver.Δt)
     return nothing
 end
 
 function initialize!(dh::AbstractMPIBodyDataHandler{BondSystem{EnergySurfaceCorrection}},
-                     ::AbstractTimeSolver)
+                     solver::AbstractTimeSolver)
     calc_mfactor!(dh.chunk)
     exchange_loc_to_halo!(get_mfactor, dh)
     calc_scfactor!(dh.chunk)
+    calc_force_density!(dh, 0.0, solver.Δt)
     return nothing
 end
 

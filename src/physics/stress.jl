@@ -4,7 +4,9 @@ function von_mises_stress(σ)
     a = σx * σx + σy * σy + σz * σz
     b = - σx * σy - σx * σz - σy * σz
     c = 3 * (τxy * τxy + τxz * τxz + τyz * τyz)
-    σvm = √(a + b + c)
+    d = a + b + c
+    d < 0 && return zero(eltype(σ))
+    σvm = √d
     return σvm
 end
 

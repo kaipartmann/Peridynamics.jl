@@ -105,20 +105,22 @@ end
 @inline get_hood_volume(chunk::AbstractBodyChunk) = chunk.system.hood_volume
 
 function initialize!(dh::AbstractThreadsBodyDataHandler{<:BondAssociatedSystem},
-                     ::AbstractTimeSolver)
+                     solver::AbstractTimeSolver)
     @threads :static for chunk in dh.chunks
         calc_hood_volumes!(chunk)
     end
     @threads :static for chunk_id in eachindex(dh.chunks)
         exchange_loc_to_halo!(get_hood_volume, dh, chunk_id)
     end
+    calc_force_density!(dh, 0.0, solver.Δt)
     return nothing
 end
 
 function initialize!(dh::AbstractMPIBodyDataHandler{<:BondAssociatedSystem},
-                     ::AbstractTimeSolver)
+                     solver::AbstractTimeSolver)
     calc_hood_volumes!(dh.chunk)
     exchange_loc_to_halo!(get_hood_volume, dh)
+    calc_force_density!(dh, 0.0, solver.Δt)
     return nothing
 end
 

@@ -56,7 +56,7 @@ end
     @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
-    @pointfield stress::Matrix{Float64}
+    @pointfield unrotated_stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
     @pointfield left_stretch::Matrix{Float64}
     @pointfield rotation::Matrix{Float64}
@@ -72,7 +72,8 @@ function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem, ::Va
     return zeros(3, get_n_points(system))
 end
 
-function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
+function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:unrotated_stress})
     return zeros(9, get_n_loc_points(system))
 end
 
@@ -139,11 +140,10 @@ function calc_first_piola_kirchhoff!(storage::CRStorage, mat::CRMaterial,
     Δε = D * Δt
     Δθ = tr(Δε)
     Δεᵈᵉᵛ = Δε - Δθ / 3 * I
-    σ = get_tensor(storage.stress, i)
+    σ = get_tensor(storage.unrotated_stress, i)
     σₙ₊₁ = σ + 2 * params.G * Δεᵈᵉᵛ + params.K * Δθ * I
-    update_tensor!(storage.stress, i, σₙ₊₁)
+    update_tensor!(storage.unrotated_stress, i, σₙ₊₁)
     T = rotate_stress(storage, σₙ₊₁, i)
-    storage.von_mises_stress[i] = von_mises_stress(T)
     P = first_piola_kirchhoff(T, F)
     PKinv = P * Kinv
     return PKinv
@@ -156,4 +156,15 @@ function calc_zem_stiffness_tensor!(storage::CRStorage, system::BondSystem, mat:
     R = get_tensor(rotation, i)
     C_1 = calc_rotated_zem_stiffness_tensor!(zem_stiffness_rotated, params.C, Kinv, R)
     return C_1
+end
+
+# calculate the von Mises stress from the Cauchy stress tensor just when exporting
+function export_field(::Val{:von_mises_stress}, ::CRMaterial, system::BondSystem,
+                      storage::AbstractStorage, ::AbstractParameterSetup, t)
+    for i in each_point_idx(system)
+        σ = get_tensor(storage.unrotated_stress, i)
+        T = rotate_stress(storage::AbstractStorage, σ, i)
+        storage.von_mises_stress[i] = von_mises_stress(T)
+    end
+    return storage.von_mises_stress
 end

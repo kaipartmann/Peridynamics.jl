@@ -13,6 +13,66 @@
     @test Peridynamics.cauchy_stress(P, F) ≈ σ
 end
 
+@testitem "Von Mises stress calculation" begin
+    using Peridynamics.StaticArrays
+
+    # zero stress
+    σx, σy, σz = 0, 0, 0
+    τxy, τyz, τzx = 0, 0, 0
+    σ = @SMatrix [σx τxy τzx; τxy σy τyz; τzx τyz σz]
+    σvm = Peridynamics.von_mises_stress(σ)
+    @test σvm ≈ 0 atol=eps()
+
+    # uniaxial stress x
+    σx, σy, σz = 100.0, 0, 0
+    τxy, τyz, τzx = 0, 0, 0
+    σ = @SMatrix [σx τxy τzx; τxy σy τyz; τzx τyz σz]
+    σvm = Peridynamics.von_mises_stress(σ)
+    @test σvm ≈ σx
+
+    # uniaxial stress y
+    σx, σy, σz = 0, 100.0, 0
+    τxy, τyz, τzx = 0, 0, 0
+    σ = @SMatrix [σx τxy τzx; τxy σy τyz; τzx τyz σz]
+    σvm = Peridynamics.von_mises_stress(σ)
+    @test σvm ≈ σy
+
+    # uniaxial stress z
+    σx, σy, σz = 0, 0, 100.0
+    τxy, τyz, τzx = 0, 0, 0
+    σ = @SMatrix [σx τxy τzx; τxy σy τyz; τzx τyz σz]
+    σvm = Peridynamics.von_mises_stress(σ)
+    @test σvm ≈ σz
+
+    # shear and axial loading
+    σx, σy, σz = 500, 300, 400
+    τxy, τyz, τzx = 300, 0, 0
+    σ = @SMatrix [σx τxy τzx; τxy σy τyz; τzx τyz σz]
+    σvm = Peridynamics.von_mises_stress(σ)
+    @test σvm ≈ √300000
+
+    # shear and axial loading
+    σx, σy, σz = 500, 300, 400
+    τxy, τyz, τzx = 0, 300, 0
+    σ = @SMatrix [σx τxy τzx; τxy σy τyz; τzx τyz σz]
+    σvm = Peridynamics.von_mises_stress(σ)
+    @test σvm ≈ √300000
+
+    # shear and axial loading
+    σx, σy, σz = 500, 300, 400
+    τxy, τyz, τzx = 0, 0, 300
+    σ = @SMatrix [σx τxy τzx; τxy σy τyz; τzx τyz σz]
+    σvm = Peridynamics.von_mises_stress(σ)
+    @test σvm ≈ √300000
+
+    # all shear and axial loading
+    σx, σy, σz = 100, 100, 100
+    τxy, τyz, τzx = 100, 100, 100
+    σ = @SMatrix [σx τxy τzx; τxy σy τyz; τzx τyz σz]
+    σvm = Peridynamics.von_mises_stress(σ)
+    @test σvm ≈ 300
+end
+
 @testitem "init_stress_rotation!" begin
     using Peridynamics.StaticArrays
 
