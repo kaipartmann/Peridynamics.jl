@@ -59,6 +59,7 @@ end
     @pointfield update_gradients::Vector{Bool}
     @pointfield cauchy_stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
+    @pointfield strain_energy_density::Vector{Float64}
     @lthfield defgrad::Matrix{Float64}
     @lthfield defgrad_dot::Matrix{Float64}
     @lthfield weighted_volume::Vector{Float64}
@@ -167,3 +168,6 @@ function calc_first_piola_kirchhoff!(storage::RKCRStorage, mat::RKCRMaterial,
     update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
     return P
 end
+
+# This has to be done here, otherwise the type RKCRStorage is not known
+custom_field(::Type{RKCRStorage}, ::Val{:hydrostatic_stress}) = true

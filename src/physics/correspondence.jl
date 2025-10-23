@@ -182,36 +182,48 @@ end
     @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
+    @pointfield defgrad::Matrix{Float64}
     @pointfield cauchy_stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
+    @pointfield strain_energy_density::Vector{Float64}
 end
 
 function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
     return zeros(3, get_n_points(system))
 end
 
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:cauchy_stress})
+function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
+                    system::BondSystem, ::Val{:defgrad})
     return zeros(9, get_n_loc_points(system))
 end
 
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:von_mises_stress})
+function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
+                    system::BondSystem, ::Val{:cauchy_stress})
+    return zeros(9, get_n_loc_points(system))
+end
+
+function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
+                    system::BondSystem, ::Val{:von_mises_stress})
+    return zeros(get_n_loc_points(system))
+end
+
+function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
+                    system::BondSystem, ::Val{:strain_energy_density})
     return zeros(get_n_loc_points(system))
 end
 
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
                               mat::AbstractCorrespondenceMaterial,
                               params::AbstractPointParameters, t, Δt, i)
-    defgrad_res = calc_deformation_gradient(storage, system, mat, params, i)
+    defgrad_res = calc_deformation_gradient!(storage, system, mat, params, i)
     too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
     PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)
     c_force_density!(storage, system, mat, params, mat.zem, PKinv, defgrad_res, i)
     return nothing
 end
 
-function calc_deformation_gradient(storage::CStorage, system::BondSystem, ::CMaterial,
-                                   ::CPointParameters, i)
+function calc_deformation_gradient!(storage::CStorage, system::BondSystem, ::CMaterial,
+                                    ::CPointParameters, i)
     (; bonds, volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
@@ -231,6 +243,7 @@ function calc_deformation_gradient(storage::CStorage, system::BondSystem, ::CMat
     end
     Kinv = inv(K)
     F = _F * Kinv
+    Peridynamics.update_tensor!(storage.defgrad, i, F)
     return (; F, Kinv, ω0)
 end
 
@@ -317,11 +330,35 @@ function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
 end
 
 # calculate the von Mises stress from the Cauchy stress tensor just when exporting
-function export_field(::Val{:von_mises_stress}, ::CMaterial, system::BondSystem,
-                      storage::AbstractStorage, ::AbstractParameterSetup, t)
+function export_field(::Val{:von_mises_stress}, ::CMaterial,
+                      system::BondSystem, storage::AbstractStorage, ::AbstractParameterSetup, t)
     for i in each_point_idx(system)
         σ = get_tensor(storage.cauchy_stress, i)
         storage.von_mises_stress[i] = von_mises_stress(σ)
     end
     return storage.von_mises_stress
+end
+
+# calculate the von hydrostatic stress from the Cauchy stress tensor just when exporting,
+# use the `von_mises_stress` field to store the hydrostatic stress
+function export_field(::Val{:hydrostatic_stress}, ::CMaterial,
+                      system::BondSystem, storage::CStorage, ::AbstractParameterSetup, t)
+    for i in each_point_idx(system)
+        σ = get_tensor(storage.cauchy_stress, i)
+        storage.von_mises_stress[i] = 1/3 * (σ[1,1] + σ[2,2] + σ[3,3])
+    end
+    return storage.von_mises_stress
+end
+custom_field(::Type{CStorage}, ::Val{:hydrostatic_stress}) = true
+
+# calculate the strain energy density from the deformation gradient just when exporting
+function export_field(::Val{:strain_energy_density}, mat::CMaterial, system::BondSystem,
+                      storage::AbstractStorage, paramsetup::AbstractParameterSetup, t)
+    model = mat.constitutive_model
+    for i in each_point_idx(system)
+        params = get_params(paramsetup, i)
+        F = get_tensor(storage.defgrad, i)
+        storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F)
+    end
+    return storage.strain_energy_density
 end
