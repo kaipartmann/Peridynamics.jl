@@ -5,6 +5,7 @@ The same as the [`RKCMaterial`](@ref) but with rotation of the stress tensor for
 deformation simulations, therefore not all models are supported.
 
 Supported models:
+- `SaintVenantKirchhoff`
 - `LinearElastic`
 
 Please take a look at the [`RKCMaterial`](@ref) docs for more information about the
@@ -24,11 +25,11 @@ struct RKCRMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
 end
 
 function RKCRMaterial(; kernel::Function=cubic_b_spline_kernel,
-                        model::AbstractConstitutiveModel=LinearElastic(),
+                        model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                         dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=1.0,
                         reprkernel::Symbol=:C1, regfactor::Real=1e-13)
-    if !(model isa LinearElastic)
-        msg = "only `LinearElastic` is supported as model for `RKCRMaterial`!\n"
+    if !(model <: Union{SaintVenantKirchhoff,LinearElastic})
+        msg = "model `$(model)` is currently not supported for `CRMaterial`!\n"
         throw(ArgumentError(msg))
     end
     get_q_dim(reprkernel) # check if the kernel is implemented

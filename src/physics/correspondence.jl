@@ -12,12 +12,12 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     - [`linear_kernel`](@ref)
     - [`cubic_b_spline_kernel`](@ref)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
-    (default: `LinearElastic()`) \\
+    (default: `SaintVenantKirchhoff()`) \\
     The following models can be used:
+    - [`SaintVenantKirchhoff`](@ref)
     - [`LinearElastic`](@ref)
     - [`NeoHooke`](@ref)
     - [`NeoHookePenalty`](@ref)
-    - [`SaintVenantKirchhoff`](@ref)
 - `zem::AbstractZEMStabilization`: Algorithm of zero-energy mode stabilization. \\
     (default: [`ZEMSilling`](@ref)) \\
     The following algorithms can be used:
@@ -39,7 +39,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 
 ```julia-repl
 julia> mat = CMaterial()
-CMaterial{LinearElastic, ZEMSilling, typeof(linear_kernel), CriticalStretch}(maxdmg=0.85)
+CMaterial{SaintVenantKirchhoff, ZEMSilling, typeof(linear_kernel), CriticalStretch}(maxdmg=0.85)
 ```
 
 ---
@@ -119,7 +119,7 @@ struct CMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
 end
 
 function CMaterial(; kernel::Function=linear_kernel,
-                    model::AbstractConstitutiveModel=LinearElastic(),
+                    model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                     zem::AbstractZEMStabilization=ZEMSilling(),
                     dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85)
     return CMaterial(kernel, model, zem, dmgmodel, maxdmg)

@@ -14,12 +14,12 @@ the center of the bonds.
     - [`cubic_b_spline_kernel`](@ref)
     - [`cubic_b_spline_kernel_norm`](@ref)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
-    (default: `LinearElastic()`) \\
+    (default: `SaintVenantKirchhoff()`) \\
     The following models can be used:
+    - [`SaintVenantKirchhoff`](@ref)
     - [`LinearElastic`](@ref)
     - [`NeoHooke`](@ref)
     - [`NeoHookePenalty`](@ref)
-    - [`SaintVenantKirchhoff`](@ref)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
     (default: [`CriticalStretch`](@ref))
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
@@ -49,7 +49,7 @@ the center of the bonds.
 
 ```julia-repl
 julia> mat = RKCMaterial()
-RKCMaterial{LinearElastic, typeof(linear_kernel), CriticalStretch}(maxdmg=1.0)
+RKCMaterial{SaintVenantKirchhoff, typeof(linear_kernel), CriticalStretch}(maxdmg=1.0)
 ```
 
 ---
@@ -130,7 +130,7 @@ struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
 end
 
 function RKCMaterial(; kernel::Function=cubic_b_spline_kernel,
-                     model::AbstractConstitutiveModel=LinearElastic(),
+                     model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=1.0,
                      reprkernel::Symbol=:C1, regfactor::Real=1e-13)
     get_q_dim(reprkernel) # check if the kernel is implemented

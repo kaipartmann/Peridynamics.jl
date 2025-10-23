@@ -1,4 +1,53 @@
 @doc raw"""
+    SaintVenantKirchhoff
+
+Saint-Venant-Kirchhoff constitutive model that can be specified when using a
+[`CMaterial`](@ref) and [`BACMaterial`](@ref).
+
+The strain energy density ``\Psi`` is given by
+```math
+\Psi = \frac{1}{2} \lambda \, \mathrm{tr}(\boldsymbol{E})^2 + \mu \, \mathrm{tr}(\boldsymbol{E} \cdot \boldsymbol{E}) \; ,
+```
+with the first and second Lamé parameters ``\lambda`` and ``\mu``, and the Green-Lagrange
+strain tensor
+```math
+\boldsymbol{E} = \frac{1}{2} \left( \boldsymbol{F}^{\top} \boldsymbol{F} - \boldsymbol{I}
+                              \right) \; .
+```
+
+The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
+```math
+\begin{aligned}
+\boldsymbol{S} &= \lambda \, \mathrm{tr}(\boldsymbol{E}) \, \boldsymbol{I}
+                + 2 \mu \boldsymbol{E} \; , \\
+\boldsymbol{P} &= \boldsymbol{F} \, \boldsymbol{S} \; ,
+\end{aligned}
+```
+with the deformation gradient ``\boldsymbol{F}`` and the second Piola-Kirchhoff stress
+``\boldsymbol{S}``.
+
+!!! note
+    This model is equivalent to the [`LinearElastic`](@ref) model, both using the same
+    strain energy density function.
+"""
+struct SaintVenantKirchhoff <: AbstractConstitutiveModel end
+
+function first_piola_kirchhoff(::SaintVenantKirchhoff, storage::AbstractStorage,
+                               params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
+    E = 0.5 .* (F' * F - I)
+    S = params.λ * tr(E) * I + 2 * params.μ * E
+    P = F * S
+    return P
+end
+
+function strain_energy_density(::SaintVenantKirchhoff, storage::AbstractStorage,
+                               params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
+    E = 0.5 .* (F' * F - I)
+    Ψ = 0.5 * params.λ * tr(E)^2 + params.μ * tr(E * E)
+    return Ψ
+end
+
+@doc raw"""
     LinearElastic
 
 Linear elastic constitutive model that can be specified when using a [`CMaterial`](@ref) and
@@ -26,8 +75,8 @@ with the deformation gradient ``\boldsymbol{F}``, the elastic stiffness tensor `
 and the second Piola-Kirchhoff stress ``\boldsymbol{S}``.
 
 !!! note
-    This model is equivalent to the Saint-Venant-Kirchhoff model, but uses a Voigt notation
-    representation for the stress calculation.
+    This model is equivalent to the Saint-Venant-Kirchhoff model, but uses a
+    different implementation based on the elastic stiffness tensor.
 """
 struct LinearElastic <: AbstractConstitutiveModel end
 
@@ -82,7 +131,6 @@ function get_hooke_matrix(nu, λ, μ)
     end
     return C
 end
-
 
 @doc raw"""
     NeoHooke
@@ -203,54 +251,5 @@ function strain_energy_density(::NeoHookePenalty, storage::AbstractStorage,
     C = F' * F
     I₁ = tr(C)
     Ψ = 0.5 * params.G * (I₁ * J^(-2 / 3) - 3) + params.K / 8 * (J^2 + J^(-2) - 2)
-    return Ψ
-end
-
-@doc raw"""
-    SaintVenantKirchhoff
-
-Saint-Venant-Kirchhoff constitutive model that can be specified when using a
-[`CMaterial`](@ref) and [`BACMaterial`](@ref).
-
-The strain energy density ``\Psi`` is given by
-```math
-\Psi = \frac{1}{2} \lambda \, \mathrm{tr}(\boldsymbol{E})^2 + \mu \, \mathrm{tr}(\boldsymbol{E} \cdot \boldsymbol{E}) \; ,
-```
-with the first and second Lamé parameters ``\lambda`` and ``\mu``, and the Green-Lagrange
-strain tensor
-```math
-\boldsymbol{E} = \frac{1}{2} \left( \boldsymbol{F}^{\top} \boldsymbol{F} - \boldsymbol{I}
-                              \right) \; .
-```
-
-The first Piola-Kirchhoff stress ``\boldsymbol{P}`` is given by
-```math
-\begin{aligned}
-\boldsymbol{S} &= \lambda \, \mathrm{tr}(\boldsymbol{E}) \, \boldsymbol{I}
-                + 2 \mu \boldsymbol{E} \; , \\
-\boldsymbol{P} &= \boldsymbol{F} \, \boldsymbol{S} \; ,
-\end{aligned}
-```
-with the deformation gradient ``\boldsymbol{F}`` and the second Piola-Kirchhoff stress
-``\boldsymbol{S}``.
-
-!!! note
-    This model is equivalent to the [`LinearElastic`](@ref) model, both using the same
-    strain energy density function.
-"""
-struct SaintVenantKirchhoff <: AbstractConstitutiveModel end
-
-function first_piola_kirchhoff(::SaintVenantKirchhoff, storage::AbstractStorage,
-                               params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
-    E = 0.5 .* (F' * F - I)
-    S = params.λ * tr(E) * I + 2 * params.μ * E
-    P = F * S
-    return P
-end
-
-function strain_energy_density(::SaintVenantKirchhoff, storage::AbstractStorage,
-                               params::AbstractPointParameters, F::SMatrix{3,3,T,9}) where T
-    E = 0.5 .* (F' * F - I)
-    Ψ = 0.5 * params.λ * tr(E)^2 + params.μ * tr(E * E)
     return Ψ
 end
