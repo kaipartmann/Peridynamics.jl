@@ -40,7 +40,7 @@ end
     # Test default constructor
     mat1 = RKCMaterial()
     @test mat1.kernel == cubic_b_spline_kernel
-    @test mat1.constitutive_model isa LinearElastic
+    @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
     @test mat1.maxdmg == 1.0
     @test mat1.reprkernel == :C1
@@ -49,14 +49,14 @@ end
     # Test constructor with parameters
     mat2 = RKCMaterial(
         kernel = linear_kernel,
-        model = SaintVenantKirchhoff(),
+        model = LinearElastic(),
         dmgmodel = CriticalStretch(),
         maxdmg = 0.75,
         reprkernel = :C1,
         regfactor = 1e-10
     )
     @test mat2.kernel == linear_kernel
-    @test mat2.constitutive_model isa SaintVenantKirchhoff
+    @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
     @test mat2.maxdmg == 0.75
     @test mat2.reprkernel == :C1
@@ -71,13 +71,13 @@ end
     # Test default constructor
     mat1 = RKCRMaterial()
     @test mat1.kernel == cubic_b_spline_kernel
-    @test mat1.constitutive_model isa LinearElastic
+    @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
     @test mat1.maxdmg == 1.0
     @test mat1.reprkernel == :C1
     @test mat1.regfactor == 1e-13
 
-    # Test constructor with parameters (only LinearElastic is supported)
+    # Test constructor with parameters (only linear elastic models are supported)
     mat2 = RKCRMaterial(
         kernel = linear_kernel,
         model = LinearElastic(),
@@ -94,7 +94,7 @@ end
     @test mat2.regfactor == 1e-10
 
     # Test failure with non-LinearElastic model
-    @test_throws ArgumentError RKCRMaterial(model = SaintVenantKirchhoff())
+    @test_throws ArgumentError RKCRMaterial(model = NeoHooke())
 
     # Test constructor with invalid regfactor
     @test_throws ArgumentError RKCRMaterial(regfactor = 2.0)

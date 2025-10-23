@@ -8,7 +8,7 @@ correspondence formulation of Chen and Spencer (2019).
 - `kernel::Function`: Kernel function used for weighting the interactions between points.
     (default: `linear_kernel`)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior.
-    (default: `LinearElastic()`)
+    (default: `SaintVenantKirchhoff()`)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the fracture behavior.
     (default: `CriticalStretch()`)
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
@@ -20,7 +20,7 @@ correspondence formulation of Chen and Spencer (2019).
 
 ```julia-repl
 julia> mat = BACMaterial()
-BACMaterial{LinearElastic, typeof(linear_kernel), CriticalStretch}()
+BACMaterial{SaintVenantKirchhoff, typeof(linear_kernel), CriticalStretch}()
 ```
 ---
 
@@ -76,7 +76,7 @@ struct BACMaterial{CM,K,DM} <: AbstractBondAssociatedSystemMaterial
 end
 
 function BACMaterial(; kernel::Function=linear_kernel,
-                     model::AbstractConstitutiveModel=LinearElastic(),
+                     model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(),
                      maxdmg::Real=0.85)
     return BACMaterial(kernel, model, dmgmodel, maxdmg)
