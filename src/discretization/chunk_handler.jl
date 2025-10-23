@@ -12,7 +12,8 @@ A type to handle a body chunk and its communication to other chunks.
 - `loc_points::UnitRange{Int}`: Indices of local points of the chunk.
 - `halo_points::Vector{Int}`: Indices of halo points of the chunk.
 - `hidxs_by_src::Dict{Int,UnitRange{Int}}`: Dict specifying the indices of halo Points
-    depending on the body chunk they belong to.
+    depending on the body chunk they belong to. So `body_chunk => indices`, with indices
+    being the indices of the halo points in `point_ids`.
 - `localizer::Dict{Int,Int}`: Localizes global indices to local indices in this chunk.
 """
 struct ChunkHandler <: AbstractChunkHandler
@@ -22,6 +23,17 @@ struct ChunkHandler <: AbstractChunkHandler
     halo_points::Vector{Int}
     hidxs_by_src::Dict{Int,UnitRange{Int}}
     localizer::Dict{Int,Int}
+end
+
+function ChunkHandler(pd::PointDecomposition, halo_points::Vector{Int}, chunk_id::Int)
+    loc_points = pd.decomp[chunk_id]
+    n_loc_points = length(loc_points)
+    hidxs_by_src = sort_halo_by_src!(halo_points, pd.point_src, length(loc_points))
+    point_ids = vcat(loc_points, halo_points)
+    localizer = find_localizer(point_ids)
+    chunk_handler = ChunkHandler(n_loc_points, point_ids, loc_points, halo_points,
+                                 hidxs_by_src, localizer)
+    return chunk_handler
 end
 
 for __field in fieldnames(ChunkHandler)

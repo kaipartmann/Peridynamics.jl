@@ -48,6 +48,7 @@ function submit_mpi(job::Job)
             initialize!(dh, job.time_solver)
             log_create_data_handler_end()
             log_data_handler(job.options, dh)
+            log_job_options(job.options)
             log_timesolver(job.options, job.time_solver)
         end
         @timeit_debug TO "solve!" begin
@@ -72,6 +73,7 @@ function submit_threads(job::Job, n_chunks::Int)
         initialize!(dh, job.time_solver)
         log_create_data_handler_end()
         log_data_handler(job.options, dh)
+        log_job_options(job.options)
         log_timesolver(job.options, job.time_solver)
         solve!(dh, job.time_solver, job.options)
     end

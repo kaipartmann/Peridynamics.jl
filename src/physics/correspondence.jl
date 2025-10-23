@@ -12,12 +12,12 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
     - [`linear_kernel`](@ref)
     - [`cubic_b_spline_kernel`](@ref)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
-    (default: `LinearElastic()`) \\
+    (default: `SaintVenantKirchhoff()`) \\
     The following models can be used:
+    - [`SaintVenantKirchhoff`](@ref)
     - [`LinearElastic`](@ref)
     - [`NeoHooke`](@ref)
-    - [`MooneyRivlin`](@ref)
-    - [`SaintVenantKirchhoff`](@ref)
+    - [`NeoHookePenalty`](@ref)
 - `zem::AbstractZEMStabilization`: Algorithm of zero-energy mode stabilization. \\
     (default: [`ZEMSilling`](@ref)) \\
     The following algorithms can be used:
@@ -39,7 +39,7 @@ consistent (correspondence) formulation of non-ordinary state-based peridynamics
 
 ```julia-repl
 julia> mat = CMaterial()
-CMaterial{LinearElastic, ZEMSilling, typeof(linear_kernel), CriticalStretch}(maxdmg=0.85)
+CMaterial{SaintVenantKirchhoff, ZEMSilling, typeof(linear_kernel), CriticalStretch}(maxdmg=0.85)
 ```
 
 ---
@@ -103,7 +103,7 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `b_ext::Matrix{Float64}`: External force density of each point.
 - `damage::Vector{Float64}`: Damage of each point.
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
-- `stress::Matrix{Float64}`: Stress tensor of each point.
+- `cauchy_stress::Matrix{Float64}`: Cauchy stress tensor of each point.
 - `von_mises_stress::Vector{Float64}`: Von Mises stress of each point.
 """
 struct CMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
@@ -119,7 +119,7 @@ struct CMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
 end
 
 function CMaterial(; kernel::Function=linear_kernel,
-                    model::AbstractConstitutiveModel=LinearElastic(),
+                    model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                     zem::AbstractZEMStabilization=ZEMSilling(),
                     dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=0.85)
     return CMaterial(kernel, model, zem, dmgmodel, maxdmg)
@@ -182,7 +182,7 @@ end
     @pointfield damage::Vector{Float64}
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
-    @pointfield stress::Matrix{Float64}
+    @pointfield cauchy_stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
 end
 
@@ -190,7 +190,8 @@ function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val
     return zeros(3, get_n_points(system))
 end
 
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:stress})
+function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:cauchy_stress})
     return zeros(9, get_n_loc_points(system))
 end
 
@@ -239,8 +240,7 @@ function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
     PKinv = P * Kinv
     σ = cauchy_stress(P, F)
-    update_tensor!(storage.stress, i, σ)
-    storage.von_mises_stress[i] = von_mises_stress(σ)
+    update_tensor!(storage.cauchy_stress, i, σ)
     return PKinv
 end
 
@@ -314,4 +314,14 @@ function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
         return true
     end
     return false
+end
+
+# calculate the von Mises stress from the Cauchy stress tensor just when exporting
+function export_field(::Val{:von_mises_stress}, ::CMaterial, system::BondSystem,
+                      storage::AbstractStorage, ::AbstractParameterSetup, t)
+    for i in each_point_idx(system)
+        σ = get_tensor(storage.cauchy_stress, i)
+        storage.von_mises_stress[i] = von_mises_stress(σ)
+    end
+    return storage.von_mises_stress
 end

@@ -91,9 +91,10 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
     params_map::Vector{Int}
     single_dim_bcs::Vector{SingleDimBC}
     posdep_single_dim_bcs::Vector{PosDepSingleDimBC}
+    pos_single_dim_bcs::Vector{PosSingleDimBC}
+    data_bcs::Vector{DataBC}
     single_dim_ics::Vector{SingleDimIC}
     posdep_single_dim_ics::Vector{PosDepSingleDimIC}
-    data_bcs::Vector{DataBC}
     point_sets_precracks::Vector{PointSetsPreCrack}
 
     function Body(mat::M, position::AbstractMatrix, volume::AbstractVector) where {M}
@@ -109,14 +110,16 @@ struct Body{M<:AbstractMaterial,P<:AbstractPointParameters} <: AbstractBody{M}
 
         single_dim_bcs = Vector{SingleDimBC}()
         posdep_single_dim_bcs = Vector{PosDepSingleDimBC}()
+        pos_single_dim_bcs = Vector{PosSingleDimBC}()
         single_dim_ics = Vector{SingleDimIC}()
         posdep_single_dim_ics = Vector{PosDepSingleDimIC}()
-        v_bcs = Vector{DataBC}()
+        data_bcs = Vector{DataBC}()
         point_sets_precracks = Vector{PointSetsPreCrack}()
 
         new{M,P}(name, mat, n_points, position, volume, fail_permit, point_sets,
-                 point_params, params_map, single_dim_bcs, posdep_single_dim_bcs, v_bcs,
-                 single_dim_ics, posdep_single_dim_ics, point_sets_precracks)
+                 point_params, params_map, single_dim_bcs, posdep_single_dim_bcs,
+                 pos_single_dim_bcs, data_bcs, single_dim_ics, posdep_single_dim_ics,
+                 point_sets_precracks)
     end
 end
 
@@ -160,6 +163,10 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(body::AbstractBody)
             show(io, bc)
         end
         for bc in body.posdep_single_dim_bcs
+            print(io, "\n    ")
+            show(io, bc)
+        end
+        for bc in body.pos_single_dim_bcs
             print(io, "\n    ")
             show(io, bc)
         end
@@ -319,6 +326,11 @@ function log_msg_body(body::AbstractBody)
         settings = @sprintf("set `%s`, dimension %d", bc.point_set, bc.dim)
         msg *= msg_qty(descr, settings; indentation=4)
     end
+    for bc in body.pos_single_dim_bcs
+        descr = @sprintf("%s condition", field_to_name(bc.field))
+        settings = @sprintf("set `%s`, dimension %d", bc.point_set, bc.dim)
+        msg *= msg_qty(descr, settings; indentation=4)
+    end
     msg *= "  MATERIAL\n"
     msg *= log_material(body.mat; indentation=4)
     n_point_params = length(body.point_params)
@@ -372,8 +384,9 @@ end
 @inline function n_bcs(body::AbstractBody)
     n_sdbcs = length(body.single_dim_bcs)
     n_pdsdbcs = length(body.posdep_single_dim_bcs)
+    n_psdbcs = length(body.pos_single_dim_bcs)
     n_databcs = length(body.data_bcs)
-    return n_sdbcs + n_pdsdbcs + n_databcs
+    return n_sdbcs + n_pdsdbcs + n_psdbcs + n_databcs
 end
 @inline function n_ics(body::AbstractBody)
     n_sdics = length(body.single_dim_ics)

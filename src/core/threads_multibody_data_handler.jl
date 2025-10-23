@@ -85,8 +85,9 @@ function update_caches!(dh::ThreadsMultibodyDataHandler)
     return nothing
 end
 
-function initialize!(dh::AbstractThreadsMultibodyDataHandler, ::AbstractTimeSolver)
+function initialize!(dh::AbstractThreadsMultibodyDataHandler, solver::AbstractTimeSolver)
     init_contact_nhs!(dh)
+    calc_force_density!(dh, 0.0, solver.Δt)
     return nothing
 end
 

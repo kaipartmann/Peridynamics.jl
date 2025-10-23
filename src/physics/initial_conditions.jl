@@ -26,8 +26,9 @@ function Base.show(io::IO, @nospecialize(ic::SingleDimIC))
 end
 
 function apply_ic!(chunk::AbstractBodyChunk, ic::SingleDimIC)
-    for point_id in chunk.psets[ic.point_set]
-        setindex!(get_point_data(chunk.storage, ic.field), ic.value, ic.dim, point_id)
+    (; loc_point_sets) = chunk.condhandler
+    for i in loc_point_sets[ic.point_set]
+        setindex!(get_point_data(chunk.storage, ic.field), ic.value, ic.dim, i)
     end
     return nothing
 end
@@ -70,12 +71,13 @@ end
 end
 
 function apply_ic!(chunk::AbstractBodyChunk, ic::PosDepSingleDimIC)
-    (; system, storage, psets) = chunk
+    (; system, storage, condhandler) = chunk
+    (; loc_point_sets) = condhandler
     field = get_point_data(storage, ic.field)
-    @simd for point_id in psets[ic.point_set]
-        value = ic(get_vector(system.position, point_id))
+    @simd for i in loc_point_sets[ic.point_set]
+        value = ic(get_vector(system.position, i))
         if !isnan(value)
-            @inbounds setindex!(field, value, ic.dim, point_id)
+            @inbounds setindex!(field, value, ic.dim, i)
         end
     end
     return nothing

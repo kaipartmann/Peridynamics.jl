@@ -54,10 +54,7 @@ end
 
 function BondSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     check_bond_system_compat(body.mat)
-    bonds, n_neighbors = find_bonds(body, pd.decomp[chunk_id])
-    bond_ids = find_bond_ids(n_neighbors)
-    chunk_handler = get_chunk_handler(bonds, pd, chunk_id)
-    localize!(bonds, chunk_handler.localizer)
+    bonds, n_neighbors, bond_ids, chunk_handler = get_bond_data(body, pd, chunk_id)
     position, volume = get_pos_and_vol_chunk(body, chunk_handler.point_ids)
     correction = get_correction(body.mat, chunk_handler.n_loc_points,
                                 length(chunk_handler.point_ids), length(bonds))
@@ -65,6 +62,16 @@ function BondSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     system = BondSystem(position, volume, bonds, n_neighbors, bond_ids, kernels, correction,
                         chunk_handler)
     return system
+end
+
+function get_bond_data(body::AbstractBody, pd::PointDecomposition, chunk_id)
+    loc_points = pd.decomp[chunk_id]
+    bonds, n_neighbors = find_bonds(body, loc_points)
+    halo_points = find_halo_points(bonds, loc_points)
+    chunk_handler = ChunkHandler(pd, halo_points, chunk_id)
+    localize!(bonds, chunk_handler.localizer)
+    bond_ids = find_bond_ids(n_neighbors)
+    return bonds, n_neighbors, bond_ids, chunk_handler
 end
 
 function get_system(body::AbstractBody{Material}, pd::PointDecomposition,
@@ -86,7 +93,7 @@ function check_bond_system_compat(::AbstractBondSystemMaterial)
     return nothing
 end
 
-function find_bonds(body::AbstractBody, loc_points::UnitRange{Int})
+function find_bonds(body::AbstractBody, loc_points::AbstractVector{Int})
     δmax = maximum_horizon(body)
     nhs = GridNeighborhoodSearch{3}(search_radius=δmax, n_points=body.n_points)
     initialize_grid!(nhs, body.position)
@@ -125,7 +132,7 @@ end
 end
 
 function filter_bonds!(bonds::Vector{Bond}, n_neighbors::Vector{Int},
-                       loc_points::UnitRange{Int}, body::AbstractBody)
+                       loc_points::AbstractVector{Int}, body::AbstractBody)
     for crack in body.point_sets_precracks
         filter_bonds_by_crack!(bonds, n_neighbors, loc_points, crack, body)
     end
@@ -133,7 +140,7 @@ function filter_bonds!(bonds::Vector{Bond}, n_neighbors::Vector{Int},
 end
 
 function filter_bonds_by_crack!(bonds::Vector{Bond}, n_neighbors::Vector{Int},
-                                loc_points::UnitRange{Int}, crack::PointSetsPreCrack,
+                                loc_points::AbstractVector{Int}, crack::PointSetsPreCrack,
                                 body::AbstractBody)
     filter_bonds(crack) || return nothing
     set_a, set_b = body.point_sets[crack.set_a], body.point_sets[crack.set_b]
@@ -174,17 +181,6 @@ function get_pos_and_vol_chunk(body::AbstractBody, point_ids::AbstractVector{<:I
     return position, volume
 end
 
-function get_chunk_handler(bonds::Vector{Bond}, pd::PointDecomposition, chunk_id::Int)
-    loc_points = pd.decomp[chunk_id]
-    n_loc_points = length(loc_points)
-    halo_points = find_halo_points(bonds, loc_points)
-    hidxs_by_src = sort_halo_by_src!(halo_points, pd.point_src, length(loc_points))
-    point_ids = vcat(loc_points, halo_points)
-    localizer = find_localizer(point_ids)
-    return ChunkHandler(n_loc_points, point_ids, loc_points, halo_points, hidxs_by_src,
-                        localizer)
-end
-
 function find_kernels(body::AbstractBody, chunk_handler::ChunkHandler, bonds::Vector{Bond},
                       bond_ids::Vector{UnitRange{Int}})
     hasproperty(body.mat, :kernel) || return Vector{Float64}()
@@ -208,7 +204,7 @@ end
     return system.kernels[bond_id]
 end
 
-function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})
+function find_halo_points(bonds::Vector{Bond}, loc_points::AbstractVector{Int})
     halo_points = Vector{Int}()
     for bond in bonds
         j = bond.neighbor
@@ -219,7 +215,7 @@ function find_halo_points(bonds::Vector{Bond}, loc_points::UnitRange{Int})
     return halo_points
 end
 
-@inline each_bond_idx(system::AbstractBondSystem, point_id::Int) = system.bond_ids[point_id]
+@inline each_bond_idx(system::AbstractBondSystem, i::Int) = system.bond_ids[i]
 
 function localize!(bonds::Vector{Bond}, localizer::Dict{Int,Int})
     for i in eachindex(bonds)
@@ -261,15 +257,22 @@ end
 
 function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem}, t, Δt)
     (; system, mat, paramsetup, storage) = chunk
+    calc_force_density!(storage, system, mat, paramsetup, t, Δt)
+    return nothing
+end
+
+function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
+                             mat::AbstractBondSystemMaterial,
+                             paramsetup::AbstractParameterSetup, t, Δt)
     (; dmgmodel) = mat
-    storage.b_int .= 0
+    storage.b_int .= 0.0
     storage.n_active_bonds .= 0
-    for i in each_point_idx(chunk)
+    for i in each_point_idx(system)
         calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
-    nancheck(chunk, t, Δt)
+    nancheck(storage, t, Δt)
     return nothing
 end
 
@@ -384,7 +387,9 @@ end
 
 function log_material(mat::M; indentation::Int=2) where {M<:AbstractBondSystemMaterial}
     msg = msg_qty("material type", nameof(M); indentation)
-    msg *= msg_qty("correction type", correction_type(mat); indentation)
+    if !(correction_type(mat) <: Nothing)
+        msg *= msg_qty("correction type", correction_type(mat); indentation)
+    end
     for prop in fieldnames(M)
         msg *= log_material_property(Val(prop), mat; indentation)
     end

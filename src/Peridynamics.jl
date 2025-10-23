@@ -13,7 +13,7 @@ export BBMaterial, DHBBMaterial, OSBMaterial, CMaterial, CRMaterial, BACMaterial
        CKIMaterial, RKCMaterial, RKCRMaterial
 
 # CMaterial related types
-export LinearElastic, NeoHooke, MooneyRivlin, SaintVenantKirchhoff, ZEMSilling, ZEMWan
+export LinearElastic, NeoHooke, NeoHookePenalty, SaintVenantKirchhoff, ZEMSilling, ZEMWan
 
 # Kernels
 export const_one_kernel, linear_kernel, cubic_b_spline_kernel, cubic_b_spline_kernel_norm
@@ -79,7 +79,7 @@ abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 abstract type AbstractBondBasedMaterial{CM} <: AbstractBondSystemMaterial{CM} end
 abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMaterial{ZEM} end
 abstract type AbstractRKCMaterial{CM,C} <: AbstractBondSystemMaterial{C} end
-abstract type AbstractBondAssociatedSystemMaterial <: AbstractMaterial end
+abstract type AbstractBondAssociatedSystemMaterial <: AbstractBondSystemMaterial{Nothing} end
 abstract type AbstractConstitutiveModel end
 abstract type AbstractStressIntegration end
 abstract type AbstractZEMStabilization <: AbstractCorrection end
@@ -116,6 +116,7 @@ include("discretization/bond_system_corrections.jl")
 include("discretization/zem_stabilization.jl")
 include("discretization/bond_associated_system.jl")
 include("discretization/interaction_system.jl")
+include("discretization/condition_handler.jl")
 include("discretization/body_chunk.jl")
 
 include("core/job.jl")
