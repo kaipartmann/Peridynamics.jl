@@ -75,81 +75,66 @@ function initialize!(dh::AbstractMPIBodyDataHandler{BondSystem{EnergySurfaceCorr
 end
 
 function calc_mfactor!(chunk::AbstractBodyChunk{BondSystem{EnergySurfaceCorrection}})
-    (; system, storage, paramsetup) = chunk
+    (; mat, system, storage, paramsetup) = chunk
     (; mfactor) = system.correction
-    ka, a = 1.001, 0.001
+    λ = 1.001 # deformation stretch factor
     for d in 1:3
-        defposition = copy(system.position)
-        defposition[d, :] .*= ka
+        # reset to undeformed positions
+        storage.position .= system.position
+        # apply uniform deformation only in dimension d
+        @views storage.position[d, :] .= λ .* system.position[d, :]
+        # needed to calculate initial bond lengths
+        calc_force_density!(storage, system, mat, paramsetup, 0.0, 0.0) # dummy t, Δt
+        # calculate the mfactor for dimension d
         for i in each_point_idx(chunk)
-            stendens, E_mean, nu_mean = stendens_point(system, paramsetup, storage,
-                                                       defposition, i)
-            mfactor[d, i] = analytical_stendens(E_mean, nu_mean, a) / stendens
+            lame = get_averaged_lame_parameters(system, storage, paramsetup, i)
+            Ψ_theory = stendens_uniext_small_strain(lame, λ)
+            strain_energy_density_point!(storage, system, mat, paramsetup, i)
+            Ψ_pd = storage.strain_energy_density[i]
+            mfactor[d, i] = Ψ_theory / Ψ_pd
         end
+        # this is needed since the position is modified during the calculation
+        storage.position .= system.position
+        # also the artificial strain energy density and b_int should be reset to zero
+        storage.strain_energy_density .= 0.0
+        storage.b_int .= 0.0
     end
     return nothing
 end
 
-function stendens_point(system::BondSystem{C}, params::AbstractPointParameters,
-                        storage::AbstractStorage, defposition::AbstractMatrix{Float64},
-                        i::Int) where {C<:EnergySurfaceCorrection}
-    stendens = 0.0
+function get_averaged_lame_parameters(::BondSystem, ::AbstractStorage,
+                                      params::AbstractPointParameters, i)
+    return SVector{2,Float64}(params.λ, params.μ)
+end
+
+function get_averaged_lame_parameters(system::BondSystem, storage::AbstractStorage,
+                                      paramsetup::AbstractParameterHandler, i)
+    (; bonds) = system
+    (; bond_active) = storage
+    lame = zero(SVector{2,Float64}) # lame[1] = λ, lame[2] = μ
+    params_i = get_params(paramsetup, i)
+    n_active_bonds = 0
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(defposition, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        failure = storage.bond_active[bond_id]
-        stendens += failure * 0.25 * params.bc * ε * ε * L * system.volume[j]
-    end
-    return stendens, params.E, params.nu
-end
-
-function stendens_point(system::BondSystem{C}, paramhandler::AbstractParameterHandler,
-                        storage::AbstractStorage, defposition::AbstractMatrix{Float64},
-                        i::Int) where {C<:EnergySurfaceCorrection}
-    stendens = 0.0
-    params_i = get_params(paramhandler, i)
-    E_mean, nu_mean = 0.0, 0.0
-    for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(defposition, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        params_j = get_params(paramhandler, j)
-        bc_mean = (params_i.bc + params_j.bc) / 2
-        failure = storage.bond_active[bond_id]
-        stendens += failure * 0.25 * bc_mean * ε * ε * L * system.volume[j]
-        E_mean += failure * (params_i.E + params_j.E) / 2
-        nu_mean += failure * (params_i.nu + params_j.nu) / 2
-    end
-    E_mean /= storage.n_active_bonds[i]
-    nu_mean /= storage.n_active_bonds[i]
-    return stendens, E_mean, nu_mean
-end
-
-@inline function analytical_stendens(E, nu, a)
-    return E / (2 * (1 + nu)) * (nu / (1 - 2 * nu) + 1) * a^2
-end
-
-function calc_stendens!(stendens, defposition, chunk)
-    system = chunk.system
-    for i in each_point_idx(chunk)
-        params = get_params(chunk, i)
-        for bond_id in each_bond_idx(system, i)
-            bond = system.bonds[bond_id]
-            j, L = bond.neighbor, bond.length
-            Δxijx = defposition[1, j] - defposition[1, i]
-            Δxijy = defposition[2, j] - defposition[2, i]
-            Δxijz = defposition[3, j] - defposition[3, i]
-            l = sqrt(Δxijx * Δxijx + Δxijy * Δxijy + Δxijz * Δxijz)
-            ε = (l - L) / L
-            stendens[i] += 0.25 * params.bc * ε * ε * L * system.volume[j]
+        if bond_active[bond_id]
+            bond = bonds[bond_id]
+            j = bond.neighbor
+            params_j = get_params(paramsetup, j)
+            λ = (params_i.λ + params_j.λ) / 2
+            μ = (params_i.μ + params_j.μ) / 2
+            lame += SVector{2,Float64}(λ, μ)
+            n_active_bonds += 1
         end
     end
-    return nothing
+    lame /= n_active_bonds
+    return lame
+end
+
+@inline function stendens_uniext_small_strain(lame, λ)
+    return (0.5 * lame[1] + lame[2]) * (λ - 1)^2
+end
+
+@inline function stendens_uniext_finite_strain(lame, λ)
+    return (lame[1] + 2 * lame[2]) / 8 * (λ^2 - 1)^2
 end
 
 @inline get_mfactor(chunk::AbstractBodyChunk) = chunk.system.correction.mfactor

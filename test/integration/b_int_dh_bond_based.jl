@@ -50,7 +50,7 @@ end
 
     Peridynamics.calc_force_density!(chunk, 0, 0)
 
-    sc = 2 * 3.1808625617603665 # double the normal surface correction factor
+    sc = 3.1808625617603665 # double the normal surface correction factor
     @test all(x -> x ≈ sc, chunk.system.correction.scfactor)
 
     b12 = sc * 18 * E / (3 * (1 - 2 * 0.25)) / (π * δ^4) * 1.0015 * 0.0015/1.0015 * 1.0
