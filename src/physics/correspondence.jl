@@ -105,6 +105,8 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point.
 - `cauchy_stress::Matrix{Float64}`: Cauchy stress tensor of each point.
 - `von_mises_stress::Vector{Float64}`: Von Mises stress of each point.
+- `hydrostatic_stress::Vector{Float64}`: Hydrostatic stress of each point.
+- `strain_energy_density::Vector{Float64}`: Strain energy density of each point.
 """
 struct CMaterial{CM,ZEM,K,DM} <: AbstractCorrespondenceMaterial{CM,ZEM}
     kernel::K

@@ -41,7 +41,7 @@
 
     # check if the deformation gradient is equal to the expected value
     for i in Peridynamics.each_point_idx(chunk)
-        (; F) = Peridynamics.calc_deformation_gradient(storage, system, mat, paramsetup, i)
+        (; F) = Peridynamics.calc_deformation_gradient!(storage, system, mat, paramsetup, i)
         @test F ≈ F_a
     end
 end

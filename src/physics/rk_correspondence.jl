@@ -113,8 +113,10 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `b_ext::Matrix{Float64}`: External force density of each point
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
-- `stress::Matrix{Float64}`: Stress tensor of each point
+- `cauchy_stress::Matrix{Float64}`: Cauchy stress tensor of each point
 - `von_mises_stress::Vector{Float64}`: Von Mises stress of each point
+- `hydrostatic_stress::Vector{Float64}`: Hydrostatic stress of each point.
+- `strain_energy_density::Vector{Float64}`: Strain energy density of each point.
 """
 struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     kernel::K
