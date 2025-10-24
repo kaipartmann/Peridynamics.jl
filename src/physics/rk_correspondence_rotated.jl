@@ -57,16 +57,17 @@ end
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
     @pointfield update_gradients::Vector{Bool}
-    @pointfield stress::Matrix{Float64}
+    @pointfield cauchy_stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
+    @pointfield strain_energy_density::Vector{Float64}
     @lthfield defgrad::Matrix{Float64}
     @lthfield defgrad_dot::Matrix{Float64}
     @lthfield weighted_volume::Vector{Float64}
     gradient_weight::Matrix{Float64}
-    first_piola_kirchhoff::Matrix{Float64}
+    bond_first_piola_kirchhoff::Matrix{Float64}
     left_stretch::Matrix{Float64}
     rotation::Matrix{Float64}
-    bond_stress::Matrix{Float64}
+    bond_unrot_cauchy_stress::Matrix{Float64}
 end
 
 function init_field(::RKCRMaterial, ::AbstractTimeSolver, system::BondSystem,
@@ -94,7 +95,7 @@ function init_field(::RKCRMaterial, ::AbstractTimeSolver, system::BondSystem,
 end
 
 function init_field(::RKCRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:bond_stress})
+                    ::Val{:bond_unrot_cauchy_stress})
     return zeros(9, get_n_bonds(system))
 end
 
@@ -159,11 +160,14 @@ function calc_first_piola_kirchhoff!(storage::RKCRStorage, mat::RKCRMaterial,
     Δε = D * Δt
     Δθ = tr(Δε)
     Δεᵈᵉᵛ = Δε - Δθ / 3 * I
-    σ = get_tensor(storage.bond_stress, bond_id)
+    σ = get_tensor(storage.bond_unrot_cauchy_stress, bond_id)
     σₙ₊₁ = σ + 2 * params.G * Δεᵈᵉᵛ + params.K * Δθ * I
-    update_tensor!(storage.bond_stress, bond_id, σₙ₊₁)
+    update_tensor!(storage.bond_unrot_cauchy_stress, bond_id, σₙ₊₁)
     T = rotate_stress(storage, σₙ₊₁, bond_id)
     P = first_piola_kirchhoff(T, F)
-    update_tensor!(storage.first_piola_kirchhoff, bond_id, P)
+    update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
     return P
 end
+
+# This has to be done here, otherwise the type RKCRStorage is not known
+custom_field(::Type{RKCRStorage}, ::Val{:hydrostatic_stress}) = true

@@ -113,8 +113,10 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `b_ext::Matrix{Float64}`: External force density of each point
 - `damage::Vector{Float64}`: Damage of each point
 - `n_active_bonds::Vector{Int}`: Number of intact bonds of each point
-- `stress::Matrix{Float64}`: Stress tensor of each point
+- `cauchy_stress::Matrix{Float64}`: Cauchy stress tensor of each point
 - `von_mises_stress::Vector{Float64}`: Von Mises stress of each point
+- `hydrostatic_stress::Vector{Float64}`: Hydrostatic stress of each point.
+- `strain_energy_density::Vector{Float64}`: Strain energy density of each point.
 """
 struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     kernel::K
@@ -172,12 +174,13 @@ end
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
     @pointfield update_gradients::Vector{Bool}
-    @pointfield stress::Matrix{Float64}
+    @pointfield cauchy_stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
+    @pointfield strain_energy_density::Vector{Float64}
     @lthfield defgrad::Matrix{Float64}
     @lthfield weighted_volume::Vector{Float64}
     gradient_weight::Matrix{Float64}
-    first_piola_kirchhoff::Matrix{Float64}
+    bond_first_piola_kirchhoff::Matrix{Float64}
 end
 
 function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
@@ -191,12 +194,17 @@ function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSys
 end
 
 function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:stress})
+                    ::Val{:cauchy_stress})
     return zeros(9, get_n_loc_points(system))
 end
 
 function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:von_mises_stress})
+    return zeros(get_n_loc_points(system))
+end
+
+function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:strain_energy_density})
     return zeros(get_n_loc_points(system))
 end
 
@@ -216,7 +224,7 @@ function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSys
 end
 
 function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:first_piola_kirchhoff})
+                    ::Val{:bond_first_piola_kirchhoff})
     return zeros(9, get_n_bonds(system))
 end
 
@@ -499,7 +507,7 @@ function rkc_force_density!(storage::AbstractStorage, system::AbstractBondSystem
                             mat::AbstractRKCMaterial, params::AbstractPointParameters,
                             ∑P, t, Δt, i)
     (; bonds, volume) = system
-    (; bond_active, gradient_weight, first_piola_kirchhoff, weighted_volume,
+    (; bond_active, gradient_weight, bond_first_piola_kirchhoff, weighted_volume,
        b_int) = storage
     wi = weighted_volume[i]
     for bond_id in each_bond_idx(system, i)
@@ -507,7 +515,7 @@ function rkc_force_density!(storage::AbstractStorage, system::AbstractBondSystem
             bond = bonds[bond_id]
             j, L = bond.neighbor, bond.length
             ΔXij = get_vector_diff(system.position, i, j)
-            Pij = get_tensor(first_piola_kirchhoff, bond_id)
+            Pij = get_tensor(bond_first_piola_kirchhoff, bond_id)
             Φij = get_vector(gradient_weight, bond_id)
             ϕ = 1 / wi
             ω̃ij = kernel(system, bond_id) * ϕ
@@ -522,7 +530,7 @@ end
 function calc_first_piola_kirchhoff!(storage::RKCStorage, mat::RKCMaterial,
                                      params::StandardPointParameters, F, bond_id)
     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
-    update_tensor!(storage.first_piola_kirchhoff, bond_id, P)
+    update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
     return P
 end
 
@@ -541,4 +549,78 @@ function bond_avg(Fi, Fj, ΔXij, Δxij, L)
     Fcor = (Δxij - Favg * ΔXij) * (ΔXij' / (L * L))
     Fij = Favg + Fcor
     return Fij
+end
+
+function cauchy_stress_point!(storage::AbstractStorage, system::BondSystem,
+                              ::AbstractRKCMaterial, ::StandardPointParameters, i)
+    (; bonds) = system
+    (; bond_active, defgrad, bond_first_piola_kirchhoff, n_active_bonds) = storage
+    Fi = get_tensor(defgrad, i)
+    σi = zero(SMatrix{3,3,Float64,9})
+    for bond_id in each_bond_idx(system, i)
+        if bond_active[bond_id]
+            bond = bonds[bond_id]
+            j, L = bond.neighbor, bond.length
+            ΔXij = get_vector_diff(system.position, i, j)
+            Δxij = get_vector_diff(storage.position, i, j)
+            Fj = get_tensor(defgrad, j)
+            Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
+            Pij = get_tensor(bond_first_piola_kirchhoff, bond_id)
+            σij = cauchy_stress(Pij, Fij)
+            σi += σij
+        end
+    end
+    update_tensor!(storage.cauchy_stress, i, σi ./ n_active_bonds[i])
+    return nothing
+end
+
+# calculate the Cauchy stress tensor just when exporting
+function export_field(::Val{:cauchy_stress}, mat::AbstractRKCMaterial, system::BondSystem,
+                      storage::AbstractStorage, paramsetup::AbstractParameterSetup, t)
+    for i in each_point_idx(system)
+        params = get_params(paramsetup, i)
+        cauchy_stress_point!(storage, system, mat, params, i)
+    end
+    return storage.cauchy_stress
+end
+
+# calculate the von Mises stress from the Cauchy stress tensor just when exporting
+function export_field(::Val{:von_mises_stress}, mat::AbstractRKCMaterial,
+                      system::BondSystem, storage::AbstractStorage,
+                      paramsetup::AbstractParameterSetup, t)
+    for i in each_point_idx(system)
+        params = get_params(paramsetup, i)
+        cauchy_stress_point!(storage, system, mat, params, i)
+        σ = get_tensor(storage.cauchy_stress, i)
+        storage.von_mises_stress[i] = von_mises_stress(σ)
+    end
+    return storage.von_mises_stress
+end
+
+# calculate the von hydrostatic stress from the Cauchy stress tensor just when exporting,
+# use the `von_mises_stress` field to store the hydrostatic stress
+function export_field(::Val{:hydrostatic_stress}, mat::AbstractRKCMaterial,
+                      system::BondSystem, storage::AbstractStorage,
+                      paramsetup::AbstractParameterSetup, t)
+    for i in each_point_idx(system)
+        params = get_params(paramsetup, i)
+        cauchy_stress_point!(storage, system, mat, params, i)
+        σ = get_tensor(storage.cauchy_stress, i)
+        storage.von_mises_stress[i] = 1/3 * (σ[1,1] + σ[2,2] + σ[3,3])
+    end
+    return storage.von_mises_stress
+end
+custom_field(::Type{RKCStorage}, ::Val{:hydrostatic_stress}) = true
+
+# calculate the strain energy density from the deformation gradient just when exporting
+function export_field(::Val{:strain_energy_density}, mat::AbstractRKCMaterial,
+                      system::BondSystem, storage::AbstractStorage,
+                      paramsetup::AbstractParameterSetup, t)
+    model = mat.constitutive_model
+    for i in each_point_idx(system)
+        params = get_params(paramsetup, i)
+        F = get_tensor(storage.defgrad, i)
+        storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F)
+    end
+    return storage.strain_energy_density
 end

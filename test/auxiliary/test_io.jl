@@ -356,3 +356,95 @@ end
     @test r_b[:damage] == zeros(8)
     @test r_b[:time] == [t]
 end
+
+@testitem "get_export_fields" begin
+    pos, vol = uniform_box(1, 1, 1, 0.5)
+    ts = VelocityVerlet(steps=1)
+
+    # BBMaterial
+    body = Body(BBMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :strain_energy_density)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## OSBMaterial
+    body = Body(OSBMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :strain_energy_density)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## DHBBMaterial
+    body = Body(DHBBMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :strain_energy_density)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## CMaterial
+    body = Body(CMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :cauchy_stress,
+                 :von_mises_stress, :hydrostatic_stress, :strain_energy_density)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## CRMaterial
+    body = Body(CRMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :cauchy_stress,
+                 :von_mises_stress, :hydrostatic_stress, :strain_energy_density, :defgrad,
+                 :left_stretch, :rotation)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## RKCMaterial
+    body = Body(RKCMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :cauchy_stress,
+                 :von_mises_stress, :hydrostatic_stress, :strain_energy_density, :defgrad,
+                 :weighted_volume)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## RKCMaterial
+    body = Body(RKCRMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :cauchy_stress,
+                 :von_mises_stress, :hydrostatic_stress, :strain_energy_density, :defgrad,
+                 :defgrad_dot, :weighted_volume)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## BACMaterial
+    body = Body(BACMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+end

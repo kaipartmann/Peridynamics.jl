@@ -57,7 +57,10 @@ end
     bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
     @pointfield unrotated_stress::Matrix{Float64}
+    @pointfield defgrad::Matrix{Float64}
+    @pointfield cauchy_stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
+    @pointfield strain_energy_density::Vector{Float64}
     @pointfield left_stretch::Matrix{Float64}
     @pointfield rotation::Matrix{Float64}
     zem_stiffness_rotated::MArray{NTuple{4,3},Float64,4,81}
@@ -75,11 +78,6 @@ end
 function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
                     ::Val{:unrotated_stress})
     return zeros(9, get_n_loc_points(system))
-end
-
-function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:von_mises_stress})
-    return zeros(get_n_loc_points(system))
 end
 
 function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
@@ -101,8 +99,8 @@ function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
     return zero(MArray{NTuple{4,3},Float64,4,81})
 end
 
-function calc_deformation_gradient(storage::CRStorage, system::BondSystem, ::CRMaterial,
-                                   ::CPointParameters, i)
+function calc_deformation_gradient!(storage::CRStorage, system::BondSystem, ::CRMaterial,
+                                    ::CPointParameters, i)
     (; bonds, volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
@@ -126,6 +124,7 @@ function calc_deformation_gradient(storage::CRStorage, system::BondSystem, ::CRM
     Kinv = inv(K)
     F = _F * Kinv
     Ḟ = _Ḟ * Kinv
+    Peridynamics.update_tensor!(storage.defgrad, i, F)
     return (; F, Ḟ, Kinv, ω0)
 end
 
@@ -159,6 +158,17 @@ function calc_zem_stiffness_tensor!(storage::CRStorage, system::BondSystem, mat:
 end
 
 # calculate the von Mises stress from the Cauchy stress tensor just when exporting
+function export_field(::Val{:cauchy_stress}, ::CRMaterial, system::BondSystem,
+                      storage::AbstractStorage, ::AbstractParameterSetup, t)
+    for i in each_point_idx(system)
+        σ = get_tensor(storage.unrotated_stress, i)
+        T = rotate_stress(storage::AbstractStorage, σ, i)
+        Peridynamics.update_tensor!(storage.cauchy_stress, i, T)
+    end
+    return storage.cauchy_stress
+end
+
+# calculate the von Mises stress from the Cauchy stress tensor just when exporting
 function export_field(::Val{:von_mises_stress}, ::CRMaterial, system::BondSystem,
                       storage::AbstractStorage, ::AbstractParameterSetup, t)
     for i in each_point_idx(system)
@@ -167,4 +177,29 @@ function export_field(::Val{:von_mises_stress}, ::CRMaterial, system::BondSystem
         storage.von_mises_stress[i] = von_mises_stress(T)
     end
     return storage.von_mises_stress
+end
+
+# calculate the von hydrostatic stress from the Cauchy stress tensor just when exporting,
+# use the `von_mises_stress` field to store the hydrostatic stress
+function export_field(::Val{:hydrostatic_stress}, ::CRMaterial,
+                      system::BondSystem, storage::CRStorage, ::AbstractParameterSetup, t)
+    for i in each_point_idx(system)
+        σ = get_tensor(storage.unrotated_stress, i)
+        T = rotate_stress(storage::AbstractStorage, σ, i)
+        storage.von_mises_stress[i] = 1/3 * (T[1,1] + T[2,2] + T[3,3])
+    end
+    return storage.von_mises_stress
+end
+custom_field(::Type{CRStorage}, ::Val{:hydrostatic_stress}) = true
+
+# calculate the strain energy density from the deformation gradient just when exporting
+function export_field(::Val{:strain_energy_density}, mat::CRMaterial, system::BondSystem,
+                      storage::AbstractStorage, paramsetup::AbstractParameterSetup, t)
+    model = mat.constitutive_model
+    for i in each_point_idx(system)
+        params = get_params(paramsetup, i)
+        F = get_tensor(storage.defgrad, i)
+        storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F)
+    end
+    return storage.strain_energy_density
 end
