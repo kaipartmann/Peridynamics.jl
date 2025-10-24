@@ -102,10 +102,10 @@ end
 function check_export_fields(::Type{S}, fields::Vector{Symbol}) where {S}
     allowed_fields = point_data_fields(S)
     for f in fields
-        if !in(f, allowed_fields) && !custom_field(f)
+        if !in(f, allowed_fields) && !custom_field(S, f)
             msg = "unknown point data field `:$(f)` specified for export!\n"
             msg *= "If you intend to export a custom field, please define a method:"
-            msg *= "\n   `custom_field(::Val{:$(f)}) = true`\n"
+            msg *= "\n   `custom_field(::Type{MyStorage}, ::Val{:$(f)}) = true`\n"
             msg *= "Otherwise, see here all available point data fields of $S:\n"
             for allowed_name in allowed_fields
                 msg *= "  - $allowed_name\n"
@@ -116,10 +116,10 @@ function check_export_fields(::Type{S}, fields::Vector{Symbol}) where {S}
     return nothing
 end
 
-custom_field(field::Symbol) = custom_field(Val(field))
+custom_field(S::Type{<:AbstractStorage}, field::Symbol) = custom_field(S, Val(field))
 # this function can be specialized to indicate custom fields
 # if this is not done, the export_field function will error out!
-custom_field(::Val{field}) where {field} = false
+custom_field(::Type{<:AbstractStorage}, ::Val{field}) where {field} = false
 
 function get_vtk_filebase(body::AbstractBody, root::AbstractString)
     body_name = replace(string(get_name(body)), " " => "_")
