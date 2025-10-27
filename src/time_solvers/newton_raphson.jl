@@ -157,8 +157,8 @@ function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
     end
 
     # Material limitations
-    working_mats = (BBMaterial, OSBMaterial, CKIMaterial, DHBBMaterial, CMaterial)
-    if typeof(chunk.mat) ∉ working_mats
+    working_mats = (:BBMaterial, :OSBMaterial, :CKIMaterial, :DHBBMaterial, :CMaterial)
+    if nameof(typeof(chunk.mat)) ∉ working_mats
         msg = "NewtonRaphson solver may not work correctly "
         msg *= "with $(nameof(typeof(chunk.mat)))!\n"
         msg *= "Be careful and check results carefully!"
