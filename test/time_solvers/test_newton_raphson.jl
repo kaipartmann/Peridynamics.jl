@@ -16,12 +16,12 @@ end
 
 @testitem "NewtonRaphson steps" begin
     using Peridynamics: NewtonRaphson
-    nr = NewtonRaphson(steps=100, stepsize=0.01)
-    @test nr.end_time == 1.0
+    nr = NewtonRaphson(steps=100)
+    @test nr.end_time == 100
     @test nr.n_steps == 100
-    @test nr.Δt == 0.01
+    @test nr.Δt == 1.0
     @test nr.maxiter == 100
-    @test nr.tol == 1e-8
+    @test nr.tol == 1e-4
     @test nr.perturbation == -1
     @test nr.gmres_maxiter == -1
     @test nr.gmres_reltol == 1e-4
@@ -35,7 +35,7 @@ end
     @test nr.n_steps == 100
     @test nr.Δt == 0.01
     @test nr.maxiter == 100
-    @test nr.tol == 1e-8
+    @test nr.tol == 1e-4
 end
 
 @testitem "NewtonRaphson custom parameters" begin
@@ -437,7 +437,7 @@ end
 
 @testitem "get_residual_norm" begin
     using Peridynamics: NewtonRaphson, displacement_bc!
-    using LinearAlgebra
+    using Peridynamics.LinearAlgebra
 
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
