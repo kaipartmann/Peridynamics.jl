@@ -1,6 +1,8 @@
 """
     NewtonRaphson(; kwargs...)
 
+$(internal_api_warning())
+
 An implicit time integration solver for quasi-static peridynamic simulations using the
 Newton-Raphson iterative method.
 
