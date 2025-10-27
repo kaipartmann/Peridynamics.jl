@@ -148,8 +148,16 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
-    one_ni_active::Vector{Bool}
     @pointfield n_active_one_nis::Vector{Int}
+    one_ni_active::Vector{Bool}
+    residual::Vector{Float64}
+    jacobian::Matrix{Float64}
+    displacement_copy::Matrix{Float64}
+    b_int_copy::Matrix{Float64}
+    temp_force_a::Vector{Float64}
+    temp_force_b::Vector{Float64}
+    Δu::Vector{Float64}
+    affected_points::Vector{Vector{Int}}
 end
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,

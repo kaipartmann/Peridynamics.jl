@@ -171,7 +171,6 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
-    bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
     @pointfield update_gradients::Vector{Bool}
     @pointfield cauchy_stress::Matrix{Float64}
@@ -179,8 +178,17 @@ end
     @pointfield strain_energy_density::Vector{Float64}
     @lthfield defgrad::Matrix{Float64}
     @lthfield weighted_volume::Vector{Float64}
+    bond_active::Vector{Bool}
     gradient_weight::Matrix{Float64}
     bond_first_piola_kirchhoff::Matrix{Float64}
+    residual::Vector{Float64}
+    jacobian::Matrix{Float64}
+    displacement_copy::Matrix{Float64}
+    b_int_copy::Matrix{Float64}
+    temp_force_a::Vector{Float64}
+    temp_force_b::Vector{Float64}
+    Δu::Vector{Float64}
+    affected_points::Vector{Vector{Int}}
 end
 
 function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
@@ -272,6 +280,23 @@ function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:AbstractRKCMa
     exchange_loc_to_halo!(dh, after_fields)
     calc_force_density!(chunk, t, Δt)
     exchange_halo_to_loc!(dh)
+    return nothing
+end
+
+# TODO: Quick-fix for the NewtonRaphson time solver
+function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
+                             mat::AbstractRKCMaterial, paramsetup::AbstractParameterSetup,
+                             idxs::AbstractVector{Int}, t, Δt)
+    (; dmgmodel) = mat
+    @inbounds storage.b_int[:, idxs] .= 0.0
+    @inbounds storage.n_active_bonds[idxs] .= 0
+    for i in idxs
+        calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
+        calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
+        calc_weights_and_defgrad!(storage, system, mat, paramsetup, t, Δt, i)
+        force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
+    end
+    nancheck(storage, t, Δt)
     return nothing
 end
 

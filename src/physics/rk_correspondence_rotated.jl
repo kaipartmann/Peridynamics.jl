@@ -54,7 +54,6 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
-    bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
     @pointfield update_gradients::Vector{Bool}
     @pointfield cauchy_stress::Matrix{Float64}
@@ -63,11 +62,20 @@ end
     @lthfield defgrad::Matrix{Float64}
     @lthfield defgrad_dot::Matrix{Float64}
     @lthfield weighted_volume::Vector{Float64}
+    bond_active::Vector{Bool}
     gradient_weight::Matrix{Float64}
     bond_first_piola_kirchhoff::Matrix{Float64}
     left_stretch::Matrix{Float64}
     rotation::Matrix{Float64}
     bond_unrot_cauchy_stress::Matrix{Float64}
+    residual::Vector{Float64}
+    jacobian::Matrix{Float64}
+    displacement_copy::Matrix{Float64}
+    b_int_copy::Matrix{Float64}
+    temp_force_a::Vector{Float64}
+    temp_force_b::Vector{Float64}
+    Δu::Vector{Float64}
+    affected_points::Vector{Vector{Int}}
 end
 
 function init_field(::RKCRMaterial, ::AbstractTimeSolver, system::BondSystem,
