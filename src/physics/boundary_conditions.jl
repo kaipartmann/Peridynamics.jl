@@ -637,7 +637,7 @@ $(internal_api_warning())
 Apply a displacement boundary condition to specified points in a given dimension.
 
 !!! warn "Compatibility limited"
-    This boundary condition type only works with static solvers for now.
+    This boundary condition type only works with the NewtonRaphson solver for now.
 
 A factor `β` is calculated as `n / n_steps`, where `n` is the current step number and
 `n_steps` is the total number of steps. Then the return value of the function `f` is
