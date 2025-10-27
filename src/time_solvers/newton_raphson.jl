@@ -2,12 +2,12 @@
     NewtonRaphson(; kwargs...)
 
 $(internal_api_warning())
+$(experimental_api_warning())
 
 An implicit time integration solver for quasi-static peridynamic simulations using the
 Newton-Raphson iterative method.
-
-The solver uses automatic differentiation (ForwardDiff.jl) to compute the tangent stiffness
-matrix and GMRES to solve the resulting linear system at each iteration.
+The solver uses a Finite-Differences approach to compute the tangent stiffness
+matrix (Jacobian) and GMRES to solve the resulting linear system at each iteration.
 
 # Keywords:
 - `time::Real`: Total simulation time. Cannot be used together with `steps`.
@@ -160,7 +160,7 @@ function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
     working_mats = (BBMaterial, OSBMaterial, CKIMaterial, DHBBMaterial, CMaterial)
     if typeof(chunk.mat) ∉ working_mats
         msg = "NewtonRaphson solver may not work correctly "
-        msg *= "with material type $(typeof(chunk.mat))!\n"
+        msg *= "with $(nameof(typeof(chunk.mat)))!\n"
         msg *= "Be careful and check results carefully!"
         @warn msg
     end
@@ -560,4 +560,7 @@ function log_timesolver(options::AbstractJobOptions, nr::NewtonRaphson)
     return nothing
 end
 
-register_solver!(NewtonRaphson)
+# If this is uncommented, the solver is registered and all storages must support it!
+# The internal storages in this package, already do, but the user-defined ones may not.
+# Therefore, for now this is commented out.
+# register_solver!(NewtonRaphson)
