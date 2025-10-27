@@ -14,7 +14,7 @@ matrix (Jacobian) and GMRES to solve the resulting linear system at each iterati
 - `steps::Int`: Number of time steps. Cannot be used together with `time`.
 - `stepsize::Real`: Manual time step size (default: 1.0).
 - `maxiter::Int`: Maximum number of iterations per step (default: 100).
-- `tol::Real`: Tolerance for convergence (default: 1e-8).
+- `tol::Real`: Tolerance for convergence (default: 1e-4).
 - `perturbation::Real`: Perturbation size for finite difference approximation of the
     stiffness matrix (default: 1e-7 times the point spacing).
 - `gmres_maxiter::Int`: Maximum number of iterations for GMRES (default: min(200, n_dof)).
@@ -38,7 +38,7 @@ mutable struct NewtonRaphson <: AbstractTimeSolver
     gmres_abstol::Float64
 
     function NewtonRaphson(; time::Real=-1, steps::Int=-1, stepsize::Real=1.0,
-                            maxiter::Int=100, tol::Real=1e-8, perturbation::Real=-1,
+                            maxiter::Int=100, tol::Real=1e-4, perturbation::Real=-1,
                             gmres_maxiter::Int=-1, gmres_reltol::Real=1e-4,
                             gmres_abstol::Real=1e-8)
         if time > 0 && steps > 0
