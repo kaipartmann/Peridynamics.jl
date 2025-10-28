@@ -486,6 +486,7 @@ end
 function get_affected_points(system::InteractionSystem, i)
     points = [one_ni.neighbor for one_ni in system.one_nis[each_one_ni_idx(system, i)]]
     pushfirst!(points, i)
+    sort!(points)
     return points
 end
 

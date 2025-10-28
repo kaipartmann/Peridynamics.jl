@@ -341,6 +341,7 @@ end
 function get_affected_points(system::AbstractBondSystem, i)
     points = [bond.neighbor for bond in system.bonds[each_bond_idx(system, i)]]
     pushfirst!(points, i)
+    sort!(points)
     return points
 end
 
