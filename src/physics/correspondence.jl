@@ -341,7 +341,8 @@ end
 
 # calculate the von Mises stress from the Cauchy stress tensor just when exporting
 function export_field(::Val{:von_mises_stress}, ::CMaterial,
-                      system::BondSystem, storage::AbstractStorage, ::AbstractParameterSetup, t)
+                      system::BondSystem, storage::AbstractStorage,
+                      ::AbstractParameterSetup, t)
     for i in each_point_idx(system)
         σ = get_tensor(storage.cauchy_stress, i)
         storage.von_mises_stress[i] = von_mises_stress(σ)
