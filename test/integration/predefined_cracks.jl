@@ -230,3 +230,59 @@ end
     @test ch.localizer[3] == 1
     @test ch.localizer[4] == 2
 end
+
+@testitem "precrack bond system with filter" begin
+    # setup
+    position = [0.0 1.0 0.0 0.0
+                0.0 0.0 1.0 0.0
+                0.0 0.0 0.0 1.0]
+    volume = [1.1, 1.2, 1.3, 1.4]
+    mat = CKIMaterial()
+    body = Body(mat, position, volume)
+    material!(body, horizon=2, rho=1, E=1, nu=0.25, Gc=1)
+    point_set!(body, :set_a, 1:2)
+    point_set!(body, :set_b, 3:4)
+    precrack!(body, :set_a, :set_b; update_dmg=false)
+    pd = Peridynamics.PointDecomposition(body, 2)
+
+    # 1
+    system = Peridynamics.InteractionSystem(body, pd, 1)
+
+    @test system.position == position[:, 1:2]
+    @test system.volume == volume[1:2]
+    @test system.one_nis == [
+        Peridynamics.Bond(2, 1.0, true),
+        Peridynamics.Bond(1, 1.0, true),
+    ]
+    @test system.n_one_nis == [1, 1]
+    @test system.one_ni_idxs == [1:1, 2:2]
+
+    ch = system.chunk_handler
+    @test ch.point_ids == [1, 2]
+    @test ch.loc_points == [1, 2]
+    @test ch.halo_points == Int[]
+    @test ch.hidxs_by_src == Dict{Int,UnitRange{Int}}()
+    for i in 1:2
+        @test ch.localizer[i] == i
+    end
+
+    # 2
+    system = Peridynamics.InteractionSystem(body, pd, 2)
+
+    @test system.position == position[:, 3:4]
+    @test system.volume == volume[3:4]
+    @test system.one_nis == [
+        Peridynamics.Bond(2, √2, true),
+        Peridynamics.Bond(1, √2, true),
+    ]
+    @test system.n_one_nis == [1, 1]
+    @test system.one_ni_idxs == [1:1, 2:2]
+
+    ch = system.chunk_handler
+    @test ch.point_ids == [3, 4]
+    @test ch.loc_points == [3, 4]
+    @test ch.halo_points == Int[]
+    @test ch.hidxs_by_src == Dict{Int,UnitRange{Int}}()
+    @test ch.localizer[3] == 1
+    @test ch.localizer[4] == 2
+end
