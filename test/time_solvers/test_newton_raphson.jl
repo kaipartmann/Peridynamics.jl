@@ -446,7 +446,7 @@ end
     body = Body(BBMaterial(), position, volume)
     material!(body, horizon=2, rho=1, E=1)
     point_set!(body, :top, [2])
-    displacement_bc!(p -> 0.1, body, :top, :y)
+    displacement_bc!(p -> 0.1, body, :top, :y) # some dummy BC
 
     nr = NewtonRaphson(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
@@ -455,7 +455,7 @@ end
     chunk = dh.chunks[1]
 
     # Set some residual values
-    chunk.storage.residual .= [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+    chunk.storage.residual .= [1.0:12.0;]
 
     # Get residual norm from chunk
     r_chunk = Peridynamics.get_residual_norm(chunk)
@@ -483,4 +483,23 @@ end
 
     min_vol = Peridynamics.minimum_volume(dh)
     @test min_vol == minimum(volume)
+end
+
+@testitem "NewtonRaphson throw maxiter" begin
+    using Peridynamics: NewtonRaphson, displacement_bc!
+    position = [0.0 1.0 0.0 0.0
+                0.0 0.0 1.0 0.0
+                0.0 0.0 0.0 1.0]
+    volume = [1.0, 1.0, 1.0, 1.0]
+    body = Body(BBMaterial(), position, volume)
+    material!(body, horizon=2, rho=1, E=1)
+    point_set!(body, :top, [4])
+    point_set!(body, :bottom, [1])
+    displacement_bc!(p -> 0.1, body, :top, :y)
+    displacement_bc!(p -> 0.0, body, :bottom, :x)
+    displacement_bc!(p -> 0.0, body, :bottom, :y)
+    displacement_bc!(p -> 0.0, body, :bottom, :z)
+    nr = NewtonRaphson(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
+    job = Job(body, nr)
+    @test_throws ErrorException submit(job)
 end

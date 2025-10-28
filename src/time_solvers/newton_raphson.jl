@@ -195,8 +195,7 @@ end
 # Overload for MultibodySetups to throw an error
 function init_time_solver!(::NewtonRaphson, ::AbstractDataHandler)
     msg = "NewtonRaphson solver only implemented for single body multithreading!\n"
-    throw(ArgumentError(msg))
-    return nothing
+    return throw(ArgumentError(msg))
 end
 
 function minimum_volume(dh::ThreadsBodyDataHandler)
@@ -283,9 +282,9 @@ function newton_raphson_step!(dh::ThreadsBodyDataHandler,
             add_to_logfile(options, "\n  " * "-"^42 * "> converged ✔")
             break
         elseif iter == maxiter
-            print_log(stdout, " ❌\n")
+            print_log(stdout, " ❌\n\n")
             add_to_logfile(options, "\n  " * "-"^35 * "> did not converge ❌")
-            msg = "\nNewton-Raphson solver did not converge after max iterations!\n"
+            msg = "Newton-Raphson solver did not converge after max iterations!\n"
             msg *= "Consider increasing `maxiter` or `tol`.\n"
             throw(ErrorException(msg))
         end
