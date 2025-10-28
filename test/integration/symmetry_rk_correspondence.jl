@@ -127,40 +127,39 @@ end
     temp_root = mktempdir()
     job = Job(body, dr; path=temp_root, freq=1)
 
-    # This is currently not working...
-    @test_throws ErrorException dh = Peridynamics.submit_threads(job, 1)
+    dh = Peridynamics.submit_threads(job, 1)
 
     # check if the correct files were exported
-    # @test length(filter(x->endswith(x,".pvtu"), readdir(joinpath(temp_root,"vtk")))) == 11
+    @test length(filter(x->endswith(x,".pvtu"), readdir(joinpath(temp_root,"vtk")))) == 6
 
     # find the points that should have symmetrical positions
-    # xp = findall(pos[1,:] .> 0)
-    # xm = findall(pos[1,:] .< 0)
-    # yp = findall(pos[2,:] .> 0)
-    # ym = findall(pos[2,:] .< 0)
-    # zp = findall(pos[3,:] .> 0)
-    # zm = findall(pos[3,:] .< 0)
+    xp = findall(pos[1,:] .> 0)
+    xm = findall(pos[1,:] .< 0)
+    yp = findall(pos[2,:] .> 0)
+    ym = findall(pos[2,:] .< 0)
+    zp = findall(pos[3,:] .> 0)
+    zm = findall(pos[3,:] .< 0)
 
     # check the symmetry
-    # end_position = first(dh.chunks).storage.position
-    # @test !(end_position ≈ pos)
-    # @test sort(end_position[1,xp]) ≈ sort(-end_position[1,xm])
-    # @test sort(end_position[2,xp]) ≈ sort(end_position[2,xm])
-    # @test sort(end_position[3,xp]) ≈ sort(end_position[3,xm])
-    # @test sort(end_position[1,yp]) ≈ sort(end_position[1,ym])
-    # @test sort(end_position[2,yp]) ≈ sort(-end_position[2,ym])
-    # @test sort(end_position[3,yp]) ≈ sort(end_position[3,ym])
-    # @test sort(end_position[1,zp]) ≈ sort(end_position[1,zm])
-    # @test sort(end_position[2,zp]) ≈ sort(end_position[2,zm])
-    # @test sort(end_position[3,zp]) ≈ sort(-end_position[3,zm])
+    end_position = first(dh.chunks).storage.position
+    @test !(end_position ≈ pos)
+    @test sort(end_position[1,xp]) ≈ sort(-end_position[1,xm])
+    @test sort(end_position[2,xp]) ≈ sort(end_position[2,xm])
+    @test sort(end_position[3,xp]) ≈ sort(end_position[3,xm])
+    @test sort(end_position[1,yp]) ≈ sort(end_position[1,ym])
+    @test sort(end_position[2,yp]) ≈ sort(-end_position[2,ym])
+    @test sort(end_position[3,yp]) ≈ sort(end_position[3,ym])
+    @test sort(end_position[1,zp]) ≈ sort(end_position[1,zm])
+    @test sort(end_position[2,zp]) ≈ sort(end_position[2,zm])
+    @test sort(end_position[3,zp]) ≈ sort(-end_position[3,zm])
 
     # check if points have moved and are not zero
-    # end_displacement = first(dh.chunks).storage.displacement
-    # for i in axes(end_displacement, 2)
-    #     for d in axes(end_displacement, 1)
-    #         @test abs(end_displacement[d, i]) > 0
-    #     end
-    # end
+    end_displacement = first(dh.chunks).storage.displacement
+    for i in axes(end_displacement, 2)
+        for d in axes(end_displacement, 1)
+            @test abs(end_displacement[d, i]) > 0
+        end
+    end
 end
 
 @testitem "symmetry RKCRMaterial VelocityVerlet" begin
