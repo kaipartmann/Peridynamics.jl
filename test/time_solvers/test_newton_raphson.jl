@@ -503,3 +503,37 @@ end
     job = Job(body, nr)
     @test_throws ErrorException submit(job)
 end
+
+@testitem "Material limitation errors" begin
+    using Peridynamics: NewtonRaphson, displacement_bc!
+
+    ## CRMaterial should not work with NewtonRaphson
+    position = [0.0 1.0 0.0 0.0
+                0.0 0.0 1.0 0.0
+                0.0 0.0 0.0 1.0]
+    volume = [1.0, 1.0, 1.0, 1.0]
+    body = Body(CRMaterial(), position, volume)
+    material!(body, horizon=2, rho=1, E=1, nu=0.25)
+    point_set!(body, :top, [4])
+    point_set!(body, :bottom, [1])
+    displacement_bc!(p -> 0.1, body, :top, :y)
+    displacement_bc!(p -> 0.0, body, :bottom, :x)
+    displacement_bc!(p -> 0.0, body, :bottom, :y)
+    displacement_bc!(p -> 0.0, body, :bottom, :z)
+    nr = NewtonRaphson(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
+    job = Job(body, nr)
+    @test_throws ArgumentError submit(job)
+
+    ## RKCRMaterial should not work with NewtonRaphson
+    body = Body(RKCRMaterial(), position, volume)
+    material!(body, horizon=2, rho=1, E=1, nu=0.25)
+    point_set!(body, :top, [4])
+    point_set!(body, :bottom, [1])
+    displacement_bc!(p -> 0.1, body, :top, :y)
+    displacement_bc!(p -> 0.0, body, :bottom, :x)
+    displacement_bc!(p -> 0.0, body, :bottom, :y)
+    displacement_bc!(p -> 0.0, body, :bottom, :z)
+    nr = NewtonRaphson(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
+    job = Job(body, nr)
+    @test_throws ArgumentError submit(job)
+end
