@@ -162,6 +162,7 @@ function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
         msg = "NewtonRaphson solver may not work correctly "
         msg *= "with $(nameof(typeof(chunk.mat)))!\n"
         msg *= "Be careful and check results carefully!"
+        print_log(stdout, "\n")
         @warn msg
     end
 
@@ -238,11 +239,14 @@ function solve!(dh::AbstractDataHandler, nr::NewtonRaphson, options::AbstractJob
 
     # Log solver info
     log_it(options, "NEWTON-RAPHSON ITERATIONS")
+    print_log(stdout, "\n") # necessary for correct terminal output
 
     # Time stepping loop
     for n in 1:nr.n_steps
         newton_raphson_step!(dh, nr, options, n)
     end
+
+    add_to_logfile(options, "\n") # necessary for correct logfile output
 
     return dh
 end
@@ -272,19 +276,18 @@ function newton_raphson_step!(dh::ThreadsBodyDataHandler,
 
         # Check convergence using combined residual from all chunks
         r = get_residual_norm(dh)
+        msg = @sprintf("\r  step: %8d | iter: %8d | r: %16g", n, iter, r)
+        log_it(options, msg)
         if r < tol
-            msg = @sprintf("\r  step: %8d | iter: %8d | r: %16g ✔\n", n, iter, r)
-            log_it(options, msg)
+            print_log(stdout, " ✔\n")
+            add_to_logfile(options, "\n  " * "-"^42 * "> converged ✔")
             break
         elseif iter == maxiter
-            msg = @sprintf("\r  step: %8d | iter: %8d | r: %16g ❌\n", n, iter, r)
-            log_it(options, msg)
-            msg = "Newton-Raphson solver did not converge after max iterations!\n"
-            msg *= "  Consider increasing `maxiter` or `tol`.\n"
+            print_log(stdout, " ❌\n")
+            add_to_logfile(options, "\n  " * "-"^35 * "> did not converge ❌")
+            msg = "\nNewton-Raphson solver did not converge after max iterations!\n"
+            msg *= "Consider increasing `maxiter` or `tol`.\n"
             throw(ErrorException(msg))
-        else
-            msg = @sprintf("\r  step: %8d | iter: %8d | r: %16g", n, iter, r)
-            log_it(options, msg)
         end
 
         # Solve local linear system for displacement correction
