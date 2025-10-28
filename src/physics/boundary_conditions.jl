@@ -438,6 +438,7 @@ end
     velocity_databc!(body, data, set_name, dims)
 
 $(internal_api_warning())
+$(experimental_api_warning())
 
 Specifies velocity boundary conditions for points of the set `set_name` in `body`.
 The value of the boundary condition is assigned by reading the corresponding positions
@@ -577,6 +578,7 @@ end
     forcedensity_databc!(body, data, set_name, dims)
 
 $(internal_api_warning())
+$(experimental_api_warning())
 
 Specifies forcedensity boundary conditions for points of the set `set_name` in `body`.
 The value of the boundary condition is assigned by reading the corresponding positions
@@ -633,12 +635,12 @@ end
     displacement_bc!(f::Function, body::Body, points::Vector{Int}, dim::Int)
 
 $(internal_api_warning())
+$(experimental_api_warning())
+
+!!! warning "Compatibility limited"
+    This boundary condition type only works with the NewtonRaphson solver for now.
 
 Apply a displacement boundary condition to specified points in a given dimension.
-
-!!! warn "Compatibility limited"
-    This boundary condition type only works with static solvers for now.
-
 A factor `β` is calculated as `n / n_steps`, where `n` is the current step number and
 `n_steps` is the total number of steps. Then the return value of the function `f` is
 multiplicated with `β` at each time step. This means that the displacement will be applied

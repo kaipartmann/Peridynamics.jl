@@ -171,7 +171,6 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
-    bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
     @pointfield update_gradients::Vector{Bool}
     @pointfield cauchy_stress::Matrix{Float64}
@@ -179,8 +178,17 @@ end
     @pointfield strain_energy_density::Vector{Float64}
     @lthfield defgrad::Matrix{Float64}
     @lthfield weighted_volume::Vector{Float64}
+    bond_active::Vector{Bool}
     gradient_weight::Matrix{Float64}
     bond_first_piola_kirchhoff::Matrix{Float64}
+    residual::Vector{Float64}
+    jacobian::Matrix{Float64}
+    displacement_copy::Matrix{Float64}
+    b_int_copy::Matrix{Float64}
+    temp_force_a::Vector{Float64}
+    temp_force_b::Vector{Float64}
+    Δu::Vector{Float64}
+    affected_points::Vector{Vector{Int}}
 end
 
 function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
@@ -228,6 +236,39 @@ function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSys
     return zeros(9, get_n_bonds(system))
 end
 
+# For RKCMaterial, we need two levels of neighbors because:
+# - Force at point i uses defgrad of i and all neighbors j
+# - Force at neighbor j uses defgrad of j and all neighbors k of j
+# So when perturbing i, we need defgrad updates for i, all j, and all k
+# WARNING: This only works because for NR there is only one chunk and the system knows
+# all points. For multithreading, additional layers of halo points would be needed.
+function get_affected_points_rkc(system::AbstractBondSystem, i)
+    affected_points = get_affected_points(system, i)
+    second_level = Vector{Int}()
+    for i in affected_points
+        for bond_id in each_bond_idx(system, i)
+            bond = system.bonds[bond_id]
+            j = bond.neighbor
+            if j ∉ affected_points && j ∉ second_level
+                push!(second_level, j)
+            end
+        end
+    end
+    append!(affected_points, second_level)
+    sort!(affected_points)
+    return affected_points
+end
+
+# Override affected_points initialization for RKCMaterial
+function init_field(::AbstractRKCMaterial, ::NewtonRaphson, system::BondSystem,
+                    ::Val{:affected_points})
+    affected_points = Vector{Vector{Int}}(undef, get_n_loc_points(system))
+    for i in each_point_idx(system)
+        affected_points[i] = get_affected_points_rkc(system, i)
+    end
+    return affected_points
+end
+
 function initialize!(chunk::BodyChunk{<:BondSystem,<:AbstractRKCMaterial})
     (; system, mat, paramsetup, storage) = chunk
     storage.update_gradients .= true
@@ -272,6 +313,30 @@ function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:AbstractRKCMa
     exchange_loc_to_halo!(dh, after_fields)
     calc_force_density!(chunk, t, Δt)
     exchange_halo_to_loc!(dh)
+    return nothing
+end
+
+# Newton-Raphson specific method: calculate forces for perturbed positions
+# During Jacobian assembly, we only update deformation gradients, NOT weights or damage.
+# Gradient weights and bond failure state are frozen at the current Newton-Raphson iterate.
+function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
+                             mat::AbstractRKCMaterial, paramsetup::AbstractParameterSetup,
+                             idxs::AbstractVector{Int}, t, Δt)
+    @inbounds storage.b_int[:, idxs] .= 0.0
+
+    # Update deformation gradient for all affected points
+    # Note: idxs contains point i and all its neighbors, so all required defgrads are updated
+    for i in idxs
+        rkc_defgrad!(storage, system, mat, get_params(paramsetup, i), t, Δt, i)
+    end
+
+    # Calculate force density - only for the original perturbed point and its direct neighbors
+    # Forces at more distant points don't change due to locality
+    for i in idxs
+        force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
+    end
+
+    nancheck(storage, t, Δt)
     return nothing
 end
 

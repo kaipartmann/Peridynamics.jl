@@ -428,6 +428,22 @@ function calc_force_density!(chunk::AbstractBodyChunk{<:InteractionSystem}, t, �
     return nothing
 end
 
+function calc_force_density!(storage::AbstractStorage, system::InteractionSystem,
+                             mat::AbstractInteractionSystemMaterial,
+                             paramsetup::AbstractParameterSetup, idxs::AbstractVector{Int},
+                             t, Δt)
+    (; dmgmodel) = mat
+    @inbounds storage.b_int[:, idxs] .= 0
+    @inbounds storage.n_active_one_nis[idxs] .= 0
+    for i in idxs
+        calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
+        calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
+        force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
+    end
+    nancheck(storage, t, Δt)
+    return nothing
+end
+
 function calc_failure!(storage::AbstractStorage, system::InteractionSystem,
                        mat::AbstractInteractionSystemMaterial, dmgmodel::CriticalStretch,
                        paramsetup::AbstractParameterSetup, i)
@@ -465,6 +481,13 @@ end
 
 @inline function one_ni_failure(storage::AbstractStorage, one_ni_id::Int)
     return storage.one_ni_active[one_ni_id]
+end
+
+function get_affected_points(system::InteractionSystem, i)
+    points = [one_ni.neighbor for one_ni in system.one_nis[each_one_ni_idx(system, i)]]
+    pushfirst!(points, i)
+    sort!(points)
+    return points
 end
 
 function log_msg_interaction_system(n_one_nis::Int, n_two_nis::Int, n_three_nis::Int)

@@ -182,12 +182,20 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
-    bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
     @pointfield defgrad::Matrix{Float64}
     @pointfield cauchy_stress::Matrix{Float64}
     @pointfield von_mises_stress::Vector{Float64}
     @pointfield strain_energy_density::Vector{Float64}
+    bond_active::Vector{Bool}
+    residual::Vector{Float64}
+    jacobian::Matrix{Float64}
+    displacement_copy::Matrix{Float64}
+    b_int_copy::Matrix{Float64}
+    temp_force_a::Vector{Float64}
+    temp_force_b::Vector{Float64}
+    Δu::Vector{Float64}
+    affected_points::Vector{Vector{Int}}
 end
 
 function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
@@ -333,7 +341,8 @@ end
 
 # calculate the von Mises stress from the Cauchy stress tensor just when exporting
 function export_field(::Val{:von_mises_stress}, ::CMaterial,
-                      system::BondSystem, storage::AbstractStorage, ::AbstractParameterSetup, t)
+                      system::BondSystem, storage::AbstractStorage,
+                      ::AbstractParameterSetup, t)
     for i in each_point_idx(system)
         σ = get_tensor(storage.cauchy_stress, i)
         storage.von_mises_stress[i] = von_mises_stress(σ)

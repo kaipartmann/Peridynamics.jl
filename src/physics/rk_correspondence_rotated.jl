@@ -54,7 +54,6 @@ end
     @pointfield b_ext::Matrix{Float64}
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
-    bond_active::Vector{Bool}
     @pointfield n_active_bonds::Vector{Int}
     @pointfield update_gradients::Vector{Bool}
     @pointfield cauchy_stress::Matrix{Float64}
@@ -63,6 +62,7 @@ end
     @lthfield defgrad::Matrix{Float64}
     @lthfield defgrad_dot::Matrix{Float64}
     @lthfield weighted_volume::Vector{Float64}
+    bond_active::Vector{Bool}
     gradient_weight::Matrix{Float64}
     bond_first_piola_kirchhoff::Matrix{Float64}
     left_stretch::Matrix{Float64}

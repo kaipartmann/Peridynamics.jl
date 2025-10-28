@@ -1,7 +1,7 @@
 module Peridynamics
 
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, ProgressMeter,
-      WriteVTK, TimerOutputs, MPI, PrecompileTools
+      WriteVTK, TimerOutputs, MPI, PrecompileTools, IterativeSolvers
 @static if Sys.islinux()
     using ThreadPinning
 end
@@ -135,6 +135,7 @@ include("core/mpi_multibody_data_handler.jl")
 
 include("time_solvers/velocity_verlet.jl")
 include("time_solvers/dynamic_relaxation.jl")
+include("time_solvers/newton_raphson.jl")
 
 include("physics/bond_based.jl")
 include("physics/dh_bond_based.jl")
