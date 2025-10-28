@@ -157,13 +157,13 @@ function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
     end
 
     # Material limitations
-    working_mats = (:BBMaterial, :OSBMaterial, :CKIMaterial, :DHBBMaterial, :CMaterial)
-    if nameof(typeof(chunk.mat)) ∉ working_mats
-        msg = "NewtonRaphson solver may not work correctly "
-        msg *= "with $(nameof(typeof(chunk.mat)))!\n"
-        msg *= "Be careful and check results carefully!"
-        print_log(stdout, "\n")
-        @warn msg
+    incompatible_mats = (:CRMaterial, :RKCRMaterial)
+    if nameof(typeof(chunk.mat)) ∈ incompatible_mats
+        msg = "$(nameof(typeof(chunk.mat))) not compatible with Newton-Raphson!\n"
+        msg *= "The material uses stress rotation designed for dynamic simulations.\n"
+        msg *= "For quasi-static Newton-Raphson simulations, consider using the material"
+        msg *= " without stress rotation instead.\n"
+        throw(ArgumentError(msg))
     end
 
     # No damage allowed in whole model
@@ -199,12 +199,13 @@ function init_time_solver!(::NewtonRaphson, ::AbstractDataHandler)
 end
 
 function minimum_volume(dh::ThreadsBodyDataHandler)
-    min_vols = fill(Inf, dh.n_chunks)
-    @threads :static for chunk_id in eachindex(dh.chunks)
-        chunk = dh.chunks[chunk_id]
-        min_vols[chunk_id] = minimum(chunk.system.volume)
-    end
-    return minimum(min_vols)
+    # min_vols = fill(Inf, dh.n_chunks)
+    # @threads :static for chunk_id in eachindex(dh.chunks)
+    #     chunk = dh.chunks[chunk_id]
+    #     min_vols[chunk_id] = minimum(chunk.system.volume)
+    # end
+    # return minimum(min_vols)
+    return minimum(dh.chunks[1].system.volume)
 end
 
 # TODO: Add MPI version later
@@ -406,7 +407,9 @@ function calc_jacobian!(chunk::AbstractBodyChunk, nr::NewtonRaphson, t, Δt)
     # Final restore: recalculate forces at original state
     b_int .= b_int_copy
 
-    # Apply penalty method for constrained DOFs - set rows and columns to zero
+    # Apply constraint elimination for constrained DOFs
+    # Since residual is already zero for these DOFs and we only update free DOFs,
+    # we set the row/column to identity to make the system well-conditioned
     for dof in constrained_dofs
         # Zero out row
         for j in axes(jacobian, 2)
@@ -416,8 +419,8 @@ function calc_jacobian!(chunk::AbstractBodyChunk, nr::NewtonRaphson, t, Δt)
         for i in axes(jacobian, 1)
             @inbounds jacobian[i, dof] = 0.0
         end
-        # Set diagonal to large penalty value
-        @inbounds jacobian[dof, dof] = 1e12
+        # Set diagonal to 1 (identity), ensures Δu[dof] = 0 since residual[dof] = 0
+        @inbounds jacobian[dof, dof] = 1.0
     end
 
     return nothing

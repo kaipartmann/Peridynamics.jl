@@ -64,14 +64,6 @@ end
     @pointfield rotation::Matrix{Float64}
     bond_active::Vector{Bool}
     zem_stiffness_rotated::MArray{NTuple{4,3},Float64,4,81}
-    residual::Vector{Float64}
-    jacobian::Matrix{Float64}
-    displacement_copy::Matrix{Float64}
-    b_int_copy::Matrix{Float64}
-    temp_force_a::Vector{Float64}
-    temp_force_b::Vector{Float64}
-    Δu::Vector{Float64}
-    affected_points::Vector{Vector{Int}}
 end
 
 function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
