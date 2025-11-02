@@ -30,7 +30,7 @@ export Body, point_set!, point_sets, no_failure!, material!, velocity_bc!, veloc
        uniform_cylinder, round_sphere, round_cylinder, n_points
 
 # Running simulations
-export VelocityVerlet, DynamicRelaxation, Job, submit
+export VelocityVerlet, DynamicRelaxation, Job, submit, Study, submit!, postproc!
 
 # Pre processing
 export read_inp
@@ -121,6 +121,7 @@ include("discretization/body_chunk.jl")
 
 include("core/job.jl")
 include("core/submit.jl")
+include("core/study.jl")
 include("core/systems.jl")
 include("core/parameters.jl")
 include("core/parameter_handler.jl")
