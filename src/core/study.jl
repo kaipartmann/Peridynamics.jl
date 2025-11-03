@@ -1,77 +1,92 @@
 """
-    Study
+    Study(jobcreator::Function, setups::Vector{<:NamedTuple}; root::String)
 
-A structure for managing parameter studies with multiple peridynamic simulations.
+$(internal_api_warning())
+$(experimental_api_warning())
+
+A structure for managing parameter studies with multiple peridynamic simulations. The
+`Study` type coordinates the execution of multiple simulation jobs with different parameter
+configurations, tracks their status, and logs all results to a central logfile.
+
+# Arguments
+- `jobcreator::Function`: A function with signature `jobcreator(setup::NamedTuple, root::String)`
+    that creates and returns a [`Job`](@ref) object. The function receives:
+    - `setup`: A `NamedTuple` containing the parameters for one simulation
+    - `root`: The root directory path for the study (to construct individual job paths)
+- `setups::Vector{<:NamedTuple}`: A vector of parameter configurations. Each element must be
+    a `NamedTuple` with the same field names.
+
+# Keywords
+- `root::String`: Root directory path where all simulation results and the study logfile
+    will be stored. This directory and all job subdirectories will be created during
+    [`submit!`](@ref).
 
 # Fields
-- `create_job::Function`: A function with signature `create_job(setup::NamedTuple)` that
-    creates a [`Job`](@ref) from a setup configuration.
-- `setups::Vector{NamedTuple}`: A vector of setup configurations. Each setup must be a
-    `NamedTuple` with the same field names.
-- `jobs::Vector{Job}`: A vector of jobs created from the setups.
-- `submission_status::Vector{Bool}`: Status vector indicating whether each job was
-    submitted successfully (`true`) or encountered an error (`false`).
-- `postproc_status::Vector{Bool}`: Status vector indicating whether post-processing for
-    each job was successful (`true`) or encountered an error (`false`).
-- `results::Vector{Vector{NamedTuple}}`: Storage for results from post-processing. Each
-    element corresponds to a simulation and contains a vector of `NamedTuple`s returned by
-    the processing function for each time step.
+- `jobcreator::Function`: The job creation function
+- `setups`: Vector of parameter configurations
+- `jobs`: Vector of created [`Job`](@ref) objects
+- `jobpaths::Vector{String}`: Paths to individual job directories (must be unique)
+- `root::String`: Root directory for the study
+- `logfile::String`: Path to the central study logfile
+- `sim_success::Vector{Bool}`: Status flags indicating successful completion of each job
+
+# Throws
+- `ArgumentError`: If `setups` is empty
+- `ArgumentError`: If setups don't have consistent field names
+- `ArgumentError`: If job paths are not unique
+- `ArgumentError`: If `jobcreator` fails to create a valid job
 
 # Example
 ```julia
-function create_job(setup::NamedTuple)
-    # Create body, solver, etc. using setup parameters
-    body = ...
-    solver = VelocityVerlet(steps=setup.n_steps)
-    job = Job(body, solver; path=setup.path, freq=setup.freq)
-    return job
+function create_job(setup::NamedTuple, root::String)
+    body = Body(BBMaterial(), uniform_box(1.0, 1.0, 1.0, 0.1))
+    material!(body, horizon=0.3, E=setup.E, rho=1000, Gc=100)
+    velocity_ic!(body, :all_points, :x, setup.velocity)
+    solver = VelocityVerlet(steps=1000)
+    path = joinpath(root, "sim_E\$(setup.E)_v\$(setup.velocity)")
+    return Job(body, solver; path=path, freq=10)
 end
 
 setups = [
-    (; n_steps=1000, path="sim1", freq=10),
-    (; n_steps=2000, path="sim2", freq=20),
+    (; E=1e9, velocity=1.0),
+    (; E=2e9, velocity=1.0),
+    (; E=1e9, velocity=2.0),
 ]
 
-study = Study(create_job, setups)
+study = Study(create_job, setups; root="my_parameter_study")
 ```
 
-See also: [`submit!`](@ref), [`postproc!`](@ref)
+See also: [`submit!`](@ref), [`Job`](@ref)
 """
-struct Study
-    create_job::Function
-    setups::Vector{NamedTuple}
-    jobs::Vector{Job}
-    submission_status::Vector{Bool}
-    postproc_status::Vector{Bool}
-    results::Vector{Vector{NamedTuple}}
+struct Study{F,S,J}
+    jobcreator::F
+    setups::S
+    jobs::J
+    jobpaths::Vector{String}
+    root::String
+    logfile::String
+    sim_success::Vector{Bool}
 
-    function Study(create_job::Function, setups::Vector{<:NamedTuple})
+    function Study(jobcreator::F, setups::S; root::String) where {F,S}
         check_setups(setups)
-        n = length(setups)
-        jobs = Vector{Job}(undef, n)
-        submission_status = fill(false, n)
-        postproc_status = fill(false, n)
-        results = [NamedTuple[] for _ in 1:n]
-
-        for (i, setup) in enumerate(setups)
-            try
-                job = create_job(setup)
-                if !(job isa Job)
-                    msg = "create_job function must return a Job object!\n"
-                    msg *= "For setup $i, got $(typeof(job)) instead.\n"
-                    throw(ArgumentError(msg))
-                end
-                jobs[i] = job
-            catch err
-                msg = "Error creating job for setup $i:\n"
-                msg *= "  Setup: $setup\n"
-                msg *= "  Error: $err\n"
-                throw(ArgumentError(msg))
-            end
-        end
-
-        return new(create_job, setups, jobs, submission_status, postproc_status, results)
+        jobs = [jobcreator(setup, root) for setup in setups]
+        J = typeof(jobs)
+        jobpaths = [job.options.root for job in jobs]
+        check_jobpaths_unique(jobpaths)
+        sim_success = fill(false, length(jobs))
+        logfile = joinpath(root, "study_log.log")
+        new{F,S,J}(jobcreator, setups, jobs, jobpaths, root, logfile, sim_success)
     end
+end
+
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(study::Study))
+    n_jobs = length(study.jobs)
+    print(io, "Study with $n_jobs jobs:\n")
+    for (i, jobpath) in enumerate(study.jobpaths)
+        status = study.sim_success[i] ? "✓" : "✗"
+        println(io, "  [$(status)] Job: `$(jobpath)`")
+    end
+    return nothing
 end
 
 function check_setups(setups::Vector{<:NamedTuple})
@@ -93,28 +108,10 @@ function check_setups(setups::Vector{<:NamedTuple})
     return nothing
 end
 
-function Base.show(io::IO, @nospecialize(study::Study))
-    n_jobs = length(study.jobs)
-    n_submitted = count(study.submission_status)
-    n_postproc = count(study.postproc_status)
-    print(io, "Study with $n_jobs simulations ($n_submitted submitted, $n_postproc post-processed)")
-    return nothing
-end
-
-function Base.show(io::IO, ::MIME"text/plain", @nospecialize(study::Study))
-    if get(io, :compact, false)
-        show(io, study)
-    else
-        n_jobs = length(study.jobs)
-        n_submitted = count(study.submission_status)
-        n_postproc = count(study.postproc_status)
-        println(io, "Study:")
-        println(io, "  Number of simulations:     $n_jobs")
-        println(io, "  Successfully submitted:    $n_submitted")
-        println(io, "  Successfully post-processed: $n_postproc")
-        if n_jobs > 0
-            println(io, "  Setup parameters:          $(keys(study.setups[1]))")
-        end
+function check_jobpaths_unique(jobpaths::Vector{String})
+    jobpaths_set = Set{String}(jobpaths)
+    if length(jobpaths) != length(jobpaths_set)
+        throw(ArgumentError("job paths must be unique for each job in the study!\n"))
     end
     return nothing
 end
@@ -122,190 +119,98 @@ end
 """
     submit!(study::Study; kwargs...)
 
-Submit all jobs in the study for simulation. Jobs are executed **sequentially**, with each
-job running to completion before the next begins. Each individual job can utilize MPI or
-multithreading as configured through the [`submit`](@ref) function.
+$(internal_api_warning())
+$(experimental_api_warning())
 
-Each job is run independently, and if one job encounters an error, the remaining jobs will
-still be executed. The submission status for each job is stored in `study.submission_status`.
+Submit and execute all simulation jobs in a parameter study. Jobs are run sequentially,
+and each job can utilize MPI or multithreading as configured. If a job fails, the error
+is logged and execution continues with the remaining jobs.
 
-!!! note "Execution model"
-    Jobs in a study run sequentially, not in parallel. This is by design because:
-    - Each simulation typically uses all available computational resources (MPI ranks/threads)
-    - Running multiple MPI jobs simultaneously from one process is problematic
-    - For true parallel execution of parameter studies, submit separate jobs to your HPC scheduler
+This function creates the study root directory and logfile, then submits each job using
+[`submit`](@ref). All simulation results and individual job logs are stored in their
+respective job directories, while a central study logfile tracks the overall progress and
+status of all simulations.
 
 # Arguments
-- `study::Study`: The study containing the jobs to submit.
+- `study::Study`: The study containing all jobs to execute
 
 # Keywords
-- `quiet::Bool`: If `true`, suppress output for each individual job. (default: `false`)
+- `quiet::Bool`: If `true`, suppress terminal output for individual jobs (default: `false`)
+- Additional keywords are passed to [`submit`](@ref) for each job
 
-# Returns
-- `nothing`
+# Behavior
+- Jobs execute sequentially (one after another)
+- Each job inherits MPI/threading configuration from the Julia session
+- Failed jobs don't stop execution of remaining jobs
+- `study.sim_success` is updated with the status of each job
+- A study logfile is created at `study.logfile` with:
+  - Study header with timestamp
+  - Parameters and status for each simulation
+  - Execution time for successful jobs
+- Individual job logs are written to their respective directories
 
 # Example
 ```julia
-study = Study(create_job, setups)
-submit!(study)
+study = Study(create_job, setups; root="my_study")
+submit!(study; quiet=true)
 
-# Check which jobs completed successfully
-successful_jobs = findall(study.submission_status)
+# Check which simulations succeeded
+successful_indices = findall(study.sim_success)
+println("Successful simulations: ", successful_indices)
+
+# Read the study logfile
+logcontent = read(study.logfile, String)
 ```
 
 See also: [`Study`](@ref), [`submit`](@ref)
 """
-function submit!(study::Study; quiet::Bool=false)
-    n_jobs = length(study.jobs)
+function submit!(study::Study; kwargs...)
+    # Create root directory if it doesn't exist
+    if !isdir(study.root)
+        mkpath(study.root)
+    end
 
-    println("Starting parameter study with $n_jobs simulations...")
-
+    open(study.logfile, "w+") do io
+        write(io, get_logfile_head())
+        write(io, peridynamics_banner(color=false))
+        write(io, "\nSIMULATION STUDY LOGFILE\n\n")
+    end
     for (i, job) in enumerate(study.jobs)
-        println("\n" * "="^80)
-        println("Simulation $i of $n_jobs")
-        println("Setup: $(study.setups[i])")
-        println("="^80)
-
-        try
-            submit(job; quiet=quiet)
-            study.submission_status[i] = true
-            println("✓ Simulation $i completed successfully")
-        catch err
-            study.submission_status[i] = false
-            println("✗ Simulation $i encountered an error:")
-            println("  Error type: $(typeof(err))")
-            println("  Error message: $err")
-            if err isa Exception
-                println("  Stacktrace:")
-                for (exc, bt) in Base.catch_stack()
-                    showerror(stdout, exc, bt)
-                    println()
+        success = false
+        simtime = @elapsed begin
+            try
+                submit(job; kwargs...)
+                success = true
+            catch err
+                # Try to log the error to the job's logfile, but if that fails
+                # (e.g., invalid path), just continue
+                try
+                    log_it(job.options, "\nERROR: Simulation failed with error!\n")
+                    log_it(job.options, sprint(showerror, err, catch_backtrace()))
+                    log_it(job.options, "\n")
+                catch log_err
+                    # If logging fails, just continue - error will be recorded in study log
                 end
             end
-            println("Continuing with remaining simulations...")
         end
-    end
-
-    println("\n" * "="^80)
-    n_successful = count(study.submission_status)
-    println("Parameter study completed: $n_successful of $n_jobs simulations successful")
-    println("="^80)
-
-    return nothing
-end
-
-"""
-    postproc!(proc_func::Function, study::Study; kwargs...)
-
-Apply a post-processing function to all successfully submitted jobs in the study. Results
-are stored in `study.results` as a vector of vectors of `NamedTuple`s.
-
-Post-processing can be performed in parallel (multithreaded or MPI) for each individual
-simulation by setting `serial=false` (default). The parallelization happens within each
-simulation's time steps, not across different simulations.
-
-# Arguments
-- `proc_func::Function`: A function with signature `proc_func(r0, r, id)` where:
-    - `r0`: Reference results (from [`read_vtk`](@ref) of the initial export)
-    - `r`: Current time step results (from [`read_vtk`](@ref))
-    - `id`: File ID / time step number
-  The function should return either a `NamedTuple` with results or `nothing`.
-- `study::Study`: The study to post-process.
-
-# Keywords
-- `serial::Bool`: If `true`, process results serially on a single thread. (default: `false`)
-
-# Returns
-- `nothing`: Results are stored in `study.results`. For simulation `i`, access results via
-    `study.results[i]`, which contains a vector of `NamedTuple`s (one per time step).
-
-# Example
-```julia
-function proc_func(r0, r, id)
-    # Calculate some quantity
-    max_displacement = maximum(r[:displacement])
-    return (; time_step=id, max_disp=max_displacement)
-end
-
-study = Study(create_job, setups)
-submit!(study)
-postproc!(proc_func, study)
-
-# Access results for first simulation
-results_sim1 = study.results[1]
-```
-
-See also: [`Study`](@ref), [`process_each_export`](@ref)
-"""
-function postproc!(proc_func::Function, study::Study; serial::Bool=false)
-    check_process_function(proc_func)
-
-    n_jobs = length(study.jobs)
-    n_successful = count(study.submission_status)
-
-    if n_successful == 0
-        @warn "No successfully submitted jobs to post-process!"
-        return nothing
-    end
-
-    println("\nStarting post-processing for $n_successful successful simulations...")
-
-    # Clear previous results and determine if we should collect
-    collect_results = Ref(false)
-    first_result_type_checked = Ref(false)
-
-    for (i, job) in enumerate(study.jobs)
-        # Clear previous results for this simulation
-        empty!(study.results[i])
-
-        # Skip jobs that weren't submitted successfully
-        if !study.submission_status[i]
-            study.postproc_status[i] = false
-            continue
-        end
-
-        println("\nPost-processing simulation $i of $n_jobs...")
-
-        try
-            function wrapper_func(r0, r, id)
-                result = proc_func(r0, r, id)
-
-                # On first result, check if we should collect
-                if !first_result_type_checked[]
-                    if result isa NamedTuple
-                        collect_results[] = true
-                    elseif !isnothing(result)
-                        @warn "proc_func returned $(typeof(result)) instead of NamedTuple or nothing. Results will not be collected."
-                    end
-                    first_result_type_checked[] = true
-                end
-
-                # Collect if appropriate
-                if collect_results[] && result isa NamedTuple
-                    push!(study.results[i], result)
-                end
-
-                return nothing
+        study.sim_success[i] = success
+        open(study.logfile, "a") do io
+            msg = "Simulation `$(study.jobpaths[i])`:\n"
+            for (key, value) in pairs(study.setups[i])
+                msg *= "  $(key): $(value)\n"
             end
-
-            process_each_export(wrapper_func, job; serial=serial)
-
-            study.postproc_status[i] = true
-            println("✓ Post-processing simulation $i completed successfully")
-
-        catch err
-            study.postproc_status[i] = false
-            println("✗ Post-processing simulation $i encountered an error:")
-            println("  Error type: $(typeof(err))")
-            println("  Error message: $err")
-            println("Continuing with remaining simulations...")
+            if success
+                msg *= @sprintf("  status: completed ✓ (%.2f seconds)\n", simtime)
+            else
+                msg *= "  status: failed ✗\n"
+            end
+            msg *= "\n"
+            write(io, msg)
         end
     end
-
-    println("\n" * "="^80)
-    n_postproc_successful = count(study.postproc_status)
-    println("Post-processing completed: $n_postproc_successful of $n_successful simulations successful")
-    println("="^80)
-
+    n_successful = count(study.sim_success)
+    n_jobs = length(study.jobs)
+    msg = "\nStudy completed ($n_successful / $n_jobs simulations successful)\n"
+    print_log(stdout, msg)
     return nothing
 end
