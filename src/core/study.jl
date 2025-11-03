@@ -79,17 +79,11 @@ struct Study{F,S,J}
         check_jobpaths_unique(jobpaths)
         sim_success = fill(false, length(jobs))
         logfile = joinpath(root, "study_log.log")
-        st = new{F,S,J}(jobcreator, setups, jobs, jobpaths, root, logfile, sim_success)
+        study = new{F,S,J}(jobcreator, setups, jobs, jobpaths, root, logfile, sim_success)
         # If a logfile already exists from a previous run, initialize sim_success
         # from the logfile so processing or resuming works across interrupted runs.
-        if isfile(st.logfile)
-            try
-                update_sim_success_from_log!(st)
-            catch err
-                @warn "failed to refresh study status from logfile" error=err
-            end
-        end
-        return st
+        isfile(logfile) && update_sim_success_from_log!(study)
+        return study
     end
 end
 
