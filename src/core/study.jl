@@ -5,8 +5,13 @@ A structure for managing parameter studies with multiple peridynamic simulations
 `Study` type coordinates the execution of multiple simulation jobs with different parameter
 configurations, tracks their status, and logs all results to a central logfile.
 
+If a logfile already exists at the study root (from a previous interrupted run), the
+constructor automatically reads it and initializes the `sim_success` field based on the
+recorded completion status. This enables seamless resumption of interrupted studies.
+
 # Arguments
-- `jobcreator::Function`: A function with signature `jobcreator(setup::NamedTuple, root::String)`
+- `jobcreator::Function`: A function with signature
+    `jobcreator(setup::NamedTuple, root::String)`
     that creates and returns a [`Job`](@ref) object. The function receives:
     - `setup`: A `NamedTuple` containing the parameters for one simulation
     - `root`: The root directory path for the study (to construct individual job paths)
@@ -137,6 +142,18 @@ This function creates the study root directory and logfile, then submits each jo
 respective job directories, while a central study logfile tracks the overall progress and
 status of all simulations.
 
+## Resuming Interrupted Runs
+
+If the study logfile already exists (from a previous run), `submit!` will:
+- Read the logfile and refresh `study.sim_success` to detect previously completed jobs
+- Skip jobs that already completed successfully (marked with "skipped" in the logfile)
+- Only execute jobs that failed or were not yet started
+- Append a "RESUMED" marker with timestamp to the logfile
+
+This allows you to safely resume a study after an interruption (crash, timeout, manual
+stop) without re-running successful simulations. Simply call `submit!(study)` again with
+the same study configuration.
+
 # Arguments
 - `study::Study`: The study containing all jobs to execute
 
@@ -159,6 +176,11 @@ status of all simulations.
 ```julia
 study = Study(create_job, setups; root="my_study")
 submit!(study; quiet=true)
+
+# If the process was interrupted, simply call submit! again to resume:
+# It will skip completed jobs and only run remaining ones
+study = Study(create_job, setups; root="my_study")  # Reads existing logfile
+submit!(study; quiet=true)  # Resumes from where it left off
 
 # Check which simulations succeeded
 successful_indices = findall(study.sim_success)
@@ -231,9 +253,9 @@ function submit!(study::Study; kwargs...)
         study.sim_success[i] = success
         open(study.logfile, "a") do io
             if success
-                msg *= @sprintf("  status: completed ✓ (%.2f seconds)\n\n", simtime)
+                msg = @sprintf("  status: completed ✓ (%.2f seconds)\n\n", simtime)
             else
-                msg *= "  status: failed ✗\n\n"
+                msg = "  status: failed ✗\n\n"
             end
             write(io, msg)
         end
@@ -308,6 +330,11 @@ This function iterates through all jobs in the study and applies the user-define
 processing function `f` to jobs that completed successfully. Failed jobs or jobs where
 the processing function errors will use the `default_result` instead.
 
+Before processing, this function automatically refreshes `study.sim_success` from the
+logfile if it exists. This ensures that jobs completed in a previous interrupted run
+are properly detected and processed, even if the current Julia session doesn't reflect
+their completion status yet.
+
 # Arguments
 - `f::Function`: A processing function with signature `f(job::Job, setup::NamedTuple)`
     that returns a `NamedTuple` containing the processed results. The function receives:
@@ -323,17 +350,19 @@ the processing function errors will use the `default_result` instead.
     `default_result` for failed/errored cases.
 
 # Behavior
+- Refreshes job completion status from logfile (if exists) before processing
 - Only processes jobs where `study.sim_success[i] == true`
 - Failed jobs automatically receive `default_result` (warning logged)
-- If processing function `f` throws an error, that job receives `default_result` (error logged)
+- If processing function `f` throws an error, that job receives `default_result` (error
+    logged)
 - Processing is sequential (one job at a time)
 - All jobs in the study will have a corresponding entry in the results vector
 
 # Example
 ```julia
-# After running a parameter study
+# After running a parameter study (possibly interrupted and resumed)
 study = Study(create_job, setups; root="my_study")
-submit!(study)
+# Status is automatically refreshed from logfile in constructor
 
 # Define a function to extract maximum displacement from results
 function extract_max_displacement(job::Job, setup::NamedTuple)
@@ -343,6 +372,7 @@ function extract_max_displacement(job::Job, setup::NamedTuple)
 end
 
 default = (; E=0.0, velocity=0.0, max_displacement=NaN)
+# This will process all successfully completed jobs, even if from a previous run
 results = process_each_job(extract_max_displacement, study, default)
 
 # Filter successful results

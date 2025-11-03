@@ -57,6 +57,7 @@ Peridynamics.apply_precracks!
 Peridynamics.apply_precrack!
 Peridynamics.point_sets_intersect
 Peridynamics.invreg
+Peridynamics.update_sim_success_from_log!
 ```
 
 ## Macros
