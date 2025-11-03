@@ -85,7 +85,8 @@ end
     mkpath(study.jobpaths[1])
     open(study.logfile, "w") do io
         write(io, "SIMULATION STUDY LOGFILE\n\n")
-        write(io, "Simulation `$(study.jobpaths[1])`:\n  status: completed ✓ (0.00 seconds)\n\n")
+        write(io, "Simulation `$(study.jobpaths[1])`:\n")
+        write(io, "  status: completed ✓ (0.00 seconds)\n\n")
     end
 
     # Now resuming submit! should only run the remaining job (E=2)
@@ -283,6 +284,9 @@ end
 end
 
 @testitem "Study with MultibodySetup" begin
+    __mpi_run__ = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
     function create_job(setup::NamedTuple, root::String)
         b1 = Body(BBMaterial(), rand(3, 50), rand(50))
         material!(b1, horizon=1, E=1, rho=1, Gc=1)
@@ -306,6 +310,8 @@ end
 
     Peridynamics.submit!(study)
     @test study.sim_success[1] == true
+
+    Peridynamics.MPI_RUN[] = __mpi_run__
 end
 
 @testitem "Study logfile format and content" begin

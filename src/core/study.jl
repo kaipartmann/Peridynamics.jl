@@ -199,14 +199,10 @@ function submit!(study::Study; kwargs...)
     # If logfile exists, refresh sim_success and append a resume marker. Otherwise
     # create a new logfile with header.
     if isfile(study.logfile)
-        try
-            update_sim_success_from_log!(study)
-        catch err
-            @warn "failed to refresh study status from existing logfile" error=err
-        end
+        update_sim_success_from_log!(study)
         open(study.logfile, "a") do io
             datetime = Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
-            write(io, "\n--- RESUMED: $datetime ---\n\n")
+            write(io, "\n\n--- RESUMED: $datetime ---\n\n")
         end
     else
         open(study.logfile, "w+") do io
@@ -233,11 +229,12 @@ function submit!(study::Study; kwargs...)
             end
             continue
         end
-        success = false
         simtime = @elapsed begin
-            try
+            success = try
+                # remove the vtk files from previous failed runs if any
+                isdir(job.options.vtk) && rm(job.options.vtk; force=true, recursive=true)
                 submit(job; kwargs...)
-                success = true
+                true
             catch err
                 # Try to log the error to the job's logfile, but if that fails
                 # (e.g., invalid path), just continue
@@ -248,6 +245,7 @@ function submit!(study::Study; kwargs...)
                 catch
                     # If logging fails, just continue - error will be recorded in job log
                 end
+                false
             end
         end
         study.sim_success[i] = success
@@ -277,7 +275,7 @@ last recorded status for each job. This allows resuming processing or submission
 after an interrupted run.
 """
 function update_sim_success_from_log!(study::Study)
-    isfile(study.logfile) || return false
+    isfile(study.logfile) || return nothing
 
     # Read logfile line by line
     lines = readlines(study.logfile)
@@ -319,7 +317,7 @@ function update_sim_success_from_log!(study::Study)
             study.sim_success[i] = false
         end
     end
-    return true
+    return nothing
 end
 
 """
@@ -383,13 +381,7 @@ See also: [`Study`](@ref), [`submit!`](@ref)
 """
 function process_each_job(f::F, study::Study, default_result::NamedTuple) where {F}
     # Refresh sim_success from logfile if it exists (in case study was interrupted/resumed)
-    if isfile(study.logfile)
-        try
-            update_sim_success_from_log!(study)
-        catch err
-            @warn "failed to refresh study status from logfile before processing" error=err
-        end
-    end
+    isfile(study.logfile) && update_sim_success_from_log!(study)
 
     results = fill(default_result, length(study.jobs))
     for (i, job) in enumerate(study.jobs)
