@@ -71,4 +71,7 @@ Peridynamics.displacement_bc!
 Peridynamics.velocity_databc!
 Peridynamics.forcedensity_databc!
 Peridynamics.NewtonRaphson
+Peridynamics.Study
+Peridynamics.submit!
+Peridynamics.process_each_job
 ```

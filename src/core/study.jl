@@ -214,3 +214,78 @@ function submit!(study::Study; kwargs...)
     print_log(stdout, msg)
     return nothing
 end
+
+"""
+    process_each_job(f::Function, study::Study, default_result::NamedTuple)
+
+$(internal_api_warning())
+$(experimental_api_warning())
+
+Apply a processing function to each successfully completed job in a parameter study.
+This function iterates through all jobs in the study and applies the user-defined
+processing function `f` to jobs that completed successfully. Failed jobs or jobs where
+the processing function errors will use the `default_result` instead.
+
+# Arguments
+- `f::Function`: A processing function with signature `f(job::Job, setup::NamedTuple)`
+    that returns a `NamedTuple` containing the processed results. The function receives:
+    - `job`: The [`Job`](@ref) object for the simulation
+    - `setup`: The parameter configuration `NamedTuple` for this job
+- `study::Study`: The study containing the jobs to process
+- `default_result::NamedTuple`: The default result to use when a job failed or when
+    the processing function throws an error
+
+# Returns
+- `Vector{<:NamedTuple}`: A vector of results with the same length as the number of
+    jobs in the study. Each element is either the result from applying `f` or the
+    `default_result` for failed/errored cases.
+
+# Behavior
+- Only processes jobs where `study.sim_success[i] == true`
+- Failed jobs automatically receive `default_result` (warning logged)
+- If processing function `f` throws an error, that job receives `default_result` (error logged)
+- Processing is sequential (one job at a time)
+- All jobs in the study will have a corresponding entry in the results vector
+
+# Example
+```julia
+# After running a parameter study
+study = Study(create_job, setups; root="my_study")
+submit!(study)
+
+# Define a function to extract maximum displacement from results
+function extract_max_displacement(job::Job, setup::NamedTuple)
+    # Read results from job output directory
+    results_file = joinpath(job.options.root, "results_step_0010.jld2")
+    data = load_results(results_file)
+    max_u = maximum(norm, eachcol(data.displacement))
+    return (; E=setup.E, velocity=setup.velocity, max_displacement=max_u)
+end
+
+default = (; E=0.0, velocity=0.0, max_displacement=NaN)
+results = process_each_job(extract_max_displacement, study, default)
+
+# Filter successful results
+successful_results = [r for r in results if !isnan(r.max_displacement)]
+```
+
+See also: [`Study`](@ref), [`submit!`](@ref)
+"""
+function process_each_job(f::F, study::Study, default_result::NamedTuple) where {F}
+    results = fill(default_result, length(study.jobs))
+    for (i, job) in enumerate(study.jobs)
+        if study.sim_success[i]
+            setup = study.setups[i]
+            res = try
+                f(job, setup)
+            catch err
+                @error "error processing job $(job.options.root)" error=err
+                default_result
+            end
+            results[i] = res
+        else
+            @warn "skipping processing for failed job $(job.options.root)"
+        end
+    end
+    return results
+end

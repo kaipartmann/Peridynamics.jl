@@ -20,9 +20,9 @@
             (; E=3.0, n_steps=15),
         ]
 
-        study = Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
 
-        @test study isa Study
+        @test study isa Peridynamics.Study
         @test length(study.jobs) == 3
         @test length(study.setups) == 3
         @test length(study.sim_success) == 3
@@ -45,7 +45,7 @@ end
 
         setups = NamedTuple[]
 
-        @test_throws ArgumentError Study(create_job, setups; root=tmpdir)
+        @test_throws ArgumentError Peridynamics.Study(create_job, setups; root=tmpdir)
     end
 end
 
@@ -63,7 +63,7 @@ end
             (; n_steps=20, force=2.0),  # Different field name
         ]
 
-        @test_throws ArgumentError Study(create_job, setups; root=tmpdir)
+        @test_throws ArgumentError Peridynamics.Study(create_job, setups; root=tmpdir)
     end
 end
 
@@ -88,7 +88,7 @@ end
             (; n_steps=-5,),
         ]
 
-        @test_throws ErrorException Study(create_job, setups; root=tmpdir)
+        @test_throws ErrorException Peridynamics.Study(create_job, setups; root=tmpdir)
     end
 
     Peridynamics.MPI_RUN[] = mpi_run_current_value
@@ -113,7 +113,7 @@ end
             (; n_steps=20,),
         ]
 
-        @test_throws ArgumentError Study(create_job, setups; root=tmpdir)
+        @test_throws ArgumentError Peridynamics.Study(create_job, setups; root=tmpdir)
     end
 
     Peridynamics.MPI_RUN[] = mpi_run_current_value
@@ -137,7 +137,7 @@ end
             (; n_steps=20,),
         ]
 
-        study = Study(create_job, setups; root=tmpdir)
+        study = Peridynamics.Study(create_job, setups; root=tmpdir)
 
         io = IOBuffer()
         show(io, MIME("text/plain"), study)
@@ -172,11 +172,11 @@ end
             (; n_steps=10, velocity=2.0),
         ]
 
-        study = Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
 
         @test all(.!study.sim_success)
 
-        submit!(study; quiet=true)
+        Peridynamics.submit!(study; quiet=true)
 
         @test all(study.sim_success)
         @test count(study.sim_success) == 2
@@ -223,9 +223,9 @@ end
             (; n_steps=15, fail=false),
         ]
 
-        study = Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
 
-        submit!(study; quiet=true)
+        Peridynamics.submit!(study; quiet=true)
 
         @test study.sim_success[1] == true
         @test study.sim_success[2] == false
@@ -259,11 +259,11 @@ end
         setups = [(; n_steps=5,)]
         studyroot = joinpath(tmpdir, "my_study")
 
-        study = Study(create_job, setups; root=studyroot)
+        study = Peridynamics.Study(create_job, setups; root=studyroot)
 
         @test !isdir(studyroot)
 
-        submit!(study; quiet=true)
+        Peridynamics.submit!(study; quiet=true)
 
         @test isdir(studyroot)
         @test isfile(study.logfile)
@@ -290,15 +290,15 @@ end
         end
 
         setups = [(; n_steps=5,)]
-        study = Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
 
         # Should not error with quiet=true
-        submit!(study; quiet=true)
+        Peridynamics.submit!(study; quiet=true)
         @test study.sim_success[1] == true
 
         # Should not error with quiet=false (default)
-        study2 = Study(create_job, setups; root=joinpath(tmpdir, "study2"))
-        submit!(study2)
+        study2 = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study2"))
+        Peridynamics.submit!(study2)
         @test study2.sim_success[1] == true
     end
 
@@ -326,12 +326,12 @@ end
         end
 
         setups = [(; id=1, n_steps=5, velocity=1.0)]
-        study = Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
 
         @test length(study.jobs) == 1
         @test study.jobs[1].spatial_setup isa MultibodySetup
 
-        submit!(study)
+        Peridynamics.submit!(study)
         @test study.sim_success[1] == true
     end
 
@@ -358,8 +358,8 @@ end
             (; E=2e9, n_steps=10),
         ]
 
-        study = Study(create_job, setups; root=joinpath(tmpdir, "study"))
-        submit!(study; quiet=true)
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        Peridynamics.submit!(study; quiet=true)
 
         @test isfile(study.logfile)
         logcontent = read(study.logfile, String)
@@ -382,6 +382,237 @@ end
 
         # Check timing info present
         @test contains(logcontent, "seconds")
+    end
+
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+end
+
+@testitem "process_each_job with all successful jobs" tags=[:skipci] begin
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
+    mktempdir() do tmpdir
+        function create_job(setup::NamedTuple, root::String)
+            body = Body(BBMaterial(), rand(3, 10), rand(10))
+            material!(body, horizon=1, E=setup.E, rho=1, Gc=1)
+            velocity_ic!(body, :all_points, :x, 1.0)
+            vv = VelocityVerlet(steps=setup.n_steps)
+            path = joinpath(root, "sim_$(setup.E)")
+            job = Job(body, vv; path=path, freq=5)
+            return job
+        end
+
+        setups = [
+            (; E=1.0, n_steps=5),
+            (; E=2.0, n_steps=10),
+            (; E=3.0, n_steps=15),
+        ]
+
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        Peridynamics.submit!(study; quiet=true)
+
+        # Define a processing function that extracts parameters from setup
+        function process_func(job, setup)
+            return (; E=setup.E, n_steps=setup.n_steps, path=job.options.root)
+        end
+
+        default_result = (; E=0.0, n_steps=0, path="")
+        results = Peridynamics.process_each_job(process_func, study, default_result)
+
+        @test length(results) == 3
+        @test results[1].E == 1.0
+        @test results[1].n_steps == 5
+        @test results[2].E == 2.0
+        @test results[2].n_steps == 10
+        @test results[3].E == 3.0
+        @test results[3].n_steps == 15
+        @test all(r -> r.path != "", results)
+    end
+
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+end
+
+@testitem "process_each_job with some failed jobs" tags=[:skipci] begin
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
+    mktempdir() do tmpdir
+        function create_job(setup::NamedTuple, root::String)
+            body = Body(BBMaterial(), rand(3, 10), rand(10))
+            material!(body, horizon=1, E=1, rho=1, Gc=1)
+            velocity_ic!(body, :all_points, :x, 1.0)
+            vv = VelocityVerlet(steps=setup.n_steps)
+
+            # Create invalid path for second job
+            if setup.fail
+                path = "/invalid/path/sim_$(setup.n_steps)"
+            else
+                path = joinpath(root, "sim_$(setup.n_steps)")
+            end
+
+            job = Job(body, vv; path=path, freq=5)
+            return job
+        end
+
+        setups = [
+            (; n_steps=5, fail=false),
+            (; n_steps=10, fail=true),
+            (; n_steps=15, fail=false),
+        ]
+
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        Peridynamics.submit!(study; quiet=true)
+
+        # Only first and third jobs should succeed
+        @test study.sim_success == [true, false, true]
+
+        function process_func(job, setup)
+            return (; n_steps=setup.n_steps, processed=true)
+        end
+
+        default_result = (; n_steps=0, processed=false)
+        results = Peridynamics.process_each_job(process_func, study, default_result)
+
+        @test length(results) == 3
+        # First job processed
+        @test results[1].n_steps == 5
+        @test results[1].processed == true
+        # Second job failed - should have default result
+        @test results[2].n_steps == 0
+        @test results[2].processed == false
+        # Third job processed
+        @test results[3].n_steps == 15
+        @test results[3].processed == true
+    end
+
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+end
+
+@testitem "process_each_job with processing errors" tags=[:skipci] begin
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
+    mktempdir() do tmpdir
+        function create_job(setup::NamedTuple, root::String)
+            body = Body(BBMaterial(), rand(3, 10), rand(10))
+            material!(body, horizon=1, E=1, rho=1, Gc=1)
+            velocity_ic!(body, :all_points, :x, 1.0)
+            vv = VelocityVerlet(steps=setup.n_steps)
+            path = joinpath(root, "sim_$(setup.id)")
+            job = Job(body, vv; path=path, freq=5)
+            return job
+        end
+
+        setups = [
+            (; id=1, n_steps=5),
+            (; id=2, n_steps=10),
+            (; id=3, n_steps=15),
+        ]
+
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        Peridynamics.submit!(study; quiet=true)
+
+        @test all(study.sim_success)
+
+        # Processing function that errors for specific setup
+        function process_func(job, setup)
+            if setup.id == 2
+                error("Intentional processing error")
+            end
+            return (; id=setup.id, status="ok")
+        end
+
+        default_result = (; id=0, status="failed")
+
+        # Should not throw, but should use default_result for erroring job
+        results = Peridynamics.process_each_job(process_func, study, default_result)
+
+        @test length(results) == 3
+        @test results[1].id == 1
+        @test results[1].status == "ok"
+        @test results[2].id == 0  # Error occurred, default used
+        @test results[2].status == "failed"
+        @test results[3].id == 3
+        @test results[3].status == "ok"
+    end
+
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+end
+
+@testitem "process_each_job with empty processing result" tags=[:skipci] begin
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
+    mktempdir() do tmpdir
+        function create_job(setup::NamedTuple, root::String)
+            body = Body(BBMaterial(), rand(3, 10), rand(10))
+            material!(body, horizon=1, E=1, rho=1, Gc=1)
+            velocity_ic!(body, :all_points, :x, 1.0)
+            vv = VelocityVerlet(steps=setup.n_steps)
+            path = joinpath(root, "sim_$(setup.n_steps)")
+            job = Job(body, vv; path=path, freq=5)
+            return job
+        end
+
+        setups = [(; n_steps=5,)]
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        Peridynamics.submit!(study; quiet=true)
+
+        # Processing function that returns empty NamedTuple
+        process_func(job, setup) = NamedTuple()
+
+        default_result = NamedTuple()
+        results = Peridynamics.process_each_job(process_func, study, default_result)
+
+        @test length(results) == 1
+        @test results[1] == NamedTuple()
+    end
+
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+end
+
+@testitem "process_each_job accessing job results" tags=[:skipci] begin
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
+    mktempdir() do tmpdir
+        function create_job(setup::NamedTuple, root::String)
+            body = Body(BBMaterial(), rand(3, 10), rand(10))
+            material!(body, horizon=1, E=setup.E, rho=1, Gc=1)
+            velocity_ic!(body, :all_points, :x, 1.0)
+            vv = VelocityVerlet(steps=setup.n_steps)
+            path = joinpath(root, "sim_$(setup.E)")
+            job = Job(body, vv; path=path, freq=5)
+            return job
+        end
+
+        setups = [
+            (; E=1e9, n_steps=5),
+            (; E=2e9, n_steps=10),
+        ]
+
+        study = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study"))
+        Peridynamics.submit!(study; quiet=true)
+
+        # Process function that reads result files
+        function process_func(job, setup)
+            # Check if output directory exists
+            if isdir(job.options.root)
+                n_files = length(readdir(job.options.root))
+                return (; E=setup.E, n_output_files=n_files)
+            else
+                return (; E=setup.E, n_output_files=0)
+            end
+        end
+
+        default_result = (; E=0.0, n_output_files=0)
+        results = Peridynamics.process_each_job(process_func, study, default_result)
+
+        @test length(results) == 2
+        @test results[1].E == 1e9
+        @test results[1].n_output_files > 0  # Should have created output files
+        @test results[2].E == 2e9
+        @test results[2].n_output_files > 0
     end
 
     Peridynamics.MPI_RUN[] = mpi_run_current_value
