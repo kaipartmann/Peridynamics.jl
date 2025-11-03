@@ -213,10 +213,11 @@ function submit!(study::Study; kwargs...)
     end
 
     # Now submit each job
+    n_jobs = length(study.jobs)
     for (i, job) in enumerate(study.jobs)
         # If this job already completed in a previous run, skip execution
         open(study.logfile, "a") do io
-            msg = "Simulation `$(study.jobpaths[i])`:\n"
+            msg = @sprintf "(%d/%d) Simulation `%s`:\n" i n_jobs job.options.root
             for (key, value) in pairs(study.setups[i])
                 msg *= "  $(key): $(value)\n"
             end
@@ -225,7 +226,7 @@ function submit!(study::Study; kwargs...)
         if study.sim_success[i]
             # Write a short note about skipping to the study logfile
             open(study.logfile, "a") do io
-                write(io, "  status: skipped (already completed)\n\n")
+                write(io, "  status: skipped (completed in a previous run)\n\n")
             end
             continue
         end
