@@ -283,13 +283,13 @@ function update_sim_success_from_log!(study::Study)
     for (i, path) in enumerate(study.jobpaths)
         # Search for the Simulation line for this job path
         sim_line_pattern = "Simulation `$(path)`:"
-        sim_line_idx = findfirst(line -> occursin(sim_line_pattern, line), lines)
-
-        if sim_line_idx === nothing
+        sim_line_idxs = findall(line -> occursin(sim_line_pattern, line), lines)
+        if isempty(sim_line_idxs)
             # No record for this job in logfile
             study.sim_success[i] = false
             continue
         end
+        sim_line_idx = sim_line_idxs[end]  # Take the last occurrence (restarts also logged)
 
         # Look for status line in the next few lines after the simulation line
         found_status = false
