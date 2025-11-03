@@ -78,11 +78,14 @@ reset_mpi_progress_bars!
 VelocityVerlet
 DynamicRelaxation
 Job
+Study
 submit
+submit!
 ```
 
 ## Postprocessing
 ```@docs
 read_vtk
 process_each_export
+process_each_job
 ```
