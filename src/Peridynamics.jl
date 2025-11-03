@@ -30,15 +30,15 @@ export Body, point_set!, point_sets, no_failure!, material!, velocity_bc!, veloc
        uniform_cylinder, round_sphere, round_cylinder, n_points
 
 # Running simulations
-export VelocityVerlet, DynamicRelaxation, Job, submit
+export VelocityVerlet, DynamicRelaxation, Job, Study, submit, submit!
 
 # Pre processing
 export read_inp
 
 # Post processing and helpers
-export read_vtk, process_each_export, mpi_isroot, force_mpi_run!, force_threads_run!,
-       enable_mpi_timers!, disable_mpi_timers!, enable_mpi_progress_bars!,
-       reset_mpi_progress_bars!, @mpitime, @mpiroot
+export read_vtk, process_each_export, process_each_job, mpi_isroot, force_mpi_run!,
+       force_threads_run!, enable_mpi_timers!, disable_mpi_timers!,
+       enable_mpi_progress_bars!, reset_mpi_progress_bars!, @mpitime, @mpiroot
 
 function __init__()
     init_mpi()

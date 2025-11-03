@@ -1,9 +1,6 @@
 """
     Study(jobcreator::Function, setups::Vector{<:NamedTuple}; root::String)
 
-$(internal_api_warning())
-$(experimental_api_warning())
-
 A structure for managing parameter studies with multiple peridynamic simulations. The
 `Study` type coordinates the execution of multiple simulation jobs with different parameter
 configurations, tracks their status, and logs all results to a central logfile.
@@ -38,11 +35,13 @@ configurations, tracks their status, and logs all results to a central logfile.
 
 # Example
 ```julia
+# some function that creates a Job from a parameter setup
 function create_job(setup::NamedTuple, root::String)
     body = Body(BBMaterial(), uniform_box(1.0, 1.0, 1.0, 0.1))
     material!(body, horizon=0.3, E=setup.E, rho=1000, Gc=100)
     velocity_ic!(body, :all_points, :x, setup.velocity)
     solver = VelocityVerlet(steps=1000)
+    # create a unique path for this job based on parameters
     path = joinpath(root, "sim_E\$(setup.E)_v\$(setup.velocity)")
     return Job(body, solver; path=path, freq=10)
 end
@@ -75,7 +74,17 @@ struct Study{F,S,J}
         check_jobpaths_unique(jobpaths)
         sim_success = fill(false, length(jobs))
         logfile = joinpath(root, "study_log.log")
-        new{F,S,J}(jobcreator, setups, jobs, jobpaths, root, logfile, sim_success)
+        st = new{F,S,J}(jobcreator, setups, jobs, jobpaths, root, logfile, sim_success)
+        # If a logfile already exists from a previous run, initialize sim_success
+        # from the logfile so processing or resuming works across interrupted runs.
+        if isfile(st.logfile)
+            try
+                update_sim_success_from_log!(st)
+            catch err
+                @warn "failed to refresh study status from logfile" error=err
+            end
+        end
+        return st
     end
 end
 
@@ -118,9 +127,6 @@ end
 
 """
     submit!(study::Study; kwargs...)
-
-$(internal_api_warning())
-$(experimental_api_warning())
 
 Submit and execute all simulation jobs in a parameter study. Jobs are run sequentially,
 and each job can utilize MPI or multithreading as configured. If a job fails, the error
@@ -166,16 +172,45 @@ See also: [`Study`](@ref), [`submit`](@ref)
 """
 function submit!(study::Study; kwargs...)
     # Create root directory if it doesn't exist
-    if !isdir(study.root)
-        mkpath(study.root)
+    isdir(study.root) || mkpath(study.root)
+
+    # If logfile exists, refresh sim_success and append a resume marker. Otherwise
+    # create a new logfile with header.
+    if isfile(study.logfile)
+        try
+            update_sim_success_from_log!(study)
+        catch err
+            @warn "failed to refresh study status from existing logfile" error=err
+        end
+        open(study.logfile, "a") do io
+            datetime = Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
+            write(io, "\n--- RESUMED: $datetime ---\n\n")
+        end
+    else
+        open(study.logfile, "w+") do io
+            write(io, get_logfile_head())
+            write(io, peridynamics_banner(color=false))
+            write(io, "\nSIMULATION STUDY LOGFILE\n\n")
+        end
     end
 
-    open(study.logfile, "w+") do io
-        write(io, get_logfile_head())
-        write(io, peridynamics_banner(color=false))
-        write(io, "\nSIMULATION STUDY LOGFILE\n\n")
-    end
+    # Now submit each job
     for (i, job) in enumerate(study.jobs)
+        # If this job already completed in a previous run, skip execution
+        open(study.logfile, "a") do io
+            msg = "Simulation `$(study.jobpaths[i])`:\n"
+            for (key, value) in pairs(study.setups[i])
+                msg *= "  $(key): $(value)\n"
+            end
+            write(io, msg)
+        end
+        if study.sim_success[i]
+            # Write a short note about skipping to the study logfile
+            open(study.logfile, "a") do io
+                write(io, "  status: skipped (already completed)\n\n")
+            end
+            continue
+        end
         success = false
         simtime = @elapsed begin
             try
@@ -188,23 +223,18 @@ function submit!(study::Study; kwargs...)
                     log_it(job.options, "\nERROR: Simulation failed with error!\n")
                     log_it(job.options, sprint(showerror, err, catch_backtrace()))
                     log_it(job.options, "\n")
-                catch log_err
-                    # If logging fails, just continue - error will be recorded in study log
+                catch
+                    # If logging fails, just continue - error will be recorded in job log
                 end
             end
         end
         study.sim_success[i] = success
         open(study.logfile, "a") do io
-            msg = "Simulation `$(study.jobpaths[i])`:\n"
-            for (key, value) in pairs(study.setups[i])
-                msg *= "  $(key): $(value)\n"
-            end
             if success
-                msg *= @sprintf("  status: completed ✓ (%.2f seconds)\n", simtime)
+                msg *= @sprintf("  status: completed ✓ (%.2f seconds)\n\n", simtime)
             else
-                msg *= "  status: failed ✗\n"
+                msg *= "  status: failed ✗\n\n"
             end
-            msg *= "\n"
             write(io, msg)
         end
     end
@@ -216,10 +246,62 @@ function submit!(study::Study; kwargs...)
 end
 
 """
-    process_each_job(f::Function, study::Study, default_result::NamedTuple)
+    update_sim_success_from_log!(study::Study)
 
 $(internal_api_warning())
-$(experimental_api_warning())
+
+Read the `study.logfile` and update `study.sim_success` flags according to the
+last recorded status for each job. This allows resuming processing or submission
+after an interrupted run.
+"""
+function update_sim_success_from_log!(study::Study)
+    isfile(study.logfile) || return false
+
+    # Read logfile line by line
+    lines = readlines(study.logfile)
+
+    for (i, path) in enumerate(study.jobpaths)
+        # Search for the Simulation line for this job path
+        sim_line_pattern = "Simulation `$(path)`:"
+        sim_line_idx = findfirst(line -> occursin(sim_line_pattern, line), lines)
+
+        if sim_line_idx === nothing
+            # No record for this job in logfile
+            study.sim_success[i] = false
+            continue
+        end
+
+        # Look for status line in the next few lines after the simulation line
+        found_status = false
+        for j in (sim_line_idx + 1):length(lines)
+            if occursin("status: completed", lines[j])
+                study.sim_success[i] = true
+                found_status = true
+                break
+            elseif occursin("status: failed", lines[j])
+                study.sim_success[i] = false
+                found_status = true
+                break
+            elseif occursin("status: skipped", lines[j])
+                study.sim_success[i] = true
+                found_status = true
+                break
+            elseif occursin("Simulation `", lines[j])
+                # Reached next simulation entry without finding status
+                break
+            end
+        end
+
+        if !found_status
+            # No status found after simulation line
+            study.sim_success[i] = false
+        end
+    end
+    return true
+end
+
+"""
+    process_each_job(f::Function, study::Study, default_result::NamedTuple)
 
 Apply a processing function to each successfully completed job in a parameter study.
 This function iterates through all jobs in the study and applies the user-defined
@@ -255,10 +337,8 @@ submit!(study)
 
 # Define a function to extract maximum displacement from results
 function extract_max_displacement(job::Job, setup::NamedTuple)
-    # Read results from job output directory
-    results_file = joinpath(job.options.root, "results_step_0010.jld2")
-    data = load_results(results_file)
-    max_u = maximum(norm, eachcol(data.displacement))
+    # Calculate maximum displacement
+    max_u = ...
     return (; E=setup.E, velocity=setup.velocity, max_displacement=max_u)
 end
 
@@ -272,6 +352,15 @@ successful_results = [r for r in results if !isnan(r.max_displacement)]
 See also: [`Study`](@ref), [`submit!`](@ref)
 """
 function process_each_job(f::F, study::Study, default_result::NamedTuple) where {F}
+    # Refresh sim_success from logfile if it exists (in case study was interrupted/resumed)
+    if isfile(study.logfile)
+        try
+            update_sim_success_from_log!(study)
+        catch err
+            @warn "failed to refresh study status from logfile before processing" error=err
+        end
+    end
+
     results = fill(default_result, length(study.jobs))
     for (i, job) in enumerate(study.jobs)
         if study.sim_success[i]

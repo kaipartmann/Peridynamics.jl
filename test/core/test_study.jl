@@ -37,6 +37,88 @@
     Peridynamics.MPI_RUN[] = mpi_run_current_value
 end
 
+@testitem "resume processing from existing logfile" tags=[:skipci] begin
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
+    mktempdir() do tmpdir
+        function create_job(setup::NamedTuple, root::String)
+            body = Body(BBMaterial(), rand(3, 10), rand(10))
+            material!(body, horizon=1, E=setup.E, rho=1, Gc=1)
+            velocity_ic!(body, :all_points, :x, 1.0)
+            vv = VelocityVerlet(steps=setup.n_steps)
+            path = joinpath(root, "sim_$(setup.E)")
+            job = Job(body, vv; path=path, freq=5)
+            return job
+        end
+
+        setups = [
+            (; E=1.0, n_steps=1),
+            (; E=2.0, n_steps=1),
+        ]
+
+        studyroot = joinpath(tmpdir, "study")
+        study = Peridynamics.Study(create_job, setups; root=studyroot)
+
+        # Simulate an interrupted run: create study root and mark first job completed
+        mkpath(study.root)
+        mkpath(study.jobpaths[1])
+        open(study.logfile, "w") do io
+            write(io, "SIMULATION STUDY LOGFILE\n\n")
+            write(io, "Simulation `$(study.jobpaths[1])`:\n  status: completed ✓ (0.00 seconds)\n\n")
+        end
+
+        # Now processing should detect that first job succeeded and only process that one
+        processed = Peridynamics.process_each_job((job, setup) -> (; E=setup.E), study, (; E=0.0))
+
+        @test processed[1].E == 1.0
+        @test processed[2].E == 0.0
+    end
+
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+end
+
+@testitem "resume submit! only runs remaining jobs" tags=[:skipci] begin
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
+    mktempdir() do tmpdir
+        function create_job(setup::NamedTuple, root::String)
+            body = Body(BBMaterial(), rand(3, 10), rand(10))
+            material!(body, horizon=1, E=setup.E, rho=1, Gc=1)
+            velocity_ic!(body, :all_points, :x, 1.0)
+            vv = VelocityVerlet(steps=setup.n_steps)
+            path = joinpath(root, "sim_$(setup.E)")
+            job = Job(body, vv; path=path, freq=5)
+            return job
+        end
+
+        setups = [
+            (; E=1.0, n_steps=1),
+            (; E=2.0, n_steps=1),
+        ]
+
+        studyroot = joinpath(tmpdir, "study")
+        study = Peridynamics.Study(create_job, setups; root=studyroot)
+
+        # Simulate an interrupted run: create study root and mark first job completed
+        mkpath(study.root)
+        mkpath(study.jobpaths[1])
+        open(study.logfile, "w") do io
+            write(io, "SIMULATION STUDY LOGFILE\n\n")
+            write(io, "Simulation `$(study.jobpaths[1])`:\n  status: completed ✓ (0.00 seconds)\n\n")
+        end
+
+        # Now resuming submit! should only run the remaining job (E=2)
+        Peridynamics.submit!(study; quiet=true)
+
+        @test study.sim_success == [true, true]
+        @test isdir(study.jobpaths[2])
+    end
+
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+end
+
 @testitem "Study constructor with empty setups" begin
     mktempdir() do tmpdir
         function create_job(setup::NamedTuple, root::String)
