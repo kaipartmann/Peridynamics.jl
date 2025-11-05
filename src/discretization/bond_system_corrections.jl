@@ -83,8 +83,6 @@ function calc_mfactor!(chunk::AbstractBodyChunk{BondSystem{EnergySurfaceCorrecti
         storage.position .= system.position
         # apply uniform deformation only in dimension d
         @views storage.position[d, :] .= λ .* system.position[d, :]
-        # needed to calculate initial bond lengths
-        calc_force_density!(storage, system, mat, paramsetup, 0.0, 0.0) # dummy t, Δt
         # calculate the mfactor for dimension d
         for i in each_point_idx(chunk)
             lame = get_averaged_lame_parameters(system, storage, paramsetup, i)
