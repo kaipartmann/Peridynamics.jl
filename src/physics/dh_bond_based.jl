@@ -118,6 +118,10 @@ end
     affected_points::Vector{Vector{Int}}
 end
 
+function init_field(::DHBBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
+    return zeros(3, get_n_points(system))
+end
+
 function force_density_point!(storage::DHBBStorage, system::BondSystem, ::DHBBMaterial,
                               params::StandardPointParameters, t, Δt, i)
     (; position, bond_length, bond_active, b_int) = storage
