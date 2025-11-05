@@ -208,16 +208,18 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
     return nothing
 end
 
+# Do not rely on any custom pre-stored properties here!
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       ::BBMaterial, paramsetup::AbstractParameterSetup, i)
-    (; bond_active, bond_length, strain_energy_density) = storage
+    (; position, bond_active, strain_energy_density) = storage
     (; bonds, correction, volume) = system
     params_i = get_params(paramsetup, i)
     Ψ = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        l = bond_length[bond_id]
+        Δxij = get_vector_diff(position, i, j)
+        l = norm(Δxij) # do not rely on the stored bond length here!
         ε = (l - L) / L
         params_j = get_params(paramsetup, j)
         ωij = bond_active[bond_id] * surface_correction_factor(correction, bond_id)

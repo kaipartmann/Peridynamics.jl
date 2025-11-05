@@ -235,11 +235,13 @@ function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMateri
     return dil
 end
 
+# Do not rely on any custom pre-stored properties here!
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       mat::OSBMaterial, paramsetup::AbstractParameterSetup,
                                       i)
     (; bond_active, bond_length, strain_energy_density) = storage
     (; bonds, correction, volume) = system
+    update_bond_lengths!(storage, system, mat, i)
     params_i = get_params(paramsetup, i)
     wvol = calc_weighted_volume(storage, system, mat, params_i, i)
     iszero(wvol) && return nothing
@@ -261,6 +263,19 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
     end
     Ψ = Ψvol + Ψdev
     strain_energy_density[i] = Ψ
+    return nothing
+end
+
+function update_bond_lengths!(storage::AbstractStorage, system::BondSystem,
+                              ::OSBMaterial, i)
+    (; position, bond_length) = storage
+    (; bonds) = system
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j = bond.neighbor
+        Δxij = get_vector_diff(position, i, j)
+        @inbounds bond_length[bond_id] = norm(Δxij)
+    end
     return nothing
 end
 
