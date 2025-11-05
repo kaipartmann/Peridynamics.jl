@@ -79,17 +79,11 @@ struct Study{F,S,J}
         check_jobpaths_unique(jobpaths)
         sim_success = fill(false, length(jobs))
         logfile = joinpath(root, "study_log.log")
-        st = new{F,S,J}(jobcreator, setups, jobs, jobpaths, root, logfile, sim_success)
+        study = new{F,S,J}(jobcreator, setups, jobs, jobpaths, root, logfile, sim_success)
         # If a logfile already exists from a previous run, initialize sim_success
         # from the logfile so processing or resuming works across interrupted runs.
-        if isfile(st.logfile)
-            try
-                update_sim_success_from_log!(st)
-            catch err
-                @warn "failed to refresh study status from logfile" error=err
-            end
-        end
-        return st
+        isfile(logfile) && update_sim_success_from_log!(study)
+        return study
     end
 end
 
@@ -213,10 +207,11 @@ function submit!(study::Study; kwargs...)
     end
 
     # Now submit each job
+    n_jobs = length(study.jobs)
     for (i, job) in enumerate(study.jobs)
         # If this job already completed in a previous run, skip execution
         open(study.logfile, "a") do io
-            msg = "Simulation `$(study.jobpaths[i])`:\n"
+            msg = @sprintf "(%d/%d) Simulation `%s`:\n" i n_jobs job.options.root
             for (key, value) in pairs(study.setups[i])
                 msg *= "  $(key): $(value)\n"
             end
@@ -225,7 +220,7 @@ function submit!(study::Study; kwargs...)
         if study.sim_success[i]
             # Write a short note about skipping to the study logfile
             open(study.logfile, "a") do io
-                write(io, "  status: skipped (already completed)\n\n")
+                write(io, "  status: skipped (completed in a previous run)\n\n")
             end
             continue
         end
@@ -283,13 +278,13 @@ function update_sim_success_from_log!(study::Study)
     for (i, path) in enumerate(study.jobpaths)
         # Search for the Simulation line for this job path
         sim_line_pattern = "Simulation `$(path)`:"
-        sim_line_idx = findfirst(line -> occursin(sim_line_pattern, line), lines)
-
-        if sim_line_idx === nothing
+        sim_line_idxs = findall(line -> occursin(sim_line_pattern, line), lines)
+        if isempty(sim_line_idxs)
             # No record for this job in logfile
             study.sim_success[i] = false
             continue
         end
+        sim_line_idx = sim_line_idxs[end]  # Take the last occurrence (restarts also logged)
 
         # Look for status line in the next few lines after the simulation line
         found_status = false
