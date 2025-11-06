@@ -1,5 +1,5 @@
 """
-    RKCMaterial(; kernel, model, dmgmodel, maxdmg, monomial, regfactor)
+    RKCMaterial(; kernel, model, dmgmodel, monomial, regfactor)
 
 A material type used to assign the material of a [`Body`](@ref) with a reproducing kernel
 peridynamics (correspondence) formulation with bond-associated quadrature integration at
@@ -22,10 +22,6 @@ the center of the bonds.
     - [`NeoHookePenalty`](@ref)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
     (default: [`CriticalStretch`](@ref))
-- `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
-    exceeded, all bonds of that point are broken because the deformation gradient would then
-    possibly contain `NaN` values. \\
-    (default: `1.0`)
 - `monomial::Symbol`: The monomial vector used for the reproducing kernel approximation
     of the moment matrix. This kernel is used to calculate the moment matrix and the
     gradient weights, which are used to approximate the deformation gradient. \\
@@ -49,7 +45,7 @@ the center of the bonds.
 
 ```julia-repl
 julia> mat = RKCMaterial()
-RKCMaterial{SaintVenantKirchhoff, typeof(linear_kernel), CriticalStretch}(maxdmg=1.0)
+RKCMaterial{SaintVenantKirchhoff, typeof(linear_kernel), CriticalStretch}()
 ```
 
 ---
@@ -72,8 +68,6 @@ bond-associated quadrature integration at the center of the bonds.
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. See
     the constructor docs for more informations.
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. See the
-    constructor docs for more informations.
-- `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
     constructor docs for more informations.
 - `monomial::Symbol`: The monomial vector used for the reproducing kernel approximation. See
     the constructor docs for more informations.
@@ -122,30 +116,29 @@ struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     kernel::K
     constitutive_model::CM
     dmgmodel::DM
-    maxdmg::Float64
     monomial::Symbol
     regfactor::Float64
-    function RKCMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real, monomial::Symbol,
+    function RKCMaterial(kernel::K, cm::CM, dmgmodel::DM, monomial::Symbol,
                          regfactor::Real) where {CM,K,DM}
-        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, monomial, regfactor)
+        return new{CM,K,DM}(kernel, cm, dmgmodel, monomial, regfactor)
     end
 end
 
 function RKCMaterial(; kernel::Function=cubic_b_spline_kernel_norm,
                      model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
-                     dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=1.0,
+                     dmgmodel::AbstractDamageModel=CriticalStretch(),
                      monomial::Symbol=:C1, regfactor::Real=1e-13)
     get_q_dim(monomial) # check if the kernel is implemented
     if !(0 ≤ regfactor ≤ 1)
         msg = "Regularization factor must be in the range 0 ≤ regfactor ≤ 1\n"
         throw(ArgumentError(msg))
     end
-    return RKCMaterial(kernel, model, dmgmodel, maxdmg, monomial, regfactor)
+    return RKCMaterial(kernel, model, dmgmodel, monomial, regfactor)
 end
 
 function Base.show(io::IO, @nospecialize(mat::AbstractRKCMaterial))
     print(io, typeof(mat))
-    print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
+    print(io, msg_fields_in_brackets(mat, ()))
     return nothing
 end
 
@@ -534,7 +527,6 @@ end
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
                               mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
                               Δt, i)
-    too_much_damage!(storage, system, mat, i) && return nothing
     ∑P = rkc_stress_integral!(storage, system, mat, params, t, Δt, i)
     rkc_force_density!(storage, system, mat, params, ∑P, t, Δt, i)
     return nothing
@@ -597,16 +589,6 @@ function calc_first_piola_kirchhoff!(storage::RKCStorage, mat::RKCMaterial,
     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
     update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
     return P
-end
-
-function too_much_damage!(storage::AbstractStorage, system::BondSystem,
-                          mat::AbstractRKCMaterial, i)
-    if storage.damage[i] > mat.maxdmg
-        # kill all bonds of this point
-        storage.bond_active[each_bond_idx(system, i)] .= false
-        return true
-    end
-    return false
 end
 
 function bond_avg(Fi, Fj, ΔXij, Δxij, L)

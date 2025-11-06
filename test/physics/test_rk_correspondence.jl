@@ -42,7 +42,6 @@ end
     @test mat1.kernel == cubic_b_spline_kernel_norm
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
-    @test mat1.maxdmg == 1.0
     @test mat1.monomial == :C1
     @test mat1.regfactor == 1e-13
 
@@ -51,14 +50,12 @@ end
         kernel = linear_kernel,
         model = LinearElastic(),
         dmgmodel = CriticalStretch(),
-        maxdmg = 0.75,
         monomial = :C1,
         regfactor = 1e-10
     )
     @test mat2.kernel == linear_kernel
     @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
-    @test mat2.maxdmg == 0.75
     @test mat2.monomial == :C1
     @test mat2.regfactor == 1e-10
 
@@ -73,7 +70,6 @@ end
     @test mat1.kernel == cubic_b_spline_kernel_norm
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
-    @test mat1.maxdmg == 1.0
     @test mat1.monomial == :C1
     @test mat1.regfactor == 1e-13
 
@@ -82,14 +78,12 @@ end
         kernel = linear_kernel,
         model = LinearElastic(),
         dmgmodel = CriticalStretch(),
-        maxdmg = 0.75,
         monomial = :C1,
         regfactor = 1e-10
     )
     @test mat2.kernel == linear_kernel
     @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
-    @test mat2.maxdmg == 0.75
     @test mat2.monomial == :C1
     @test mat2.regfactor == 1e-10
 
@@ -458,44 +452,6 @@ end
         F_total = sum(abs.(storage.defgrad))
         @test F_total > 0.0
     end
-end
-
-@testitem "Maximum damage switch in the RKCMaterial" begin
-    using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
-
-    pos, vol = uniform_box(1, 1, 1, 0.25)
-    body = Body(RKCMaterial(maxdmg = 0.5), pos, vol)
-    material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
-    velocity_ic!(p -> 0.1 * p[1], body, :all_points, :x)
-
-    ts = VelocityVerlet(steps=1)
-    dh = Peridynamics.threads_data_handler(body, ts, 1)
-    Peridynamics.init_time_solver!(ts, dh)
-    Peridynamics.calc_force_density!(dh, 0.0, ts.Δt)
-
-    chunk = dh.chunks[1]
-    (; storage, system, paramsetup, mat) = chunk
-    params = paramsetup
-    (; b_int, damage) = storage
-    point_id = 1
-
-    b0 = Peridynamics.get_vector(b_int, point_id)
-    @test norm(b0) > 0
-
-    # -- next step --
-    b_int .= 0.0
-    Peridynamics.force_density_point!(storage, system, mat, params, 0.0, ts.Δt, point_id)
-    b1 = Peridynamics.get_vector(b_int, point_id)
-    @test norm(b0) > 0
-
-    # -- next step --
-    b_int .= 0.0
-    # somehow the damage field changed and is now higher than the maxdmg value
-    damage[point_id] = 0.8
-    Peridynamics.force_density_point!(storage, system, mat, params, 0.0, ts.Δt, point_id)
-    # now the force density should be zero and the point excluded from the calculations
-    b1 = Peridynamics.get_vector(b_int, point_id)
-    @test norm(b1) ≈ 0 atol=eps()
 end
 
 @testitem "Affected points RKCMaterial NewtonRaphson" begin
