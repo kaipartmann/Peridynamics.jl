@@ -104,15 +104,17 @@ function rkc_defgrad!(storage::RKCRStorage, system::AbstractBondSystem, mat::RKC
                       params::StandardPointParameters, t, Δt, i)
     (; bonds) = system
     (; defgrad, defgrad_dot, gradient_weight) = storage
-    F = zero(SMatrix{3,3,Float64,9})
+    F = SMatrix{3,3,Float64,9}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     Ḟ = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
+        ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
+        Δuij = Δxij - ΔXij
         Δvij = get_vector_diff(storage.velocity_half, i, j)
         Φij = get_vector(gradient_weight, bond_id)
-        F += Δxij * Φij'
+        F += Δuij * Φij' # maybe calculating the displacement gradient is more stable?
         Ḟ += Δvij * Φij'
     end
     update_tensor!(defgrad, i, F)
