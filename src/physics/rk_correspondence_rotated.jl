@@ -1,5 +1,5 @@
 """
-    RKCRMaterial(; kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
+    RKCRMaterial(; kernel, model, dmgmodel, maxdmg, monomial, regfactor)
 
 The same as the [`RKCMaterial`](@ref) but with rotation of the stress tensor for large
 deformation simulations, therefore not all models are supported.
@@ -16,28 +16,28 @@ struct RKCRMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     constitutive_model::CM
     dmgmodel::DM
     maxdmg::Float64
-    reprkernel::Symbol
+    monomial::Symbol
     regfactor::Float64
-    function RKCRMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real, reprkernel::Symbol,
+    function RKCRMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real, monomial::Symbol,
                           regfactor::Real) where {CM,K,DM}
-        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, reprkernel, regfactor)
+        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, monomial, regfactor)
     end
 end
 
-function RKCRMaterial(; kernel::Function=cubic_b_spline_kernel,
+function RKCRMaterial(; kernel::Function=cubic_b_spline_kernel_norm,
                         model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                         dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=1.0,
-                        reprkernel::Symbol=:C1, regfactor::Real=1e-13)
+                        monomial::Symbol=:C1, regfactor::Real=1e-13)
     if !(typeof(model) <: Union{SaintVenantKirchhoff,LinearElastic})
         msg = "model `$(typeof(model))` is currently not supported for `RKCRMaterial`!\n"
         throw(ArgumentError(msg))
     end
-    get_q_dim(reprkernel) # check if the kernel is implemented
+    get_q_dim(monomial) # check if the kernel is implemented
     if !(0 ≤ regfactor ≤ 1)
         msg = "Regularization factor must be in the range 0 ≤ regfactor ≤ 1\n"
         throw(ArgumentError(msg))
     end
-    return RKCRMaterial(kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
+    return RKCRMaterial(kernel, model, dmgmodel, maxdmg, monomial, regfactor)
 end
 
 @params RKCRMaterial StandardPointParameters

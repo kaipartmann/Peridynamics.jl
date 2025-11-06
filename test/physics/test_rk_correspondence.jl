@@ -39,11 +39,11 @@ end
 @testitem "RKCMaterial initialization" begin
     # Test default constructor
     mat1 = RKCMaterial()
-    @test mat1.kernel == cubic_b_spline_kernel
+    @test mat1.kernel == cubic_b_spline_kernel_norm
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
     @test mat1.maxdmg == 1.0
-    @test mat1.reprkernel == :C1
+    @test mat1.monomial == :C1
     @test mat1.regfactor == 1e-13
 
     # Test constructor with parameters
@@ -52,14 +52,14 @@ end
         model = LinearElastic(),
         dmgmodel = CriticalStretch(),
         maxdmg = 0.75,
-        reprkernel = :C1,
+        monomial = :C1,
         regfactor = 1e-10
     )
     @test mat2.kernel == linear_kernel
     @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
     @test mat2.maxdmg == 0.75
-    @test mat2.reprkernel == :C1
+    @test mat2.monomial == :C1
     @test mat2.regfactor == 1e-10
 
     # Test constructor with invalid regfactor
@@ -70,11 +70,11 @@ end
 @testitem "RKCRMaterial initialization" begin
     # Test default constructor
     mat1 = RKCRMaterial()
-    @test mat1.kernel == cubic_b_spline_kernel
+    @test mat1.kernel == cubic_b_spline_kernel_norm
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
     @test mat1.maxdmg == 1.0
-    @test mat1.reprkernel == :C1
+    @test mat1.monomial == :C1
     @test mat1.regfactor == 1e-13
 
     # Test constructor with parameters (only linear elastic models are supported)
@@ -83,14 +83,14 @@ end
         model = LinearElastic(),
         dmgmodel = CriticalStretch(),
         maxdmg = 0.75,
-        reprkernel = :C1,
+        monomial = :C1,
         regfactor = 1e-10
     )
     @test mat2.kernel == linear_kernel
     @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
     @test mat2.maxdmg == 0.75
-    @test mat2.reprkernel == :C1
+    @test mat2.monomial == :C1
     @test mat2.regfactor == 1e-10
 
     # Test failure with non-LinearElastic model
@@ -387,9 +387,9 @@ end
     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
 
     # Test that gradient matrices have correct properties
-    kernels = [:C1, :RK1, :RK2, :PD2]
+    monomials = [:C1, :RK1, :RK2, :PD2]
 
-    for kernel in kernels
+    for kernel in monomials
         Q∇ᵀ = Peridynamics.get_gradient_extraction_matrix(kernel)
         q_dim = Peridynamics.get_q_dim(kernel)
 
@@ -419,28 +419,28 @@ end
 
 @testitem "reproducing kernel material constructor validation" begin
     # Test that all kernels work with material constructor
-    kernels = [:C1, :RK1, :RK2, :PD2]
+    monomials = [:C1, :RK1, :RK2, :PD2]
 
-    for kernel in kernels
-        mat = RKCMaterial(reprkernel=kernel)
-        @test mat.reprkernel == kernel
+    for kernel in monomials
+        mat = RKCMaterial(monomial=kernel)
+        @test mat.monomial == kernel
         @test Peridynamics.get_q_dim(kernel) > 0
     end
 
     # Test invalid kernel
-    @test_throws ArgumentError RKCMaterial(reprkernel=:INVALID)
+    @test_throws ArgumentError RKCMaterial(monomial=:INVALID)
 end
 
 @testitem "reproducing kernel basic functionality test" begin
     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
 
     # Test each kernel with a simple configuration
-    kernels = [:C1, :RK1, :RK2, :PD2]
+    monomials = [:C1, :RK1, :RK2, :PD2]
 
-    for kernel in kernels
+    for monomial in monomials
         # Create a simple test system with the kernel
         pos, vol = uniform_box(1, 1, 1, 0.4)
-        body = Body(RKCMaterial(reprkernel=kernel), pos, vol)
+        body = Body(RKCMaterial(; monomial), pos, vol)
         material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
 
         dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)

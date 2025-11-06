@@ -1,5 +1,5 @@
 """
-    RKCMaterial(; kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
+    RKCMaterial(; kernel, model, dmgmodel, maxdmg, monomial, regfactor)
 
 A material type used to assign the material of a [`Body`](@ref) with a reproducing kernel
 peridynamics (correspondence) formulation with bond-associated quadrature integration at
@@ -7,12 +7,12 @@ the center of the bonds.
 
 # Keywords
 - `kernel::Function`: Kernel function used for weighting the interactions between points. \\
-    (default: `cubic_b_spline_kernel`) \\
+    (default: `cubic_b_spline_kernel_norm`) \\
     The following kernels can be used:
     - [`const_one_kernel`](@ref)
     - [`linear_kernel`](@ref)
-    - [`cubic_b_spline_kernel`](@ref)
     - [`cubic_b_spline_kernel_norm`](@ref)
+    - [`cubic_b_spline_kernel`](@ref)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
     (default: `SaintVenantKirchhoff()`) \\
     The following models can be used:
@@ -26,18 +26,18 @@ the center of the bonds.
     exceeded, all bonds of that point are broken because the deformation gradient would then
     possibly contain `NaN` values. \\
     (default: `1.0`)
-- `reprkernel::Symbol`: A kernel function used for the reproducing kernel approximation
+- `monomial::Symbol`: The monomial vector used for the reproducing kernel approximation
     of the moment matrix. This kernel is used to calculate the moment matrix and the
     gradient weights, which are used to approximate the deformation gradient. \\
     (default: `:C1`) \\
     The following kernels can be used:
-    - `:C1`: Linear reproducing kernel basis [x, y, z] with first-order accuracy
-        for correspondence formulation. This is the default kernel.
-    - `:RK1`: First-order reproducing kernel basis [1, x, y, z] with constant term
+    - `:C1`: Linear monomial basis vector [x, y, z] with first-order accuracy, equivalent to
+        the standard correspondence formulation. This is the default kernel.
+    - `:RK1`: First-order monomial basis vector [1, x, y, z] with constant term
         for enhanced stability in uniform deformation fields.
-    - `:RK2`: Second-order reproducing kernel basis [1, x, y, z, x², y², z²] with
+    - `:RK2`: Second-order monomial basis vector [1, x, y, z, x², y², z²] with
         diagonal quadratic terms for improved accuracy in curved deformation fields.
-    - `:PD2`: Second-order peridynamic basis [x, y, z, x², xy, xz, y², yz, z²] with
+    - `:PD2`: Second-order monomial basis vector [x, y, z, x², xy, xz, y², yz, z²] with
         full quadratic terms but without constant term.
 - `regfactor::Float64`: A regularization factor used to stabilize the inversion of the
     moment matrix. The product of `regfactor * δ^3` is used for the regularization with
@@ -75,7 +75,7 @@ bond-associated quadrature integration at the center of the bonds.
     constructor docs for more informations.
 - `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
     constructor docs for more informations.
-- `reprkernel::Symbol`: A kernel function used for the reproducing kernel approximation. See
+- `monomial::Symbol`: The monomial vector used for the reproducing kernel approximation. See
     the constructor docs for more informations.
 - `regfactor::Float64`: Regularization factor. See the constructor docs for more
     informations.
@@ -123,24 +123,24 @@ struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     constitutive_model::CM
     dmgmodel::DM
     maxdmg::Float64
-    reprkernel::Symbol
+    monomial::Symbol
     regfactor::Float64
-    function RKCMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real, reprkernel::Symbol,
+    function RKCMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real, monomial::Symbol,
                          regfactor::Real) where {CM,K,DM}
-        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, reprkernel, regfactor)
+        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, monomial, regfactor)
     end
 end
 
-function RKCMaterial(; kernel::Function=cubic_b_spline_kernel,
+function RKCMaterial(; kernel::Function=cubic_b_spline_kernel_norm,
                      model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=1.0,
-                     reprkernel::Symbol=:C1, regfactor::Real=1e-13)
-    get_q_dim(reprkernel) # check if the kernel is implemented
+                     monomial::Symbol=:C1, regfactor::Real=1e-13)
+    get_q_dim(monomial) # check if the kernel is implemented
     if !(0 ≤ regfactor ≤ 1)
         msg = "Regularization factor must be in the range 0 ≤ regfactor ≤ 1\n"
         throw(ArgumentError(msg))
     end
-    return RKCMaterial(kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
+    return RKCMaterial(kernel, model, dmgmodel, maxdmg, monomial, regfactor)
 end
 
 function Base.show(io::IO, @nospecialize(mat::AbstractRKCMaterial))
@@ -149,8 +149,8 @@ function Base.show(io::IO, @nospecialize(mat::AbstractRKCMaterial))
     return nothing
 end
 
-function log_material_property(::Val{:reprkernel}, mat; indentation)
-    return msg_qty("reproducing kernel", mat.reprkernel; indentation)
+function log_material_property(::Val{:monomial}, mat; indentation)
+    return msg_qty("monomial type", mat.monomial; indentation)
 end
 
 function log_material_property(::Val{:regfactor}, mat; indentation)
@@ -388,12 +388,12 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
                       mat::AbstractRKCMaterial, params::AbstractPointParameters, t, Δt, i)
     (; bonds, volume) = system
     (; bond_active, gradient_weight, weighted_volume, update_gradients) = storage
-    (; reprkernel, regfactor) = mat
+    (; monomial, regfactor) = mat
     (; δ) = params
 
     # get dimenion of the monomial vector and the gradient extraction matrix
-    q_dim = get_q_dim(reprkernel)
-    Q∇ᵀ = get_gradient_extraction_matrix(reprkernel)
+    q_dim = get_q_dim(monomial)
+    Q∇ᵀ = get_gradient_extraction_matrix(monomial)
 
     # calculate moment matrix M
     M = zero(SMatrix{q_dim,q_dim,Float64,q_dim*q_dim})
@@ -402,7 +402,7 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
-        Q = get_monomial_vector(reprkernel, ΔXij) ./ δ # scale by horizon
+        Q = get_monomial_vector(monomial, ΔXij ./ δ) # normalize by δ
         ωij = kernel(system, bond_id) * bond_active[bond_id]
         temp = ωij * volume[j]
         M += temp * (Q * Q')
@@ -418,9 +418,9 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
-        Q = get_monomial_vector(reprkernel, ΔXij) ./ δ # scale by horizon
+        Q = get_monomial_vector(monomial, ΔXij ./ δ) # normalize by δ
         ωij = kernel(system, bond_id) * bond_active[bond_id]
-        temp = ωij * volume[j] / δ # δ is needed due to scaling by horizon
+        temp = ωij / δ * volume[j] # note the division by δ here, due to normalization of Q
         MinvQ = Minv * Q
         Φ = temp * (Q∇ᵀ * MinvQ)
         update_vector!(gradient_weight, bond_id, Φ)
@@ -432,10 +432,10 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
     return nothing
 end
 
-@inline get_q_dim(reprkernel::Symbol) = get_q_dim(Val(reprkernel))
+@inline get_q_dim(monomial::Symbol) = get_q_dim(Val(monomial))
 
-function get_q_dim(::Val{reprkernel}) where {reprkernel}
-    msg = "Reproducing kernel `$reprkernel` is not implemented!\n"
+function get_q_dim(::Val{monomial}) where {monomial}
+    msg = "Reproducing kernel `$monomial` is not implemented!\n"
     return throw(ArgumentError(msg))
 end
 
@@ -443,17 +443,17 @@ end
     return get_monomial_vector(Val(rk), ΔX)
 end
 
-function get_monomial_vector(::Val{reprkernel}, ΔX::AbstractArray) where {reprkernel}
-    msg = "Reproducing kernel `$reprkernel` is not implemented!\n"
+function get_monomial_vector(::Val{monomial}, ΔX::AbstractArray) where {monomial}
+    msg = "Reproducing kernel `$monomial` is not implemented!\n"
     return throw(ArgumentError(msg))
 end
 
-@inline function get_gradient_extraction_matrix(reprkernel::Symbol)
-    return get_gradient_extraction_matrix(Val(reprkernel))
+@inline function get_gradient_extraction_matrix(monomial::Symbol)
+    return get_gradient_extraction_matrix(Val(monomial))
 end
 
-function get_gradient_extraction_matrix(::Val{reprkernel}) where {reprkernel}
-    msg = "Reproducing kernel `$reprkernel` is not implemented!\n"
+function get_gradient_extraction_matrix(::Val{monomial}) where {monomial}
+    msg = "Reproducing kernel `$monomial` is not implemented!\n"
     return throw(ArgumentError(msg))
 end
 
