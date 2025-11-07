@@ -59,30 +59,30 @@ end
     A = @SMatrix rand(5, 5)
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
     @test Peridynamics.invreg(A, 0, sqrt(eps())) * A ≈ I
-    @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I atol=1e-6
+    @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I
 
     A = @SMatrix rand(6, 6)
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
     @test Peridynamics.invreg(A, 0, sqrt(eps())) * A ≈ I
-    @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I atol=1e-6
+    @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I
 
     B = @SMatrix [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     @test Peridynamics.invreg(B, 0, 0) ≈ I
     @test Peridynamics.invreg(B, 0, sqrt(eps())) ≈ I
-    @test Peridynamics.invreg(B, 1e-10, sqrt(eps())) ≈ I atol=1e-6
+    @test Peridynamics.invreg(B, 1e-10, sqrt(eps())) ≈ I
 
     # Test with moderately ill-conditioned matrices
     A = @SMatrix [1.0 0.99 0.0; 0.99 1.0 0.0; 0.0 0.0 1.0]
     @test Peridynamics.invreg(A, 0, 1e-8) * A ≈ I
-    @test Peridynamics.invreg(A, 1e-8, 1e-8) * A ≈ I atol=1e-5
+    @test Peridynamics.invreg(A, 1e-8, 1e-8) * A ≈ I
 
     A = @SMatrix [2.0 1.9 0.0 0.0; 1.9 2.0 0.0 0.0; 0.0 0.0 1.0 0.0; 0.0 0.0 0.0 1.0]
     @test Peridynamics.invreg(A, 0, 1e-8) * A ≈ I
-    @test Peridynamics.invreg(A, 1e-8, 1e-8) * A ≈ I atol=1e-5
+    @test Peridynamics.invreg(A, 1e-8, 1e-8) * A ≈ I
 
     A = @SMatrix [1.0 0.5 0.3; 0.5 1.0 0.4; 0.3 0.4 1.0]
     @test Peridynamics.invreg(A, 0, 1e-8) * A ≈ I
-    @test Peridynamics.invreg(A, 1e-8, 1e-8) * A ≈ I atol=1e-5
+    @test Peridynamics.invreg(A, 1e-8, 1e-8) * A ≈ I
 
     # Test with very ill-conditioned matrices
     A = @SMatrix [1.0 1.0 1.0; 1.0 1.0+1e-10 1.0; 1.0 1.0 1.0+1e-10]

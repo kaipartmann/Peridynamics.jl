@@ -35,17 +35,15 @@ the center of the bonds.
         diagonal quadratic terms for improved accuracy in curved deformation fields.
     - `:PD2`: Second-order monomial basis vector [x, y, z, x², xy, xz, y², yz, z²] with
         full quadratic terms but without constant term.
-- `lambda::Float64`: Tikhonov regularization parameter used to stabilize the inversion of
-    the moment matrix. This parameter controls the strength of the Tikhonov regularization
-    applied during the pseudo-inverse computation with [`invreg`](@ref). Should be a
-    non-negative value between 0 and 1, where larger values increase regularization
-    strength. See the [`invreg`](@ref) documentation for parameter selection guidelines.\\
+- `lambda::Real`: Relative Tikhonov regularization parameter (dimensionless, non-negative).
+    Internally scaled by the largest singular value of the moment matrix during inversion
+    with [`invreg`](@ref). For well-conditioned problems, the default value of `0` (no
+    Tikhonov regularization) is recommended. See [`invreg`](@ref) for details.\\
     (default: `0`)
-- `beta::Float64`: SVD truncation parameter used to stabilize the inversion of the moment
-    matrix. This parameter defines the threshold (as a fraction of the largest singular
-    value) below which singular values are set to zero during the pseudo-inverse
-    computation with [`invreg`](@ref). Should be a positive value between 0 and 1.
-    See the [`invreg`](@ref) documentation for parameter selection guidelines.\\
+- `beta::Real`: Relative SVD truncation parameter (dimensionless, non-negative). Internally
+    scaled by the largest singular value of the moment matrix during inversion with
+    [`invreg`](@ref). Primary regularization mechanism for singular moment matrices. See
+    [`invreg`](@ref) for parameter selection guidelines.\\
     (default: `sqrt(eps())`)
 
 # Examples
@@ -139,12 +137,12 @@ function RKCMaterial(; kernel::Function=cubic_b_spline_kernel_norm,
                      dmgmodel::AbstractDamageModel=CriticalStretch(),
                      monomial::Symbol=:C1, lambda::Real=0, beta::Real=sqrt(eps()))
     get_q_dim(monomial) # check if the kernel is implemented
-    if !(0 ≤ lambda ≤ 1)
-        msg = "Regularization factor must be in the range 0 ≤ lambda ≤ 1\n"
+    if lambda < 0
+        msg = "Tikhonov regularization parameter must be non-negative! (`lambda ≥ 0`)\n"
         throw(ArgumentError(msg))
     end
-    if !(0 ≤ beta ≤ 1)
-        msg = "Regularization factor must be in the range 0 ≤ beta ≤ 1\n"
+    if beta < 0
+        msg = "SVD truncation parameter must be non-negative! (`beta ≥ 0`)\n"
         throw(ArgumentError(msg))
     end
     return RKCMaterial(kernel, model, dmgmodel, monomial, lambda, beta)

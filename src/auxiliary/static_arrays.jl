@@ -46,54 +46,59 @@ end
 """
     invreg(M::StaticMatrix{N,N,T}, λ::Real, β::Real) where {N,T}
 
-Computes the pseudo-inverse of a square static matrix `M` using a combination of
-Tikhonov regularization and SVD-based truncated singular value regularization.
-
-# Regularization Techniques
-
-1. **Tikhonov Regularization**: The matrix `M` is first regularized by adding
-   `λ * tr(M) * I` to it, which helps improve conditioning by shifting eigenvalues
-   away from zero.
-
-2. **Truncated SVD**: After computing the singular value decomposition, singular
-   values below `β * S[1]` (where `S[1]` is the largest singular value) are
-   replaced by zero in the pseudo-inverse, preventing numerical instability from
-   very small singular values.
-
-# Parameter Selection Guidelines
-
-- **Well-conditioned matrices**: Use small values (λ ∈ [0, 10⁻¹⁰], β ∈ [0, 10⁻⁸])
-    to minimize regularization effects while maintaining numerical stability.
-- **Moderately ill-conditioned matrices**: Use moderate values (λ ∈ [10⁻⁶, 10⁻³],
-    β ∈ [10⁻⁸, 10⁻⁶]) to balance accuracy and stability.
-- **Severely ill-conditioned matrices**: Use larger values (λ ∈ [10⁻³, 10⁻¹],
-    β ∈ [10⁻⁶, 10⁻⁴]) to ensure numerical stability at the cost of some accuracy.
+Computes the regularized pseudo-inverse of a square static matrix `M` using a combination of
+Tikhonov regularization in the SVD domain and truncated singular value regularization.
 
 # Arguments
 
 - `M::StaticMatrix{N,N,T}`: The square `N`×`N` static matrix with element type `T` to be
     inverted.
-- `λ::Real`: Tikhonov regularization parameter. Controls the strength of the
-    regularization applied to the matrix. Should be a non-negative real number.
-    Larger values increase regularization strength.
-- `β::Real`: SVD truncation parameter. Defines the threshold as a fraction of the
-    largest singular value. Should be a positive real number between 0 and 1.
-    Singular values below `β * S[1]` are set to zero in the pseudo-inverse.
+- `λ::Real`: Relative Tikhonov regularization parameter (dimensionless, non-negative).
+    Controls the smoothing strength applied as λₑ = λ σₘₐₓ, where σₘₐₓ is the largest
+    singular value of `M`.
+- `β::Real`: Relative SVD truncation parameter (dimensionless, non-negative). Defines the
+    cutoff threshold as βₑ = β σₘₐₓ for excluding small singular values.
 
 # Returns
 
 - `Minv::StaticMatrix{N,N,T}`: The regularized pseudo-inverse of the input matrix `M`.
+
+# Regularization Techniques
+
+The function applies two complementary regularization strategies:
+
+1. **SVD-based Tikhonov Regularization**: For each singular value σᵢ, the inverse is
+   computed as σᵢ/(σᵢ² + λₑ²), which smoothly dampens the contribution of small singular
+   values without completely removing them.
+
+2. **Truncated SVD**: Singular values below the threshold βₑ are completely excluded by
+   setting their contribution to zero, preventing numerical instability from near-zero
+   singular values.
+
+!!! note "Scale-invariant regularization"
+    Both λ and β are internally scaled by the largest singular value σₘₐₓ, making them
+    **relative** regularization strengths independent of the matrix scale. This makes
+    parameter selection more robust and transferable across different problems with
+    varying magnitudes.
+
+# Parameter Selection Guidelines
+
+- **λ (Tikhonov parameter)**:
+  - Well-conditioned matrices: λ = 0 (no Tikhonov regularization, recommended default)
+  - Mild regularization: λ ∈ [0, 10⁻¹²] (scale-invariant gentle smoothing)
+  - Moderate regularization: λ ∈ [10⁻¹², 10⁻⁴] (for moderately ill-conditioned problems)
+  - Note: Values λ > 10⁻⁴ may introduce noticeable bias in the solution
+
+- **β (truncation parameter)**: Primary regularization mechanism, less sensitive than λ.
+  - Well-conditioned matrices: β ∈ [√ε, 10⁻⁶] (remove numerical noise, recommended default)
+  - Moderately ill-conditioned: β ∈ [10⁻⁶, 10⁻⁴] (moderate truncation)
+  - Severely ill-conditioned: β ∈ [10⁻⁴, 10⁻²] (aggressive truncation)
 """
 function invreg(M::StaticMatrix{N,N,T}, λ::Real, β::Real) where {N,T}
-    # Tikhonov regularization
-    Mreg = M + λ * tr(M) * I
-
-    # Truncated SVD-based regularized inversion
-    U, S, V = svd(Mreg)
-    threshold = β * S[1] # the first singular value is the maximum
-    Sinvreg = SVector{N,T}((s > threshold ? 1/s : zero(T)) for s in S)
+    U, S, V = svd(M)
+    λ_eff = λ * S[1] # the first singular value is the maximum
+    β_eff = β * S[1]
+    Sinvreg = SVector{N,T}((s > β_eff ? s/(s * s + λ_eff * λ_eff) : zero(T)) for s in S)
     Sinv = Diagonal{T,SVector{N,T}}(Sinvreg)
-    Minv = V * Sinv * U'
-
-    return Minv
+    return V * Sinv * U'
 end
