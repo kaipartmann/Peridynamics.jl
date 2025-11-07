@@ -24,7 +24,7 @@ struct RKCRMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     end
 end
 
-function RKCRMaterial(; kernel::Function=cubic_b_spline_kernel_norm,
+function RKCRMaterial(; kernel::Function=const_one_kernel,
                         model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                         dmgmodel::AbstractDamageModel=CriticalStretch(),
                         monomial::Symbol=:C1, lambda::Real=0, beta::Real=sqrt(eps()))

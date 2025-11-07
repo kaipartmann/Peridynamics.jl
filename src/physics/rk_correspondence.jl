@@ -7,7 +7,7 @@ the center of the bonds.
 
 # Keywords
 - `kernel::Function`: Kernel function used for weighting the interactions between points. \\
-    (default: `cubic_b_spline_kernel_norm`) \\
+    (default: `const_one_kernel`) \\
     The following kernels can be used:
     - [`const_one_kernel`](@ref)
     - [`linear_kernel`](@ref)
@@ -132,7 +132,7 @@ struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     end
 end
 
-function RKCMaterial(; kernel::Function=cubic_b_spline_kernel_norm,
+function RKCMaterial(; kernel::Function=const_one_kernel,
                      model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(),
                      monomial::Symbol=:C1, lambda::Real=0, beta::Real=sqrt(eps()))
@@ -159,11 +159,11 @@ function log_material_property(::Val{:monomial}, mat; indentation)
 end
 
 function log_material_property(::Val{:lambda}, mat; indentation)
-    return msg_qty("regularization parameter", mat.lambda; indentation)
+    return msg_qty("Tikhonov regularization parameter", mat.lambda; indentation)
 end
 
 function log_material_property(::Val{:beta}, mat; indentation)
-    return msg_qty("threshold parameter truncated SVD", mat.beta; indentation)
+    return msg_qty("SVD truncation parameter", mat.beta; indentation)
 end
 
 @params RKCMaterial StandardPointParameters
