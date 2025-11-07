@@ -35,11 +35,18 @@ the center of the bonds.
         diagonal quadratic terms for improved accuracy in curved deformation fields.
     - `:PD2`: Second-order monomial basis vector [x, y, z, x², xy, xz, y², yz, z²] with
         full quadratic terms but without constant term.
-- `regfactor::Float64`: A regularization factor used to stabilize the inversion of the
-    moment matrix. The product of `regfactor * δ^3` is used for the regularization with
-    [`invreg`](@ref). The regularization helps to ensure numerical stability by mitigating
-    issues such as ill-conditioning or singularity in the matrix operations.\\
-    (default: `1e-13`)
+- `lambda::Float64`: Tikhonov regularization parameter used to stabilize the inversion of
+    the moment matrix. This parameter controls the strength of the Tikhonov regularization
+    applied during the pseudo-inverse computation with [`invreg`](@ref). Should be a
+    non-negative value between 0 and 1, where larger values increase regularization
+    strength. See the [`invreg`](@ref) documentation for parameter selection guidelines.\\
+    (default: `0`)
+- `beta::Float64`: SVD truncation parameter used to stabilize the inversion of the moment
+    matrix. This parameter defines the threshold (as a fraction of the largest singular
+    value) below which singular values are set to zero during the pseudo-inverse
+    computation with [`invreg`](@ref). Should be a positive value between 0 and 1.
+    See the [`invreg`](@ref) documentation for parameter selection guidelines.\\
+    (default: `sqrt(eps())`)
 
 # Examples
 
@@ -71,7 +78,9 @@ bond-associated quadrature integration at the center of the bonds.
     constructor docs for more informations.
 - `monomial::Symbol`: The monomial vector used for the reproducing kernel approximation. See
     the constructor docs for more informations.
-- `regfactor::Float64`: Regularization factor. See the constructor docs for more
+- `lambda::Float64`: Tikhonov regularization parameter. See the constructor docs for more
+    informations.
+- `beta::Float64`: SVD truncation parameter. See the constructor docs for more
     informations.
 
 # Allowed material parameters
@@ -117,23 +126,28 @@ struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     constitutive_model::CM
     dmgmodel::DM
     monomial::Symbol
-    regfactor::Float64
+    lambda::Float64
+    beta::Float64
     function RKCMaterial(kernel::K, cm::CM, dmgmodel::DM, monomial::Symbol,
-                         regfactor::Real) where {CM,K,DM}
-        return new{CM,K,DM}(kernel, cm, dmgmodel, monomial, regfactor)
+                         lambda::Float64, beta::Float64) where {CM,K,DM}
+        return new{CM,K,DM}(kernel, cm, dmgmodel, monomial, lambda, beta)
     end
 end
 
 function RKCMaterial(; kernel::Function=cubic_b_spline_kernel_norm,
                      model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(),
-                     monomial::Symbol=:C1, regfactor::Real=1e-13)
+                     monomial::Symbol=:C1, lambda::Real=0, beta::Real=sqrt(eps()))
     get_q_dim(monomial) # check if the kernel is implemented
-    if !(0 ≤ regfactor ≤ 1)
-        msg = "Regularization factor must be in the range 0 ≤ regfactor ≤ 1\n"
+    if !(0 ≤ lambda ≤ 1)
+        msg = "Regularization factor must be in the range 0 ≤ lambda ≤ 1\n"
         throw(ArgumentError(msg))
     end
-    return RKCMaterial(kernel, model, dmgmodel, monomial, regfactor)
+    if !(0 ≤ beta ≤ 1)
+        msg = "Regularization factor must be in the range 0 ≤ beta ≤ 1\n"
+        throw(ArgumentError(msg))
+    end
+    return RKCMaterial(kernel, model, dmgmodel, monomial, lambda, beta)
 end
 
 function Base.show(io::IO, @nospecialize(mat::AbstractRKCMaterial))
@@ -381,7 +395,7 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
                       mat::AbstractRKCMaterial, params::AbstractPointParameters, t, Δt, i)
     (; bonds, volume) = system
     (; bond_active, gradient_weight, weighted_volume, update_gradients) = storage
-    (; monomial, regfactor) = mat
+    (; monomial, lambda, beta) = mat
     (; δ) = params
 
     # get dimenion of the monomial vector and the gradient extraction matrix
@@ -403,8 +417,8 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
     end
     weighted_volume[i] = wi
 
-    # calculate inverse of moment matrix, must be a full rank matrix!
-    Minv = invreg(M, regfactor * δ * δ * δ)
+    # calculate regularized inverse of M
+    Minv = invreg(M, lambda, beta)
 
     # calculate gradient weights Φ
     for bond_id in each_bond_idx(system, i)

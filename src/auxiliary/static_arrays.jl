@@ -44,25 +44,56 @@ end
 end
 
 """
-    invreg(M::StaticMatrix{N,N,T}, threshold::Real=eps()) where {N,T}
+    invreg(M::StaticMatrix{N,N,T}, λ::Real, β::Real) where {N,T}
 
-Computes the pseudo-inverse of a square static matrix `M` using singular value
-decomposition (SVD) with regularization. The regularization is applied to the
-singular values, where singular values below the specified `threshold` are set
-to zero in the pseudo-inverse. This helps to avoid numerical instability and
-ill-conditioning in the inversion process.
+Computes the pseudo-inverse of a square static matrix `M` using a combination of
+Tikhonov regularization and SVD-based truncated singular value regularization.
+
+# Regularization Techniques
+
+1. **Tikhonov Regularization**: The matrix `M` is first regularized by adding
+   `λ * tr(M) * I` to it, which helps improve conditioning by shifting eigenvalues
+   away from zero.
+
+2. **Truncated SVD**: After computing the singular value decomposition, singular
+   values below `β * S[1]` (where `S[1]` is the largest singular value) are
+   replaced by zero in the pseudo-inverse, preventing numerical instability from
+   very small singular values.
+
+# Parameter Selection Guidelines
+
+- **Well-conditioned matrices**: Use small values (λ ∈ [0, 10⁻¹⁰], β ∈ [0, 10⁻⁸])
+    to minimize regularization effects while maintaining numerical stability.
+- **Moderately ill-conditioned matrices**: Use moderate values (λ ∈ [10⁻⁶, 10⁻³],
+    β ∈ [10⁻⁸, 10⁻⁶]) to balance accuracy and stability.
+- **Severely ill-conditioned matrices**: Use larger values (λ ∈ [10⁻³, 10⁻¹],
+    β ∈ [10⁻⁶, 10⁻⁴]) to ensure numerical stability at the cost of some accuracy.
 
 # Arguments
+
 - `M::StaticMatrix{N,N,T}`: The square `N`×`N` static matrix with element type `T` to be
     inverted.
-- `threshold::Real=eps()`: The threshold value for regularization, should be a positive
-    real number between 0 and 1. Singular values below this threshold are set to zero in the
-    pseudo-inverse.
+- `λ::Real`: Tikhonov regularization parameter. Controls the strength of the
+    regularization applied to the matrix. Should be a non-negative real number.
+    Larger values increase regularization strength.
+- `β::Real`: SVD truncation parameter. Defines the threshold as a fraction of the
+    largest singular value. Should be a positive real number between 0 and 1.
+    Singular values below `β * S[1]` are set to zero in the pseudo-inverse.
+
+# Returns
+
+- `Minv::StaticMatrix{N,N,T}`: The regularized pseudo-inverse of the input matrix `M`.
 """
-function invreg(M::StaticMatrix{N,N,T}, threshold::Real=eps()) where {N,T}
-    U, S, V = svd(M)
-    Sinvreg = SVector{N,T}((s > threshold ? 1/s : 0) for s in S)
+function invreg(M::StaticMatrix{N,N,T}, λ::Real, β::Real) where {N,T}
+    # Tikhonov regularization
+    Mreg = M + λ * tr(M) * I
+
+    # Truncated SVD-based regularized inversion
+    U, S, V = svd(Mreg)
+    threshold = β * S[1] # the first singular value is the maximum
+    Sinvreg = SVector{N,T}((s > threshold ? 1/s : zero(T)) for s in S)
     Sinv = Diagonal{T,SVector{N,T}}(Sinvreg)
     Minv = V * Sinv * U'
+
     return Minv
 end

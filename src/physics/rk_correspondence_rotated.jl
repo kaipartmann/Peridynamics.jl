@@ -1,5 +1,5 @@
 """
-    RKCRMaterial(; kernel, model, dmgmodel, monomial, regfactor)
+    RKCRMaterial(; kernel, model, dmgmodel, monomial, lambda, beta)
 
 The same as the [`RKCMaterial`](@ref) but with rotation of the stress tensor for large
 deformation simulations, therefore not all models are supported.
@@ -9,34 +9,39 @@ Supported models:
 - `LinearElastic`
 
 Please take a look at the [`RKCMaterial`](@ref) docs for more information about the
-material!
+material, including details about the `monomial`, `lambda`, and `beta` parameters!
 """
 struct RKCRMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     kernel::K
     constitutive_model::CM
     dmgmodel::DM
     monomial::Symbol
-    regfactor::Float64
+    lambda::Float64
+    beta::Float64
     function RKCRMaterial(kernel::K, cm::CM, dmgmodel::DM, monomial::Symbol,
-                          regfactor::Real) where {CM,K,DM}
-        return new{CM,K,DM}(kernel, cm, dmgmodel, monomial, regfactor)
+                          lambda::Real, beta::Real) where {CM,K,DM}
+        return new{CM,K,DM}(kernel, cm, dmgmodel, monomial, lambda, beta)
     end
 end
 
 function RKCRMaterial(; kernel::Function=cubic_b_spline_kernel_norm,
                         model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                         dmgmodel::AbstractDamageModel=CriticalStretch(),
-                        monomial::Symbol=:C1, regfactor::Real=1e-13)
+                        monomial::Symbol=:C1, lambda::Real=0, beta::Real=sqrt(eps()))
     if !(typeof(model) <: Union{SaintVenantKirchhoff,LinearElastic})
         msg = "model `$(typeof(model))` is currently not supported for `RKCRMaterial`!\n"
         throw(ArgumentError(msg))
     end
     get_q_dim(monomial) # check if the kernel is implemented
-    if !(0 ≤ regfactor ≤ 1)
-        msg = "Regularization factor must be in the range 0 ≤ regfactor ≤ 1\n"
+    if !(0 ≤ lambda ≤ 1)
+        msg = "Regularization factor must be in the range 0 ≤ lambda ≤ 1\n"
         throw(ArgumentError(msg))
     end
-    return RKCRMaterial(kernel, model, dmgmodel, monomial, regfactor)
+    if !(0 ≤ beta ≤ 1)
+        msg = "Regularization factor must be in the range 0 ≤ beta ≤ 1\n"
+        throw(ArgumentError(msg))
+    end
+    return RKCRMaterial(kernel, model, dmgmodel, monomial, lambda, beta)
 end
 
 @params RKCRMaterial StandardPointParameters
