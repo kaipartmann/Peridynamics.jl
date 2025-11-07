@@ -129,7 +129,7 @@ struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     lambda::Float64
     beta::Float64
     function RKCMaterial(kernel::K, cm::CM, dmgmodel::DM, monomial::Symbol,
-                         lambda::Float64, beta::Float64) where {CM,K,DM}
+                         lambda::Real, beta::Real) where {CM,K,DM}
         return new{CM,K,DM}(kernel, cm, dmgmodel, monomial, lambda, beta)
     end
 end
@@ -160,8 +160,12 @@ function log_material_property(::Val{:monomial}, mat; indentation)
     return msg_qty("monomial type", mat.monomial; indentation)
 end
 
-function log_material_property(::Val{:regfactor}, mat; indentation)
-    return msg_qty("regularization factor", mat.regfactor; indentation)
+function log_material_property(::Val{:lambda}, mat; indentation)
+    return msg_qty("regularization parameter", mat.lambda; indentation)
+end
+
+function log_material_property(::Val{:beta}, mat; indentation)
+    return msg_qty("threshold parameter truncated SVD", mat.beta; indentation)
 end
 
 @params RKCMaterial StandardPointParameters

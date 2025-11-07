@@ -43,7 +43,8 @@ end
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
     @test mat1.monomial == :C1
-    @test mat1.regfactor == 1e-13
+    @test mat1.lambda == 0
+    @test mat1.beta ≈ sqrt(eps())
 
     # Test constructor with parameters
     mat2 = RKCMaterial(
@@ -51,17 +52,21 @@ end
         model = LinearElastic(),
         dmgmodel = CriticalStretch(),
         monomial = :C1,
-        regfactor = 1e-10
+        lambda = 0,
+        beta = 1e-8
     )
     @test mat2.kernel == linear_kernel
     @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
     @test mat2.monomial == :C1
-    @test mat2.regfactor == 1e-10
+    @test mat2.lambda == 0
+    @test mat2.beta == 1e-8
 
-    # Test constructor with invalid regfactor
-    @test_throws ArgumentError RKCMaterial(regfactor = 2.0)
-    @test_throws ArgumentError RKCMaterial(regfactor = -0.5)
+    # Test constructor with invalid lambda/beta
+    @test_throws ArgumentError RKCMaterial(lambda = 2.0)
+    @test_throws ArgumentError RKCMaterial(lambda = -0.5)
+    @test_throws ArgumentError RKCMaterial(beta = 2.0)
+    @test_throws ArgumentError RKCMaterial(beta = -0.5)
 end
 
 @testitem "RKCRMaterial initialization" begin
@@ -71,7 +76,8 @@ end
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
     @test mat1.monomial == :C1
-    @test mat1.regfactor == 1e-13
+    @test mat1.lambda == 0
+    @test mat1.beta ≈ sqrt(eps())
 
     # Test constructor with parameters (only linear elastic models are supported)
     mat2 = RKCRMaterial(
@@ -79,20 +85,24 @@ end
         model = LinearElastic(),
         dmgmodel = CriticalStretch(),
         monomial = :C1,
-        regfactor = 1e-10
+        lambda = 0,
+        beta = 1e-10,
     )
     @test mat2.kernel == linear_kernel
     @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
     @test mat2.monomial == :C1
-    @test mat2.regfactor == 1e-10
+    @test mat2.lambda == 0
+    @test mat2.beta == 1e-10
 
     # Test failure with non-LinearElastic model
     @test_throws ArgumentError RKCRMaterial(model = NeoHooke())
 
-    # Test constructor with invalid regfactor
-    @test_throws ArgumentError RKCRMaterial(regfactor = 2.0)
-    @test_throws ArgumentError RKCRMaterial(regfactor = -0.5)
+    # Test constructor with invalid lambda/beta
+    @test_throws ArgumentError RKCRMaterial(lambda = 2.0)
+    @test_throws ArgumentError RKCRMaterial(lambda = -0.5)
+    @test_throws ArgumentError RKCRMaterial(beta = 2.0)
+    @test_throws ArgumentError RKCRMaterial(beta = -0.5)
 end
 
 @testitem "gradient weights calculation" begin
