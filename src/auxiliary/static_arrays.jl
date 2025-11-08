@@ -51,13 +51,15 @@ Tikhonov regularization in the SVD domain and truncated singular value regulariz
 
 # Arguments
 
-- `M::StaticMatrix{N,N,T}`: The square `N`×`N` static matrix with element type `T` to be
+- `M::StaticMatrix{N,N,T}`: The square `N×N` static matrix with element type `T` to be
     inverted.
 - `λ::Real`: Relative Tikhonov regularization parameter (dimensionless, non-negative).
-    Controls the smoothing strength applied as λₑ = λ σₘₐₓ, where σₘₐₓ is the largest
-    singular value of `M`.
+    Controls the smoothing strength applied as
+    ``\\lambda_{\\text{eff}} = \\lambda \\sigma_{\\max}``, where ``\\sigma_{\\max}`` is the
+    largest singular value of `M`.
 - `β::Real`: Relative SVD truncation parameter (dimensionless, non-negative). Defines the
-    cutoff threshold as βₑ = β σₘₐₓ for excluding small singular values.
+    cutoff threshold as ``\\beta_{\\text{eff}} = \\beta \\sigma_{\\max}`` for excluding
+    small singular values.
 
 # Returns
 
@@ -67,32 +69,37 @@ Tikhonov regularization in the SVD domain and truncated singular value regulariz
 
 The function applies two complementary regularization strategies:
 
-1. **SVD-based Tikhonov Regularization**: For each singular value σᵢ, the inverse is
-   computed as σᵢ/(σᵢ² + λₑ²), which smoothly dampens the contribution of small singular
-   values without completely removing them.
+1. **SVD-based Tikhonov Regularization**: For each singular value ``\\sigma_i``, the inverse
+    is computed as ``\\sigma_i/(\\sigma_i^2 + \\lambda_{\\text{eff}}^2)``, which smoothly
+    dampens the contribution of small singular values without completely removing them.
 
-2. **Truncated SVD**: Singular values below the threshold βₑ are completely excluded by
-   setting their contribution to zero, preventing numerical instability from near-zero
-   singular values.
+2. **Truncated SVD**: Singular values below the threshold ``\\beta_{\\text{eff}}`` are
+    completely excluded by setting their contribution to zero, preventing numerical
+    instability from near-zero singular values.
 
 !!! note "Scale-invariant regularization"
-    Both λ and β are internally scaled by the largest singular value σₘₐₓ, making them
-    **relative** regularization strengths independent of the matrix scale. This makes
-    parameter selection more robust and transferable across different problems with
-    varying magnitudes.
+    Both ``\\lambda`` and ``\\beta`` are internally scaled by the largest singular value
+    ``\\sigma_{\\max}``, making them **relative** regularization strengths independent of
+    the matrix scale. This makes parameter selection more robust and transferable across
+    different problems with varying magnitudes.
 
 # Parameter Selection Guidelines
 
-- **λ (Tikhonov parameter)**:
-  - Well-conditioned matrices: λ = 0 (no Tikhonov regularization, recommended default)
-  - Mild regularization: λ ∈ [0, 10⁻¹²] (scale-invariant gentle smoothing)
-  - Moderate regularization: λ ∈ [10⁻¹², 10⁻⁴] (for moderately ill-conditioned problems)
-  - Note: Values λ > 10⁻⁴ may introduce noticeable bias in the solution
+- **``λ`` (Tikhonov parameter)**:
+    - Well-conditioned matrices: ``\\lambda = 0`` (no Tikhonov regularization, recommended
+        default)
+    - Mild regularization: ``\\lambda \\in [0, 10^{-12}]`` (scale-invariant gentle
+        smoothing)
+    - Moderate regularization: ``\\lambda \\in [10^{-12}, 10^{-4}]`` (for moderately
+        ill-conditioned problems)
+    - Note: Values ``\\lambda > 10^{-4}`` may introduce noticeable bias in the solution
 
-- **β (truncation parameter)**: Primary regularization mechanism, less sensitive than λ.
-  - Well-conditioned matrices: β ∈ [√ε, 10⁻⁶] (remove numerical noise, recommended default)
-  - Moderately ill-conditioned: β ∈ [10⁻⁶, 10⁻⁴] (moderate truncation)
-  - Severely ill-conditioned: β ∈ [10⁻⁴, 10⁻²] (aggressive truncation)
+- **``β`` (truncation parameter)**: Primary regularization mechanism, less sensitive than
+    ``\\lambda``.
+    - Well-conditioned matrices: ``\\beta \\in [\\sqrt{\\epsilon}, 10^{-6}]`` (remove
+        numerical noise, recommended default)
+    - Moderately ill-conditioned: ``\\beta \\in [10^{-6}, 10^{-4}]`` (moderate truncation)
+    - Severely ill-conditioned: ``\\beta \\in [10^{-4}, 10^{-2}]`` (aggressive truncation)
 """
 function invreg(M::StaticMatrix{N,N,T}, λ::Real, β::Real) where {N,T}
     U, S, V = svd(M)
