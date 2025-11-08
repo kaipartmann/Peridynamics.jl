@@ -1,6 +1,6 @@
 @testitem "damage changed flag" begin
     pos, vol = uniform_box(1, 1, 1, 0.4)
-    body = Body(RKCMaterial(), pos, vol)
+    body = Body(RKCMaterial(kernel=cubic_b_spline_kernel_norm), pos, vol)
     material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
@@ -39,7 +39,7 @@ end
 @testitem "RKCMaterial initialization" begin
     # Test default constructor
     mat1 = RKCMaterial()
-    @test mat1.kernel == cubic_b_spline_kernel_norm
+    @test mat1.kernel == const_one_kernel
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
     @test mat1.monomial == :C1
@@ -63,16 +63,14 @@ end
     @test mat2.beta == 1e-8
 
     # Test constructor with invalid lambda/beta
-    @test_throws ArgumentError RKCMaterial(lambda = 2.0)
     @test_throws ArgumentError RKCMaterial(lambda = -0.5)
-    @test_throws ArgumentError RKCMaterial(beta = 2.0)
     @test_throws ArgumentError RKCMaterial(beta = -0.5)
 end
 
 @testitem "RKCRMaterial initialization" begin
     # Test default constructor
     mat1 = RKCRMaterial()
-    @test mat1.kernel == cubic_b_spline_kernel_norm
+    @test mat1.kernel == const_one_kernel
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
     @test mat1.monomial == :C1
@@ -99,9 +97,7 @@ end
     @test_throws ArgumentError RKCRMaterial(model = NeoHooke())
 
     # Test constructor with invalid lambda/beta
-    @test_throws ArgumentError RKCRMaterial(lambda = 2.0)
     @test_throws ArgumentError RKCRMaterial(lambda = -0.5)
-    @test_throws ArgumentError RKCRMaterial(beta = 2.0)
     @test_throws ArgumentError RKCRMaterial(beta = -0.5)
 end
 
@@ -109,7 +105,7 @@ end
     using Peridynamics.LinearAlgebra
 
     pos, vol = uniform_box(1, 1, 1, 0.4)
-    body = Body(RKCMaterial(), pos, vol)
+    body = Body(RKCMaterial(kernel=cubic_b_spline_kernel_norm), pos, vol)
     material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
@@ -138,7 +134,7 @@ end
     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
 
     pos, vol = uniform_box(1, 1, 1, 0.1)
-    body = Body(RKCMaterial(), pos, vol)
+    body = Body(RKCMaterial(kernel=cubic_b_spline_kernel_norm), pos, vol)
     material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)

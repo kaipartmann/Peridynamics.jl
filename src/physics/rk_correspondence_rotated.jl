@@ -33,12 +33,12 @@ function RKCRMaterial(; kernel::Function=const_one_kernel,
         throw(ArgumentError(msg))
     end
     get_q_dim(monomial) # check if the kernel is implemented
-    if !(0 ≤ lambda ≤ 1)
-        msg = "Regularization factor must be in the range 0 ≤ lambda ≤ 1\n"
+    if lambda < 0
+        msg = "Tikhonov regularization parameter must be non-negative! (`lambda ≥ 0`)\n"
         throw(ArgumentError(msg))
     end
-    if !(0 ≤ beta ≤ 1)
-        msg = "Regularization factor must be in the range 0 ≤ beta ≤ 1\n"
+    if beta < 0
+        msg = "SVD truncation parameter must be non-negative! (`beta ≥ 0`)\n"
         throw(ArgumentError(msg))
     end
     return RKCRMaterial(kernel, model, dmgmodel, monomial, lambda, beta)
