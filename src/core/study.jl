@@ -1,5 +1,5 @@
 """
-    Study(jobcreator::Function, setups::Vector{<:NamedTuple}; root::String)
+    Study(jobcreator::Function, setups::Vector{<:NamedTuple}; kwargs...)
 
 A structure for managing parameter studies with multiple peridynamic simulations. The
 `Study` type coordinates the execution of multiple simulation jobs with different parameter
@@ -22,6 +22,9 @@ recorded completion status. This enables seamless resumption of interrupted stud
 - `root::String`: Root directory path where all simulation results and the study logfile
     will be stored. This directory and all job subdirectories will be created during
     [`submit!`](@ref).
+- `logfile_name::String`: Name of the study logfile. The file will be created in the `root`
+    directory.\\
+    (default: `"study_log.log"`)
 
 # Fields
 - `jobcreator::Function`: The job creation function
@@ -71,14 +74,15 @@ struct Study{F,S,J}
     logfile::String
     sim_success::Vector{Bool}
 
-    function Study(jobcreator::F, setups::S; root::String) where {F,S}
+    function Study(jobcreator::F, setups::S; root::AbstractString,
+                   logfile_name::AbstractString="study_log.log") where {F,S}
         check_setups(setups)
         jobs = [jobcreator(setup, root) for setup in setups]
         J = typeof(jobs)
         jobpaths = [job.options.root for job in jobs]
         check_jobpaths_unique(jobpaths)
         sim_success = fill(false, length(jobs))
-        logfile = joinpath(root, "study_log.log")
+        logfile = joinpath(root, logfile_name)
         study = new{F,S,J}(jobcreator, setups, jobs, jobpaths, root, logfile, sim_success)
         # If a logfile already exists from a previous run, initialize sim_success
         # from the logfile so processing or resuming works across interrupted runs.

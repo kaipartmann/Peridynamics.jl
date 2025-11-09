@@ -27,6 +27,29 @@
     @test all(contains.(study.jobpaths, "sim_"))
 end
 
+@testitem "Study constructor with custom logfile name" begin
+    function create_job(setup::NamedTuple, root::String)
+        body = Body(BBMaterial(), rand(3, 10), rand(10))
+        material!(body, horizon=1, E=setup.E, rho=1, Gc=1)
+        velocity_ic!(body, :all_points, :x, 1.0)
+        vv = VelocityVerlet(steps=setup.n_steps)
+        path = joinpath(root, "sim_$(setup.n_steps)")
+        job = Job(body, vv; path=path, freq=5)
+        return job
+    end
+    setups = [(; E=1.0, n_steps=5)]
+    root = joinpath(mktempdir(), "study")
+    custom_logfile = "my_custom_study_log.log"
+    study = Peridynamics.Study(create_job, setups; root, logfile_name=custom_logfile)
+
+    @test study.logfile == joinpath(root, custom_logfile)
+
+    # Test that submit! creates the logfile with custom name
+    Peridynamics.submit!(study; quiet=true)
+    @test isfile(study.logfile)
+    @test isfile(joinpath(root, custom_logfile))
+end
+
 @testitem "resume processing from existing logfile" begin
     function create_job(setup::NamedTuple, root::String)
         body = Body(BBMaterial(), rand(3, 10), rand(10))
