@@ -231,14 +231,11 @@ function submit!(study::Study; kwargs...)
                 submit(job; kwargs...)
                 true
             catch err
-                # Try to log the error to the job's logfile, but if that fails
-                # (e.g., invalid path), just continue
-                try
-                    log_it(job.options, "\nERROR: Simulation failed with error!\n")
-                    log_it(job.options, sprint(showerror, err, catch_backtrace()))
-                    log_it(job.options, "\n")
-                catch
-                    # If logging fails, just continue - error will be recorded in job log
+                @mpiroot :wait if !(quiet())
+                    printstyled(stderr, "\nERROR:"; color=:red, bold=true)
+                    msg = " job `$(job.options.root)` failed with error!\n"
+                    msg *= sprint(showerror, err, catch_backtrace())
+                    println(stderr, msg)
                 end
                 false
             end
@@ -385,7 +382,21 @@ function process_each_job(f::F, study::Study, default_result::NamedTuple) where 
             res = try
                 f(job, setup)
             catch err
-                @error "error processing job $(job.options.root)" error=err
+                @mpiroot :wait begin
+                    msg = "job `$(job.options.root)` failed with error!\n"
+                    msg *= sprint(showerror, err, catch_backtrace())
+                    # print error to stderr
+                    printstyled(stderr, "\nERROR: "; color=:red, bold=true)
+                    println(stderr, msg)
+                    # also write error to a separate logfile in the job directory
+                    t = Dates.format(Dates.now(), "yyyy-mm-dd_HH-MM-SS")
+                    err_logfile = joinpath(job.options.root, "$(t)_proc_error.log")
+                    open(err_logfile, "w+") do io
+                        write(io, get_logfile_head())
+                        write(io, peridynamics_banner(color=false))
+                        write(io, "ERROR: " * msg)
+                    end
+                end
                 default_result
             end
             results[i] = res

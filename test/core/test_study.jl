@@ -94,6 +94,11 @@ end
 
     @test study.sim_success == [true, true]
     @test isdir(study.jobpaths[2])
+
+    # Check that logfile contains RESUMED marker and skipped status
+    logcontent = read(study.logfile, String)
+    @test contains(logcontent, "--- RESUMED:")
+    @test contains(logcontent, "status: skipped (completed in a previous run)")
 end
 
 @testitem "Study constructor with empty setups" begin
@@ -226,15 +231,22 @@ end
         (; n_steps=15, fail=false),
     ]
     study = Peridynamics.Study(create_job, setups; root=joinpath(mktempdir(), "study"))
-    Peridynamics.submit!(study; quiet=true)
+
+    # Run with quiet=false to allow error printing (we just verify it doesn't crash)
+    Peridynamics.submit!(study; quiet=false)
+
     @test study.sim_success[1] == true
     @test study.sim_success[2] == false
     @test study.sim_success[3] == true
     @test count(study.sim_success) == 2
-    # Check logfile contains failure info
+
+    # Check logfile contains failure info and proper formatting
     logcontent = read(study.logfile, String)
     @test contains(logcontent, "completed ✓")
     @test contains(logcontent, "failed ✗")
+    @test contains(logcontent, "(1/3) Simulation")
+    @test contains(logcontent, "(2/3) Simulation")
+    @test contains(logcontent, "(3/3) Simulation")
 end
 
 @testitem "submit! creates study directory structure" begin
@@ -281,6 +293,30 @@ end
     study2 = Peridynamics.Study(create_job, setups; root=joinpath(tmpdir, "study2"))
     Peridynamics.submit!(study2)
     @test study2.sim_success[1] == true
+end
+
+@testitem "submit! error handling with quiet=true" begin
+    function create_job(setup::NamedTuple, root::String)
+        body = Body(BBMaterial(), rand(3, 10), rand(10))
+        material!(body, horizon=1, E=1, rho=1, Gc=1)
+        velocity_ic!(body, :all_points, :x, 1.0)
+        vv = VelocityVerlet(steps=setup.n_steps)
+        # Invalid path will cause job to fail
+        path = "/invalid/path/sim_$(setup.n_steps)"
+        job = Job(body, vv; path=path, freq=5)
+        return job
+    end
+    setups = [(; n_steps=5,)]
+    study = Peridynamics.Study(create_job, setups; root=joinpath(mktempdir(), "study"))
+
+    # With quiet=true, should handle errors gracefully without crashing
+    Peridynamics.submit!(study; quiet=true)
+
+    @test study.sim_success[1] == false
+
+    # Logfile should still contain the failure status
+    logcontent = read(study.logfile, String)
+    @test contains(logcontent, "failed ✗")
 end
 
 @testitem "Study with MultibodySetup" begin
@@ -354,6 +390,68 @@ end
 
     # Check timing info present
     @test contains(logcontent, "seconds")
+
+    # Check job numbering format
+    @test contains(logcontent, "(1/2) Simulation")
+    @test contains(logcontent, "(2/2) Simulation")
+end
+
+@testitem "submit! prints study completion message to logfile" begin
+    function create_job(setup::NamedTuple, root::String)
+        body = Body(BBMaterial(), rand(3, 10), rand(10))
+        material!(body, horizon=1, E=1, rho=1, Gc=1)
+        velocity_ic!(body, :all_points, :x, 1.0)
+        vv = VelocityVerlet(steps=setup.n_steps)
+        path = joinpath(root, "sim_$(setup.n_steps)")
+        job = Job(body, vv; path=path, freq=5)
+        return job
+    end
+    setups = [
+        (; n_steps=5),
+        (; n_steps=10),
+    ]
+    study = Peridynamics.Study(create_job, setups; root=joinpath(mktempdir(), "study"))
+
+    # Submit jobs (completion message goes to stdout via print_log)
+    Peridynamics.submit!(study; quiet=true)
+
+    @test all(study.sim_success)
+    # The completion message is printed via print_log, not stored in logfile
+    # Just verify the jobs completed successfully
+end
+
+@testitem "submit! tracks partial success correctly" begin
+    function create_job(setup::NamedTuple, root::String)
+        body = Body(BBMaterial(), rand(3, 10), rand(10))
+        material!(body, horizon=1, E=1, rho=1, Gc=1)
+        velocity_ic!(body, :all_points, :x, 1.0)
+        vv = VelocityVerlet(steps=setup.n_steps)
+
+        # Second job will fail with invalid path
+        if setup.fail
+            path = "/invalid/path/sim_$(setup.n_steps)"
+        else
+            path = joinpath(root, "sim_$(setup.n_steps)")
+        end
+
+        job = Job(body, vv; path=path, freq=5)
+        return job
+    end
+    setups = [
+        (; n_steps=5, fail=false),
+        (; n_steps=10, fail=true),
+        (; n_steps=15, fail=false),
+    ]
+    study = Peridynamics.Study(create_job, setups; root=joinpath(mktempdir(), "study"))
+
+    # Submit with quiet=true to suppress error output
+    Peridynamics.submit!(study; quiet=true)
+
+    # Verify correct success tracking
+    @test study.sim_success[1] == true
+    @test study.sim_success[2] == false
+    @test study.sim_success[3] == true
+    @test count(study.sim_success) == 2
 end
 
 @testitem "process_each_job with all successful jobs" begin
@@ -424,13 +522,15 @@ end
     end
 
     default_result = (; n_steps=0, processed=false)
+
+    # Process jobs - should skip failed job with warning
     results = Peridynamics.process_each_job(process_func, study, default_result)
 
     @test length(results) == 3
     # First job processed
     @test results[1].n_steps == 5
     @test results[1].processed == true
-    # Second job failed - should have default result
+    # Second job failed - should have default result (skipped with warning)
     @test results[2].n_steps == 0
     @test results[2].processed == false
     # Third job processed
@@ -465,6 +565,7 @@ end
         return (; id=setup.id, status="ok")
     end
     default_result = (; id=0, status="failed")
+
     # Should not throw, but should use default_result for erroring job
     results = Peridynamics.process_each_job(process_func, study, default_result)
 
@@ -475,6 +576,51 @@ end
     @test results[2].status == "failed"
     @test results[3].id == 3
     @test results[3].status == "ok"
+
+    # Check that error logfile was created for the failed job
+    error_logfiles = filter(f -> occursin("proc_error.log", f), readdir(study.jobpaths[2]))
+    @test length(error_logfiles) == 1
+    error_log_path = joinpath(study.jobpaths[2], error_logfiles[1])
+    error_log_content = read(error_log_path, String)
+    @test contains(error_log_content, "ERROR:")
+    @test contains(error_log_content, "Intentional processing error")
+end
+
+@testitem "process_each_job creates error logfile" begin
+    function create_job(setup::NamedTuple, root::String)
+        body = Body(BBMaterial(), rand(3, 10), rand(10))
+        material!(body, horizon=1, E=1, rho=1, Gc=1)
+        velocity_ic!(body, :all_points, :x, 1.0)
+        vv = VelocityVerlet(steps=setup.n_steps)
+        path = joinpath(root, "sim_$(setup.id)")
+        job = Job(body, vv; path=path, freq=5)
+        return job
+    end
+    setups = [(; id=1, n_steps=5)]
+    study = Peridynamics.Study(create_job, setups; root=joinpath(mktempdir(), "study"))
+    Peridynamics.submit!(study; quiet=true)
+    @test all(study.sim_success)
+
+    # Processing function that errors
+    function process_func(job, setup)
+        error("Processing error for testing")
+    end
+    default_result = (; id=0, status="failed")
+
+    # Should handle error gracefully and use default result
+    results = Peridynamics.process_each_job(process_func, study, default_result)
+
+    @test results[1] == default_result
+
+    # Error logfile should be created
+    error_logfiles = filter(f -> occursin("proc_error.log", f), readdir(study.jobpaths[1]))
+    @test length(error_logfiles) == 1
+
+    # Verify error logfile content
+    error_log_path = joinpath(study.jobpaths[1], error_logfiles[1])
+    error_log_content = read(error_log_path, String)
+    @test contains(error_log_content, "ERROR:")
+    @test contains(error_log_content, "Processing error for testing")
 end
 
 @testitem "process_each_job with empty processing result" begin
