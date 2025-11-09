@@ -17,13 +17,22 @@ function submit(job::Job; kwargs...)
     quiet = get_submit_options(o)
     set_quiet!(quiet)
 
-    if mpi_run()
-        ret = submit_mpi(job)
-    else
-        ret = submit_threads(job, nthreads())
+    dh = try
+        if mpi_run()
+            submit_mpi(job)
+        else
+            submit_threads(job, nthreads())
+        end
+    catch err
+        timestamp = Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
+        msg = "\nERROR: submit failed with error at $(timestamp)!\n"
+        msg *= sprint(showerror, err, catch_backtrace())
+        msg *= "\n"
+        add_to_logfile(job.options, msg)
+        rethrow(err)
     end
 
-    return ret
+    return dh
 end
 
 function get_submit_options(o::Dict{Symbol,Any})
