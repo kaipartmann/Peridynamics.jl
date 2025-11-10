@@ -12,6 +12,7 @@ Pages = ["public_api_reference.md"]
 ```@docs
 BBMaterial
 DHBBMaterial
+GBBMaterial
 OSBMaterial
 CMaterial
 CRMaterial
