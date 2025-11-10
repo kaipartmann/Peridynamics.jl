@@ -16,6 +16,11 @@ end
     @test_throws LoadError eval(:(@mpiroot :wrongkey println("Hi!")))
 end
 
+@testitem "mpi_barrier" begin
+    # Test that mpi_barrier returns nothing
+    @test mpi_barrier() === nothing
+end
+
 @testitem "MPI timers" tags=[:mpi] begin
     path = mktempdir()
     mpi_cmd = """

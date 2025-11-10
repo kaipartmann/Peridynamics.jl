@@ -63,6 +63,7 @@ n_points
 ```@docs
 read_inp
 mpi_isroot
+mpi_barrier
 force_mpi_run!
 force_threads_run!
 enable_mpi_timers!

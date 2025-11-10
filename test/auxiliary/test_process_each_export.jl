@@ -101,3 +101,68 @@ end
     @test basename.(vtk_files) == ["_1.pvtu", "timestep_02.pvtu",
                                    "abcd_timestep_000005.pvtu", "timestep_123.pvtu"]
 end
+
+@testitem "process_each_export with barrier" tags=[:mpi] begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    point_set!(y -> y > l / 2 - Δx, b1, :set_top)
+    point_set!(y -> y < -l / 2 + Δx, b1, :set_bottom)
+    velocity_bc!(t -> 30, b1, :set_top, :y)
+    velocity_bc!(t -> -30, b1, :set_bottom, :y)
+    vv = VelocityVerlet(steps=2)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    # Test that barrier parameter works without error
+    counter = Ref(0)
+    process_each_export(job; serial=true, barrier=false) do r0, r, id
+        counter[] += 1
+    end
+    @test counter[] == 3  # reference + 2 time steps
+
+    # Test with barrier=true (should also work in non-MPI context)
+    counter[] = 0
+    process_each_export(job; serial=true, barrier=true) do r0, r, id
+        counter[] += 1
+    end
+    @test counter[] == 3
+
+    # Test MPI behavior with barrier
+    mpi_cmd = """
+    using Peridynamics
+    files = "$(joinpath(root, "vtk"))"
+    counter_file = "$(joinpath(root, "counter.txt"))"
+
+    # Test serial with barrier - all ranks should reach the barrier
+    process_each_export(files; serial=true, barrier=true) do r0, r, id
+        if mpi_isroot()
+            open(counter_file, "a") do io
+                println(io, "processed: \$id")
+            end
+        end
+    end
+
+    # If we get here, barrier worked correctly
+    if mpi_isroot()
+        open(counter_file, "a") do io
+            println(io, "all ranks synchronized")
+        end
+    end
+    """
+    counter_file = joinpath(root, "counter.txt")
+    rm(counter_file; force=true)
+
+    mpiexec = Peridynamics.MPI.mpiexec()
+    jlcmd = Base.julia_cmd()
+    pdir = pkgdir(Peridynamics)
+    @test success(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
+
+    # Check that processing happened and barrier worked
+    @test isfile(counter_file)
+    content = read(counter_file, String)
+    @test contains(content, "processed: 1")
+    @test contains(content, "all ranks synchronized")
+end

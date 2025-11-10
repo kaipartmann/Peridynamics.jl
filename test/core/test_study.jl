@@ -702,3 +702,102 @@ end
     @test results[2].E == 2e9
     @test results[2].n_output_files > 0
 end
+
+@testitem "process_each_job with only_root=true" begin
+    function create_job(setup::NamedTuple, root::String)
+        body = Body(BBMaterial(), rand(3, 10), rand(10))
+        material!(body, horizon=1, E=setup.E, rho=1, Gc=1)
+        velocity_ic!(body, :all_points, :x, 1.0)
+        vv = VelocityVerlet(steps=setup.n_steps)
+        path = joinpath(root, "sim_$(setup.E)")
+        job = Job(body, vv; path=path, freq=5)
+        return job
+    end
+    setups = [
+        (; E=1e9, n_steps=5),
+        (; E=2e9, n_steps=10),
+    ]
+    study = Peridynamics.Study(create_job, setups; root=joinpath(mktempdir(), "study"))
+    Peridynamics.submit!(study; quiet=true)
+
+    # Test with only_root=true
+    counter = Ref(0)
+    function process_func(job, setup)
+        counter[] += 1
+        return (; E=setup.E, processed=true)
+    end
+
+    default_result = (; E=0.0, processed=false)
+    results = Peridynamics.process_each_job(process_func, study, default_result;
+                                           only_root=true)
+
+    @test length(results) == 2
+    # In non-MPI context, mpi_isroot() is always true, so both should be processed
+    @test results[1].E == 1e9
+    @test results[1].processed == true
+    @test results[2].E == 2e9
+    @test results[2].processed == true
+    @test counter[] == 2  # Both jobs processed
+
+    # Test with only_root=false (default)
+    counter[] = 0
+    results2 = Peridynamics.process_each_job(process_func, study, default_result)
+    @test counter[] == 2  # Same behavior without MPI
+end
+
+@testitem "process_each_job with only_root in MPI" tags=[:mpi] begin
+    path = mktempdir()
+    mpi_cmd = """
+    using Peridynamics
+
+    function create_job(setup::NamedTuple, root::String)
+        body = Body(BBMaterial(), rand(3, 10), rand(10))
+        material!(body, horizon=1, E=1.0, rho=1, Gc=1)
+        velocity_ic!(body, :all_points, :x, 1.0)
+        vv = VelocityVerlet(steps=5)
+        path = joinpath(root, "sim_\$(setup.id)")
+        job = Job(body, vv; path=path, freq=5)
+        return job
+    end
+
+    setups = [(; id=1), (; id=2)]
+    study = Peridynamics.Study(create_job, setups; root="$(path)")
+    Peridynamics.submit!(study; quiet=true)
+
+    # Test with only_root=true
+    marker_file = "$(joinpath(path, "processing_marker.txt"))"
+    default_result = (; id=0, rank=-1)
+
+    results = Peridynamics.process_each_job(study, default_result; only_root=true) do job, setup
+        # This should only run on root
+        rank = Peridynamics.mpi_rank()
+        if mpi_isroot()
+            open(marker_file, "a") do io
+                println(io, "Job \$(setup.id) processed on rank \$(rank)")
+            end
+        end
+        return (; id=setup.id, rank=rank)
+    end
+
+    # Check that only root processed (and wrote to file)
+    if mpi_isroot()
+        @assert isfile(marker_file)
+        content = read(marker_file, String)
+        @assert contains(content, "Job 1 processed on rank 0")
+        @assert contains(content, "Job 2 processed on rank 0")
+        @assert !contains(content, "rank 1")  # Non-root shouldn't write
+    end
+    """
+
+    mpiexec = Peridynamics.MPI.mpiexec()
+    jlcmd = Base.julia_cmd()
+    pdir = pkgdir(Peridynamics)
+    @test success(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
+
+    # Verify the marker file was created correctly
+    marker_file = joinpath(path, "processing_marker.txt")
+    @test isfile(marker_file)
+    content = read(marker_file, String)
+    @test contains(content, "Job 1 processed on rank 0")
+    @test contains(content, "Job 2 processed on rank 0")
+end
