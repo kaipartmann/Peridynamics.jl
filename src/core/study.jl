@@ -1,5 +1,5 @@
 """
-    Study(jobcreator::Function, setups::Vector{<:NamedTuple}; root::String)
+    Study(jobcreator::Function, setups::Vector{<:NamedTuple}; kwargs...)
 
 A structure for managing parameter studies with multiple peridynamic simulations. The
 `Study` type coordinates the execution of multiple simulation jobs with different parameter
@@ -22,6 +22,9 @@ recorded completion status. This enables seamless resumption of interrupted stud
 - `root::String`: Root directory path where all simulation results and the study logfile
     will be stored. This directory and all job subdirectories will be created during
     [`submit!`](@ref).
+- `logfile_name::String`: Name of the study logfile. The file will be created in the `root`
+    directory.\\
+    (default: `"study_log.log"`)
 
 # Fields
 - `jobcreator::Function`: The job creation function
@@ -71,14 +74,15 @@ struct Study{F,S,J}
     logfile::String
     sim_success::Vector{Bool}
 
-    function Study(jobcreator::F, setups::S; root::String) where {F,S}
+    function Study(jobcreator::F, setups::S; root::AbstractString,
+                   logfile_name::AbstractString="study_log.log") where {F,S}
         check_setups(setups)
         jobs = [jobcreator(setup, root) for setup in setups]
         J = typeof(jobs)
         jobpaths = [job.options.root for job in jobs]
         check_jobpaths_unique(jobpaths)
         sim_success = fill(false, length(jobs))
-        logfile = joinpath(root, "study_log.log")
+        logfile = joinpath(root, logfile_name)
         study = new{F,S,J}(jobcreator, setups, jobs, jobpaths, root, logfile, sim_success)
         # If a logfile already exists from a previous run, initialize sim_success
         # from the logfile so processing or resuming works across interrupted runs.
@@ -194,12 +198,12 @@ function submit!(study::Study; kwargs...)
     # create a new logfile with header.
     if isfile(study.logfile)
         update_sim_success_from_log!(study)
-        open(study.logfile, "a") do io
+        @mpiroot :wait open(study.logfile, "a") do io
             datetime = Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
             write(io, "\n\n--- RESUMED: $datetime ---\n\n")
         end
     else
-        open(study.logfile, "w+") do io
+        @mpiroot :wait open(study.logfile, "w+") do io
             write(io, get_logfile_head())
             write(io, peridynamics_banner(color=false))
             write(io, "\nSIMULATION STUDY LOGFILE\n\n")
@@ -210,7 +214,7 @@ function submit!(study::Study; kwargs...)
     n_jobs = length(study.jobs)
     for (i, job) in enumerate(study.jobs)
         # If this job already completed in a previous run, skip execution
-        open(study.logfile, "a") do io
+        @mpiroot :wait open(study.logfile, "a") do io
             msg = @sprintf "(%d/%d) Simulation `%s`:\n" i n_jobs job.options.root
             for (key, value) in pairs(study.setups[i])
                 msg *= "  $(key): $(value)\n"
@@ -219,7 +223,7 @@ function submit!(study::Study; kwargs...)
         end
         if study.sim_success[i]
             # Write a short note about skipping to the study logfile
-            open(study.logfile, "a") do io
+            @mpiroot :wait open(study.logfile, "a") do io
                 write(io, "  status: skipped (completed in a previous run)\n\n")
             end
             continue
@@ -227,24 +231,23 @@ function submit!(study::Study; kwargs...)
         simtime = @elapsed begin
             success = try
                 # remove the vtk files from previous failed runs if any
-                isdir(job.options.vtk) && rm(job.options.vtk; force=true, recursive=true)
+                @mpiroot :wait if isdir(job.options.vtk)
+                    rm(job.options.vtk; force=true, recursive=true)
+                end
                 submit(job; kwargs...)
                 true
             catch err
-                # Try to log the error to the job's logfile, but if that fails
-                # (e.g., invalid path), just continue
-                try
-                    log_it(job.options, "\nERROR: Simulation failed with error!\n")
-                    log_it(job.options, sprint(showerror, err, catch_backtrace()))
-                    log_it(job.options, "\n")
-                catch
-                    # If logging fails, just continue - error will be recorded in job log
+                @mpiroot :wait if !(quiet())
+                    printstyled(stderr, "\nERROR:"; color=:red, bold=true)
+                    msg = " job `$(job.options.root)` failed with error!\n"
+                    msg *= sprint(showerror, err, catch_backtrace())
+                    println(stderr, msg)
                 end
                 false
             end
         end
         study.sim_success[i] = success
-        open(study.logfile, "a") do io
+        @mpiroot :wait open(study.logfile, "a") do io
             if success
                 msg = @sprintf("  status: completed ✓ (%.2f seconds)\n\n", simtime)
             else
@@ -337,6 +340,13 @@ their completion status yet.
 - `default_result::NamedTuple`: The default result to use when a job failed or when
     the processing function throws an error
 
+# Keywords
+- `only_root::Bool`: If `true`, the processing function `f` runs only on the MPI root rank.
+    Non-root ranks will use `default_result` for all jobs. This is useful when processing
+    involves file I/O or expensive computations that should not be duplicated across ranks.
+    Note that the returned results vector will contain meaningful data only on the root rank
+    unless you manually broadcast results afterward. (default: `false`)
+
 # Returns
 - `Vector{<:NamedTuple}`: A vector of results with the same length as the number of
     jobs in the study. Each element is either the result from applying `f` or the
@@ -347,11 +357,23 @@ their completion status yet.
 - Only processes jobs where `study.sim_success[i] == true`
 - Failed jobs automatically receive `default_result` (warning logged)
 - If processing function `f` throws an error, that job receives `default_result` (error
-    logged)
+    logged with MPI barrier synchronization)
 - Processing is sequential (one job at a time)
 - All jobs in the study will have a corresponding entry in the results vector
 
-# Example
+# MPI Behavior
+- By default (`only_root=false`), the processing function `f` is called on **all MPI ranks**
+- With `only_root=true`, `f` runs only on root rank; non-root ranks use `default_result`
+- Error handling includes automatic MPI barrier synchronization across all ranks
+
+!!! danger "Processing on MPI only at the root process"
+    When using `only_root=true`, ensure that the processing function `f` does not contain
+    any MPI calls or operations that require synchronization across ranks, as only the root
+    process will execute it. This envolves also the `barrier` keyword in the
+    [`process_each_export`](@ref) function if used within `f`, which should be always set to
+    `false` in this case to avoid deadlocks!
+
+# Examples
 ```julia
 # After running a parameter study (possibly interrupted and resumed)
 study = Study(create_job, setups; root="my_study")
@@ -359,22 +381,29 @@ study = Study(create_job, setups; root="my_study")
 
 # Define a function to extract maximum displacement from results
 function extract_max_displacement(job::Job, setup::NamedTuple)
-    # Calculate maximum displacement
+    # Process files and calculate maximum displacement
+    process_each_export(job; serial=true) do r0, r, id
+        # Read and process data
+    end
     max_u = ...
     return (; E=setup.E, velocity=setup.velocity, max_displacement=max_u)
 end
 
 default = (; E=0.0, velocity=0.0, max_displacement=NaN)
-# This will process all successfully completed jobs, even if from a previous run
-results = process_each_job(extract_max_displacement, study, default)
+# Use only_root=true since we're doing file I/O
+results = process_each_job(extract_max_displacement, study, default; only_root=true)
 
-# Filter successful results
-successful_results = [r for r in results if !isnan(r.max_displacement)]
+# Filter successful results (only root rank will have meaningful data)
+if mpi_isroot()
+    successful_results = [r for r in results if !isnan(r.max_displacement)]
+end
 ```
 
-See also: [`Study`](@ref), [`submit!`](@ref)
+See also: [`Study`](@ref), [`submit!`](@ref), [`process_each_export`](@ref),
+[`mpi_isroot`](@ref)
 """
-function process_each_job(f::F, study::Study, default_result::NamedTuple) where {F}
+function process_each_job(f::F, study::Study, default_result::NamedTuple;
+                         only_root::Bool=false) where {F}
     # Refresh sim_success from logfile if it exists (in case study was interrupted/resumed)
     isfile(study.logfile) && update_sim_success_from_log!(study)
 
@@ -383,9 +412,28 @@ function process_each_job(f::F, study::Study, default_result::NamedTuple) where 
         if study.sim_success[i]
             setup = study.setups[i]
             res = try
-                f(job, setup)
+                # Only execute on root if only_root=true
+                if only_root && !mpi_isroot()
+                    default_result
+                else
+                    f(job, setup)
+                end
             catch err
-                @error "error processing job $(job.options.root)" error=err
+                @mpiroot :wait begin
+                    msg = "job `$(job.options.root)` failed with error!\n"
+                    msg *= sprint(showerror, err, catch_backtrace())
+                    # print error to stderr
+                    printstyled(stderr, "\nERROR: "; color=:red, bold=true)
+                    println(stderr, msg)
+                    # also write error to a separate logfile in the job directory
+                    t = Dates.format(Dates.now(), "yyyy-mm-dd_HH-MM-SS")
+                    err_logfile = joinpath(job.options.root, "$(t)_proc_error.log")
+                    open(err_logfile, "w+") do io
+                        write(io, get_logfile_head())
+                        write(io, peridynamics_banner(color=false))
+                        write(io, "ERROR: " * msg)
+                    end
+                end
                 default_result
             end
             results[i] = res
