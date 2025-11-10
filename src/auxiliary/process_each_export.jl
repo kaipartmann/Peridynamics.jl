@@ -1,4 +1,4 @@
-const PROCESS_EACH_EXPORT_KWARGS = (:serial,)
+const PROCESS_EACH_EXPORT_KWARGS = (:serial, :barrier)
 
 """
     process_each_export(f, vtk_path; kwargs...)
@@ -20,16 +20,52 @@ and MPI and determines the backend exactly like the [`submit`](@ref) function.
 
 # Keywords
 - `serial::Bool`: If `true`, all results will be processed in the correct order of the time
-    steps and on a single thread, cf. the MPI root rank.
+    steps and on a single thread, cf. the MPI root rank. (default: `false`)
+- `barrier::Bool`: If `true` and `serial=true`, adds an MPI barrier after processing
+    completes, ensuring all ranks wait for the root rank to finish. This is ignored when
+    `serial=false` (parallel processing has automatic coordination). Use this when you need
+    all ranks to synchronize after root-only file processing. (default: `false`)
+
+# MPI Behavior
+When running with MPI:
+- `serial=true, barrier=false`: Processing runs only on root rank. Non-root ranks skip
+    immediately. Use when synchronization is not needed or you'll add barriers manually.
+- `serial=true, barrier=true`: Processing runs on root rank, then all ranks wait at a
+    barrier. Use for the common case where all ranks need to wait for root's file I/O.
+- `serial=false`: Processing is distributed across all MPI ranks with automatic
+    coordination. Each rank processes a subset of files. The `barrier` parameter is ignored.
+
+# Examples
+```julia
+# Root processes files, all ranks wait
+process_each_export(job; serial=true, barrier=true) do r0, r, id
+    # File operations on root
+end
+# All ranks synchronized here
+
+# Root processes files, no waiting
+process_each_export(job; serial=true, barrier=false) do r0, r, id
+    # File operations on root
+end
+# Non-root ranks continue immediately
+
+# All ranks process files in parallel
+process_each_export(job) do r0, r, id
+    # File operations on all ranks
+end
+```
+
+See also: [`process_each_job`](@ref), [`mpi_isroot`](@ref), [`mpi_barrier`](@ref)
 """
 function process_each_export(f::F, vtk_path::AbstractString; kwargs...) where {F<:Function}
     o = Dict{Symbol,Any}(kwargs)
     check_kwargs(o, PROCESS_EACH_EXPORT_KWARGS)
     check_process_function(f)
-    serial = get_process_each_export_options(o)
+    serial, barrier = get_process_each_export_options(o)
     vtk_files = find_vtk_files(vtk_path)
     if serial
-        @mpiroot :wait process_each_export_serial(f, vtk_files)
+        @mpiroot process_each_export_serial(f, vtk_files)
+        barrier && mpi_barrier()
     elseif mpi_run()
         process_each_export_mpi(f, vtk_files)
     else
@@ -49,7 +85,12 @@ function get_process_each_export_options(o::Dict{Symbol,Any})
     else
         serial = false
     end
-    return serial
+    if haskey(o, :barrier)
+        barrier::Bool = Bool(o[:barrier])
+    else
+        barrier = false
+    end
+    return serial, barrier
 end
 
 function check_process_function(f::F) where {F<:Function}

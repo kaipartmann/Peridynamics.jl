@@ -23,5 +23,4 @@ mpiexecjl -n <number of ranks> julia --project path/to/script.jl
 ```
 Please refer to the [`MPI.jl` documentation of `mpiexecjl`](https://juliaparallel.org/MPI.jl/latest/usage/#Installation) for installation and setup instructions.
 
-Furthermore, there are helper functions that improve the setup of MPI simulations, such as [`enable_mpi_timers!`](@ref), [`@mpiroot`](@ref), [`@mpitime`](@ref), or [`mpi_isroot`](@ref).
-
+Furthermore, there are helper functions that improve the setup of MPI simulations, such as [`enable_mpi_timers!`](@ref), [`@mpiroot`](@ref), [`@mpitime`](@ref), [`mpi_isroot`](@ref), and [`mpi_barrier`](@ref).

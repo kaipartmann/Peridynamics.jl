@@ -19,6 +19,30 @@ It can be safely used even for multithreading simulations, as it is always `true
 package is started in a normal Julia environment which is not started by MPI.
 """
 @inline mpi_isroot() = MPI_ISROOT[]
+
+"""
+    mpi_barrier()
+
+Synchronize all MPI ranks at a barrier point. This is a no-op when not running with MPI.
+Use this to ensure all ranks reach the same point before continuing execution.
+
+When running with MPI, this function causes all ranks to wait until every rank has called
+it, providing a synchronization point in the program. This is useful when you need to
+ensure that all ranks have completed a certain phase before proceeding to the next.
+
+# Example
+```julia
+# Wait here before all ranks continue
+mpi_barrier()
+```
+
+See also: [`mpi_isroot`](@ref), [`@mpiroot`](@ref), [`process_each_export`](@ref)
+"""
+@inline function mpi_barrier()
+    mpi_run() && MPI.Barrier(mpi_comm())
+    return nothing
+end
+
 @inline mpi_progress_bars() = MPI_PROGRESS_BARS[]
 @inline set_mpi_progress_bars!(b::Bool) = (MPI_PROGRESS_BARS[] = b; return nothing)
 

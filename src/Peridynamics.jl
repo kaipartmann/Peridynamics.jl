@@ -36,8 +36,8 @@ export VelocityVerlet, DynamicRelaxation, Job, Study, submit, submit!
 export read_inp
 
 # Post processing and helpers
-export read_vtk, process_each_export, process_each_job, mpi_isroot, force_mpi_run!,
-       force_threads_run!, enable_mpi_timers!, disable_mpi_timers!,
+export read_vtk, process_each_export, process_each_job, mpi_isroot, mpi_barrier,
+       force_mpi_run!, force_threads_run!, enable_mpi_timers!, disable_mpi_timers!,
        enable_mpi_progress_bars!, reset_mpi_progress_bars!, @mpitime, @mpiroot
 
 function __init__()
