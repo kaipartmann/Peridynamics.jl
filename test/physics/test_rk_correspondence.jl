@@ -1,6 +1,6 @@
 @testitem "damage changed flag" begin
     pos, vol = uniform_box(1, 1, 1, 0.4)
-    body = Body(RKCMaterial(), pos, vol)
+    body = Body(RKCMaterial(kernel=cubic_b_spline_kernel_norm), pos, vol)
     material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
@@ -39,73 +39,73 @@ end
 @testitem "RKCMaterial initialization" begin
     # Test default constructor
     mat1 = RKCMaterial()
-    @test mat1.kernel == cubic_b_spline_kernel
+    @test mat1.kernel == const_one_kernel
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
-    @test mat1.maxdmg == 1.0
-    @test mat1.reprkernel == :C1
-    @test mat1.regfactor == 1e-13
+    @test mat1.monomial == :C1
+    @test mat1.lambda == 0
+    @test mat1.beta ≈ sqrt(eps())
 
     # Test constructor with parameters
     mat2 = RKCMaterial(
         kernel = linear_kernel,
         model = LinearElastic(),
         dmgmodel = CriticalStretch(),
-        maxdmg = 0.75,
-        reprkernel = :C1,
-        regfactor = 1e-10
+        monomial = :C1,
+        lambda = 0,
+        beta = 1e-8
     )
     @test mat2.kernel == linear_kernel
     @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
-    @test mat2.maxdmg == 0.75
-    @test mat2.reprkernel == :C1
-    @test mat2.regfactor == 1e-10
+    @test mat2.monomial == :C1
+    @test mat2.lambda == 0
+    @test mat2.beta == 1e-8
 
-    # Test constructor with invalid regfactor
-    @test_throws ArgumentError RKCMaterial(regfactor = 2.0)
-    @test_throws ArgumentError RKCMaterial(regfactor = -0.5)
+    # Test constructor with invalid lambda/beta
+    @test_throws ArgumentError RKCMaterial(lambda = -0.5)
+    @test_throws ArgumentError RKCMaterial(beta = -0.5)
 end
 
 @testitem "RKCRMaterial initialization" begin
     # Test default constructor
     mat1 = RKCRMaterial()
-    @test mat1.kernel == cubic_b_spline_kernel
+    @test mat1.kernel == const_one_kernel
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
-    @test mat1.maxdmg == 1.0
-    @test mat1.reprkernel == :C1
-    @test mat1.regfactor == 1e-13
+    @test mat1.monomial == :C1
+    @test mat1.lambda == 0
+    @test mat1.beta ≈ sqrt(eps())
 
     # Test constructor with parameters (only linear elastic models are supported)
     mat2 = RKCRMaterial(
         kernel = linear_kernel,
         model = LinearElastic(),
         dmgmodel = CriticalStretch(),
-        maxdmg = 0.75,
-        reprkernel = :C1,
-        regfactor = 1e-10
+        monomial = :C1,
+        lambda = 0,
+        beta = 1e-10,
     )
     @test mat2.kernel == linear_kernel
     @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
-    @test mat2.maxdmg == 0.75
-    @test mat2.reprkernel == :C1
-    @test mat2.regfactor == 1e-10
+    @test mat2.monomial == :C1
+    @test mat2.lambda == 0
+    @test mat2.beta == 1e-10
 
     # Test failure with non-LinearElastic model
     @test_throws ArgumentError RKCRMaterial(model = NeoHooke())
 
-    # Test constructor with invalid regfactor
-    @test_throws ArgumentError RKCRMaterial(regfactor = 2.0)
-    @test_throws ArgumentError RKCRMaterial(regfactor = -0.5)
+    # Test constructor with invalid lambda/beta
+    @test_throws ArgumentError RKCRMaterial(lambda = -0.5)
+    @test_throws ArgumentError RKCRMaterial(beta = -0.5)
 end
 
 @testitem "gradient weights calculation" begin
     using Peridynamics.LinearAlgebra
 
     pos, vol = uniform_box(1, 1, 1, 0.4)
-    body = Body(RKCMaterial(), pos, vol)
+    body = Body(RKCMaterial(kernel=cubic_b_spline_kernel_norm), pos, vol)
     material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
@@ -134,7 +134,7 @@ end
     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
 
     pos, vol = uniform_box(1, 1, 1, 0.1)
-    body = Body(RKCMaterial(), pos, vol)
+    body = Body(RKCMaterial(kernel=cubic_b_spline_kernel_norm), pos, vol)
     material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
@@ -387,9 +387,9 @@ end
     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
 
     # Test that gradient matrices have correct properties
-    kernels = [:C1, :RK1, :RK2, :PD2]
+    monomials = [:C1, :RK1, :RK2, :PD2]
 
-    for kernel in kernels
+    for kernel in monomials
         Q∇ᵀ = Peridynamics.get_gradient_extraction_matrix(kernel)
         q_dim = Peridynamics.get_q_dim(kernel)
 
@@ -419,28 +419,28 @@ end
 
 @testitem "reproducing kernel material constructor validation" begin
     # Test that all kernels work with material constructor
-    kernels = [:C1, :RK1, :RK2, :PD2]
+    monomials = [:C1, :RK1, :RK2, :PD2]
 
-    for kernel in kernels
-        mat = RKCMaterial(reprkernel=kernel)
-        @test mat.reprkernel == kernel
+    for kernel in monomials
+        mat = RKCMaterial(monomial=kernel)
+        @test mat.monomial == kernel
         @test Peridynamics.get_q_dim(kernel) > 0
     end
 
     # Test invalid kernel
-    @test_throws ArgumentError RKCMaterial(reprkernel=:INVALID)
+    @test_throws ArgumentError RKCMaterial(monomial=:INVALID)
 end
 
 @testitem "reproducing kernel basic functionality test" begin
     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
 
     # Test each kernel with a simple configuration
-    kernels = [:C1, :RK1, :RK2, :PD2]
+    monomials = [:C1, :RK1, :RK2, :PD2]
 
-    for kernel in kernels
+    for monomial in monomials
         # Create a simple test system with the kernel
         pos, vol = uniform_box(1, 1, 1, 0.4)
-        body = Body(RKCMaterial(reprkernel=kernel), pos, vol)
+        body = Body(RKCMaterial(; monomial), pos, vol)
         material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
 
         dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
@@ -458,44 +458,6 @@ end
         F_total = sum(abs.(storage.defgrad))
         @test F_total > 0.0
     end
-end
-
-@testitem "Maximum damage switch in the RKCMaterial" begin
-    using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
-
-    pos, vol = uniform_box(1, 1, 1, 0.25)
-    body = Body(RKCMaterial(maxdmg = 0.5), pos, vol)
-    material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
-    velocity_ic!(p -> 0.1 * p[1], body, :all_points, :x)
-
-    ts = VelocityVerlet(steps=1)
-    dh = Peridynamics.threads_data_handler(body, ts, 1)
-    Peridynamics.init_time_solver!(ts, dh)
-    Peridynamics.calc_force_density!(dh, 0.0, ts.Δt)
-
-    chunk = dh.chunks[1]
-    (; storage, system, paramsetup, mat) = chunk
-    params = paramsetup
-    (; b_int, damage) = storage
-    point_id = 1
-
-    b0 = Peridynamics.get_vector(b_int, point_id)
-    @test norm(b0) > 0
-
-    # -- next step --
-    b_int .= 0.0
-    Peridynamics.force_density_point!(storage, system, mat, params, 0.0, ts.Δt, point_id)
-    b1 = Peridynamics.get_vector(b_int, point_id)
-    @test norm(b0) > 0
-
-    # -- next step --
-    b_int .= 0.0
-    # somehow the damage field changed and is now higher than the maxdmg value
-    damage[point_id] = 0.8
-    Peridynamics.force_density_point!(storage, system, mat, params, 0.0, ts.Δt, point_id)
-    # now the force density should be zero and the point excluded from the calculations
-    b1 = Peridynamics.get_vector(b_int, point_id)
-    @test norm(b1) ≈ 0 atol=eps()
 end
 
 @testitem "Affected points RKCMaterial NewtonRaphson" begin

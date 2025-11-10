@@ -44,25 +44,68 @@ end
 end
 
 """
-    invreg(M::StaticMatrix{N,N,T}, threshold::Real=eps()) where {N,T}
+    invreg(M::StaticMatrix{N,N,T}, λ::Real, β::Real) where {N,T}
 
-Computes the pseudo-inverse of a square static matrix `M` using singular value
-decomposition (SVD) with regularization. The regularization is applied to the
-singular values, where singular values below the specified `threshold` are set
-to zero in the pseudo-inverse. This helps to avoid numerical instability and
-ill-conditioning in the inversion process.
+Computes the regularized pseudo-inverse of a square static matrix `M` using a combination of
+Tikhonov regularization in the SVD domain and truncated singular value regularization.
 
 # Arguments
-- `M::StaticMatrix{N,N,T}`: The square `N`×`N` static matrix with element type `T` to be
+
+- `M::StaticMatrix{N,N,T}`: The square `N×N` static matrix with element type `T` to be
     inverted.
-- `threshold::Real=eps()`: The threshold value for regularization, should be a positive
-    real number between 0 and 1. Singular values below this threshold are set to zero in the
-    pseudo-inverse.
+- `λ::Real`: Relative Tikhonov regularization parameter (dimensionless, non-negative).
+    Controls the smoothing strength applied as
+    ``\\lambda_{\\text{eff}} = \\lambda \\sigma_{\\max}``, where ``\\sigma_{\\max}`` is the
+    largest singular value of `M`.
+- `β::Real`: Relative SVD truncation parameter (dimensionless, non-negative). Defines the
+    cutoff threshold as ``\\beta_{\\text{eff}} = \\beta \\sigma_{\\max}`` for excluding
+    small singular values.
+
+# Returns
+
+- `Minv::StaticMatrix{N,N,T}`: The regularized pseudo-inverse of the input matrix `M`.
+
+# Regularization Techniques
+
+The function applies two complementary regularization strategies:
+
+1. **SVD-based Tikhonov Regularization**: For each singular value ``\\sigma_i``, the inverse
+    is computed as ``\\sigma_i/(\\sigma_i^2 + \\lambda_{\\text{eff}}^2)``, which smoothly
+    dampens the contribution of small singular values without completely removing them.
+
+2. **Truncated SVD**: Singular values below the threshold ``\\beta_{\\text{eff}}`` are
+    completely excluded by setting their contribution to zero, preventing numerical
+    instability from near-zero singular values.
+
+!!! note "Scale-invariant regularization"
+    Both ``\\lambda`` and ``\\beta`` are internally scaled by the largest singular value
+    ``\\sigma_{\\max}``, making them **relative** regularization strengths independent of
+    the matrix scale. This makes parameter selection more robust and transferable across
+    different problems with varying magnitudes.
+
+# Parameter Selection Guidelines
+
+- **``λ`` (Tikhonov parameter)**:
+    - Well-conditioned matrices: ``\\lambda = 0`` (no Tikhonov regularization, recommended
+        default)
+    - Mild regularization: ``\\lambda \\in [0, 10^{-12}]`` (scale-invariant gentle
+        smoothing)
+    - Moderate regularization: ``\\lambda \\in [10^{-12}, 10^{-4}]`` (for moderately
+        ill-conditioned problems)
+    - Note: Values ``\\lambda > 10^{-4}`` may introduce noticeable bias in the solution
+
+- **``β`` (truncation parameter)**: Primary regularization mechanism, less sensitive than
+    ``\\lambda``.
+    - Well-conditioned matrices: ``\\beta \\in [\\sqrt{\\epsilon}, 10^{-6}]`` (remove
+        numerical noise, recommended default)
+    - Moderately ill-conditioned: ``\\beta \\in [10^{-6}, 10^{-4}]`` (moderate truncation)
+    - Severely ill-conditioned: ``\\beta \\in [10^{-4}, 10^{-2}]`` (aggressive truncation)
 """
-function invreg(M::StaticMatrix{N,N,T}, threshold::Real=eps()) where {N,T}
+function invreg(M::StaticMatrix{N,N,T}, λ::Real, β::Real) where {N,T}
     U, S, V = svd(M)
-    Sinvreg = SVector{N,T}((s > threshold ? 1/s : 0) for s in S)
+    λ_eff = λ * S[1] # the first singular value is the maximum
+    β_eff = β * S[1]
+    Sinvreg = SVector{N,T}((s > β_eff ? s/(s * s + λ_eff * λ_eff) : zero(T)) for s in S)
     Sinv = Diagonal{T,SVector{N,T}}(Sinvreg)
-    Minv = V * Sinv * U'
-    return Minv
+    return V * Sinv * U'
 end

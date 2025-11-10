@@ -1,5 +1,5 @@
 """
-    RKCRMaterial(; kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
+    RKCRMaterial(; kernel, model, dmgmodel, monomial, lambda, beta)
 
 The same as the [`RKCMaterial`](@ref) but with rotation of the stress tensor for large
 deformation simulations, therefore not all models are supported.
@@ -9,35 +9,39 @@ Supported models:
 - `LinearElastic`
 
 Please take a look at the [`RKCMaterial`](@ref) docs for more information about the
-material!
+material, including details about the `monomial`, `lambda`, and `beta` parameters!
 """
 struct RKCRMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     kernel::K
     constitutive_model::CM
     dmgmodel::DM
-    maxdmg::Float64
-    reprkernel::Symbol
-    regfactor::Float64
-    function RKCRMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real, reprkernel::Symbol,
-                          regfactor::Real) where {CM,K,DM}
-        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, reprkernel, regfactor)
+    monomial::Symbol
+    lambda::Float64
+    beta::Float64
+    function RKCRMaterial(kernel::K, cm::CM, dmgmodel::DM, monomial::Symbol,
+                          lambda::Real, beta::Real) where {CM,K,DM}
+        return new{CM,K,DM}(kernel, cm, dmgmodel, monomial, lambda, beta)
     end
 end
 
-function RKCRMaterial(; kernel::Function=cubic_b_spline_kernel,
+function RKCRMaterial(; kernel::Function=const_one_kernel,
                         model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
-                        dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=1.0,
-                        reprkernel::Symbol=:C1, regfactor::Real=1e-13)
+                        dmgmodel::AbstractDamageModel=CriticalStretch(),
+                        monomial::Symbol=:C1, lambda::Real=0, beta::Real=sqrt(eps()))
     if !(typeof(model) <: Union{SaintVenantKirchhoff,LinearElastic})
         msg = "model `$(typeof(model))` is currently not supported for `RKCRMaterial`!\n"
         throw(ArgumentError(msg))
     end
-    get_q_dim(reprkernel) # check if the kernel is implemented
-    if !(0 ≤ regfactor ≤ 1)
-        msg = "Regularization factor must be in the range 0 ≤ regfactor ≤ 1\n"
+    get_q_dim(monomial) # check if the kernel is implemented
+    if lambda < 0
+        msg = "Tikhonov regularization parameter must be non-negative! (`lambda ≥ 0`)\n"
         throw(ArgumentError(msg))
     end
-    return RKCRMaterial(kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
+    if beta < 0
+        msg = "SVD truncation parameter must be non-negative! (`beta ≥ 0`)\n"
+        throw(ArgumentError(msg))
+    end
+    return RKCRMaterial(kernel, model, dmgmodel, monomial, lambda, beta)
 end
 
 @params RKCRMaterial StandardPointParameters
@@ -105,15 +109,17 @@ function rkc_defgrad!(storage::RKCRStorage, system::AbstractBondSystem, mat::RKC
                       params::StandardPointParameters, t, Δt, i)
     (; bonds) = system
     (; defgrad, defgrad_dot, gradient_weight) = storage
-    F = zero(SMatrix{3,3,Float64,9})
+    F = SMatrix{3,3,Float64,9}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     Ḟ = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
+        ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
+        Δuij = Δxij - ΔXij
         Δvij = get_vector_diff(storage.velocity_half, i, j)
         Φij = get_vector(gradient_weight, bond_id)
-        F += Δxij * Φij'
+        F += Δuij * Φij' # maybe calculating the displacement gradient is more stable?
         Ḟ += Δvij * Φij'
     end
     update_tensor!(defgrad, i, F)

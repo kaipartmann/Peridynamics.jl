@@ -1,5 +1,5 @@
 """
-    RKCMaterial(; kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
+    RKCMaterial(; kernel, model, dmgmodel, monomial, lambda, beta)
 
 A material type used to assign the material of a [`Body`](@ref) with a reproducing kernel
 peridynamics (correspondence) formulation with bond-associated quadrature integration at
@@ -7,12 +7,12 @@ the center of the bonds.
 
 # Keywords
 - `kernel::Function`: Kernel function used for weighting the interactions between points. \\
-    (default: `cubic_b_spline_kernel`) \\
+    (default: `const_one_kernel`) \\
     The following kernels can be used:
     - [`const_one_kernel`](@ref)
     - [`linear_kernel`](@ref)
-    - [`cubic_b_spline_kernel`](@ref)
     - [`cubic_b_spline_kernel_norm`](@ref)
+    - [`cubic_b_spline_kernel`](@ref)
 - `model::AbstractConstitutiveModel`: Constitutive model defining the material behavior. \\
     (default: `SaintVenantKirchhoff()`) \\
     The following models can be used:
@@ -22,34 +22,35 @@ the center of the bonds.
     - [`NeoHookePenalty`](@ref)
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. \\
     (default: [`CriticalStretch`](@ref))
-- `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. If this value is
-    exceeded, all bonds of that point are broken because the deformation gradient would then
-    possibly contain `NaN` values. \\
-    (default: `1.0`)
-- `reprkernel::Symbol`: A kernel function used for the reproducing kernel approximation
+- `monomial::Symbol`: The monomial vector used for the reproducing kernel approximation
     of the moment matrix. This kernel is used to calculate the moment matrix and the
     gradient weights, which are used to approximate the deformation gradient. \\
     (default: `:C1`) \\
     The following kernels can be used:
-    - `:C1`: Linear reproducing kernel basis [x, y, z] with first-order accuracy
-        for correspondence formulation. This is the default kernel.
-    - `:RK1`: First-order reproducing kernel basis [1, x, y, z] with constant term
+    - `:C1`: Linear monomial basis vector [x, y, z] with first-order accuracy, equivalent to
+        the standard correspondence formulation. This is the default kernel.
+    - `:RK1`: First-order monomial basis vector [1, x, y, z] with constant term
         for enhanced stability in uniform deformation fields.
-    - `:RK2`: Second-order reproducing kernel basis [1, x, y, z, x², y², z²] with
+    - `:RK2`: Second-order monomial basis vector [1, x, y, z, x², y², z²] with
         diagonal quadratic terms for improved accuracy in curved deformation fields.
-    - `:PD2`: Second-order peridynamic basis [x, y, z, x², xy, xz, y², yz, z²] with
+    - `:PD2`: Second-order monomial basis vector [x, y, z, x², xy, xz, y², yz, z²] with
         full quadratic terms but without constant term.
-- `regfactor::Float64`: A regularization factor used to stabilize the inversion of the
-    moment matrix. The product of `regfactor * δ^3` is used for the regularization with
-    [`invreg`](@ref). The regularization helps to ensure numerical stability by mitigating
-    issues such as ill-conditioning or singularity in the matrix operations.\\
-    (default: `1e-13`)
+- `lambda::Real`: Relative Tikhonov regularization parameter (dimensionless, non-negative).
+    Internally scaled by the largest singular value of the moment matrix during inversion
+    with [`invreg`](@ref). For well-conditioned problems, the default value of `0` (no
+    Tikhonov regularization) is recommended. See [`invreg`](@ref) for details.\\
+    (default: `0`)
+- `beta::Real`: Relative SVD truncation parameter (dimensionless, non-negative). Internally
+    scaled by the largest singular value of the moment matrix during inversion with
+    [`invreg`](@ref). Primary regularization mechanism for singular moment matrices. See
+    [`invreg`](@ref) for parameter selection guidelines.\\
+    (default: `sqrt(eps())`)
 
 # Examples
 
 ```julia-repl
 julia> mat = RKCMaterial()
-RKCMaterial{SaintVenantKirchhoff, typeof(linear_kernel), CriticalStretch}(maxdmg=1.0)
+RKCMaterial{SaintVenantKirchhoff, typeof(linear_kernel), CriticalStretch}()
 ```
 
 ---
@@ -73,11 +74,11 @@ bond-associated quadrature integration at the center of the bonds.
     the constructor docs for more informations.
 - `dmgmodel::AbstractDamageModel`: Damage model defining the damage behavior. See the
     constructor docs for more informations.
-- `maxdmg::Float64`: Maximum value of damage a point is allowed to obtain. See the
-    constructor docs for more informations.
-- `reprkernel::Symbol`: A kernel function used for the reproducing kernel approximation. See
+- `monomial::Symbol`: The monomial vector used for the reproducing kernel approximation. See
     the constructor docs for more informations.
-- `regfactor::Float64`: Regularization factor. See the constructor docs for more
+- `lambda::Float64`: Tikhonov regularization parameter. See the constructor docs for more
+    informations.
+- `beta::Float64`: SVD truncation parameter. See the constructor docs for more
     informations.
 
 # Allowed material parameters
@@ -122,39 +123,47 @@ struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     kernel::K
     constitutive_model::CM
     dmgmodel::DM
-    maxdmg::Float64
-    reprkernel::Symbol
-    regfactor::Float64
-    function RKCMaterial(kernel::K, cm::CM, dmgmodel::DM, maxdmg::Real, reprkernel::Symbol,
-                         regfactor::Real) where {CM,K,DM}
-        return new{CM,K,DM}(kernel, cm, dmgmodel, maxdmg, reprkernel, regfactor)
+    monomial::Symbol
+    lambda::Float64
+    beta::Float64
+    function RKCMaterial(kernel::K, cm::CM, dmgmodel::DM, monomial::Symbol,
+                         lambda::Real, beta::Real) where {CM,K,DM}
+        return new{CM,K,DM}(kernel, cm, dmgmodel, monomial, lambda, beta)
     end
 end
 
-function RKCMaterial(; kernel::Function=cubic_b_spline_kernel,
+function RKCMaterial(; kernel::Function=const_one_kernel,
                      model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
-                     dmgmodel::AbstractDamageModel=CriticalStretch(), maxdmg::Real=1.0,
-                     reprkernel::Symbol=:C1, regfactor::Real=1e-13)
-    get_q_dim(reprkernel) # check if the kernel is implemented
-    if !(0 ≤ regfactor ≤ 1)
-        msg = "Regularization factor must be in the range 0 ≤ regfactor ≤ 1\n"
+                     dmgmodel::AbstractDamageModel=CriticalStretch(),
+                     monomial::Symbol=:C1, lambda::Real=0, beta::Real=sqrt(eps()))
+    get_q_dim(monomial) # check if the kernel is implemented
+    if lambda < 0
+        msg = "Tikhonov regularization parameter must be non-negative! (`lambda ≥ 0`)\n"
         throw(ArgumentError(msg))
     end
-    return RKCMaterial(kernel, model, dmgmodel, maxdmg, reprkernel, regfactor)
+    if beta < 0
+        msg = "SVD truncation parameter must be non-negative! (`beta ≥ 0`)\n"
+        throw(ArgumentError(msg))
+    end
+    return RKCMaterial(kernel, model, dmgmodel, monomial, lambda, beta)
 end
 
 function Base.show(io::IO, @nospecialize(mat::AbstractRKCMaterial))
     print(io, typeof(mat))
-    print(io, msg_fields_in_brackets(mat, (:maxdmg,)))
+    print(io, msg_fields_in_brackets(mat, ()))
     return nothing
 end
 
-function log_material_property(::Val{:reprkernel}, mat; indentation)
-    return msg_qty("reproducing kernel", mat.reprkernel; indentation)
+function log_material_property(::Val{:monomial}, mat; indentation)
+    return msg_qty("monomial type", mat.monomial; indentation)
 end
 
-function log_material_property(::Val{:regfactor}, mat; indentation)
-    return msg_qty("regularization factor", mat.regfactor; indentation)
+function log_material_property(::Val{:lambda}, mat; indentation)
+    return msg_qty("Tikhonov regularization parameter", mat.lambda; indentation)
+end
+
+function log_material_property(::Val{:beta}, mat; indentation)
+    return msg_qty("SVD truncation parameter", mat.beta; indentation)
 end
 
 @params RKCMaterial StandardPointParameters
@@ -388,12 +397,12 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
                       mat::AbstractRKCMaterial, params::AbstractPointParameters, t, Δt, i)
     (; bonds, volume) = system
     (; bond_active, gradient_weight, weighted_volume, update_gradients) = storage
-    (; reprkernel, regfactor) = mat
+    (; monomial, lambda, beta) = mat
     (; δ) = params
 
     # get dimenion of the monomial vector and the gradient extraction matrix
-    q_dim = get_q_dim(reprkernel)
-    Q∇ᵀ = get_gradient_extraction_matrix(reprkernel)
+    q_dim = get_q_dim(monomial)
+    Q∇ᵀ = get_gradient_extraction_matrix(monomial)
 
     # calculate moment matrix M
     M = zero(SMatrix{q_dim,q_dim,Float64,q_dim*q_dim})
@@ -402,7 +411,7 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
-        Q = get_monomial_vector(reprkernel, ΔXij) ./ δ # scale by horizon
+        Q = get_monomial_vector(monomial, ΔXij ./ δ) # normalize by δ
         ωij = kernel(system, bond_id) * bond_active[bond_id]
         temp = ωij * volume[j]
         M += temp * (Q * Q')
@@ -410,17 +419,17 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
     end
     weighted_volume[i] = wi
 
-    # calculate inverse of moment matrix, must be a full rank matrix!
-    Minv = invreg(M, regfactor * δ * δ * δ)
+    # calculate regularized inverse of M
+    Minv = invreg(M, lambda, beta)
 
     # calculate gradient weights Φ
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
-        Q = get_monomial_vector(reprkernel, ΔXij) ./ δ # scale by horizon
+        Q = get_monomial_vector(monomial, ΔXij ./ δ) # normalize by δ
         ωij = kernel(system, bond_id) * bond_active[bond_id]
-        temp = ωij * volume[j] / δ # δ is needed due to scaling by horizon
+        temp = ωij / δ * volume[j] # note the division by δ here, due to normalization of Q
         MinvQ = Minv * Q
         Φ = temp * (Q∇ᵀ * MinvQ)
         update_vector!(gradient_weight, bond_id, Φ)
@@ -432,10 +441,10 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
     return nothing
 end
 
-@inline get_q_dim(reprkernel::Symbol) = get_q_dim(Val(reprkernel))
+@inline get_q_dim(monomial::Symbol) = get_q_dim(Val(monomial))
 
-function get_q_dim(::Val{reprkernel}) where {reprkernel}
-    msg = "Reproducing kernel `$reprkernel` is not implemented!\n"
+function get_q_dim(::Val{monomial}) where {monomial}
+    msg = "Reproducing kernel `$monomial` is not implemented!\n"
     return throw(ArgumentError(msg))
 end
 
@@ -443,17 +452,17 @@ end
     return get_monomial_vector(Val(rk), ΔX)
 end
 
-function get_monomial_vector(::Val{reprkernel}, ΔX::AbstractArray) where {reprkernel}
-    msg = "Reproducing kernel `$reprkernel` is not implemented!\n"
+function get_monomial_vector(::Val{monomial}, ΔX::AbstractArray) where {monomial}
+    msg = "Reproducing kernel `$monomial` is not implemented!\n"
     return throw(ArgumentError(msg))
 end
 
-@inline function get_gradient_extraction_matrix(reprkernel::Symbol)
-    return get_gradient_extraction_matrix(Val(reprkernel))
+@inline function get_gradient_extraction_matrix(monomial::Symbol)
+    return get_gradient_extraction_matrix(Val(monomial))
 end
 
-function get_gradient_extraction_matrix(::Val{reprkernel}) where {reprkernel}
-    msg = "Reproducing kernel `$reprkernel` is not implemented!\n"
+function get_gradient_extraction_matrix(::Val{monomial}) where {monomial}
+    msg = "Reproducing kernel `$monomial` is not implemented!\n"
     return throw(ArgumentError(msg))
 end
 
@@ -507,13 +516,15 @@ function rkc_defgrad!(storage::AbstractStorage, system::AbstractBondSystem,
     (; bonds) = system
     (; defgrad, gradient_weight) = storage
 
-    F = zero(SMatrix{3,3,Float64,9})
+    F = SMatrix{3,3,Float64,9}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
+        ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
+        Δuij = Δxij - ΔXij
         Φij = get_vector(gradient_weight, bond_id)
-        F += Δxij * Φij'
+        F += Δuij * Φij' # maybe calculating the displacement gradient is more stable?
     end
     update_tensor!(defgrad, i, F)
 
@@ -534,7 +545,6 @@ end
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
                               mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
                               Δt, i)
-    too_much_damage!(storage, system, mat, i) && return nothing
     ∑P = rkc_stress_integral!(storage, system, mat, params, t, Δt, i)
     rkc_force_density!(storage, system, mat, params, ∑P, t, Δt, i)
     return nothing
@@ -597,16 +607,6 @@ function calc_first_piola_kirchhoff!(storage::RKCStorage, mat::RKCMaterial,
     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
     update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
     return P
-end
-
-function too_much_damage!(storage::AbstractStorage, system::BondSystem,
-                          mat::AbstractRKCMaterial, i)
-    if storage.damage[i] > mat.maxdmg
-        # kill all bonds of this point
-        storage.bond_active[each_bond_idx(system, i)] .= false
-        return true
-    end
-    return false
 end
 
 function bond_avg(Fi, Fj, ΔXij, Δxij, L)
