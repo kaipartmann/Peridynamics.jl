@@ -1,5 +1,5 @@
 """
-    RKCMaterial(; kernel, model, dmgmodel, monomial, regfactor)
+    RKCMaterial(; kernel, model, dmgmodel, monomial, lambda, beta)
 
 A material type used to assign the material of a [`Body`](@ref) with a reproducing kernel
 peridynamics (correspondence) formulation with bond-associated quadrature integration at
