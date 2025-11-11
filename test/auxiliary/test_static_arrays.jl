@@ -50,13 +50,11 @@ end
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
     @test Peridynamics.invreg(A, 0, sqrt(eps())) * A ≈ I
     @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I
-    @test Peridynamics.invreg(A, 1e-2, sqrt(eps())) * A ≈ I atol=0.2 # large error possible!
 
     A = @SMatrix rand(4, 4)
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
     @test Peridynamics.invreg(A, 0, sqrt(eps())) * A ≈ I
     @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I
-    @test Peridynamics.invreg(A, 1e-5, sqrt(eps())) * A ≈ I atol=√(2e-5)
 
     A = @SMatrix rand(5, 5)
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
@@ -92,4 +90,16 @@ end
     # the regularized inverse should not contain NaNs
     @test !Peridynamics.containsnan(Peridynamics.invreg(A, 0, 0))
     @test !Peridynamics.containsnan(Peridynamics.invreg(A, 1e-8, 1e-8))
+
+    # Test with larger lambda values
+    # Do not test with random matrices as the errors can get very large
+    A = @SMatrix [0.5872 0.8188 0.792;
+                  0.5830 0.9880 0.202;
+                  0.1727 0.1524 0.354]
+    @test Peridynamics.invreg(A, 1e-4, sqrt(eps())) * A ≈ I atol=√(2e-4)
+    A = @SMatrix [0.3729 0.3725 0.3804 0.7302;
+                  0.9697 0.4572 0.2289 0.2289;
+                  0.5170 0.8261 0.3050 0.0196;
+                  0.1578 0.5413 0.3667 0.3920]
+    @test Peridynamics.invreg(A, 1e-5, sqrt(eps())) * A ≈ I atol=√(2e-5)
 end
