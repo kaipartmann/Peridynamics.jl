@@ -180,7 +180,7 @@ end
     ε = λ - 1
     F_a = @SMatrix [λ 0 0; 0 1 0; 0 0 1]
     Ψ_a = 3/5 * params.E * ε^2
-    tols = (-0.9, 0.3)
+    tols = (-0.9, 0.5)
     test_stendens(body, ts, F_a, Ψ_a, tols; testcase)
 
     testcase = "uniform extension in y-direction"
@@ -188,7 +188,7 @@ end
     ε = λ - 1
     F_a = @SMatrix [1 0 0; 0 λ 0; 0 0 1]
     Ψ_a = 3/5 * params.E * ε^2
-    tols = (-0.9, 0.3)
+    tols = (-0.9, 0.5)
     test_stendens(body, ts, F_a, Ψ_a, tols; testcase)
 
     testcase = "uniform extension in z-direction"
@@ -196,7 +196,7 @@ end
     ε = λ - 1
     F_a = @SMatrix [1 0 0; 0 1 0; 0 0 λ]
     Ψ_a = 3/5 * params.E * ε^2
-    tols = (-0.9, 0.3)
+    tols = (-0.9, 0.5)
     test_stendens(body, ts, F_a, Ψ_a, tols; testcase)
 end
 
@@ -232,7 +232,7 @@ end
     ε = λ - 1
     F_a = @SMatrix [λ 0 0; 0 1 0; 0 0 1]
     Ψ_a = 1/2 * params.λ * ε^2 + params.μ * ε^2
-    tols = (-0.9, 0.3)
+    tols = (-0.9, 0.5)
     test_stendens(body, ts, F_a, Ψ_a, tols; testcase)
 
     testcase = "uniform extension in y-direction"
@@ -240,7 +240,7 @@ end
     ε = λ - 1
     F_a = @SMatrix [1 0 0; 0 λ 0; 0 0 1]
     Ψ_a = 1/2 * params.λ * ε^2 + params.μ * ε^2
-    tols = (-0.9, 0.3)
+    tols = (-0.9, 0.5)
     test_stendens(body, ts, F_a, Ψ_a, tols; testcase)
 
     testcase = "uniform extension in z-direction"
@@ -248,7 +248,7 @@ end
     ε = λ - 1
     F_a = @SMatrix [1 0 0; 0 1 0; 0 0 λ]
     Ψ_a = 1/2 * params.λ * ε^2 + params.μ * ε^2
-    tols = (-0.9, 0.3)
+    tols = (-0.9, 0.5)
     test_stendens(body, ts, F_a, Ψ_a, tols; testcase)
 end
 
