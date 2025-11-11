@@ -121,6 +121,9 @@ end
 function StandardPointParameters(mat::AbstractMaterial, p::Dict{Symbol,Any})
     (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
     (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
+    # for a cubic neighborhood, the weighted volume is the integral
+    # 8 δ^4 ∫_0^1 ∫_0^1 ∫_0^1 √(x² + y² + z²) dx dy dz
+    # which results in 8 * δ^4 * 0.9605919564548167 (solved numerically)
+    bc = 18 * K / (8 * δ^4 * 0.9605919564548167) # bond constant
     return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
 end
