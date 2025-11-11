@@ -9,6 +9,7 @@ Construct a `Body` for a peridynamics simulation.
     Available material models:
     - [`BBMaterial`](@ref): Bond-based peridynamics.
     - [`DHBBMaterial`](@ref): Dual-horizon bond-based peridynamics.
+    - [`GBBMaterial`](@ref): Generalized bond-based peridynamics.
     - [`OSBMaterial`](@ref): Ordinary state-based peridynamics, also called linear
         peridynamic solid (LPS).
     - [`CMaterial`](@ref): Correspondence formulation.
