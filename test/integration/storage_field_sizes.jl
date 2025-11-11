@@ -204,6 +204,97 @@ end
     @test length(s.affected_points) == n_loc_points
 end
 
+@testitem "GBBMaterial storage field sizes" setup=[StorageFieldSize] begin
+    mat = GBBMaterial()
+
+    # Test with VelocityVerlet
+    solver = VelocityVerlet(steps=1)
+    s, system = test_setup(mat, solver)
+    n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
+    @test size(s.position) == (3, n_points)
+    @test size(s.displacement) == (3, n_loc_points)
+    @test size(s.velocity) == (3, n_loc_points)
+    @test size(s.velocity_half) == (3, n_loc_points)
+    @test size(s.velocity_half_old) == (0, 0)
+    @test size(s.acceleration) == (3, n_loc_points)
+    @test size(s.b_int) == (3, n_loc_points)
+    @test size(s.b_int_old) == (0, 0)
+    @test size(s.b_ext) == (3, n_loc_points)
+    @test size(s.density_matrix) == (0, 0)
+    @test length(s.damage) == n_loc_points
+    @test length(s.n_active_bonds) == n_loc_points
+    @test length(s.strain_energy_density) == n_loc_points
+    @test length(s.weighted_volume) == n_loc_points
+    @test length(s.bond_length) == n_bonds
+    @test length(s.bond_active) == n_bonds
+    @test length(s.residual) == 0
+    @test size(s.jacobian) == (0, 0)
+    @test size(s.displacement_copy) == (0, 0)
+    @test size(s.b_int_copy) == (0, 0)
+    @test length(s.temp_force_a) == 0
+    @test length(s.temp_force_b) == 0
+    @test length(s.Δu) == 0
+    @test length(s.affected_points) == 0
+
+    # Test with DynamicRelaxation
+    solver = DynamicRelaxation(steps=1)
+    s, system = test_setup(mat, solver)
+    n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
+    @test size(s.position) == (3, n_points)
+    @test size(s.displacement) == (3, n_loc_points)
+    @test size(s.velocity) == (3, n_loc_points)
+    @test size(s.velocity_half) == (3, n_loc_points)
+    @test size(s.velocity_half_old) == (3, n_loc_points)
+    @test size(s.acceleration) == (3, n_loc_points)
+    @test size(s.b_int) == (3, n_loc_points)
+    @test size(s.b_int_old) == (3, n_loc_points)
+    @test size(s.b_ext) == (3, n_loc_points)
+    @test size(s.density_matrix) == (3, n_loc_points)
+    @test length(s.damage) == n_loc_points
+    @test length(s.n_active_bonds) == n_loc_points
+    @test length(s.strain_energy_density) == n_loc_points
+    @test length(s.weighted_volume) == n_loc_points
+    @test length(s.bond_length) == n_bonds
+    @test length(s.bond_active) == n_bonds
+    @test length(s.residual) == 0
+    @test size(s.jacobian) == (0, 0)
+    @test size(s.displacement_copy) == (0, 0)
+    @test size(s.b_int_copy) == (0, 0)
+    @test length(s.temp_force_a) == 0
+    @test length(s.temp_force_b) == 0
+    @test length(s.Δu) == 0
+    @test length(s.affected_points) == 0
+
+    # Test with Peridynamics.NewtonRaphson
+    solver = Peridynamics.NewtonRaphson(steps=1)
+    s, system = test_setup(mat, solver)
+    n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
+    @test size(s.position) == (3, n_points)
+    @test size(s.displacement) == (3, n_loc_points)
+    @test size(s.velocity) == (0, 0)
+    @test size(s.velocity_half) == (0, 0)
+    @test size(s.velocity_half_old) == (0, 0)
+    @test size(s.acceleration) == (0, 0)
+    @test size(s.b_int) == (3, n_points)
+    @test size(s.b_int_old) == (0, 0)
+    @test size(s.b_ext) == (3, n_points)
+    @test size(s.density_matrix) == (0, 0)
+    @test length(s.damage) == n_loc_points
+    @test length(s.n_active_bonds) == n_loc_points
+    @test length(s.strain_energy_density) == n_loc_points
+    @test length(s.weighted_volume) == n_loc_points
+    @test length(s.bond_length) == n_bonds
+    @test length(s.bond_active) == n_bonds
+    @test length(s.residual) == n_dof
+    @test size(s.jacobian) == (n_dof, n_dof)
+    @test size(s.displacement_copy) == (3, n_loc_points)
+    @test size(s.b_int_copy) == (3, n_points)
+    @test length(s.temp_force_a) == n_dof
+    @test length(s.temp_force_b) == n_dof
+    @test length(s.Δu) == n_dof
+    @test length(s.affected_points) == n_loc_points
+end
+
 @testitem "OSBMaterial storage field sizes" setup=[StorageFieldSize] begin
     mat = OSBMaterial()
 

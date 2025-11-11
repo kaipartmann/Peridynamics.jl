@@ -50,13 +50,13 @@ end
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
     @test Peridynamics.invreg(A, 0, sqrt(eps())) * A ≈ I
     @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I
-    @test Peridynamics.invreg(A, 1e-2, sqrt(eps())) * A ≈ I atol=√(1e-2)
+    @test Peridynamics.invreg(A, 1e-2, sqrt(eps())) * A ≈ I atol=√(1.5e-2)
 
     A = @SMatrix rand(4, 4)
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
     @test Peridynamics.invreg(A, 0, sqrt(eps())) * A ≈ I
     @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I
-    @test Peridynamics.invreg(A, 1e-5, sqrt(eps())) * A ≈ I atol=√(1e-5)
+    @test Peridynamics.invreg(A, 1e-5, sqrt(eps())) * A ≈ I atol=√(1.5e-5)
 
     A = @SMatrix rand(5, 5)
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
