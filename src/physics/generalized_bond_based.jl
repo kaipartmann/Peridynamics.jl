@@ -124,34 +124,27 @@ function init_field(::GBBMaterial, ::AbstractTimeSolver, system::BondSystem,
     return zeros(get_n_loc_points(system))
 end
 
-function calc_failure!(storage::AbstractStorage, system::BondSystem,
-                       ::AbstractBondBasedMaterial, ::CriticalStretch,
-                       paramsetup::AbstractParameterSetup, i)
-    (; εc) = get_params(paramsetup, i)
-    (; position, n_active_bonds, bond_active, bond_length, weighted_volume) = storage
-    (; bonds, volume) = system
-    wv = 0.0
+function calc_weighted_volume!(storage::GBBStorage, system::BondSystem,
+                               ::GBBMaterial, ::AbstractParameterSetup, i)
+    (; bonds, correction, volume) = system
+    wvol = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        bond_length[bond_id] = l # store current bond length
-        if ε > εc && bond.fail_permit
-            bond_active[bond_id] = false
-        end
-        n_active_bonds[i] += bond_active[bond_id]
-        wv += bond_active[bond_id] * L * volume[j]
+        ω = surface_correction_factor(correction, bond_id)
+        wvol += ω * L * volume[j]
     end
-    weighted_volume[i] = wv
-    return nothing
+    storage.weighted_volume[i] = wvol
+    return wvol
 end
-function force_density_point!(storage::GBBStorage, system::BondSystem, ::GBBMaterial,
+
+function force_density_point!(storage::GBBStorage, system::BondSystem, mat::GBBMaterial,
                               params::StandardPointParameters, t, Δt, i)
-    (; position, bond_length, bond_active, b_int, weighted_volume) = storage
+    (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
-    bond_constant = 18 * params.K / weighted_volume[i]
+    wvol = calc_weighted_volume!(storage, system, mat, params, i)
+    iszero(wvol) && return nothing
+    bond_constant = 18 * params.K / wvol
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
@@ -165,10 +158,12 @@ function force_density_point!(storage::GBBStorage, system::BondSystem, ::GBBMate
     return nothing
 end
 
-function force_density_point!(storage::GBBStorage, system::BondSystem, ::GBBMaterial,
+function force_density_point!(storage::GBBStorage, system::BondSystem, mat::GBBMaterial,
                               paramhandler::ParameterHandler, t, Δt, i)
-    (; position, bond_length, bond_active, weighted_volume, b_int) = storage
+    (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
+    wvol = calc_weighted_volume!(storage, system, mat, paramhandler, i)
+    iszero(wvol) && return nothing
     params_i = get_params(paramhandler, i)
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
@@ -178,7 +173,7 @@ function force_density_point!(storage::GBBStorage, system::BondSystem, ::GBBMate
         ε = (l - L) / L
         params_j = get_params(paramhandler, j)
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        bond_constant = 9 * (params_i.K + params_j.K) / weighted_volume[i]
+        bond_constant = 9 * (params_i.K + params_j.K) / wvol
         b = ω * bond_constant * ε * volume[j] .* Δxij / l
         update_add_vector!(b_int, i, b)
     end
@@ -187,10 +182,13 @@ end
 
 # Do not rely on any custom pre-stored properties here!
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
-                                      ::GBBMaterial, paramsetup::AbstractParameterSetup, i)
-    (; position, bond_active, weighted_volume, strain_energy_density) = storage
+                                      mat::GBBMaterial, paramsetup::AbstractParameterSetup,
+                                      i)
+    (; position, bond_active, strain_energy_density) = storage
     (; bonds, correction, volume) = system
     params_i = get_params(paramsetup, i)
+    wvol = calc_weighted_volume!(storage, system, mat, paramsetup, i)
+    iszero(wvol) && return nothing
     Ψ = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
@@ -200,7 +198,7 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
         ε = (l - L) / L
         params_j = get_params(paramsetup, j)
         ωij = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        bond_constant = 9 * (params_i.K + params_j.K) / weighted_volume[i]
+        bond_constant = 9 * (params_i.K + params_j.K) / wvol
         Ψ += 0.25 * ωij * bond_constant * ε * ε * L * volume[j]
     end
     strain_energy_density[i] = Ψ

@@ -391,6 +391,16 @@ end
     o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
     @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
 
+    ## GBBMaterial
+    body = Body(GBBMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :strain_energy_density)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
     ## CMaterial
     body = Body(CMaterial(), pos, vol)
     fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,

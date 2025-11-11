@@ -27,6 +27,35 @@
     @test maximum(scfactor) ≈ 3.5 atol=1.0
 end
 
+@testitem "EnergySurfaceCorrection GBBMaterial" begin
+    Δx = 0.1
+    pos, vol = uniform_box(1, 1, 1, Δx)
+    horizon = 3.01 * Δx
+    rho = 8000
+    E = 210e9
+    nu = 0.25
+    mat = GBBMaterial{EnergySurfaceCorrection}()
+    body = Body(mat, pos, vol)
+    material!(body; horizon, rho, E, nu)
+    ts = VelocityVerlet(steps=1)
+
+    dh = Peridynamics.threads_data_handler(body, ts, 1)
+    Peridynamics.initialize!(dh, ts)
+    chunk = dh.chunks[1]
+    (; system) = chunk
+    (; correction) = system
+    (; mfactor, scfactor) = correction
+
+    @test minimum(mfactor[1, :]) ≈ 0.75 atol=0.2
+    @test maximum(mfactor[1, :]) ≈ 1.5 atol=0.3
+    @test minimum(mfactor[2, :]) ≈ 0.75 atol=0.2
+    @test maximum(mfactor[2, :]) ≈ 1.5 atol=0.3
+    @test minimum(mfactor[3, :]) ≈ 0.75 atol=0.2
+    @test maximum(mfactor[3, :]) ≈ 1.5 atol=0.3
+    @test minimum(scfactor) ≈ 0.75 atol=0.2
+    @test maximum(scfactor) ≈ 1.5 atol=0.3
+end
+
 @testitem "EnergySurfaceCorrection OSBMaterial" begin
     Δx = 0.1
     pos, vol = uniform_box(1, 1, 1, Δx)
