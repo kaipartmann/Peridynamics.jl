@@ -28,8 +28,14 @@ and MPI and determines the backend exactly like the [`submit`](@ref) function.
     steps and on a single thread, cf. the MPI root rank. (default: `false`)
 - `barrier::Bool`: If `true` and `serial=true`, adds an MPI barrier after processing
     completes, ensuring all ranks wait for the root rank to finish. This is ignored when
-    `serial=false` (parallel processing has automatic coordination). Use this when you need
-    all ranks to synchronize after root-only file processing. (default: `false`)
+    `serial=false` (parallel processing has automatic coordination) or when `only_root=true`.
+    Use this when you need all ranks to synchronize after root-only file processing.
+    (default: `false`)
+- `only_root::Bool`: If `true`, processing runs only on the root rank and results are NOT
+    broadcast to other ranks. This prevents MPI deadlocks when calling `process_each_export`
+    inside `process_each_job` with `only_root=true`. Non-root ranks return `nothing`.
+    When `false`, results are broadcast to all ranks (if result collection is enabled).
+    (default: `false`)
 
 # Returns
 - `nothing` when `default_value === nothing` (legacy mode)
@@ -39,14 +45,20 @@ and MPI and determines the backend exactly like the [`submit`](@ref) function.
 
 # MPI Behavior
 When running with MPI:
-- `serial=true, barrier=false`: Processing runs only on root rank. Non-root ranks skip
-    immediately. Use when synchronization is not needed or you'll add barriers manually.
-- `serial=true, barrier=true`: Processing runs on root rank, then all ranks wait at a
-    barrier. Use for the common case where all ranks need to wait for root's file I/O.
-- `serial=false`: Processing is distributed across all MPI ranks with automatic
-    coordination. Each rank processes a subset of files. The `barrier` parameter is ignored.
-- With result collection enabled, `MPI.Allgatherv` is used to combine results from all ranks,
-    ensuring every rank receives the complete results vector.
+- `serial=true, barrier=false, only_root=false`: Processing runs only on root rank. Results
+    are broadcast to all ranks. Non-root ranks wait for broadcast but don't process files.
+- `serial=true, barrier=true, only_root=false`: Processing runs on root rank, results are
+    broadcast to all ranks, then all ranks wait at a barrier.
+- `only_root=true`: Processing runs only on root rank. Results are NOT broadcast - non-root
+    ranks return `nothing` immediately. Use this to avoid MPI deadlocks when calling
+    `process_each_export` inside `process_each_job(...; only_root=true)`. The `barrier`
+    parameter is ignored.
+- `serial=false`: Processing is distributed across all MPI ranks with automatic coordination.
+    Each rank processes a subset of files. The `barrier` and `only_root` parameters are
+    ignored.
+- With result collection enabled and `only_root=false`, results are gathered/broadcast so
+    all ranks receive the complete results vector. With `only_root=true`, only the root rank
+    gets results.
 
 !!! warning "MPI result type requirements"
     When using result collection with MPI (`default_value !== nothing`), the returned result
@@ -76,6 +88,18 @@ end
 
 # With MPI, all ranks get the complete results
 @mpiroot println("Results from all files: ", results)
+
+# Using inside process_each_job to avoid deadlocks
+process_each_job(jobs; only_root=true) do job, job_id
+    submit(job)
+    # Use only_root=true here to prevent MPI deadlock
+    results = process_each_export(job, default_value; only_root=true) do r0, r, id
+        # Process export files...
+        return (; max_disp=maximum(r[:displacement]))
+    end
+    # Only root rank has results here, non-root ranks get nothing
+    return results
+end
 ```
 
 See also: [`process_each_job`](@ref), [`mpi_isroot`](@ref), [`mpi_barrier`](@ref)
