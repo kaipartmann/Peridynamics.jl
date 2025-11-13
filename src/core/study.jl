@@ -367,11 +367,40 @@ their completion status yet.
 - Error handling includes automatic MPI barrier synchronization across all ranks
 
 !!! danger "Processing on MPI only at the root process"
-    When using `only_root=true`, ensure that the processing function `f` does not contain
-    any MPI calls or operations that require synchronization across ranks, as only the root
-    process will execute it. This envolves also the `barrier` keyword in the
-    [`process_each_export`](@ref) function if used within `f`, which should be always set to
-    `false` in this case to avoid deadlocks!
+    When using `only_root=true` in `process_each_job`, you have two safe options for nested
+    [`process_each_export`](@ref) calls:
+
+    **Option 1 (Recommended):** Always use `only_root=true` in nested `process_each_export`
+    calls. This is the safest and most straightforward approach.
+    ```julia
+    results = process_each_job(study, default; only_root=true) do job, setup
+        # Safe: use only_root=true in nested calls
+        res = process_each_export(job, default_value; only_root=true) do r0, r, id
+            # ... process files and return results
+        end
+    end
+    ```
+
+    **Option 2 (Advanced):** Use `process_each_export` without result collection
+    (`default_value=nothing`, the default) AND without `barrier=true`. This works because
+    non-root ranks skip immediately without waiting for broadcasts or barriers.
+    ```julia
+    results = process_each_job(study, default; only_root=true) do job, setup
+        # Safe: no result collection, no barrier
+        process_each_export(job) do r0, r, id  # returns nothing
+            # ... do file I/O only
+        end
+    end
+    ```
+
+    **What causes deadlocks:**
+    - Using result collection in `process_each_export` without `only_root=true` → non-root
+      ranks wait for broadcasts that never happen
+    - Using `barrier=true` → root rank waits at a barrier that non-root ranks never reach
+
+    Additionally, ensure that the processing function `f` does not contain any other MPI
+    calls or operations that require synchronization across ranks, as only the root process
+    will execute it.
 
 # Examples
 ```julia
@@ -380,18 +409,17 @@ study = Study(create_job, setups; root="my_study")
 # Status is automatically refreshed from logfile in constructor
 
 # Define a function to extract maximum displacement from results
-function extract_max_displacement(job::Job, setup::NamedTuple)
-    # Process files and calculate maximum displacement
-    process_each_export(job; serial=true) do r0, r, id
-        # Read and process data
+default = (; E=0.0, velocity=0.0, max_displacement=NaN)
+
+# IMPORTANT: Must use only_root=true in both process_each_job AND process_each_export!
+results = process_each_job(study, default; only_root=true) do job, setup
+    # CRITICAL: only_root=true is required here to avoid MPI deadlock
+    max_disps = process_each_export(job, 0.0; only_root=true) do r0, r, id
+        return maximum(r[:displacement])
     end
-    max_u = ...
+    max_u = maximum(max_disps)
     return (; E=setup.E, velocity=setup.velocity, max_displacement=max_u)
 end
-
-default = (; E=0.0, velocity=0.0, max_displacement=NaN)
-# Use only_root=true since we're doing file I/O
-results = process_each_job(extract_max_displacement, study, default; only_root=true)
 
 # Filter successful results (only root rank will have meaningful data)
 if mpi_isroot()
