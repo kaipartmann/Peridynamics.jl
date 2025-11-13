@@ -168,6 +168,8 @@ end
 end
 
 @testitem "process_each_export with result collection - threads" begin
+    using Base.Threads: nthreads
+
     root = mktempdir()
     l, Δx = 1.0, 1 / 4
     pos, vol = uniform_box(l, l, l, Δx)
@@ -177,25 +179,43 @@ end
     point_set!(y -> y < -l / 2 + Δx, b1, :set_bottom)
     velocity_bc!(t -> 30, b1, :set_top, :y)
     velocity_bc!(t -> -30, b1, :set_bottom, :y)
-    vv = VelocityVerlet(steps=2)
+    vv = VelocityVerlet(steps=5)  # More steps for better testing
     job = Job(b1, vv; path=root, freq=1)
     submit(job)
 
-    # Test result collection with NamedTuples
+    # Test result collection with NamedTuples (threads backend when serial=false and !mpi_run())
     default_value = (; max_disp=NaN, file_id=0)
-    results = process_each_export(job, default_value) do r0, r, id
+    results = process_each_export(job, default_value; serial=false) do r0, r, id
         max_disp = maximum(r[:displacement])
         return (; max_disp, file_id=id)
     end
 
     @test results isa Vector{NamedTuple{(:max_disp, :file_id), Tuple{Float64, Int}}}
-    @test length(results) == 3  # reference + 2 time steps
-    @test results[1].file_id == 1
-    @test results[2].file_id == 2
-    @test results[3].file_id == 3
+    @test length(results) == 6  # reference + 5 time steps
+    # Verify all file IDs are present and correct
+    @test all(results[i].file_id == i for i in 1:6)
     @test results[1].max_disp ≈ 0.0
-    @test results[2].max_disp ≈ 0.0 atol=1e-4  # Small displacement due to simulation start
-    @test results[3].max_disp > 0.0  # Final step should have displacement
+    @test results[end].max_disp > 0.0  # Final step should have displacement
+
+    # Test without result collection (legacy mode) - just verify it returns nothing
+    result_nothing = process_each_export(job; serial=false) do r0, r, id
+        return nothing
+    end
+    @test result_nothing === nothing
+
+    # Test that results are computed correctly in parallel - each thread computes independently
+    results_parallel = process_each_export(job, 0.0; serial=false) do r0, r, id
+        return id * 2.5
+    end
+    @test results_parallel == [2.5, 5.0, 7.5, 10.0, 12.5, 15.0]
+
+    # Test that NamedTuples also work correctly
+    default_value = (; id=0, squared=0)
+    results_parallel = process_each_export(job, default_value; serial=false) do r0, r, id
+        return (; id=id, squared=id*id)
+    end
+    @test all(results_parallel[i].id == i for i in 1:6)
+    @test all(results_parallel[i].squared == i*i for i in 1:6)
 end
 
 @testitem "process_each_export with result collection - serial" begin
@@ -230,7 +250,7 @@ end
     @test results[1].avg_uy ≈ 0.0
 end
 
-@testitem "process_each_export with result collection - MPI" tags=[:mpi] begin
+@testitem "process_each_export with result collection - MPI parallel" tags=[:mpi] begin
     root = mktempdir()
     l, Δx = 1.0, 1 / 4
     pos, vol = uniform_box(l, l, l, Δx)
@@ -240,11 +260,11 @@ end
     point_set!(y -> y < -l / 2 + Δx, b1, :set_bottom)
     velocity_bc!(t -> 30, b1, :set_top, :y)
     velocity_bc!(t -> -30, b1, :set_bottom, :y)
-    vv = VelocityVerlet(steps=2)
+    vv = VelocityVerlet(steps=5)
     job = Job(b1, vv; path=root, freq=1)
     submit(job)
 
-    results_dir = joinpath(root, "mpi_results")
+    results_dir = joinpath(root, "mpi_results_parallel")
     mkpath(results_dir)
 
     mpi_cmd = """
@@ -252,23 +272,21 @@ end
     files = "$(joinpath(root, "vtk"))"
     results_dir = "$(results_dir)"
 
-    # Test result collection with MPI
+    # Test result collection with MPI parallel mode (serial=false)
     default_value = (; max_disp=NaN, min_disp=NaN, file_id=0)
-    results = process_each_export(files, default_value) do r0, r, id
+    results = process_each_export(files, default_value; serial=false) do r0, r, id
         max_disp = maximum(r[:displacement])
         min_disp = minimum(r[:displacement])
         return (; max_disp, min_disp, file_id=id)
     end
 
     # All ranks should have the same complete results
-    @test length(results) == 3
-    @test results[1].file_id == 1
-    @test results[2].file_id == 2
-    @test results[3].file_id == 3
+    @test length(results) == 6  # reference + 5 time steps
+    @test all(results[i].file_id == i for i in 1:6)
 
     # Write results from each rank to verify they're identical
     rank = Peridynamics.mpi_rank()
-    output_file = joinpath(results_dir, "mpi_results_rank_\$(rank).txt")
+    output_file = joinpath(results_dir, "parallel_rank_\$(rank).txt")
     open(output_file, "w") do io
         for r in results
             println(io, "file_id=\$(r.file_id), max=\$(r.max_disp), min=\$(r.min_disp)")
@@ -283,14 +301,73 @@ end
     @test run_result.exitcode == 0
 
     # Verify that both ranks wrote identical results
-    @test isfile(joinpath(results_dir, "mpi_results_rank_0.txt"))
-    @test isfile(joinpath(results_dir, "mpi_results_rank_1.txt"))
-    results_rank0 = read(joinpath(results_dir, "mpi_results_rank_0.txt"), String)
-    results_rank1 = read(joinpath(results_dir, "mpi_results_rank_1.txt"), String)
+    @test isfile(joinpath(results_dir, "parallel_rank_0.txt"))
+    @test isfile(joinpath(results_dir, "parallel_rank_1.txt"))
+    results_rank0 = read(joinpath(results_dir, "parallel_rank_0.txt"), String)
+    results_rank1 = read(joinpath(results_dir, "parallel_rank_1.txt"), String)
     @test results_rank0 == results_rank1
     @test contains(results_rank0, "file_id=1")
-    @test contains(results_rank0, "file_id=2")
-    @test contains(results_rank0, "file_id=3")
+    @test contains(results_rank0, "file_id=6")
+end
+
+@testitem "process_each_export with result collection - MPI serial with broadcast" tags=[:mpi] begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    point_set!(y -> y > l / 2 - Δx, b1, :set_top)
+    point_set!(y -> y < -l / 2 + Δx, b1, :set_bottom)
+    velocity_bc!(t -> 30, b1, :set_top, :y)
+    velocity_bc!(t -> -30, b1, :set_bottom, :y)
+    vv = VelocityVerlet(steps=4)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    results_dir = joinpath(root, "mpi_results_serial")
+    mkpath(results_dir)
+
+    mpi_cmd = """
+    using Peridynamics, Test
+    files = "$(joinpath(root, "vtk"))"
+    results_dir = "$(results_dir)"
+
+    # Test result collection with MPI serial mode (serial=true) - tests broadcast
+    default_value = (; max_disp=NaN, avg_disp=NaN, file_id=0)
+    results = process_each_export(files, default_value; serial=true) do r0, r, id
+        max_disp = maximum(r[:displacement])
+        avg_disp = sum(r[:displacement]) / length(r[:displacement])
+        return (; max_disp, avg_disp, file_id=id)
+    end
+
+    # All ranks should have the same complete results (via broadcast)
+    @test length(results) == 5  # reference + 4 time steps
+    @test all(results[i].file_id == i for i in 1:5)
+
+    # Write results from each rank to verify broadcast worked
+    rank = Peridynamics.mpi_rank()
+    output_file = joinpath(results_dir, "serial_rank_\$(rank).txt")
+    open(output_file, "w") do io
+        for r in results
+            println(io, "file_id=\$(r.file_id), max=\$(r.max_disp), avg=\$(r.avg_disp)")
+        end
+    end
+    """
+
+    mpiexec = Peridynamics.MPI.mpiexec()
+    jlcmd = Base.julia_cmd()
+    pdir = pkgdir(Peridynamics)
+    run_result = run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
+    @test run_result.exitcode == 0
+
+    # Verify that both ranks wrote identical results (broadcast worked)
+    @test isfile(joinpath(results_dir, "serial_rank_0.txt"))
+    @test isfile(joinpath(results_dir, "serial_rank_1.txt"))
+    results_rank0 = read(joinpath(results_dir, "serial_rank_0.txt"), String)
+    results_rank1 = read(joinpath(results_dir, "serial_rank_1.txt"), String)
+    @test results_rank0 == results_rank1
+    @test contains(results_rank0, "file_id=1")
+    @test contains(results_rank0, "file_id=5")
 end
 
 @testitem "process_each_export with result collection - error handling" begin
