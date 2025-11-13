@@ -77,9 +77,7 @@ end
 # results is a Vector{NamedTuple{(:max_disp, :avg_ux), Tuple{Float64, Float64}}}
 
 # With MPI, all ranks get the complete results
-if mpi_isroot()
-    println("Results from all files: ", results)
-end
+@mpiroot println("Results from all files: ", results)
 ```
 
 See also: [`process_each_job`](@ref), [`mpi_isroot`](@ref), [`mpi_barrier`](@ref)
@@ -92,14 +90,11 @@ function process_each_export(f::F, vtk_path::AbstractString,
     serial, barrier = get_process_each_export_options(o)
     vtk_files = find_vtk_files(vtk_path)
 
-    # Determine if we're collecting results
-    collect_results = default_value !== nothing
-
     if serial
         results = @mpiroot process_each_export_serial(f, vtk_files, default_value)
         barrier && mpi_barrier()
         # In serial mode with result collection, broadcast results to all ranks
-        if collect_results && mpi_run()
+        if default_value !== nothing && mpi_run()
             results = broadcast_results(results, default_value, length(vtk_files))
         end
     elseif mpi_run()
@@ -190,9 +185,7 @@ function process_each_export_serial(f::F, vtk_files::Vector{String},
     ref_result = read_vtk(first(vtk_files))
     p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
                  enabled=progress_bars())
-
-    collect_results = default_value !== nothing
-    if collect_results
+    if default_value !== nothing
         T = typeof(default_value)
         results = Vector{T}(undef, length(vtk_files))
         for (file_id, file) in enumerate(vtk_files)
@@ -216,20 +209,18 @@ function process_each_export_threads(f::F, vtk_files::Vector{String},
     ref_result = read_vtk(first(vtk_files))
     p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
                  enabled=progress_bars())
-
-    collect_results = default_value !== nothing
-    if collect_results
+    if default_value !== nothing
         T = typeof(default_value)
         results = Vector{T}(undef, length(vtk_files))
-        @threads :static for file_id in eachindex(vtk_files)
+        @threads for file_id in eachindex(vtk_files)
             results[file_id] = process_step(f, ref_result, vtk_files[file_id], file_id,
-                                           default_value)
+                                            default_value)
             next!(p)
         end
         finish!(p)
         return results
     else
-        @threads :static for file_id in eachindex(vtk_files)
+        @threads for file_id in eachindex(vtk_files)
             process_step(f, ref_result, vtk_files[file_id], file_id, nothing)
             next!(p)
         end
@@ -245,24 +236,15 @@ function process_each_export_mpi(f::F, vtk_files::Vector{String},
     loc_file_ids = file_dist[mpi_chunk_id()]
     n_files = length(vtk_files)
 
-    collect_results = default_value !== nothing
-
-    if collect_results
+    if default_value !== nothing
         # Validate that result type is bits type for MPI
-        T = typeof(default_value)
-        if !isbitstype(T)
-            msg = "result type must be a bits type for MPI compatibility!\n"
-            msg *= "  Got type: $T\n"
-            msg *= "  isbitstype($T) = $(isbitstype(T))\n"
-            msg *= "Hint: Use NamedTuples of primitive types like Float64, Int, etc.\n"
-            throw(ArgumentError(msg))
-        end
+        check_default_value_isbitstype(default_value)
 
         # Initialize results vector with default values
         results = fill(default_value, n_files)
 
         if mpi_isroot()
-            p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
+            p = Progress(length(loc_file_ids); dt=1, color=:normal, barlen=20,
                          enabled=progress_bars())
         end
 
@@ -279,7 +261,7 @@ function process_each_export_mpi(f::F, vtk_files::Vector{String},
         return results
     else
         if mpi_isroot()
-            p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
+            p = Progress(length(loc_file_ids); dt=1, color=:normal, barlen=20,
                          enabled=progress_bars())
         end
         for file_id in loc_file_ids
@@ -307,8 +289,10 @@ function gather_mpi_results(results::Vector{T}, loc_file_ids::AbstractVector{Int
     MPI.Allgatherv!(sendbuf, MPI.VBuffer(recvbuf, counts), mpi_comm())
 
     # Gather file IDs from all ranks to reconstruct correct order
+    # Convert to Vector{Int} in case loc_file_ids is a range
+    loc_file_ids_vec = collect(Int, loc_file_ids)
     all_file_ids = Vector{Int}(undef, sum(counts))
-    MPI.Allgatherv!(loc_file_ids, MPI.VBuffer(all_file_ids, counts), mpi_comm())
+    MPI.Allgatherv!(loc_file_ids_vec, MPI.VBuffer(all_file_ids, counts), mpi_comm())
 
     # Reconstruct results in correct file order
     final_results = Vector{T}(undef, n_files)
@@ -327,14 +311,7 @@ function broadcast_results(results, default_value, n_files::Int)
     end
 
     # Type must be bits type for MPI broadcast
-    ResultType = typeof(default_value)
-    if !isbitstype(ResultType)
-        msg = "result type must be a bits type for MPI compatibility!\n"
-        msg *= "  Got type: $ResultType\n"
-        msg *= "  isbitstype($ResultType) = $(isbitstype(ResultType))\n"
-        msg *= "Hint: Use NamedTuples of primitive types like Float64, Int, etc.\n"
-        throw(ArgumentError(msg))
-    end
+    check_default_value_isbitstype(default_value)
 
     # Create or use existing buffer
     if mpi_isroot()
@@ -342,11 +319,22 @@ function broadcast_results(results, default_value, n_files::Int)
         buffer = results
     else
         # Non-root ranks create buffer to receive results
-        buffer = Vector{ResultType}(undef, n_files)
+        buffer = Vector{typeof(default_value)}(undef, n_files)
     end
 
     # Broadcast from root (rank 0) to all ranks
     MPI.Bcast!(buffer, mpi_comm(); root=0)
 
     return buffer
+end
+
+function check_default_value_isbitstype(::T) where {T}
+    if !isbitstype(T)
+        msg = "result type must be a bits type for MPI compatibility!\n"
+        msg *= "  Got type: $T\n"
+        msg *= "  isbitstype($T) = $(isbitstype(T))\n"
+        msg *= "Hint: Use NamedTuples of primitive types like Float64, Int, etc.\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
 end
