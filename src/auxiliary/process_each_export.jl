@@ -1,5 +1,3 @@
-const PROCESS_EACH_EXPORT_KWARGS = (:serial, :barrier)
-
 """
     process_each_export(f, vtk_path, default_value=nothing; kwargs...)
     process_each_export(f, job, default_value=nothing; kwargs...)
@@ -82,19 +80,17 @@ end
 
 See also: [`process_each_job`](@ref), [`mpi_isroot`](@ref), [`mpi_barrier`](@ref)
 """
-function process_each_export(f::F, vtk_path::AbstractString,
-                             default_value=nothing; kwargs...) where {F<:Function}
-    o = Dict{Symbol,Any}(kwargs)
-    check_kwargs(o, PROCESS_EACH_EXPORT_KWARGS)
+function process_each_export(f::F, vtk_path::AbstractString, default_value=nothing;
+                             serial::Bool=false, barrier::Bool=false,
+                             only_root::Bool=false) where {F<:Function}
     check_process_function(f, default_value)
-    serial, barrier = get_process_each_export_options(o)
     vtk_files = find_vtk_files(vtk_path)
 
-    if serial
+    if serial || only_root
         results = @mpiroot process_each_export_serial(f, vtk_files, default_value)
-        barrier && mpi_barrier()
+        barrier && !only_root && mpi_barrier()
         # In serial mode with result collection, broadcast results to all ranks
-        if default_value !== nothing && mpi_run()
+        if default_value !== nothing && mpi_run() && !only_root
             results = broadcast_results(results, default_value, length(vtk_files))
         end
     elseif mpi_run()
@@ -109,20 +105,6 @@ end
 function process_each_export(f::F, job::Job, default_value=nothing;
                              kwargs...) where {F<:Function}
     return process_each_export(f, job.options.vtk, default_value; kwargs...)
-end
-
-function get_process_each_export_options(o::Dict{Symbol,Any})
-    if haskey(o, :serial)
-        serial::Bool = Bool(o[:serial])
-    else
-        serial = false
-    end
-    if haskey(o, :barrier)
-        barrier::Bool = Bool(o[:barrier])
-    else
-        barrier = false
-    end
-    return serial, barrier
 end
 
 function check_process_function(f::F, default_value) where {F<:Function}
@@ -205,12 +187,11 @@ function process_each_export_serial(f::F, vtk_files::Vector{String},
 end
 
 function process_each_export_threads(f::F, vtk_files::Vector{String},
-                                     default_value) where {F<:Function}
+                                     default_value::T) where {F<:Function,T}
     ref_result = read_vtk(first(vtk_files))
     p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
                  enabled=progress_bars())
     if default_value !== nothing
-        T = typeof(default_value)
         results = Vector{T}(undef, length(vtk_files))
         @threads for file_id in eachindex(vtk_files)
             results[file_id] = process_step(f, ref_result, vtk_files[file_id], file_id,
@@ -304,12 +285,6 @@ function gather_mpi_results(results::Vector{T}, loc_file_ids::AbstractVector{Int
 end
 
 function broadcast_results(results, default_value, n_files::Int)
-    # In serial mode, root has results, non-root ranks need to receive them
-    if default_value === nothing
-        # No result collection, nothing to broadcast
-        return nothing
-    end
-
     # Type must be bits type for MPI broadcast
     check_default_value_isbitstype(default_value)
 
