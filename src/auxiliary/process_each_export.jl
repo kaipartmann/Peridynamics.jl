@@ -321,16 +321,32 @@ end
 
 function broadcast_results(results, default_value, n_files::Int)
     # In serial mode, root has results, non-root ranks need to receive them
-    if mpi_isroot()
-        # Root broadcasts its results
-        return results
-    else
-        # Non-root ranks receive the broadcast
-        if default_value !== nothing
-            ResultType = typeof(default_value)
-            return Vector{ResultType}(undef, n_files)
-        else
-            return nothing
-        end
+    if default_value === nothing
+        # No result collection, nothing to broadcast
+        return nothing
     end
+
+    # Type must be bits type for MPI broadcast
+    ResultType = typeof(default_value)
+    if !isbitstype(ResultType)
+        msg = "result type must be a bits type for MPI compatibility!\n"
+        msg *= "  Got type: $ResultType\n"
+        msg *= "  isbitstype($ResultType) = $(isbitstype(ResultType))\n"
+        msg *= "Hint: Use NamedTuples of primitive types like Float64, Int, etc.\n"
+        throw(ArgumentError(msg))
+    end
+
+    # Create or use existing buffer
+    if mpi_isroot()
+        # Root already has results from processing
+        buffer = results
+    else
+        # Non-root ranks create buffer to receive results
+        buffer = Vector{ResultType}(undef, n_files)
+    end
+
+    # Broadcast from root (rank 0) to all ranks
+    MPI.Bcast!(buffer, mpi_comm(); root=0)
+
+    return buffer
 end
