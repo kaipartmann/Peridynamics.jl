@@ -166,3 +166,257 @@ end
     @test contains(content, "processed: 1")
     @test contains(content, "all ranks synchronized")
 end
+
+@testitem "process_each_export with result collection - threads" begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    point_set!(y -> y > l / 2 - Δx, b1, :set_top)
+    point_set!(y -> y < -l / 2 + Δx, b1, :set_bottom)
+    velocity_bc!(t -> 30, b1, :set_top, :y)
+    velocity_bc!(t -> -30, b1, :set_bottom, :y)
+    vv = VelocityVerlet(steps=2)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    # Test result collection with NamedTuples
+    default_value = (; max_disp=NaN, file_id=0)
+    results = process_each_export(job, default_value) do r0, r, id
+        max_disp = maximum(r[:displacement])
+        return (; max_disp, file_id=id)
+    end
+
+    @test results isa Vector{NamedTuple{(:max_disp, :file_id), Tuple{Float64, Int}}}
+    @test length(results) == 3  # reference + 2 time steps
+    @test results[1].file_id == 1
+    @test results[2].file_id == 2
+    @test results[3].file_id == 3
+    @test results[1].max_disp ≈ 0.0
+    @test results[2].max_disp ≈ 0.0 atol=1e-4  # Small displacement due to simulation start
+    @test results[3].max_disp > 0.0  # Final step should have displacement
+end
+
+@testitem "process_each_export with result collection - serial" begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    point_set!(y -> y > l / 2 - Δx, b1, :set_top)
+    point_set!(y -> y < -l / 2 + Δx, b1, :set_bottom)
+    velocity_bc!(t -> 30, b1, :set_top, :y)
+    velocity_bc!(t -> -30, b1, :set_bottom, :y)
+    vv = VelocityVerlet(steps=2)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    # Test result collection in serial mode
+    default_value = (; avg_ux=NaN, avg_uy=NaN)
+    results = process_each_export(job, default_value; serial=true) do r0, r, id
+        ux = @view r[:displacement][1, :]
+        uy = @view r[:displacement][2, :]
+        avg_ux = sum(ux) / length(ux)
+        avg_uy = sum(uy) / length(uy)
+        return (; avg_ux, avg_uy)
+    end
+
+    @test results isa Vector{NamedTuple{(:avg_ux, :avg_uy), Tuple{Float64, Float64}}}
+    @test length(results) == 3
+    @test all(.!isnan.(getfield.(results, :avg_ux)))
+    @test all(.!isnan.(getfield.(results, :avg_uy)))
+    @test results[1].avg_ux ≈ 0.0
+    @test results[1].avg_uy ≈ 0.0
+end
+
+@testitem "process_each_export with result collection - MPI" tags=[:mpi] begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    point_set!(y -> y > l / 2 - Δx, b1, :set_top)
+    point_set!(y -> y < -l / 2 + Δx, b1, :set_bottom)
+    velocity_bc!(t -> 30, b1, :set_top, :y)
+    velocity_bc!(t -> -30, b1, :set_bottom, :y)
+    vv = VelocityVerlet(steps=2)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    results_dir = joinpath(root, "mpi_results")
+    mkpath(results_dir)
+
+    mpi_cmd = """
+    using Peridynamics, Test
+    files = "$(joinpath(root, "vtk"))"
+    results_dir = "$(results_dir)"
+
+    # Test result collection with MPI
+    default_value = (; max_disp=NaN, min_disp=NaN, file_id=0)
+    results = process_each_export(files, default_value) do r0, r, id
+        max_disp = maximum(r[:displacement])
+        min_disp = minimum(r[:displacement])
+        return (; max_disp, min_disp, file_id=id)
+    end
+
+    # All ranks should have the same complete results
+    @test length(results) == 3
+    @test results[1].file_id == 1
+    @test results[2].file_id == 2
+    @test results[3].file_id == 3
+
+    # Write results from each rank to verify they're identical
+    rank = Peridynamics.mpi_rank()
+    output_file = joinpath(results_dir, "mpi_results_rank_\$(rank).txt")
+    open(output_file, "w") do io
+        for r in results
+            println(io, "file_id=\$(r.file_id), max=\$(r.max_disp), min=\$(r.min_disp)")
+        end
+    end
+    """
+
+    mpiexec = Peridynamics.MPI.mpiexec()
+    jlcmd = Base.julia_cmd()
+    pdir = pkgdir(Peridynamics)
+    run_result = run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
+    @test run_result.exitcode == 0
+
+    # Verify that both ranks wrote identical results
+    @test isfile(joinpath(results_dir, "mpi_results_rank_0.txt"))
+    @test isfile(joinpath(results_dir, "mpi_results_rank_1.txt"))
+    results_rank0 = read(joinpath(results_dir, "mpi_results_rank_0.txt"), String)
+    results_rank1 = read(joinpath(results_dir, "mpi_results_rank_1.txt"), String)
+    @test results_rank0 == results_rank1
+    @test contains(results_rank0, "file_id=1")
+    @test contains(results_rank0, "file_id=2")
+    @test contains(results_rank0, "file_id=3")
+end
+
+@testitem "process_each_export with result collection - error handling" begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    velocity_ic!(b1, :all_points, :x, 1.0)
+    vv = VelocityVerlet(steps=2)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    # Test that errors during processing use default_value
+    default_value = (; value=999.0)
+    results = process_each_export(job, default_value) do r0, r, id
+        if id == 2
+            error("Intentional error for testing")
+        end
+        return (; value=Float64(id))
+    end
+
+    @test results[1].value == 1.0
+    @test results[2].value == 999.0  # Should use default_value due to error
+    @test results[3].value == 3.0
+end
+
+@testitem "process_each_export MPI non-bitstype error" tags=[:mpi] begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    velocity_ic!(b1, :all_points, :x, 1.0)
+    vv = VelocityVerlet(steps=1)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    mpi_cmd = """
+    using Peridynamics, Test
+    files = "$(joinpath(root, "vtk"))"
+
+    # Test that non-bitstype default_value throws error with MPI
+    default_value = (; name="test")  # String is not a bitstype
+    @test_throws ArgumentError process_each_export(files, default_value) do r0, r, id
+        return (; name="result")
+    end
+    """
+
+    mpiexec = Peridynamics.MPI.mpiexec()
+    jlcmd = Base.julia_cmd()
+    pdir = pkgdir(Peridynamics)
+    @test success(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
+end
+
+@testitem "process_each_export backwards compatibility" begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    velocity_ic!(b1, :all_points, :x, 1.0)
+    vv = VelocityVerlet(steps=1)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    # Test that old behavior still works (returns nothing)
+    counter = Ref(0)
+    result = process_each_export(job; serial=true) do r0, r, id
+        counter[] += 1
+        return nothing
+    end
+
+    @test result === nothing
+    @test counter[] == 2  # reference + 1 time step
+
+    # Test with explicit nothing default_value
+    counter[] = 0
+    result2 = process_each_export(job, nothing; serial=true) do r0, r, id
+        counter[] += 1
+        return nothing
+    end
+
+    @test result2 === nothing
+    @test counter[] == 2
+end
+
+@testitem "process_each_export with different result types" begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    velocity_ic!(b1, :all_points, :x, 1.0)
+    vv = VelocityVerlet(steps=2)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    # Test with Int result
+    results_int = process_each_export(job, 0) do r0, r, id
+        return id
+    end
+    @test results_int isa Vector{Int}
+    @test results_int == [1, 2, 3]
+
+    # Test with Float64 result
+    results_float = process_each_export(job, 0.0) do r0, r, id
+        return Float64(id) * 1.5
+    end
+    @test results_float isa Vector{Float64}
+    @test results_float ≈ [1.5, 3.0, 4.5]
+
+    # Test with Bool result
+    results_bool = process_each_export(job, false) do r0, r, id
+        return id > 2
+    end
+    @test results_bool isa Vector{Bool}
+    @test results_bool == [false, false, true]
+
+    # Test with complex NamedTuple
+    default = (; a=0.0, b=0, c=false)
+    results_complex = process_each_export(job, default) do r0, r, id
+        return (; a=Float64(id), b=id*2, c=(id == 2))
+    end
+    @test results_complex isa Vector{NamedTuple{(:a, :b, :c), Tuple{Float64, Int, Bool}}}
+    @test results_complex[1] == (; a=1.0, b=2, c=false)
+    @test results_complex[2] == (; a=2.0, b=4, c=true)
+    @test results_complex[3] == (; a=3.0, b=6, c=false)
+end

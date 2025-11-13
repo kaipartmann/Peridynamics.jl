@@ -1,22 +1,29 @@
 const PROCESS_EACH_EXPORT_KWARGS = (:serial, :barrier)
 
 """
-    process_each_export(f, vtk_path; kwargs...)
-    process_each_export(f, job; kwargs...)
+    process_each_export(f, vtk_path, default_value=nothing; kwargs...)
+    process_each_export(f, job, default_value=nothing; kwargs...)
 
 A function for postprocessing every exported file. This function works with multithreading
 and MPI and determines the backend exactly like the [`submit`](@ref) function.
 
 # Arguments
-- `f::Function`: The processing function with signature `f(r0, r, id)`.
+- `f::Function`: The processing function with signature `f(r0, r, id)` that returns a result
+    to be collected (when `default_value !== nothing`) or returns `nothing` (legacy mode).
     - `r0`: The results of [`read_vtk`](@ref) for the exported file of the reference
         results.
     - `r`: The results of [`read_vtk`](@ref) for a time step.
-    - `id::Ind`: An ID indicating the number of the exported file (counted from 1, starting
+    - `id::Int`: An ID indicating the number of the exported file (counted from 1, starting
         with the reference file).
 - `vtk_path::AbstractString`: A path that should contain the export results of a simulation.
 - `job::Job`: A job object. The path of the VTK files will then be processed from the
     job options.
+- `default_value`: Optional default value for result collection. When provided (not `nothing`),
+    the function returns a vector of results from processing each export file. The type of
+    `default_value` determines the element type of the returned vector. For MPI compatibility,
+    the returned result type must satisfy `isbitstype(result) == true`.
+    When `default_value === nothing` (default), the function returns `nothing` and behaves
+    like the original version without result collection.
 
 # Keywords
 - `serial::Bool`: If `true`, all results will be processed in the correct order of the time
@@ -26,6 +33,12 @@ and MPI and determines the backend exactly like the [`submit`](@ref) function.
     `serial=false` (parallel processing has automatic coordination). Use this when you need
     all ranks to synchronize after root-only file processing. (default: `false`)
 
+# Returns
+- `nothing` when `default_value === nothing` (legacy mode)
+- `Vector{T}` where `T = typeof(default_value)` when result collection is enabled. Each
+    element corresponds to the result from processing one export file. With MPI, all ranks
+    receive the complete vector with results from all files.
+
 # MPI Behavior
 When running with MPI:
 - `serial=true, barrier=false`: Processing runs only on root rank. Non-root ranks skip
@@ -34,49 +47,73 @@ When running with MPI:
     barrier. Use for the common case where all ranks need to wait for root's file I/O.
 - `serial=false`: Processing is distributed across all MPI ranks with automatic
     coordination. Each rank processes a subset of files. The `barrier` parameter is ignored.
+- With result collection enabled, `MPI.Allgatherv` is used to combine results from all ranks,
+    ensuring every rank receives the complete results vector.
+
+!!! warning "MPI result type requirements"
+    When using result collection with MPI (`default_value !== nothing`), the returned result
+    type must be a bits type (`isbitstype(result) == true`). This typically means primitive
+    types or `NamedTuple`s of primitive types. Non-bits types like strings or arrays will
+    cause an error.
 
 # Examples
 ```julia
-# Root processes files, all ranks wait
+# Legacy mode - no result collection
 process_each_export(job; serial=true, barrier=true) do r0, r, id
     # File operations on root
+    open("result_\$id.txt", "w") do io
+        write(io, string(maximum(r[:displacement])))
+    end
 end
-# All ranks synchronized here
 
-# Root processes files, no waiting
-process_each_export(job; serial=true, barrier=false) do r0, r, id
-    # File operations on root
+# Result collection mode
+default_value = (; max_disp=NaN, avg_ux=NaN)
+results = process_each_export(job, default_value) do r0, r, id
+    max_disp = maximum(r[:displacement])
+    ux = @view r[:displacement][1, :]
+    avg_ux = sum(ux) / length(ux)
+    return (; max_disp, avg_ux)
 end
-# Non-root ranks continue immediately
+# results is a Vector{NamedTuple{(:max_disp, :avg_ux), Tuple{Float64, Float64}}}
 
-# All ranks process files in parallel
-process_each_export(job) do r0, r, id
-    # File operations on all ranks
+# With MPI, all ranks get the complete results
+if mpi_isroot()
+    println("Results from all files: ", results)
 end
 ```
 
 See also: [`process_each_job`](@ref), [`mpi_isroot`](@ref), [`mpi_barrier`](@ref)
 """
-function process_each_export(f::F, vtk_path::AbstractString; kwargs...) where {F<:Function}
+function process_each_export(f::F, vtk_path::AbstractString,
+                             default_value=nothing; kwargs...) where {F<:Function}
     o = Dict{Symbol,Any}(kwargs)
     check_kwargs(o, PROCESS_EACH_EXPORT_KWARGS)
-    check_process_function(f)
+    check_process_function(f, default_value)
     serial, barrier = get_process_each_export_options(o)
     vtk_files = find_vtk_files(vtk_path)
+
+    # Determine if we're collecting results
+    collect_results = default_value !== nothing
+
     if serial
-        @mpiroot process_each_export_serial(f, vtk_files)
+        results = @mpiroot process_each_export_serial(f, vtk_files, default_value)
         barrier && mpi_barrier()
+        # In serial mode with result collection, broadcast results to all ranks
+        if collect_results && mpi_run()
+            results = broadcast_results(results, default_value, length(vtk_files))
+        end
     elseif mpi_run()
-        process_each_export_mpi(f, vtk_files)
+        results = process_each_export_mpi(f, vtk_files, default_value)
     else
-        process_each_export_threads(f, vtk_files)
+        results = process_each_export_threads(f, vtk_files, default_value)
     end
-    return nothing
+
+    return results
 end
 
-function process_each_export(f::F, job::Job; kwargs...) where {F<:Function}
-    process_each_export(f, job.options.vtk; kwargs...)
-    return nothing
+function process_each_export(f::F, job::Job, default_value=nothing;
+                             kwargs...) where {F<:Function}
+    return process_each_export(f, job.options.vtk, default_value; kwargs...)
 end
 
 function get_process_each_export_options(o::Dict{Symbol,Any})
@@ -93,7 +130,7 @@ function get_process_each_export_options(o::Dict{Symbol,Any})
     return serial, barrier
 end
 
-function check_process_function(f::F) where {F<:Function}
+function check_process_function(f::F, default_value) where {F<:Function}
     func_method = get_method_of_function(f)
     args = get_argument_names_of_function(func_method)
     if length(args) != 3
@@ -137,52 +174,163 @@ function sort_by_time_step!(vtk_files::Vector{<:AbstractString})
 end
 
 function process_step(f::F, ref_result::Dict{Symbol,T}, file::AbstractString,
-                      file_id::Int) where {F<:Function,T}
+                      file_id::Int, default_value) where {F<:Function,T}
     result = read_vtk(file)
-    try
+    ret = try
         f(ref_result, result, file_id)
     catch err
         @error "something wrong while processing file $(basename(file))" error=err
+        default_value
     end
-    return nothing
+    return ret
 end
 
-function process_each_export_serial(f::F, vtk_files::Vector{String}) where {F<:Function}
+function process_each_export_serial(f::F, vtk_files::Vector{String},
+                                    default_value) where {F<:Function}
     ref_result = read_vtk(first(vtk_files))
     p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
                  enabled=progress_bars())
-    for (file_id, file) in enumerate(vtk_files)
-        process_step(f, ref_result, file, file_id)
-        next!(p)
+
+    collect_results = default_value !== nothing
+    if collect_results
+        T = typeof(default_value)
+        results = Vector{T}(undef, length(vtk_files))
+        for (file_id, file) in enumerate(vtk_files)
+            results[file_id] = process_step(f, ref_result, file, file_id, default_value)
+            next!(p)
+        end
+        finish!(p)
+        return results
+    else
+        for (file_id, file) in enumerate(vtk_files)
+            process_step(f, ref_result, file, file_id, nothing)
+            next!(p)
+        end
+        finish!(p)
+        return nothing
     end
-    finish!(p)
-    return nothing
 end
 
-function process_each_export_threads(f::F, vtk_files::Vector{String}) where {F<:Function}
+function process_each_export_threads(f::F, vtk_files::Vector{String},
+                                     default_value) where {F<:Function}
     ref_result = read_vtk(first(vtk_files))
     p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
                  enabled=progress_bars())
-    @threads :static for file_id in eachindex(vtk_files)
-        process_step(f, ref_result, vtk_files[file_id], file_id)
-        next!(p)
+
+    collect_results = default_value !== nothing
+    if collect_results
+        T = typeof(default_value)
+        results = Vector{T}(undef, length(vtk_files))
+        @threads :static for file_id in eachindex(vtk_files)
+            results[file_id] = process_step(f, ref_result, vtk_files[file_id], file_id,
+                                           default_value)
+            next!(p)
+        end
+        finish!(p)
+        return results
+    else
+        @threads :static for file_id in eachindex(vtk_files)
+            process_step(f, ref_result, vtk_files[file_id], file_id, nothing)
+            next!(p)
+        end
+        finish!(p)
+        return nothing
     end
-    finish!(p)
-    return nothing
 end
 
-function process_each_export_mpi(f::F, vtk_files::Vector{String}) where {F<:Function}
+function process_each_export_mpi(f::F, vtk_files::Vector{String},
+                                 default_value) where {F<:Function}
     ref_result = read_vtk(first(vtk_files))
     file_dist = distribute_equally(length(vtk_files), mpi_nranks())
     loc_file_ids = file_dist[mpi_chunk_id()]
+    n_files = length(vtk_files)
+
+    collect_results = default_value !== nothing
+
+    if collect_results
+        # Validate that result type is bits type for MPI
+        T = typeof(default_value)
+        if !isbitstype(T)
+            msg = "result type must be a bits type for MPI compatibility!\n"
+            msg *= "  Got type: $T\n"
+            msg *= "  isbitstype($T) = $(isbitstype(T))\n"
+            msg *= "Hint: Use NamedTuples of primitive types like Float64, Int, etc.\n"
+            throw(ArgumentError(msg))
+        end
+
+        # Initialize results vector with default values
+        results = fill(default_value, n_files)
+
+        if mpi_isroot()
+            p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
+                         enabled=progress_bars())
+        end
+
+        # Process local files
+        for file_id in loc_file_ids
+            results[file_id] = process_step(f, ref_result, vtk_files[file_id], file_id,
+                                           default_value)
+            mpi_isroot() && next!(p)
+        end
+        mpi_isroot() && finish!(p)
+
+        # Gather results from all ranks
+        results = gather_mpi_results(results, loc_file_ids, n_files)
+        return results
+    else
+        if mpi_isroot()
+            p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
+                         enabled=progress_bars())
+        end
+        for file_id in loc_file_ids
+            process_step(f, ref_result, vtk_files[file_id], file_id, nothing)
+            mpi_isroot() && next!(p)
+        end
+        mpi_isroot() && finish!(p)
+        return nothing
+    end
+end
+
+function gather_mpi_results(results::Vector{T}, loc_file_ids::AbstractVector{Int},
+                            n_files::Int) where {T}
+    # Create send buffer with only local results
+    n_loc = length(loc_file_ids)
+    sendbuf = results[loc_file_ids]
+
+    # Gather counts from all ranks
+    counts = MPI.Allgather(n_loc, mpi_comm())
+
+    # Create receive buffer
+    recvbuf = Vector{T}(undef, sum(counts))
+
+    # Perform Allgatherv
+    MPI.Allgatherv!(sendbuf, MPI.VBuffer(recvbuf, counts), mpi_comm())
+
+    # Gather file IDs from all ranks to reconstruct correct order
+    all_file_ids = Vector{Int}(undef, sum(counts))
+    MPI.Allgatherv!(loc_file_ids, MPI.VBuffer(all_file_ids, counts), mpi_comm())
+
+    # Reconstruct results in correct file order
+    final_results = Vector{T}(undef, n_files)
+    for (idx, file_id) in enumerate(all_file_ids)
+        final_results[file_id] = recvbuf[idx]
+    end
+
+    return final_results
+end
+
+function broadcast_results(results, default_value, n_files::Int)
+    # In serial mode, root has results, non-root ranks need to receive them
     if mpi_isroot()
-        p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
-                     enabled=progress_bars())
+        # Root broadcasts its results
+        return results
+    else
+        # Non-root ranks receive the broadcast
+        if default_value !== nothing
+            ResultType = typeof(default_value)
+            return Vector{ResultType}(undef, n_files)
+        else
+            return nothing
+        end
     end
-    for file_id in loc_file_ids
-        process_step(f, ref_result, vtk_files[file_id], file_id)
-        mpi_isroot() && next!(p)
-    end
-    mpi_isroot() && finish!(p)
-    return nothing
 end
