@@ -381,6 +381,94 @@ end
     @test results[1].value == 1.0
     @test results[2].value == 999.0  # Should use default_value due to error
     @test results[3].value == 3.0
+
+    # Verify error log was created (in vtk/process_errors)
+    error_dir = joinpath(root, "vtk", "vtk_process_errors")
+    @test isdir(error_dir)
+
+    error_logs = filter(f -> contains(f, "proc_error_file"), readdir(error_dir))
+    @test length(error_logs) == 1
+
+    # Verify log content
+    log_content = read(joinpath(error_dir, error_logs[1]), String)
+    @test contains(log_content, "Intentional error for testing")
+    @test contains(log_content, "File ID: 2")
+end
+
+@testitem "process_each_export error logging with serial mode" begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    velocity_ic!(b1, :all_points, :x, 1.0)
+    vv = VelocityVerlet(steps=5)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    # Test multiple errors in serial mode
+    default_value = (; max_disp=0.0)
+    results = process_each_export(job, default_value; serial=true) do r0, r, id
+        if id == 2 || id == 4
+            error("Error at timestep $id")
+        end
+        return (; max_disp=Float64(id) * 0.1)
+    end
+
+    @test results[1].max_disp ≈ 0.1
+    @test results[2].max_disp == 0.0  # Error -> default
+    @test results[3].max_disp ≈ 0.3
+    @test results[4].max_disp == 0.0  # Error -> default
+    @test results[5].max_disp ≈ 0.5
+    @test results[6].max_disp ≈ 0.6
+
+    # Verify error logs were created for both errors (in vtk/process_errors)
+    error_dir = joinpath(root, "vtk", "vtk_process_errors")
+    @test isdir(error_dir)
+
+    error_logs = filter(f -> contains(f, "proc_error_file"), readdir(error_dir))
+    @test length(error_logs) == 2
+
+    # Verify both error logs contain correct information
+    log_contents = [read(joinpath(error_dir, log), String) for log in error_logs]
+    @test any(contains(content, "File ID: 2") for content in log_contents)
+    @test any(contains(content, "File ID: 4") for content in log_contents)
+end
+
+@testitem "process_each_export error logging without result collection" begin
+    root = mktempdir()
+    l, Δx = 1.0, 1 / 4
+    pos, vol = uniform_box(l, l, l, Δx)
+    b1 = Body(BBMaterial(), pos, vol)
+    material!(b1; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+    velocity_ic!(b1, :all_points, :x, 1.0)
+    vv = VelocityVerlet(steps=3)
+    job = Job(b1, vv; path=root, freq=1)
+    submit(job)
+
+    # Test error logging in legacy mode (no result collection)
+    counter = Ref(0)
+    result = process_each_export(job; serial=true) do r0, r, id
+        counter[] += 1
+        if id == 3
+            error("Legacy mode error test")
+        end
+        return nothing
+    end
+
+    @test result === nothing
+    @test counter[] == 4  # All files processed despite error
+
+    # Verify error log was created (in vtk/process_errors)
+    error_dir = joinpath(root, "vtk", "vtk_process_errors")
+    @test isdir(error_dir)
+
+    error_logs = filter(f -> contains(f, "proc_error_file"), readdir(error_dir))
+    @test length(error_logs) == 1
+
+    log_content = read(joinpath(error_dir, error_logs[1]), String)
+    @test contains(log_content, "Legacy mode error test")
+    @test contains(log_content, "File ID: 3")
 end
 
 

@@ -104,34 +104,34 @@ end
 
 See also: [`process_each_job`](@ref), [`mpi_isroot`](@ref), [`mpi_barrier`](@ref)
 """
-function process_each_export(f::F, vtk_path::AbstractString, default_value=nothing;
+function process_each_export(f::F, vtk_path::AbstractString, default_ret=nothing;
                              serial::Bool=false, barrier::Bool=false,
                              only_root::Bool=false) where {F<:Function}
-    check_process_function(f, default_value)
+    check_process_function(f)
     vtk_files = find_vtk_files(vtk_path)
 
     if serial || only_root
-        results = @mpiroot process_each_export_serial(f, vtk_files, default_value)
+        results = @mpiroot process_each_export_serial(f, vtk_files, default_ret)
         barrier && !only_root && mpi_barrier()
         # In serial mode with result collection, broadcast results to all ranks
-        if default_value !== nothing && mpi_run() && !only_root
-            results = broadcast_results(results, default_value, length(vtk_files))
+        if default_ret !== nothing && mpi_run() && !only_root
+            results = broadcast_results(results, default_ret, length(vtk_files))
         end
     elseif mpi_run()
-        results = process_each_export_mpi(f, vtk_files, default_value)
+        results = process_each_export_mpi(f, vtk_files, default_ret)
     else
-        results = process_each_export_threads(f, vtk_files, default_value)
+        results = process_each_export_threads(f, vtk_files, default_ret)
     end
 
     return results
 end
 
-function process_each_export(f::F, job::Job, default_value=nothing;
+function process_each_export(f::F, job::Job, default_ret=nothing;
                              kwargs...) where {F<:Function}
-    return process_each_export(f, job.options.vtk, default_value; kwargs...)
+    return process_each_export(f, job.options.vtk, default_ret; kwargs...)
 end
 
-function check_process_function(f::F, default_value) where {F<:Function}
+function check_process_function(f::F) where {F<:Function}
     func_method = get_method_of_function(f)
     args = get_argument_names_of_function(func_method)
     if length(args) != 3
@@ -174,106 +174,160 @@ function sort_by_time_step!(vtk_files::Vector{<:AbstractString})
     return nothing
 end
 
-function process_step(f::F, ref_result::Dict{Symbol,T}, file::AbstractString,
-                      file_id::Int, default_value) where {F<:Function,T}
-    result = read_vtk(file)
+function process_step(f::F, ref_result::Dict{Symbol,T}, vtk_file::AbstractString, id::Int,
+                      default_ret) where {F<:Function,T}
+    error_occurred = false
     ret = try
-        f(ref_result, result, file_id)
+        f(ref_result, read_vtk(vtk_file), id)
     catch err
-        @error "something wrong while processing file $(basename(file))" error=err
-        default_value
+        error_occurred = true
+        write_processing_error_log(vtk_file, id, err, catch_backtrace())
+        default_ret
     end
-    return ret
+    return ret, error_occurred
 end
 
+function write_processing_error_log(vtk_file::AbstractString, id::Int, err, bt)
+    err_dir = joinpath(dirname(vtk_file), "vtk_process_errors")
+    isdir(err_dir) || mkpath(err_dir)
+    filename = @sprintf("proc_error_file_%d.log", id)
+    logfile = joinpath(err_dir, filename)
+    err_msg = "ERROR: vtk processing failed with error!\n"
+    err_msg *= "File: $(basename(vtk_file))\n"
+    err_msg *= "File ID: $(id)\n\n"
+    err_msg *= sprint(showerror, err, bt)
+    open(logfile, "w+") do io
+        write(io, get_logfile_head())
+        write(io, peridynamics_banner(color=false))
+        write(io, err_msg)
+    end
+    return nothing
+end
+
+function check_proc_errors(n_errors::Int)
+    mpi_isroot() || return nothing
+    if n_errors > 0
+        err_dir = joinpath("vtk", "vtk_process_errors")
+        err_msg = @sprintf("%d error(s) occurred during export processing!\n", n_errors)
+        err_msg *= "       See detailed error logs in: $(err_dir)\n"
+        printstyled(stderr, "\nERROR: "; color=:red, bold=true)
+        print(stderr, err_msg)
+    end
+    return nothing
+end
+check_proc_errors(::Nothing) = nothing
+
 function process_each_export_serial(f::F, vtk_files::Vector{String},
-                                    default_value) where {F<:Function}
+                                    default_ret::T) where {F<:Function,T}
     ref_result = read_vtk(first(vtk_files))
     p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
                  enabled=progress_bars())
-    if default_value !== nothing
-        T = typeof(default_value)
-        results = Vector{T}(undef, length(vtk_files))
-        for (file_id, file) in enumerate(vtk_files)
-            results[file_id] = process_step(f, ref_result, file, file_id, default_value)
+    if default_ret !== nothing
+        error_count = 0
+        rets = Vector{T}(undef, length(vtk_files))
+        for (id, vtk_file) in enumerate(vtk_files)
+            ret, error_occurred = process_step(f, ref_result, vtk_file, id, default_ret)
+            rets[id] = ret
+            error_occurred && (error_count += 1)
             next!(p)
         end
         finish!(p)
-        return results
+        check_proc_errors(error_count)
+        return rets
     else
-        for (file_id, file) in enumerate(vtk_files)
-            process_step(f, ref_result, file, file_id, nothing)
+        error_count = 0
+        for (id, vtk_file) in enumerate(vtk_files)
+            _, error_occurred = process_step(f, ref_result, vtk_file, id, nothing)
+            error_occurred && (error_count += 1)
             next!(p)
         end
         finish!(p)
+        check_proc_errors(error_count)
         return nothing
     end
 end
 
 function process_each_export_threads(f::F, vtk_files::Vector{String},
-                                     default_value::T) where {F<:Function,T}
+                                     default_ret::T) where {F<:Function,T}
     ref_result = read_vtk(first(vtk_files))
     p = Progress(length(vtk_files); dt=1, color=:normal, barlen=20,
                  enabled=progress_bars())
-    if default_value !== nothing
-        results = Vector{T}(undef, length(vtk_files))
-        @threads for file_id in eachindex(vtk_files)
-            results[file_id] = process_step(f, ref_result, vtk_files[file_id], file_id,
-                                            default_value)
+    if default_ret !== nothing
+        error_count = Atomic{Int}(0) # thread-safe error counting using atomic
+        rets = Vector{T}(undef, length(vtk_files))
+        @threads for id in eachindex(vtk_files)
+            vtk_file = vtk_files[id]
+            ret, error_occurred = process_step(f, ref_result, vtk_file, id, default_ret)
+            rets[id] = ret
+            error_occurred && atomic_add!(error_count, 1)
             next!(p)
         end
         finish!(p)
-        return results
+        check_proc_errors(error_count[])
+        return rets
     else
-        @threads for file_id in eachindex(vtk_files)
-            process_step(f, ref_result, vtk_files[file_id], file_id, nothing)
+        error_count = Atomic{Int}(0) # thread-safe error counting using atomic
+        @threads for id in eachindex(vtk_files)
+            vtk_file = vtk_files[id]
+            _, error_occurred = process_step(f, ref_result, vtk_file, id, nothing)
+            error_occurred && atomic_add!(error_count, 1)
             next!(p)
         end
         finish!(p)
+        check_proc_errors(error_count[])
         return nothing
     end
 end
 
 function process_each_export_mpi(f::F, vtk_files::Vector{String},
-                                 default_value) where {F<:Function}
+                                 default_ret) where {F<:Function}
     ref_result = read_vtk(first(vtk_files))
     file_dist = distribute_equally(length(vtk_files), mpi_nranks())
     loc_file_ids = file_dist[mpi_chunk_id()]
     n_files = length(vtk_files)
-
-    if default_value !== nothing
+    if default_ret !== nothing
+        loc_error_count = 0 # count errors locally on each rank
         # Validate that result type is bits type for MPI
-        check_default_value_isbitstype(default_value)
-
+        check_default_value_isbitstype(default_ret)
         # Initialize results vector with default values
-        results = fill(default_value, n_files)
-
+        rets = fill(default_ret, n_files)
         if mpi_isroot()
             p = Progress(length(loc_file_ids); dt=1, color=:normal, barlen=20,
                          enabled=progress_bars())
         end
-
         # Process local files
-        for file_id in loc_file_ids
-            results[file_id] = process_step(f, ref_result, vtk_files[file_id], file_id,
-                                           default_value)
+        for id in loc_file_ids
+            vtk_file = vtk_files[id]
+            ret, error_occurred = process_step(f, ref_result, vtk_file, id, default_ret)
+            rets[id] = ret
+            error_occurred && (loc_error_count += 1)
             mpi_isroot() && next!(p)
         end
         mpi_isroot() && finish!(p)
-
         # Gather results from all ranks
-        results = gather_mpi_results(results, loc_file_ids, n_files)
-        return results
+        rets = gather_mpi_results(rets, loc_file_ids, n_files)
+        # Gather error counts and print summary only on root
+        total_errors = MPI.Reduce(loc_error_count, +, mpi_comm(); root=0)
+        check_proc_errors(total_errors)
+        mpi_barrier()
+        return rets
     else
+        loc_error_count = 0 # count errors locally on each rank
         if mpi_isroot()
             p = Progress(length(loc_file_ids); dt=1, color=:normal, barlen=20,
                          enabled=progress_bars())
         end
-        for file_id in loc_file_ids
-            process_step(f, ref_result, vtk_files[file_id], file_id, nothing)
+        for id in loc_file_ids
+            vtk_file = vtk_files[id]
+            _, error_occurred = process_step(f, ref_result, vtk_file, id, nothing)
+            error_occurred && (loc_error_count += 1)
             mpi_isroot() && next!(p)
         end
         mpi_isroot() && finish!(p)
+        # Gather error counts and print summary only on root
+        total_errors = MPI.Reduce(loc_error_count, +, mpi_comm(); root=0)
+        check_proc_errors(total_errors)
+        mpi_barrier()
         return nothing
     end
 end
