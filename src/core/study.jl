@@ -237,7 +237,10 @@ function submit!(study::Study; kwargs...)
                 submit(job; kwargs...)
                 true
             catch err
-                @mpiroot :wait if !(quiet())
+                # IMPORTANT! Here should not be a :wait to avoid deadlocks!
+                # Some ranks might not reach this point if the error occurs only on certain
+                # ranks. Thus, only the root rank should attempt to print the error.
+                @mpiroot if !(quiet())
                     printstyled(stderr, "\nERROR:"; color=:red, bold=true)
                     msg = " job `$(job.options.root)` failed with error!\n"
                     msg *= sprint(showerror, err, catch_backtrace())
@@ -247,7 +250,8 @@ function submit!(study::Study; kwargs...)
             end
         end
         study.sim_success[i] = success
-        @mpiroot :wait open(study.logfile, "a") do io
+        # IMPORTANT! Also here: do not use :wait to avoid deadlocks!
+        @mpiroot open(study.logfile, "a") do io
             if success
                 msg = @sprintf("  status: completed ✓ (%.2f seconds)\n\n", simtime)
             else
