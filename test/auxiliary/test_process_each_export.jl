@@ -17,7 +17,7 @@
     # Test argument validation before submission
     @test_throws ArgumentError process_each_export((r0, r, id) -> nothing, job)
 
-    submit(job)
+    submit(job, quiet=true)
 
     # Test 1: Legacy mode with file I/O (threads backend)
     root_post_threads = joinpath(root, "post_threads")
@@ -200,19 +200,28 @@ end
     velocity_bc!(t -> -30, body, :set_bottom, :y)
     vv = VelocityVerlet(steps=5)
     job = Job(body, vv; path=root, freq=1)
-    submit(job)
+    submit(job, quiet=true)
 
     mpiexec = Peridynamics.MPI.mpiexec()
     jlcmd = Base.julia_cmd()
     pdir = pkgdir(Peridynamics)
     vtk_path = joinpath(root, "vtk")
 
-    # Test 1: Legacy mode - file I/O without result collection
+    # Prepare directories for all tests
     root_post_mpi = joinpath(root, "post_mpi")
     mkpath(root_post_mpi)
-    mpi_cmd_legacy = """
-    using Peridynamics
+    counter_file = joinpath(root, "counter.txt")
+    results_dir_parallel = joinpath(root, "mpi_results_parallel")
+    mkpath(results_dir_parallel)
+    results_dir_serial = joinpath(root, "mpi_results_serial")
+    mkpath(results_dir_serial)
+
+    # Single MPI command running all 5 tests sequentially
+    mpi_cmd_all = """
+    using Peridynamics, Test
     files = "$(vtk_path)"
+
+    # Test 1: Legacy mode - file I/O without result collection
     process_each_export(files) do r0, r, id
         filename = "max_disp_\$(id).txt"
         open(joinpath("$(root_post_mpi)", filename), "w") do io
@@ -220,17 +229,8 @@ end
         end
         return nothing
     end
-    """
-    run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd_legacy)`)
-    @test isfile(joinpath(root_post_mpi, "max_disp_1.txt"))
-    @test contains(read(joinpath(root_post_mpi, "max_disp_1.txt"), String), "max_disp: 0.0")
-    @test isfile(joinpath(root_post_mpi, "max_disp_6.txt"))
 
     # Test 2: MPI with barrier
-    counter_file = joinpath(root, "counter.txt")
-    mpi_cmd_barrier = """
-    using Peridynamics
-    files = "$(vtk_path)"
     counter_file = "$(counter_file)"
     process_each_export(files; serial=true, barrier=true) do r0, r, id
         if mpi_isroot()
@@ -244,33 +244,59 @@ end
             println(io, "all ranks synchronized")
         end
     end
-    """
-    @test success(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd_barrier)`)
-    @test isfile(counter_file)
-    @test contains(read(counter_file, String), "processed: 1")
-    @test contains(read(counter_file, String), "all ranks synchronized")
 
     # Test 3: MPI parallel mode with result collection (serial=false)
-    results_dir_parallel = joinpath(root, "mpi_results_parallel")
-    mkpath(results_dir_parallel)
-    mpi_cmd_parallel = """
-    using Peridynamics, Test
-    files = "$(vtk_path)"
-    results_dir = "$(results_dir_parallel)"
+    results_dir_parallel = "$(results_dir_parallel)"
     default_value = (; max_disp=NaN, min_disp=NaN, file_id=0)
     results = process_each_export(files, default_value; serial=false) do r0, r, id
-        return (; max_disp=maximum(r[:displacement]), min_disp=minimum(r[:displacement]), file_id=id)
+        return (; max_disp=maximum(r[:displacement]), min_disp=minimum(r[:displacement]),
+                  file_id=id)
     end
     @test length(results) == 6
     @test all(results[i].file_id == i for i in 1:6)
     rank = Peridynamics.mpi_rank()
-    open(joinpath(results_dir, "parallel_rank_\$(rank).txt"), "w") do io
+    open(joinpath(results_dir_parallel, "parallel_rank_\$(rank).txt"), "w") do io
         for r in results
             println(io, "file_id=\$(r.file_id), max=\$(r.max_disp), min=\$(r.min_disp)")
         end
     end
+
+    # Test 4: MPI serial mode with broadcast (serial=true)
+    results_dir_serial = "$(results_dir_serial)"
+    default_value2 = (; max_disp=NaN, avg_disp=NaN, file_id=0)
+    results2 = process_each_export(files, default_value2; serial=true) do r0, r, id
+        disp = r[:displacement]
+        return (; max_disp=maximum(disp), avg_disp=sum(disp)/length(disp), file_id=id)
+    end
+    @test length(results2) == 6
+    @test all(results2[i].file_id == i for i in 1:6)
+    open(joinpath(results_dir_serial, "serial_rank_\$(rank).txt"), "w") do io
+        for r in results2
+            println(io, "file_id=\$(r.file_id), max=\$(r.max_disp), avg=\$(r.avg_disp)")
+        end
+    end
+
+    # Test 5: Non-bitstype error with MPI
+    default_value3 = (; name="test")  # String is not a bitstype
+    @test_throws ArgumentError process_each_export(files, default_value3) do r0, r, id
+        return (; name="result")
+    end
     """
-    @test success(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd_parallel)`)
+
+    # Run all tests in single MPI call
+    @test success(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd_all)`)
+
+    # Verify Test 1 outputs
+    @test isfile(joinpath(root_post_mpi, "max_disp_1.txt"))
+    @test contains(read(joinpath(root_post_mpi, "max_disp_1.txt"), String), "max_disp: 0.0")
+    @test isfile(joinpath(root_post_mpi, "max_disp_6.txt"))
+
+    # Verify Test 2 outputs
+    @test isfile(counter_file)
+    @test contains(read(counter_file, String), "processed: 1")
+    @test contains(read(counter_file, String), "all ranks synchronized")
+
+    # Verify Test 3 outputs
     @test isfile(joinpath(results_dir_parallel, "parallel_rank_0.txt"))
     @test isfile(joinpath(results_dir_parallel, "parallel_rank_1.txt"))
     results_rank0 = read(joinpath(results_dir_parallel, "parallel_rank_0.txt"), String)
@@ -279,28 +305,7 @@ end
     @test contains(results_rank0, "file_id=1")
     @test contains(results_rank0, "file_id=6")
 
-    # Test 4: MPI serial mode with broadcast (serial=true)
-    results_dir_serial = joinpath(root, "mpi_results_serial")
-    mkpath(results_dir_serial)
-    mpi_cmd_serial = """
-    using Peridynamics, Test
-    files = "$(vtk_path)"
-    results_dir = "$(results_dir_serial)"
-    default_value = (; max_disp=NaN, avg_disp=NaN, file_id=0)
-    results = process_each_export(files, default_value; serial=true) do r0, r, id
-        disp = r[:displacement]
-        return (; max_disp=maximum(disp), avg_disp=sum(disp)/length(disp), file_id=id)
-    end
-    @test length(results) == 6
-    @test all(results[i].file_id == i for i in 1:6)
-    rank = Peridynamics.mpi_rank()
-    open(joinpath(results_dir, "serial_rank_\$(rank).txt"), "w") do io
-        for r in results
-            println(io, "file_id=\$(r.file_id), max=\$(r.max_disp), avg=\$(r.avg_disp)")
-        end
-    end
-    """
-    @test success(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd_serial)`)
+    # Verify Test 4 outputs
     @test isfile(joinpath(results_dir_serial, "serial_rank_0.txt"))
     @test isfile(joinpath(results_dir_serial, "serial_rank_1.txt"))
     results_rank0 = read(joinpath(results_dir_serial, "serial_rank_0.txt"), String)
@@ -308,15 +313,4 @@ end
     @test results_rank0 == results_rank1
     @test contains(results_rank0, "file_id=1")
     @test contains(results_rank0, "file_id=6")
-
-    # Test 5: Non-bitstype error with MPI
-    mpi_cmd_error = """
-    using Peridynamics, Test
-    files = "$(vtk_path)"
-    default_value = (; name="test")  # String is not a bitstype
-    @test_throws ArgumentError process_each_export(files, default_value) do r0, r, id
-        return (; name="result")
-    end
-    """
-    @test success(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd_error)`)
 end
