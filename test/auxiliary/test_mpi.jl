@@ -1,8 +1,16 @@
 @testitem "force_mpi_run!" begin
+    # initial setup of the MPI refs
+    Peridynamics.MPI_RUN[] = false
+    Peridynamics.MPI_RUN_FORCED[] = false
+
     Peridynamics.force_mpi_run!()
     @test Peridynamics.mpi_run() == true
     Peridynamics.init_mpi() # will do nothing because MPI_RUN was forced
     @test Peridynamics.mpi_run() == true
+
+    # reset MPI refs
+    Peridynamics.MPI_RUN[] = false
+    Peridynamics.MPI_RUN_FORCED[] = false
 end
 
 @testitem "force_threads_run!" begin
