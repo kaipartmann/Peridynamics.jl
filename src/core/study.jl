@@ -403,7 +403,7 @@ See also: [`Study`](@ref), [`submit!`](@ref), [`process_each_export`](@ref),
 [`mpi_isroot`](@ref)
 """
 function process_each_job(f::F, study::Study, default_result::NamedTuple;
-                         only_root::Bool=false) where {F}
+                          only_root::Bool=false) where {F}
     # Refresh sim_success from logfile if it exists (in case study was interrupted/resumed)
     isfile(study.logfile) && update_sim_success_from_log!(study)
 
@@ -419,7 +419,7 @@ function process_each_job(f::F, study::Study, default_result::NamedTuple;
                     f(job, setup)
                 end
             catch err
-                @mpiroot :wait begin
+                if mpi_isroot()
                     msg = "job `$(job.options.root)` failed with error!\n"
                     msg *= sprint(showerror, err, catch_backtrace())
                     # print error to stderr
@@ -434,11 +434,14 @@ function process_each_job(f::F, study::Study, default_result::NamedTuple;
                         write(io, "ERROR: " * msg)
                     end
                 end
+                only_root || mpi_barrier()
                 default_result
             end
             results[i] = res
         else
-            @warn "skipping processing for failed job $(job.options.root)"
+            if mpi_isroot()
+                @warn "skipping processing for failed job `$(job.options.root)`"
+            end
         end
     end
     return results
