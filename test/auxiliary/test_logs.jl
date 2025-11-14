@@ -6,8 +6,13 @@
 end
 
 @testitem "set_progress_bars!" begin
+    # initial setup of the MPI refs
+    Peridynamics.MPI_RUN[] = false
+    Peridynamics.MPI_RUN_FORCED[] = false
+
     Peridynamics.set_quiet!(false)
     @test Peridynamics.quiet() == false
+    @test Peridynamics.mpi_run() == false
     force_mpi_run!()
     @test Peridynamics.mpi_run() == true
     enable_mpi_progress_bars!()
@@ -18,12 +23,21 @@ end
     @test Peridynamics.mpi_progress_bars() == false
     Peridynamics.set_progress_bars!()
     @test Peridynamics.progress_bars() == false
+
+    # reset MPI refs
+    Peridynamics.MPI_RUN[] = false
+    Peridynamics.MPI_RUN_FORCED[] = false
 end
 
 @testitem "log_create_data_handler" begin
+    # initial setup of the MPI refs
+    Peridynamics.MPI_RUN[] = false
+    Peridynamics.MPI_RUN_FORCED[] = false
+
     # setup
     Peridynamics.set_quiet!(false)
     @test Peridynamics.quiet() == false
+    @test Peridynamics.mpi_run() == false
     force_mpi_run!()
     @test Peridynamics.mpi_run() == true
     enable_mpi_progress_bars!()
@@ -44,6 +58,10 @@ end
     @test Peridynamics.mpi_progress_bars() == false
     Peridynamics.set_progress_bars!()
     @test Peridynamics.progress_bars() == false
+
+    # reset MPI refs
+    Peridynamics.MPI_RUN[] = false
+    Peridynamics.MPI_RUN_FORCED[] = false
 end
 
 @testitem "msg_qty" begin
