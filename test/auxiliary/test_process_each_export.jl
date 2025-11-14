@@ -136,6 +136,9 @@ end
 end
 
 @testitem "process_each_export with result collection - threads" begin
+    # initial setup
+    Peridynamics.MPI_RUN[] = false
+
     using Base.Threads: nthreads
 
     root = mktempdir()
@@ -151,7 +154,7 @@ end
     job = Job(b1, vv; path=root, freq=1)
     submit(job)
 
-    # Test result collection with NamedTuples (threads backend when serial=false and !mpi_run())
+    # Test result collection with NamedTuples (use threads if serial=false and !mpi_run())
     default_value = (; max_disp=NaN, file_id=0)
     results = process_each_export(job, default_value; serial=false) do r0, r, id
         max_disp = maximum(r[:displacement])
@@ -171,7 +174,7 @@ end
     end
     @test result_nothing === nothing
 
-    # Test that results are computed correctly in parallel - each thread computes independently
+    # Test that results are computed correctly in parallel, each thread calcs independently
     results_parallel = process_each_export(job, 0.0; serial=false) do r0, r, id
         return id * 2.5
     end
@@ -257,7 +260,8 @@ end
     """
     run(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd_legacy)`)
     @test isfile(joinpath(root_post_mpi, "max_displacement_1.txt"))
-    @test contains(read(joinpath(root_post_mpi, "max_displacement_1.txt"), String), "maximum displacement x: 0.0")
+    @test contains(read(joinpath(root_post_mpi, "max_displacement_1.txt"), String),
+                   "maximum displacement x: 0.0")
     @test isfile(joinpath(root_post_mpi, "max_displacement_6.txt"))
 
     # Test 2: MPI with barrier
