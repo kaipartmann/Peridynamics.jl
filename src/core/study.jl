@@ -366,7 +366,30 @@ their completion status yet.
 - With `only_root=true`, `f` runs only on root rank; non-root ranks use `default_result`
 - Error handling includes automatic MPI barrier synchronization across all ranks
 
-!!! danger "Processing on MPI only at the root process"
+!!! danger "Using `process_each_job` inside `@mpiroot` calls"
+    When calling `process_each_job` inside an `@mpiroot` block or any context where only
+    the root process executes the code, you **must** use `only_root=true`. Otherwise, if
+    an error occurs during processing, a deadlock will happen because the error handling
+    attempts an MPI barrier, but non-root ranks are not participating in the
+    `process_each_job` call at all.
+
+    ```julia
+    # Correct: Use only_root=true when inside @mpiroot
+    @mpiroot :wait begin
+        results = process_each_job(study, default; only_root=true) do job, setup
+            # ... processing code
+        end
+    end
+
+    # Incorrect: This will deadlock on errors
+    @mpiroot :wait begin
+        results = process_each_job(study, default) do job, setup  # Missing only_root=true
+            # ... processing code
+        end
+    end
+    ```
+
+!!! danger "Using `only_root=true` with nested `process_each_export` calls"
     When using `only_root=true` in `process_each_job`, you have two safe options for nested
     [`process_each_export`](@ref) calls:
 
