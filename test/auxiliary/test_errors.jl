@@ -9,6 +9,7 @@ end
 @testitem "NaNError" begin
     using Peridynamics.Printf
     ne1 = Peridynamics.NaNError(2.0, 2)
-    msg_correct = "NaN values detected in simulation data!\n  time:    2.0\n  step:    2\n"
+    msg_correct = "NaN values detected in force density field!\n"
+    msg_correct *= "  time:    2.0\n  step:    2\n"
     @test sprint(showerror, ne1) == msg_correct
 end
