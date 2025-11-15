@@ -9,7 +9,7 @@
     end
 end
 
-@testitem "nancheck" begin
+@testitem "check_for_nans" begin
     ref_position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
     volume = [1.0, 1.0]
     δ = 1.5
@@ -17,11 +17,13 @@ end
     body = Body(BBMaterial(), ref_position, volume)
     material!(body, horizon=δ, rho=1, E=E)
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
-    (; storage) = dh.chunks[1]
-    (; b_int) = storage
+    chunk = dh.chunks[1]
+    (; b_int) = chunk.storage
 
-    @test Peridynamics.nancheck(storage, 0.0, 0.0) === nothing
+    @test Peridynamics.check_for_nans(chunk, 0.0, 0.0) === nothing
+    @test Peridynamics.check_for_nans_mpi(chunk, 0.0, 0.0) === nothing
 
     b_int[3, end] = NaN
-    @test_throws ErrorException Peridynamics.nancheck(storage, 0.0, 0.0)
+    @test_throws Peridynamics.NaNError Peridynamics.check_for_nans(chunk, 0.0, 0.0)
+    @test_throws Peridynamics.NaNError Peridynamics.check_for_nans_mpi(chunk, 0.0, 0.0)
 end
