@@ -49,6 +49,8 @@ function submit_mpi(job::Job)
         isa(err, NaNError) && rethrow(err)
         # for other errors, abort MPI to avoid deadlocks (if more than one rank exists)
         mpi_nranks() > 1 && MPI.Abort(mpi_comm(), 1)
+        # if it is happening only on a single rank, we can rethrow safely
+        rethrow(err)
     end
     return dh
 end
