@@ -303,6 +303,7 @@ function calc_force_density!(dh::ThreadsBodyDataHandler{<:BondSystem,<:AbstractR
     end
     @threads :static for chunk_id in eachindex(chunks)
         calc_force_density!(chunks[chunk_id], t, Δt)
+        check_for_nans(chunks[chunk_id], t, Δt)
     end
     @threads :static for chunk_id in eachindex(chunks)
         exchange_halo_to_loc!(dh, chunk_id)
@@ -321,6 +322,7 @@ function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:AbstractRKCMa
     calc_weights_and_defgrad!(chunk, t, Δt)
     exchange_loc_to_halo!(dh, after_fields)
     calc_force_density!(chunk, t, Δt)
+    check_for_nans_mpi(chunk, t, Δt)
     exchange_halo_to_loc!(dh)
     return nothing
 end
@@ -345,7 +347,9 @@ function calc_force_density!(storage::AbstractStorage, system::AbstractBondSyste
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
 
-    nancheck(storage, t, Δt)
+    # This is currently only used with Newton-Raphson, so we can assume only the
+    # thread-version of check_for_nans is required here
+    check_for_nans(storage, t, Δt)
     return nothing
 end
 
@@ -538,7 +542,6 @@ function calc_force_density!(storage::AbstractStorage, system::AbstractBondSyste
     for i in each_point_idx(system)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
-    nancheck(storage, t, Δt)
     return nothing
 end
 
