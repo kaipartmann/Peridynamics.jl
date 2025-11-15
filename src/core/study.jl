@@ -210,44 +210,59 @@ function submit!(study::Study; kwargs...)
         end
     end
 
+    # Remove the vtk-files from previous failed runs if any
+    # REMARK: This has to be done here because we need a barrier for that and inside the
+    # job submission there is no barrier possible without risking deadlocks.
+    for (i, job) in enumerate(study.jobs)
+        if !study.sim_success[i]
+            vtk_path = job.options.vtk
+            @mpiroot :wait isdir(vtk_path) && rm(vtk_path; force=true, recursive=true)
+        end
+    end
+
     # Now submit each job
     n_jobs = length(study.jobs)
     for (i, job) in enumerate(study.jobs)
-        # If this job already completed in a previous run, skip execution
-        @mpiroot :wait open(study.logfile, "a") do io
+        sim_already_successful = study.sim_success[i]
+
+        # Logging about the simulation
+        @mpiroot open(study.logfile, "a") do io
             msg = @sprintf "(%d/%d) Simulation `%s`:\n" i n_jobs job.options.root
             for (key, value) in pairs(study.setups[i])
                 msg *= "  $(key): $(value)\n"
             end
+            if sim_already_successful
+                msg *= "  status: skipped (completed in a previous run)\n\n"
+            end
             write(io, msg)
         end
-        if study.sim_success[i]
-            # Write a short note about skipping to the study logfile
-            @mpiroot :wait open(study.logfile, "a") do io
-                write(io, "  status: skipped (completed in a previous run)\n\n")
-            end
-            continue
-        end
+        # If this job already completed in a previous run, skip execution
+        sim_already_successful && continue
+
+        # Execute the job
         simtime = @elapsed begin
             success = try
-                # remove the vtk files from previous failed runs if any
-                @mpiroot :wait if isdir(job.options.vtk)
-                    rm(job.options.vtk; force=true, recursive=true)
-                end
                 submit(job; kwargs...)
                 true
             catch err
-                @mpiroot :wait if !(quiet())
-                    printstyled(stderr, "\nERROR:"; color=:red, bold=true)
+                # IMPORTANT! Here should not be a :wait to avoid deadlocks!
+                # Some ranks might not reach this point if the error occurs only on certain
+                # ranks. Thus, only the root rank should attempt to print the error.
+                @mpiroot if !(quiet())
+                    msg = (mpi_run() && !mpi_progress_bars()) ? "\nERROR:" : "\n\nERROR:"
+                    printstyled(stderr, msg; color=:red, bold=true)
                     msg = " job `$(job.options.root)` failed with error!\n"
-                    msg *= sprint(showerror, err, catch_backtrace())
+                    msg *= "See the job's logfile fore more details.\n"
                     println(stderr, msg)
                 end
                 false
             end
         end
         study.sim_success[i] = success
-        @mpiroot :wait open(study.logfile, "a") do io
+
+        # Logging about the simulation status
+        # IMPORTANT! Also here: do not use :wait to avoid deadlocks!
+        @mpiroot open(study.logfile, "a") do io
             if success
                 msg = @sprintf("  status: completed ✓ (%.2f seconds)\n\n", simtime)
             else

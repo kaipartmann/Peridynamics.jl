@@ -273,7 +273,6 @@ function calc_force_density!(storage::AbstractStorage, system::AbstractBondSyste
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
-    nancheck(storage, t, Δt)
     return nothing
 end
 
@@ -288,7 +287,6 @@ function calc_force_density!(storage::AbstractStorage, system::AbstractBondSyste
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
-    nancheck(storage, t, Δt)
     return nothing
 end
 

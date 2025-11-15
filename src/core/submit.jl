@@ -17,19 +17,10 @@ function submit(job::Job; kwargs...)
     quiet = get_submit_options(o)
     set_quiet!(quiet)
 
-    dh = try
-        if mpi_run()
-            submit_mpi(job)
-        else
-            submit_threads(job, nthreads())
-        end
-    catch err
-        timestamp = Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
-        msg = "\nERROR: submit failed with error at $(timestamp)!\n"
-        msg *= sprint(showerror, err, catch_backtrace())
-        msg *= "\n"
-        add_to_logfile(job.options, msg)
-        rethrow(err)
+    if mpi_run()
+        dh = submit_mpi(job)
+    else
+        dh = submit_threads(job, nthreads())
     end
 
     return dh
@@ -46,6 +37,25 @@ function get_submit_options(o::Dict{Symbol,Any})
 end
 
 function submit_mpi(job::Job)
+    dh = try
+        _submit_mpi(job)
+    catch err
+        timestamp = Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
+        msg = "\nERROR: submit failed with error at $(timestamp) in rank $(mpi_rank())!\n"
+        msg *= sprint(showerror, err, catch_backtrace())
+        msg *= "\n"
+        add_to_logfile(job.options, msg)
+        # only rethrowing NaNErrors, which are synchronized across all ranks
+        isa(err, NaNError) && rethrow(err)
+        # for other errors, abort MPI to avoid deadlocks (if more than one rank exists)
+        mpi_nranks() > 1 && MPI.Abort(mpi_comm(), 1)
+        # if it is happening only on a single rank, we can rethrow safely
+        rethrow(err)
+    end
+    return dh
+end
+
+function _submit_mpi(job::Job)
     timeit_debug_enabled() && reset_timer!(TO)
     simulation_duration = @elapsed begin
         @timeit_debug TO "initialization" begin
@@ -72,7 +82,21 @@ function submit_mpi(job::Job)
     return dh
 end
 
-function submit_threads(job::Job, n_chunks::Int)
+function submit_threads(job::Job, n_threads::Int)
+    dh = try
+        _submit_threads(job, n_threads)
+    catch err
+        timestamp = Dates.format(Dates.now(), "yyyy-mm-dd, HH:MM:SS")
+        msg = "\nERROR: submit failed with error at $(timestamp)!\n"
+        msg *= sprint(showerror, err, catch_backtrace())
+        msg *= "\n"
+        add_to_logfile(job.options, msg)
+        rethrow(err) # rethrowing all errors, as no deadlocks can occur here
+    end
+    return dh
+end
+
+function _submit_threads(job::Job, n_chunks::Int)
     simulation_duration = @elapsed begin
         init_logs(job.options)
         log_spatial_setup(job.options, job.spatial_setup)

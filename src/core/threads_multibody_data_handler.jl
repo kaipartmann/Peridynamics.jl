@@ -65,6 +65,7 @@ function calc_force_density!(dh::ThreadsMultibodyDataHandler, t, Δt)
         @threads :static for chunk_id in eachindex(body_dh.chunks)
             exchange_loc_to_halo!(body_dh, chunk_id)
             calc_force_density!(body_dh.chunks[chunk_id], t, Δt)
+            check_for_nans(body_dh.chunks[chunk_id], t, Δt)
         end
     end
     return nothing
