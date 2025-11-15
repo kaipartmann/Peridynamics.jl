@@ -36,12 +36,12 @@ end
 
 $(internal_api_warning())
 
-A type for a customized error that is thrown when NaN values are detected in the internal
+A type for a customized error that is thrown when `NaN` values are detected in the internal
 force density field after the force density evaluation.
 
 # Fields
-- `time::Float64`: Simulation time when NaNs were detected.
-- `step::Int`: Simulation step when NaNs were detected.
+- `time::Float64`: Simulation time when `NaN`s were detected.
+- `step::Int`: Simulation step when `NaN`s were detected.
 """
 struct NaNError <: Exception
     time::Float64
@@ -52,7 +52,7 @@ struct NaNError <: Exception
 end
 
 function Base.showerror(io::IO, e::NaNError)
-    print(io, "NaN values detected in simulation data!")
+    print(io, "NaN values detected in force density field!")
     print(io, "\n  time:    ")
     printstyled(io, string(e.time); bold=true, color=:red)
     print(io, "\n  step:    ")

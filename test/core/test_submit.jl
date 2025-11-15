@@ -83,7 +83,7 @@ end
     # run(cmd)
 
     logfile_contents = read(joinpath(path, "logfile.log"), String)
-    msg_correct = "NaN values detected in simulation data!\n"
+    msg_correct = "NaN values detected in force density field!\n"
     msg_correct *= "  time:    $(2Δt)\n  step:    2\n"
     @test occursin(msg_correct, logfile_contents)
 end

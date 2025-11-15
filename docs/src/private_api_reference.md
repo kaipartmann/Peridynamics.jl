@@ -11,6 +11,7 @@ Pages = ["private_api_reference.md"]
 ## Types
 ```@docs
 Peridynamics.InterfaceError
+Peridynamics.NaNError
 Peridynamics.HaloExchange
 Peridynamics.JobOptions
 Peridynamics.MPIHaloInfo
