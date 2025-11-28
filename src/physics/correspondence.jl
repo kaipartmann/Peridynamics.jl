@@ -330,7 +330,6 @@ end
 function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
                           mat::AbstractCorrespondenceMaterial, defgrad_res, i)
     (; F) = defgrad_res
-    # if storage.n_active_bonds[i] ≤ 3 || storage.damage[i] > mat.maxdmg || containsnan(F)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         # kill all bonds of this point
         storage.bond_active[each_bond_idx(system, i)] .= false
