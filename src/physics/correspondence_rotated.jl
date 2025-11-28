@@ -106,7 +106,6 @@ function calc_deformation_gradient!(storage::CRStorage, system::BondSystem, ::CR
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     _Ḟ = zero(SMatrix{3,3,Float64,9})
-    ω0 = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
@@ -114,7 +113,6 @@ function calc_deformation_gradient!(storage::CRStorage, system::BondSystem, ::CR
         Δxij = get_vector_diff(storage.position, i, j)
         Δvij = get_vector_diff(storage.velocity_half, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
-        ω0 += ωij
         temp = ωij * volume[j]
         ΔXijt = ΔXij'
         K += temp * (ΔXij * ΔXijt)
@@ -125,7 +123,7 @@ function calc_deformation_gradient!(storage::CRStorage, system::BondSystem, ::CR
     F = _F * Kinv
     Ḟ = _Ḟ * Kinv
     Peridynamics.update_tensor!(storage.defgrad, i, F)
-    return (; F, Ḟ, Kinv, ω0)
+    return (; F, Ḟ, Kinv)
 end
 
 function calc_first_piola_kirchhoff!(storage::CRStorage, mat::CRMaterial,
