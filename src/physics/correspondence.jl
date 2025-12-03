@@ -238,14 +238,12 @@ function calc_deformation_gradient!(storage::CStorage, system::BondSystem, ::CMa
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
-    ω0 = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
-        ω0 += ωij
         temp = ωij * volume[j]
         ΔXijt = ΔXij'
         K += temp * (ΔXij * ΔXijt)
@@ -254,7 +252,7 @@ function calc_deformation_gradient!(storage::CStorage, system::BondSystem, ::CMa
     Kinv = inv(K)
     F = _F * Kinv
     Peridynamics.update_tensor!(storage.defgrad, i, F)
-    return (; F, Kinv, ω0)
+    return (; F, Kinv)
 end
 
 function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
@@ -272,8 +270,9 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
                           zem_correction::ZEMSilling, PKinv, defgrad_res, i)
     (; bonds, volume) = system
     (; bond_active) = storage
-    (; F, ω0) = defgrad_res
+    (; F) = defgrad_res
     (; Cs) = zem_correction
+    β = Cs * params.bc / params.δ
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
@@ -282,7 +281,8 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
 
         # stabilization
         ωij = kernel(system, bond_id) * bond_active[bond_id]
-        tzem = Cs .* params.bc * ωij / ω0 .* (Δxij .- F * ΔXij)
+        z = Δxij - F * ΔXij
+        tzem = ωij * β * z
 
         # update of force density
         tij = ωij * PKinv * ΔXij + tzem
@@ -309,7 +309,8 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
         # improved stabilization from this article:
         # https://doi.org/10.1007/s10409-019-00873-y
         ωij = kernel(system, bond_id) * bond_active[bond_id]
-        tzem = ωij * C_1 * (Δxij .- F * ΔXij)
+        z = Δxij - F * ΔXij
+        tzem = ωij * C_1 * z
 
         # update of force density
         tij = ωij * PKinv * ΔXij + tzem
@@ -329,7 +330,6 @@ end
 function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
                           mat::AbstractCorrespondenceMaterial, defgrad_res, i)
     (; F) = defgrad_res
-    # if storage.n_active_bonds[i] ≤ 3 || storage.damage[i] > mat.maxdmg || containsnan(F)
     if storage.damage[i] > mat.maxdmg || containsnan(F)
         # kill all bonds of this point
         storage.bond_active[each_bond_idx(system, i)] .= false
