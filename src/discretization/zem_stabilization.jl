@@ -11,11 +11,11 @@ correspondence formulation to stabilize the zero-energy modes.
 See also [`CMaterial`](@ref) on how to use this stabilization algorithm.
 
 # Keywords
-- `Cs::Real`: Stabilization factor. (default: `100.0`)
+- `Cs::Real`: Stabilization factor. (default: `0.5`)
 """
 struct ZEMSilling <: AbstractZEMStabilization
     Cs::Float64
-    function ZEMSilling(; Cs::Real=100.0)
+    function ZEMSilling(; Cs::Real=0.5)
         return new(Cs)
     end
 end
