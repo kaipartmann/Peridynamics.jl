@@ -286,8 +286,7 @@ julia> volume
 function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center=(0, 0, 0))
     radius = diameter / 2
 
-    xy = sphere_shape_coords(ΔX0, radius,
-                             SVector{2}((center[1], center[2])))
+    xy = sphere_shape_coords(ΔX0, radius, SVector{2}((center[1], center[2])))
     _z = range(-height/2, height/2, step=ΔX0)
     z = _z .- sum(_z) / length(_z) .+ center[3]
     n_layers = length(z)
@@ -480,4 +479,35 @@ function _round_sphere(particle_spacing, radius, center::SVector{3})
     end
 
     return particle_coords
+end
+
+#################################################################
+
+function rotate!(position, dimension, angle)
+    # Create rotation matrix
+    dim = get_dim(dimension)
+    if dim == 1
+        R = SMatrix{3,3,Float64,9}(
+                    1, 0, 0, 0, cosd(angle), sind(angle), 0, -sind(angle), cosd(angle))
+    elseif dim == 2
+        R = SMatrix{3,3,Float64,9}(
+        cosd(angle), 0, -sind(angle), 0, 1, 0, sind(angle), 0, cosd(angle))
+    else
+        R = SMatrix{3,3,Float64,9}(
+        cosd(angle), sind(angle), 0, -sind(angle), cosd(angle), 0, 0, 0, 1)
+    end
+
+    # Apply rotation to all position vectors
+    for i in axes(position, 2)
+        pos = get_vector(position, i)
+        update_vector!(position, i, R * pos)
+    end
+    return nothing
+end
+
+function rotate!(position; angles=(0,0,0))
+    for i in 1:3
+        rotate!(position, i, angles[i])
+    end
+    return nothing
 end
