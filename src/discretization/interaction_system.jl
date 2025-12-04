@@ -429,6 +429,20 @@ end
 
 function calc_force_density!(storage::AbstractStorage, system::InteractionSystem,
                              mat::AbstractInteractionSystemMaterial,
+                             paramsetup::AbstractParameterSetup, t, Δt)
+    (; dmgmodel) = mat
+    storage.b_int .= 0
+    storage.n_active_one_nis .= 0
+    for i in each_point_idx(system)
+        calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
+        calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
+        force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
+    end
+    return nothing
+end
+
+function calc_force_density!(storage::AbstractStorage, system::InteractionSystem,
+                             mat::AbstractInteractionSystemMaterial,
                              paramsetup::AbstractParameterSetup, idxs::AbstractVector{Int},
                              t, Δt)
     (; dmgmodel) = mat
