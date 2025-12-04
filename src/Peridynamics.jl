@@ -1,7 +1,7 @@
 module Peridynamics
 
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, ProgressMeter,
-      WriteVTK, TimerOutputs, MPI, PrecompileTools, IterativeSolvers
+      WriteVTK, TimerOutputs, MPI, PrecompileTools, IterativeSolvers, LinearMaps
 @static if Sys.islinux()
     using ThreadPinning
 end

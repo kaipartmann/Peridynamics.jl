@@ -5,9 +5,14 @@ $(internal_api_warning())
 $(experimental_api_warning())
 
 An implicit time integration solver for quasi-static peridynamic simulations using the
-Newton-Raphson iterative method.
-The solver uses a Finite-Differences approach to compute the tangent stiffness
-matrix (Jacobian) and GMRES to solve the resulting linear system at each iteration.
+Jacobian-Free Newton-Krylov (JFNK) method.
+
+The solver uses a matrix-free approach where the Jacobian-vector product is computed
+via central finite differences: `J*v ≈ (F(u + ε*v) - F(u - ε*v)) / (2ε)`. This eliminates
+the need to store the full Jacobian matrix, reducing memory from O(n²) to O(n), enabling
+simulations with large numbers of points.
+
+GMRES is used as the Krylov solver for the resulting linear system at each iteration.
 
 # Keywords:
 - `time::Real`: Total simulation time. Cannot be used together with `steps`.
@@ -16,7 +21,7 @@ matrix (Jacobian) and GMRES to solve the resulting linear system at each iterati
 - `maxiter::Int`: Maximum number of iterations per step (default: 100).
 - `tol::Real`: Tolerance for convergence (default: 1e-4).
 - `perturbation::Real`: Perturbation size for finite difference approximation of the
-    stiffness matrix (default: 1e-7 times the point spacing).
+    Jacobian-vector product (default: 1e-7 times the point spacing).
 - `gmres_maxiter::Int`: Maximum number of iterations for GMRES (default: min(200, n_dof)).
 - `gmres_reltol::Real`: Relative tolerance for GMRES (default: 1e-4).
 - `gmres_abstol::Real`: Absolute tolerance for GMRES (default: 1e-8).
@@ -271,9 +276,6 @@ function newton_raphson_step!(dh::ThreadsBodyDataHandler,
         calc_force_density!(dh, t, Δt)
         calc_residual!(chunk)
 
-        # Calculate local Jacobian matrix
-        calc_jacobian!(chunk, nr, t, Δt)
-
         # Check convergence using combined residual from all chunks
         r = get_residual_norm(dh)
         msg = @sprintf("\r  step: %8d | iter: %8d | r: %16g", n, iter, r)
@@ -290,8 +292,8 @@ function newton_raphson_step!(dh::ThreadsBodyDataHandler,
             throw(ErrorException(msg))
         end
 
-        # Solve local linear system for displacement correction
-        solve_linear_system!(chunk, nr)
+        # Solve linear system using Jacobian-free Newton-Krylov method
+        solve_linear_system!(chunk, nr, t, Δt)
     end
 
     @threads for chunk_id in eachindex(dh.chunks)
@@ -336,106 +338,93 @@ function get_residual_norm(chunk::AbstractBodyChunk)
     return norm(chunk.storage.residual)
 end
 
-function calc_jacobian!(chunk::AbstractBodyChunk, nr::NewtonRaphson, t, Δt)
+"""
+    jacobian_vector_product!(Jv, chunk, solver, v, t, Δt)
+
+Compute the Jacobian-vector product `J * v` using central finite differences.
+The result is stored in `Jv`.
+
+This is the core of the Jacobian-Free Newton-Krylov (JFNK) method.
+Uses central difference approximation for O(ε²) accuracy:
+    J * v ≈ (F(u + ε*v) - F(u - ε*v)) / (2ε)
+"""
+function jacobian_vector_product!(Jv::AbstractVector, chunk::AbstractBodyChunk,
+                                  solver::NewtonRaphson, v::AbstractVector, t, Δt)
     (; storage, system, mat, paramsetup, condhandler) = chunk
-    (; b_int, jacobian, position, displacement, affected_points) = storage
-    (; b_int_copy, displacement_copy, temp_force_a, temp_force_b) = storage
+    (; b_int, position, displacement) = storage
+    (; b_int_copy, displacement_copy, temp_force_a) = storage
     (; volume) = system
     (; constrained_dofs) = condhandler
-    (; perturbation) = nr
+    ε = solver.perturbation
 
-    # Number of total degrees of freedom (local + halo)
-    n_dof = get_n_dof(system)
-
-    # Perturbation size
-    ε = perturbation
-
-    # Zero out the stiffness matrix
-    jacobian .= 0.0
-
-    # Store original displacement
+    # Store original displacement and force density
     displacement_copy .= displacement
-
-    # Store original force density
     b_int_copy .= b_int
 
-    # Store forces (convert to vector format)
-    temp_force_a .= 0.0
-    temp_force_b .= 0.0
-
-    # Loop over each degree of freedom for perturbation
-    for (dof, _, i) in each_loc_dof_idx(system)
-        dof in free_dofs(condhandler) || continue
-
-        # Apply positive perturbation
-        displacement[dof] = displacement_copy[dof] + ε
-        position[dof] = system.position[dof] + displacement[dof]
-
-        # Get affected points for this dof
-        points = affected_points[i]
-
-        b_int .= 0.0
-        calc_force_density!(storage, system, mat, paramsetup, points, t, Δt)
-
-        # Store forces (convert to vector format)
-        for (_dof, _, _i) in each_dof_idx(system)
-            @inbounds temp_force_a[_dof] = storage.b_int[_dof] * volume[_i]
-        end
-
-        # Apply negative perturbation
-        displacement[dof] = displacement_copy[dof] - ε
-        position[dof] = system.position[dof] + displacement[dof]
-
-        b_int .= 0.0
-        calc_force_density!(storage, system, mat, paramsetup, points, t, Δt)
-
-        # Store forces (convert to vector format)
-        for (_dof, _, _i) in each_dof_idx(system)
-            @inbounds temp_force_b[_dof] = storage.b_int[_dof] * volume[_i]
-        end
-
-        # Calculate finite difference and store in stiffness matrix
-        for k in 1:n_dof
-            @inbounds jacobian[k, dof] = (temp_force_a[k] - temp_force_b[k]) / (2ε)
-        end
-
-        # Restore original displacement and position
-        displacement[dof] = displacement_copy[dof]
-        position[dof] = system.position[dof] + displacement[dof]
+    # Apply positive perturbation: u + ε*v
+    for (dof, _, _) in each_loc_dof_idx(system)
+        @inbounds displacement[dof] = displacement_copy[dof] + ε * v[dof]
+        @inbounds position[dof] = system.position[dof] + displacement[dof]
     end
 
-    # Final restore: recalculate forces at original state
-    b_int .= b_int_copy
+    # Calculate forces at positively perturbed state
+    b_int .= 0.0
+    calc_force_density!(storage, system, mat, paramsetup, t, Δt)
 
-    # Apply constraint elimination for constrained DOFs
-    # Since residual is already zero for these DOFs and we only update free DOFs,
-    # we set the row/column to identity to make the system well-conditioned
+    # Compute F(u + ε*v) * volume and store in temp_force_a
+    for (dof, _, i) in each_dof_idx(system)
+        @inbounds temp_force_a[dof] = b_int[dof] * volume[i]
+    end
+
+    # Apply negative perturbation: u - ε*v
+    for (dof, _, _) in each_loc_dof_idx(system)
+        @inbounds displacement[dof] = displacement_copy[dof] - ε * v[dof]
+        @inbounds position[dof] = system.position[dof] + displacement[dof]
+    end
+
+    # Calculate forces at negatively perturbed state
+    b_int .= 0.0
+    calc_force_density!(storage, system, mat, paramsetup, t, Δt)
+
+    # Compute Jacobian-vector product: Jv = (F(u + εv) - F(u - εv)) / (2ε)
+    for (dof, _, i) in each_dof_idx(system)
+        @inbounds Jv[dof] = (temp_force_a[dof] - b_int[dof] * volume[i]) / (2ε)
+    end
+
+    # Handle constrained DOFs: set Jv[dof] = v[dof] (identity row)
     for dof in constrained_dofs
-        # Zero out row
-        for j in axes(jacobian, 2)
-            @inbounds jacobian[dof, j] = 0.0
-        end
-        # Zero out column
-        for i in axes(jacobian, 1)
-            @inbounds jacobian[i, dof] = 0.0
-        end
-        # Set diagonal to 1 (identity), ensures Δu[dof] = 0 since residual[dof] = 0
-        @inbounds jacobian[dof, dof] = 1.0
+        @inbounds Jv[dof] = v[dof]
     end
+
+    # Restore original displacement, position, and force density
+    for (dof, _, _) in each_loc_dof_idx(system)
+        @inbounds displacement[dof] = displacement_copy[dof]
+        @inbounds position[dof] = system.position[dof] + displacement[dof]
+    end
+    b_int .= b_int_copy
 
     return nothing
 end
 
-function solve_linear_system!(chunk::AbstractBodyChunk, solver::NewtonRaphson)
+function solve_linear_system!(chunk::AbstractBodyChunk, solver::NewtonRaphson, t, Δt)
     (; storage, condhandler) = chunk
     (; free_dofs) = condhandler
-    (; position, displacement, jacobian, residual, Δu) = storage
+    (; position, displacement, residual, Δu) = storage
     (; gmres_maxiter, gmres_reltol, gmres_abstol) = solver
 
     Δu .= 0.0
 
+    # Create Jacobian-free linear operator using a closure
+    n_dof = get_n_dof(chunk.system)
+    J_linmap = LinearMap(n_dof; issymmetric=false, ismutating=true) do Jv, v
+        jacobian_vector_product!(Jv, chunk, solver, v, t, Δt)
+    end
+
+    # Solve using GMRES with the matrix-free operator
+    # Use larger restart value to improve convergence for ill-conditioned systems
     maxiter, reltol, abstol = gmres_maxiter, gmres_reltol, gmres_abstol
-    gmres!(Δu, jacobian, -residual; maxiter, reltol, abstol)
+    restart = min(50, n_dof)  # Restart after 50 iterations
+    gmres!(Δu, J_linmap, -residual; maxiter, reltol, abstol, restart)
 
     for dof in free_dofs
         @inbounds du = Δu[dof]
@@ -490,11 +479,7 @@ function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:
     return Vector{Float64}()
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem,
-                           ::Val{:jacobian})
-    n_dof = get_n_dof(system)
-    return zeros(n_dof, n_dof)
-end
+# Note: jacobian field removed - using Jacobian-free Newton-Krylov method
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
                            ::Val{:jacobian})
     return Array{Float64,2}(undef, 0, 0)
@@ -508,9 +493,7 @@ function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
     return Array{Float64,1}(undef, 0)
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:temp_force_b})
-    return zeros(get_n_dof(system))
-end
+# Note: temp_force_b field removed - using forward difference in JFNK
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
                            ::Val{:temp_force_b})
     return Array{Float64,1}(undef, 0)
@@ -523,22 +506,16 @@ function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:
     return Array{Float64,1}(undef, 0)
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:affected_points})
-    affected_points = Vector{Vector{Int}}(undef, get_n_loc_points(system))
-    for i in each_point_idx(system)
-        affected_points[i] = get_affected_points(system, i)
-    end
-    return affected_points
-end
+# Note: affected_points field removed - not needed for matrix-free approach
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
                            ::Val{:affected_points})
     return Vector{Vector{Int}}()
 end
 
 function req_point_data_fields_timesolver(::Type{<:NewtonRaphson})
+    # Jacobian-free Newton-Krylov method: no jacobian, temp_force_b, or affected_points
     fields = (:position, :displacement, :b_int, :b_ext,
-              :residual, :jacobian, :displacement_copy,
-              :temp_force_a, :temp_force_b, :b_int_copy, :Δu, :affected_points)
+              :residual, :displacement_copy, :temp_force_a, :b_int_copy, :Δu)
     return fields
 end
 
@@ -551,7 +528,7 @@ function req_data_fields_timesolver(::Type{<:NewtonRaphson})
 end
 
 function log_timesolver(options::AbstractJobOptions, nr::NewtonRaphson)
-    msg = "NEWTON-RAPHSON TIME SOLVER\n"
+    msg = "JACOBIAN-FREE NEWTON-KRYLOV SOLVER\n"
     msg *= msg_qty("number of time steps", nr.n_steps)
     msg *= msg_qty("time step size", nr.Δt)
     msg *= msg_qty("simulation time", nr.end_time)
