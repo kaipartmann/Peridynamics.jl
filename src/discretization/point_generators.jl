@@ -11,8 +11,6 @@ and point spacing `ΔX0`.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `angles`: Angles (in degrees) for rotation around the x-, y- and z-axis in this order.
-            Calls the function `rotate!` internally. Default: `(0, 0, 0)`
 - `center`: The coordinates of the center of the cuboid. Default: `(0, 0, 0)`
 
 # Returns
@@ -43,8 +41,7 @@ julia> volume
  8
 ```
 """
-function uniform_box(lx::Real, ly::Real, lz::Real, ΔX0::Real; angles=(0, 0, 0),
-                     center=(0, 0, 0))
+function uniform_box(lx::Real, ly::Real, lz::Real, ΔX0::Real; center=(0, 0, 0))
     center_x, center_y, center_z = center
     _gridx = range((-lx + ΔX0) / 2, (lx - ΔX0) / 2; step=ΔX0)
     gridx = _gridx .- sum(_gridx) / length(_gridx)
@@ -55,7 +52,6 @@ function uniform_box(lx::Real, ly::Real, lz::Real, ΔX0::Real; angles=(0, 0, 0),
     _position = vec(collect(Iterators.product(gridx, gridy, gridz)))
     position = copy(reinterpret(reshape, eltype(eltype(_position)), _position))
     volume = fill(ΔX0^3, size(position, 2))
-    rotate!(position; angles)
     isapprox(center_x, 0; atol=eps()) || (position[1, :] .+= center_x)
     isapprox(center_y, 0; atol=eps()) || (position[2, :] .+= center_y)
     isapprox(center_z, 0; atol=eps()) || (position[3, :] .+= center_z)
@@ -74,8 +70,6 @@ sphere can occur.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `angles`: Angles (in degrees) for rotation around the x-, y- and z-axis in this order.
-            Calls the function `rotate!` internally. Default: `(0, 0, 0)`
 - `center`: The coordinates of the center of the sphere. Default: `(0, 0, 0)`
 
 # Returns
@@ -108,7 +102,7 @@ julia> volume
  8
 ```
 """
-function uniform_sphere(diameter::Real, ΔX0::Real; angles=(0, 0, 0), center=(0, 0, 0))
+function uniform_sphere(diameter::Real, ΔX0::Real; center=(0, 0, 0))
     center_x, center_y, center_z = center
     radius = diameter / 2
     _grid = range(- radius + ΔX0 / 2, radius - ΔX0 / 2; step=ΔX0)
@@ -118,7 +112,6 @@ function uniform_sphere(diameter::Real, ΔX0::Real; angles=(0, 0, 0), center=(0,
     sphere_points = find_points(p -> √(p[1]^2 + p[2]^2 + p[3]^2) ≤ radius, _position)
     position = _position[:, sphere_points]
     volume = fill(ΔX0^3, size(position, 2))
-    rotate!(position; angles)
     isapprox(center_x, 0; atol=eps()) || (position[1, :] .+= center_x)
     isapprox(center_y, 0; atol=eps()) || (position[2, :] .+= center_y)
     isapprox(center_z, 0; atol=eps()) || (position[3, :] .+= center_z)
@@ -138,8 +131,6 @@ spacings, edges on the surface of the cylinder can occur.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `angles`: Angles (in degrees) for rotation around the x-, y- and z-axis in this order.
-            Calls the function `rotate!` internally. Default: `(0, 0, 0)`
 - `center`: The coordinates of the center of the cylinder. Default: `(0, 0, 0)`
 
 # Returns
@@ -172,8 +163,7 @@ julia> volume
  8
 ```
 """
-function uniform_cylinder(diameter::Real, height::Real, ΔX0::Real; angles=(0, 0, 0),
-                          center=(0, 0, 0))
+function uniform_cylinder(diameter::Real, height::Real, ΔX0::Real; center=(0, 0, 0))
     radius = diameter / 2
     center_x, center_y, center_z = center
     _gridxy = range(-radius + ΔX0 / 2, radius - ΔX0 / 2; step=ΔX0)
@@ -185,7 +175,6 @@ function uniform_cylinder(diameter::Real, height::Real, ΔX0::Real; angles=(0, 0
     cylinder_points = find_points(p -> √(p[1]^2 + p[2]^2) ≤ radius, _position)
     position = _position[:, cylinder_points]
     volume = fill(ΔX0^3, size(position, 2))
-    rotate!(position; angles)
     isapprox(center_x, 0; atol=eps()) || (position[1, :] .+= center_x)
     isapprox(center_y, 0; atol=eps()) || (position[2, :] .+= center_y)
     isapprox(center_z, 0; atol=eps()) || (position[3, :] .+= center_z)
@@ -263,8 +252,6 @@ of the cylinder.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `angles`: Angles (in degrees) for rotation around the x-, y- and z-axis in this order.
-            Calls the function `rotate!` internally. Default: `(0, 0, 0)`
 - `center`: The coordinates of the center of the cylinder. Default: `(0, 0, 0)`
 
 # Returns
@@ -296,14 +283,12 @@ julia> volume
  13.089969389957473
 ```
 """
-function round_cylinder(diameter::Real, height::Real, ΔX0::Real; angles=(0, 0, 0),
-                        center=(0, 0, 0))
+function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center=(0, 0, 0))
     radius = diameter / 2
-    center_x, center_y, center_z = center
 
-    xy = sphere_shape_coords(ΔX0, radius, SVector{2}((0, 0)))
+    xy = sphere_shape_coords(ΔX0, radius, SVector{2}((center[1], center[2])))
     _z = range(-height/2, height/2, step=ΔX0)
-    z = _z .- sum(_z) / length(_z) #.+ center[3]
+    z = _z .- sum(_z) / length(_z) .+ center[3]
     n_layers = length(z)
     n_points_per_layer = size(xy, 2)
     n_points = n_points_per_layer * n_layers
@@ -317,10 +302,6 @@ function round_cylinder(diameter::Real, height::Real, ΔX0::Real; angles=(0, 0, 
     end
     volumes = zeros(n_points)
     volumes .= 2 * π * radius^2 * height / n_points
-    rotate!(coordinates; angles)
-    isapprox(center_x, 0; atol=eps()) || (coordinates[1, :] .+= center_x)
-    isapprox(center_y, 0; atol=eps()) || (coordinates[2, :] .+= center_y)
-    isapprox(center_z, 0; atol=eps()) || (coordinates[3, :] .+= center_z)
     return coordinates, volumes
 end
 
