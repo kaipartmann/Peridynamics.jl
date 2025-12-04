@@ -57,6 +57,7 @@ uniform_sphere
 uniform_cylinder
 round_sphere
 round_cylinder
+rotate!
 n_points
 ```
 
