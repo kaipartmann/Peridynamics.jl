@@ -50,7 +50,6 @@ end
 
 @testitem "Uniform tension NewtonKrylov" begin
     using Peridynamics.Printf
-    using Peridynamics: NewtonKrylov, displacement_bc!
 
     l, w, h, Δx = 1.0, 0.1, 0.1, 1/30
     F = 2e6 # Force in N applied at the right boundary

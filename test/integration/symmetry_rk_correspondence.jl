@@ -107,7 +107,6 @@ end
 end
 
 @testitem "symmetry RKCMaterial NewtonKrylov" begin
-    using Peridynamics: NewtonKrylov
     # simulation
     Δx = 0.22
     width = 1

@@ -634,9 +634,6 @@ end
 """
     displacement_bc!(f::Function, body::Body, points::Vector{Int}, dim::Int)
 
-$(internal_api_warning())
-$(experimental_api_warning())
-
 !!! warning "Compatibility limited"
     This boundary condition type only works with the NewtonKrylov solver for now.
 
