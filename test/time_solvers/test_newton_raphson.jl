@@ -1,22 +1,22 @@
-@testitem "NewtonRaphson wrong input" begin
-    using Peridynamics: NewtonRaphson
-    @test_throws ArgumentError NewtonRaphson(time=1, steps=10)
-    @test_throws ArgumentError NewtonRaphson()
-    @test_throws ArgumentError NewtonRaphson(steps=10, stepsize=0)
-    @test_throws ArgumentError NewtonRaphson(steps=10, stepsize=-0.1)
-    @test_throws ArgumentError NewtonRaphson(steps=10, stepsize=0.1, maxiter=0)
-    @test_throws ArgumentError NewtonRaphson(steps=10, stepsize=0.1, maxiter=-1)
-    @test_throws ArgumentError NewtonRaphson(steps=10, stepsize=0.1, tol=0)
-    @test_throws ArgumentError NewtonRaphson(steps=10, stepsize=0.1, tol=-1e-8)
-    @test_throws ArgumentError NewtonRaphson(steps=10, stepsize=0.1, gmres_reltol=0)
-    @test_throws ArgumentError NewtonRaphson(steps=10, stepsize=0.1, gmres_reltol=-1e-4)
-    @test_throws ArgumentError NewtonRaphson(steps=10, stepsize=0.1, gmres_abstol=0)
-    @test_throws ArgumentError NewtonRaphson(steps=10, stepsize=0.1, gmres_abstol=-1e-8)
+@testitem "NewtonKrylov wrong input" begin
+    using Peridynamics: NewtonKrylov
+    @test_throws ArgumentError NewtonKrylov(time=1, steps=10)
+    @test_throws ArgumentError NewtonKrylov()
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=-0.1)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, maxiter=0)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, maxiter=-1)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, tol=0)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, tol=-1e-8)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_reltol=0)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_reltol=-1e-4)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_abstol=0)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_abstol=-1e-8)
 end
 
-@testitem "NewtonRaphson steps" begin
-    using Peridynamics: NewtonRaphson
-    nr = NewtonRaphson(steps=100)
+@testitem "NewtonKrylov steps" begin
+    using Peridynamics: NewtonKrylov
+    nr = NewtonKrylov(steps=100)
     @test nr.end_time == 100
     @test nr.n_steps == 100
     @test nr.Δt == 1.0
@@ -28,9 +28,9 @@ end
     @test nr.gmres_abstol == 1e-8
 end
 
-@testitem "NewtonRaphson time" begin
-    using Peridynamics: NewtonRaphson
-    nr = NewtonRaphson(time=1.0, stepsize=0.01)
+@testitem "NewtonKrylov time" begin
+    using Peridynamics: NewtonKrylov
+    nr = NewtonKrylov(time=1.0, stepsize=0.01)
     @test nr.end_time == 1.0
     @test nr.n_steps == 100
     @test nr.Δt == 0.01
@@ -38,9 +38,9 @@ end
     @test nr.tol == 1e-4
 end
 
-@testitem "NewtonRaphson custom parameters" begin
-    using Peridynamics: NewtonRaphson
-    nr = NewtonRaphson(steps=50, stepsize=0.02, maxiter=75, tol=1e-6,
+@testitem "NewtonKrylov custom parameters" begin
+    using Peridynamics: NewtonKrylov
+    nr = NewtonKrylov(steps=50, stepsize=0.02, maxiter=75, tol=1e-6,
                       perturbation=1e-8, gmres_maxiter=150, gmres_reltol=1e-5,
                       gmres_abstol=1e-9)
     @test nr.end_time == 1.0
@@ -55,55 +55,55 @@ end
 end
 
 @testitem "newton_raphson_check" begin
-    using Peridynamics: NewtonRaphson
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    using Peridynamics: NewtonKrylov
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.end_time = -1
-    msg = "`end_time` of NewtonRaphson smaller than zero!\n"
+    msg = "`end_time` of NewtonKrylov smaller than zero!\n"
     @test_throws ErrorException(msg) Peridynamics.newton_raphson_check(nr)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.n_steps = -1
-    msg = "`n_steps` of NewtonRaphson smaller than zero!\n"
+    msg = "`n_steps` of NewtonKrylov smaller than zero!\n"
     @test_throws ErrorException(msg) Peridynamics.newton_raphson_check(nr)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.Δt = -1
-    msg = "`Δt` of NewtonRaphson smaller than zero!\n"
+    msg = "`Δt` of NewtonKrylov smaller than zero!\n"
     @test_throws ErrorException(msg) Peridynamics.newton_raphson_check(nr)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.maxiter = -1
-    msg = "`maxiter` of NewtonRaphson smaller than zero!\n"
+    msg = "`maxiter` of NewtonKrylov smaller than zero!\n"
     @test_throws ErrorException(msg) Peridynamics.newton_raphson_check(nr)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.tol = -1
-    msg = "`tol` of NewtonRaphson smaller than zero!\n"
+    msg = "`tol` of NewtonKrylov smaller than zero!\n"
     @test_throws ErrorException(msg) Peridynamics.newton_raphson_check(nr)
 end
 
-@testitem "show NewtonRaphson" begin
-    using Peridynamics: NewtonRaphson
+@testitem "show NewtonKrylov" begin
+    using Peridynamics: NewtonKrylov
 
     io = IOBuffer()
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
 
     show(IOContext(io, :compact=>true), MIME("text/plain"), nr)
     msg = String(take!(io))
-    @test contains(msg, "NewtonRaphson(end_time=1.0, n_steps=10, Δt=0.1, maxiter=100")
+    @test contains(msg, "NewtonKrylov(end_time=1.0, n_steps=10, Δt=0.1, maxiter=100")
 
     show(IOContext(io, :compact=>false), MIME("text/plain"), nr)
     msg = String(take!(io))
-    @test contains(msg, "NewtonRaphson:")
+    @test contains(msg, "NewtonKrylov:")
     @test contains(msg, "end_time")
     @test contains(msg, "n_steps")
     @test contains(msg, "Δt")
     @test contains(msg, "maxiter")
 end
 
-@testitem "chop_body_threads NewtonRaphson forces single chunk" begin
-    using Peridynamics: NewtonRaphson
+@testitem "chop_body_threads NewtonKrylov forces single chunk" begin
+    using Peridynamics: NewtonKrylov
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -111,17 +111,17 @@ end
     body = Body(BBMaterial(), position, volume)
     material!(body, horizon=2, rho=1, E=1)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     point_decomp = Peridynamics.PointDecomposition(body, 4)
     param_spec = Peridynamics.get_param_spec(body)
 
-    # NewtonRaphson now supports multiple chunks (parallel JFNK)
+    # NewtonKrylov now supports multiple chunks (parallel JFNK)
     chunks = Peridynamics.chop_body_threads(body, nr, point_decomp, param_spec)
     @test length(chunks) == 4  # Should use all requested chunks
 end
 
-@testitem "init_time_solver! NewtonRaphson ThreadsBodyDataHandler" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+@testitem "init_time_solver! NewtonKrylov ThreadsBodyDataHandler" begin
+    using Peridynamics: NewtonKrylov, displacement_bc!
 
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
@@ -132,7 +132,7 @@ end
     point_set!(body, :top, [2])
     displacement_bc!(p -> 0.1, body, :top, :y)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
 
     dh = Peridynamics.threads_data_handler(body, nr, 1)
     Peridynamics.init_time_solver!(nr, dh)
@@ -144,8 +144,8 @@ end
     @test nr.gmres_maxiter == 200
 end
 
-@testitem "init_time_solver! NewtonRaphson supports multiple chunks" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+@testitem "init_time_solver! NewtonKrylov supports multiple chunks" begin
+    using Peridynamics: NewtonKrylov, displacement_bc!
 
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
@@ -156,7 +156,7 @@ end
     point_set!(body, :top, [2])
     displacement_bc!(p -> 0.1, body, :top, :y)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
 
     # Create data handler with multiple chunks (now supported with JFNK)
     dh = Peridynamics.threads_data_handler(body, nr, 2)
@@ -166,8 +166,8 @@ end
     @test dh.n_chunks == 2
 end
 
-@testitem "init_time_solver! NewtonRaphson boundary condition checks" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+@testitem "init_time_solver! NewtonKrylov boundary condition checks" begin
+    using Peridynamics: NewtonKrylov, displacement_bc!
 
     # Test: Body with displacement BC should work
     position = [0.0 1.0 0.0 0.0
@@ -179,7 +179,7 @@ end
     point_set!(body, :top, [2])
     displacement_bc!(p -> 0.1, body, :top, :y)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
 
     # Should initialize without error
@@ -187,8 +187,8 @@ end
     @test nr.perturbation > 0  # perturbation should be set
 end
 
-@testitem "init_time_solver! NewtonRaphson damage check" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+@testitem "init_time_solver! NewtonKrylov damage check" begin
+    using Peridynamics: NewtonKrylov, displacement_bc!
 
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
@@ -202,14 +202,14 @@ end
     point_set!(body, :top, [2])
     displacement_bc!(p -> 0.1, body, :top, :y)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
 
     @test_throws CompositeException Peridynamics.init_time_solver!(nr, dh)
 end
 
-@testitem "init_time_solver! NewtonRaphson MultibodySetup error" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+@testitem "init_time_solver! NewtonKrylov MultibodySetup error" begin
+    using Peridynamics: NewtonKrylov, displacement_bc!
 
     position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
     volume = [1.0, 1.0]
@@ -222,15 +222,15 @@ end
     material!(body2, horizon=2, rho=1, E=1)
 
     ms = MultibodySetup(:b1 => body1, :b2 => body2)
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(ms, nr, 1)
 
-    msg = "NewtonRaphson solver only implemented for single body setups!\n"
+    msg = "NewtonKrylov solver only implemented for single body setups!\n"
     @test_throws ArgumentError(msg) Peridynamics.init_time_solver!(nr, dh)
 end
 
-@testitem "init_field_solver NewtonRaphson" begin
-    using Peridynamics: NewtonRaphson
+@testitem "init_field_solver NewtonKrylov" begin
+    using Peridynamics: NewtonKrylov
 
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
@@ -239,7 +239,7 @@ end
     body = Body(BBMaterial(), position, volume)
     material!(body, horizon=2, rho=1, E=1)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
     chunk = dh.chunks[1]
     system = chunk.system
@@ -291,8 +291,8 @@ end
     @test Jv_temp_field == zeros(n_dof)
 end
 
-@testitem "init_field_solver non-NewtonRaphson returns empty arrays" begin
-    using Peridynamics: NewtonRaphson
+@testitem "init_field_solver non-NewtonKrylov returns empty arrays" begin
+    using Peridynamics: NewtonKrylov
 
     position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
     volume = [1.0, 1.0]
@@ -327,10 +327,10 @@ end
     @test length(Jv_temp) == 0
 end
 
-@testitem "req_point_data_fields_timesolver NewtonRaphson" begin
-    using Peridynamics: NewtonRaphson
+@testitem "req_point_data_fields_timesolver NewtonKrylov" begin
+    using Peridynamics: NewtonKrylov
 
-    fields = Peridynamics.req_point_data_fields_timesolver(NewtonRaphson)
+    fields = Peridynamics.req_point_data_fields_timesolver(NewtonKrylov)
 
     @test :displacement_copy in fields
     @test :b_int_copy in fields
@@ -341,22 +341,22 @@ end
     @test !(:jacobian in fields)
 end
 
-@testitem "req_bond_data_fields_timesolver NewtonRaphson" begin
-    using Peridynamics: NewtonRaphson
+@testitem "req_bond_data_fields_timesolver NewtonKrylov" begin
+    using Peridynamics: NewtonKrylov
 
-    fields = Peridynamics.req_bond_data_fields_timesolver(NewtonRaphson)
+    fields = Peridynamics.req_bond_data_fields_timesolver(NewtonKrylov)
     @test fields == ()
 end
 
-@testitem "req_data_fields_timesolver NewtonRaphson" begin
-    using Peridynamics: NewtonRaphson
+@testitem "req_data_fields_timesolver NewtonKrylov" begin
+    using Peridynamics: NewtonKrylov
 
-    fields = Peridynamics.req_data_fields_timesolver(NewtonRaphson)
+    fields = Peridynamics.req_data_fields_timesolver(NewtonKrylov)
     @test fields == ()
 end
 
 @testitem "update_position!" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+    using Peridynamics: NewtonKrylov, displacement_bc!
 
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
@@ -367,7 +367,7 @@ end
     point_set!(body, :top, [2])
     displacement_bc!(p -> 0.1, body, :top, :y)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
     Peridynamics.init_time_solver!(nr, dh)
 
@@ -387,7 +387,7 @@ end
 end
 
 @testitem "calc_residual!" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+    using Peridynamics: NewtonKrylov, displacement_bc!
 
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
@@ -398,7 +398,7 @@ end
     point_set!(body, :top, [2])
     displacement_bc!(p -> 0.1, body, :top, :y)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
     Peridynamics.init_time_solver!(nr, dh)
 
@@ -422,7 +422,7 @@ end
 end
 
 @testitem "get_residual_norm" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+    using Peridynamics: NewtonKrylov, displacement_bc!
     using Peridynamics.LinearAlgebra
 
     position = [0.0 1.0 0.0 0.0
@@ -434,7 +434,7 @@ end
     point_set!(body, :top, [2])
     displacement_bc!(p -> 0.1, body, :top, :y) # some dummy BC
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
     Peridynamics.init_time_solver!(nr, dh)
 
@@ -453,7 +453,7 @@ end
 end
 
 @testitem "minimum_volume ThreadsBodyDataHandler" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+    using Peridynamics: NewtonKrylov, displacement_bc!
 
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
@@ -464,15 +464,15 @@ end
     point_set!(body, :top, [2])
     displacement_bc!(p -> 0.1, body, :top, :y)
 
-    nr = NewtonRaphson(steps=10, stepsize=0.1)
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
 
     min_vol = Peridynamics.minimum_volume(dh)
     @test min_vol == minimum(volume)
 end
 
-@testitem "NewtonRaphson throw maxiter" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+@testitem "NewtonKrylov throw maxiter" begin
+    using Peridynamics: NewtonKrylov, displacement_bc!
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -485,15 +485,15 @@ end
     displacement_bc!(p -> 0.0, body, :bottom, :x)
     displacement_bc!(p -> 0.0, body, :bottom, :y)
     displacement_bc!(p -> 0.0, body, :bottom, :z)
-    nr = NewtonRaphson(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
+    nr = NewtonKrylov(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
     job = Job(body, nr)
     @test_throws ErrorException submit(job)
 end
 
 @testitem "Material limitation errors" begin
-    using Peridynamics: NewtonRaphson, displacement_bc!
+    using Peridynamics: NewtonKrylov, displacement_bc!
 
-    ## CRMaterial should not work with NewtonRaphson
+    ## CRMaterial should not work with NewtonKrylov
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -506,11 +506,11 @@ end
     displacement_bc!(p -> 0.0, body, :bottom, :x)
     displacement_bc!(p -> 0.0, body, :bottom, :y)
     displacement_bc!(p -> 0.0, body, :bottom, :z)
-    nr = NewtonRaphson(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
+    nr = NewtonKrylov(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
     job = Job(body, nr)
     @test_throws CompositeException submit(job)
 
-    ## RKCRMaterial should not work with NewtonRaphson
+    ## RKCRMaterial should not work with NewtonKrylov
     body = Body(RKCRMaterial(), position, volume)
     material!(body, horizon=2, rho=1, E=1, nu=0.25)
     point_set!(body, :top, [4])
@@ -519,7 +519,7 @@ end
     displacement_bc!(p -> 0.0, body, :bottom, :x)
     displacement_bc!(p -> 0.0, body, :bottom, :y)
     displacement_bc!(p -> 0.0, body, :bottom, :z)
-    nr = NewtonRaphson(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
+    nr = NewtonKrylov(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
     job = Job(body, nr)
     @test_throws CompositeException submit(job)
 end

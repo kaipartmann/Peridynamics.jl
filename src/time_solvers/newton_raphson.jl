@@ -1,5 +1,5 @@
 """
-    NewtonRaphson(; kwargs...)
+    NewtonKrylov(; kwargs...)
 
 $(internal_api_warning())
 $(experimental_api_warning())
@@ -28,10 +28,10 @@ GMRES is used as the Krylov solver for the resulting linear system at each itera
 
 # Example:
 ```julia
-solver = NewtonRaphson(steps=100, stepsize=1e-4, maxiter=50, tol=1e-6)
+solver = NewtonKrylov(steps=100, stepsize=1e-4, maxiter=50, tol=1e-6)
 ```
 """
-mutable struct NewtonRaphson <: AbstractTimeSolver
+mutable struct NewtonKrylov <: AbstractTimeSolver
     end_time::Float64
     n_steps::Int
     Δt::Float64
@@ -46,7 +46,7 @@ mutable struct NewtonRaphson <: AbstractTimeSolver
     mpi_dof_counts::Vector{Int32}
     mpi_displs::Vector{Int32}
 
-    function NewtonRaphson(; time::Real=-1, steps::Int=-1, stepsize::Real=1.0,
+    function NewtonKrylov(; time::Real=-1, steps::Int=-1, stepsize::Real=1.0,
                             maxiter::Int=100, tol::Real=1e-4, perturbation::Real=-1,
                             gmres_maxiter::Int=200, gmres_reltol::Real=1e-4,
                             gmres_abstol::Real=1e-8)
@@ -107,7 +107,7 @@ mutable struct NewtonRaphson <: AbstractTimeSolver
     end
 end
 
-function Base.show(io::IO, @nospecialize(nr::NewtonRaphson))
+function Base.show(io::IO, @nospecialize(nr::NewtonKrylov))
     print(io, typeof(nr))
     fields = Vector{Symbol}()
     excluded = (:global_residual, :global_Δu, :mpi_dof_counts, :mpi_displs)
@@ -122,7 +122,7 @@ function Base.show(io::IO, @nospecialize(nr::NewtonRaphson))
     return nothing
 end
 
-function Base.show(io::IO, ::MIME"text/plain", @nospecialize(nr::NewtonRaphson))
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(nr::NewtonKrylov))
     if get(io, :compact, false)
         show(io, nr)
     else
@@ -141,7 +141,7 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(nr::NewtonRaphson))
     return nothing
 end
 
-function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
+function init_time_solver!(nr::NewtonKrylov, dh::ThreadsBodyDataHandler)
     newton_raphson_check(nr)
     @threads :static for chunk in dh.chunks
         validate_chunk_for_newton_raphson!(chunk)
@@ -152,7 +152,7 @@ function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
 end
 
 # MPI support
-function init_time_solver!(nr::NewtonRaphson, dh::MPIBodyDataHandler)
+function init_time_solver!(nr::NewtonKrylov, dh::MPIBodyDataHandler)
     newton_raphson_check(nr)
     validate_chunk_for_newton_raphson!(dh.chunk)
     calculate_perturbation!(nr, dh)
@@ -160,14 +160,14 @@ function init_time_solver!(nr::NewtonRaphson, dh::MPIBodyDataHandler)
     return nothing
 end
 
-function init_newton_buffers!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
+function init_newton_buffers!(nr::NewtonKrylov, dh::ThreadsBodyDataHandler)
     total_loc_dof = sum(get_n_loc_dof(c.system) for c in dh.chunks)
     resize!(nr.global_residual, total_loc_dof)
     resize!(nr.global_Δu, total_loc_dof)
     return nothing
 end
 
-function init_newton_buffers!(nr::NewtonRaphson, dh::MPIBodyDataHandler)
+function init_newton_buffers!(nr::NewtonKrylov, dh::MPIBodyDataHandler)
     n_loc_dof = get_n_loc_dof(dh.chunk.system)
     n_ranks = mpi_nranks()
 
@@ -185,8 +185,8 @@ function init_newton_buffers!(nr::NewtonRaphson, dh::MPIBodyDataHandler)
 end
 
 # Overload for MultibodySetups to throw an error
-function init_time_solver!(::NewtonRaphson, ::AbstractDataHandler)
-    msg = "NewtonRaphson solver only implemented for single body setups!\n"
+function init_time_solver!(::NewtonKrylov, ::AbstractDataHandler)
+    msg = "NewtonKrylov solver only implemented for single body setups!\n"
     return throw(ArgumentError(msg))
 end
 
@@ -197,7 +197,7 @@ function validate_chunk_for_newton_raphson!(chunk::AbstractBodyChunk)
     n_pdsdbcs = length(condhandler.posdep_single_dim_bcs)
     n_dbcs = length(condhandler.data_bcs)
     if n_sdbcs + n_pdsdbcs + n_dbcs > 0
-        msg = "NewtonRaphson solver does not support all boundary condition types!\n"
+        msg = "NewtonKrylov solver does not support all boundary condition types!\n"
         msg *= "Specify only position-dependent boundary conditions!"
         throw(ArgumentError(msg))
     end
@@ -217,7 +217,7 @@ function validate_chunk_for_newton_raphson!(chunk::AbstractBodyChunk)
     for i in each_point_idx(system)
         params = get_params(paramsetup, i)
         if has_fracture(mat, params)
-            msg = "NewtonRaphson solver currently does not support damage or fracture!\n"
+            msg = "NewtonKrylov solver currently does not support damage or fracture!\n"
             msg *= "Fracture parameters found at point index $(i)!\n"
             throw(ArgumentError(msg))
         end
@@ -226,7 +226,7 @@ function validate_chunk_for_newton_raphson!(chunk::AbstractBodyChunk)
     return nothing
 end
 
-function calculate_perturbation!(nr::NewtonRaphson, dh::AbstractDataHandler)
+function calculate_perturbation!(nr::NewtonKrylov, dh::AbstractDataHandler)
     if nr.perturbation ≤ 0
         Δx = (minimum_volume(dh))^(1/3)
         nr.perturbation = Δx * 1e-7
@@ -252,26 +252,26 @@ function minimum_volume(dh::MPIBodyDataHandler)
     return global_min_vol
 end
 
-function newton_raphson_check(nr::NewtonRaphson)
+function newton_raphson_check(nr::NewtonKrylov)
     if nr.end_time < 0
-        error("`end_time` of NewtonRaphson smaller than zero!\n")
+        error("`end_time` of NewtonKrylov smaller than zero!\n")
     end
     if nr.n_steps < 0
-        error("`n_steps` of NewtonRaphson smaller than zero!\n")
+        error("`n_steps` of NewtonKrylov smaller than zero!\n")
     end
     if nr.Δt < 0
-        error("`Δt` of NewtonRaphson smaller than zero!\n")
+        error("`Δt` of NewtonKrylov smaller than zero!\n")
     end
     if nr.maxiter < 0
-        error("`maxiter` of NewtonRaphson smaller than zero!\n")
+        error("`maxiter` of NewtonKrylov smaller than zero!\n")
     end
     if nr.tol < 0
-        error("`tol` of NewtonRaphson smaller than zero!\n")
+        error("`tol` of NewtonKrylov smaller than zero!\n")
     end
     return nothing
 end
 
-function solve!(dh::AbstractDataHandler, nr::NewtonRaphson, options::AbstractJobOptions)
+function solve!(dh::AbstractDataHandler, nr::NewtonKrylov, options::AbstractJobOptions)
     export_reference_results(dh, options)
 
     # Log solver info
@@ -289,7 +289,7 @@ function solve!(dh::AbstractDataHandler, nr::NewtonRaphson, options::AbstractJob
 end
 
 # Newton-Raphson step function - distributed across all chunks
-function newton_raphson_step!(dh::AbstractDataHandler, nr::NewtonRaphson,
+function newton_raphson_step!(dh::AbstractDataHandler, nr::NewtonKrylov,
                               options::AbstractJobOptions, n::Int)
     (; n_steps, Δt, maxiter, tol) = nr
 
@@ -406,7 +406,7 @@ function get_local_residual_norm_sq(chunk::AbstractBodyChunk)
     return s
 end
 
-function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonRaphson, t, Δt)
+function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonKrylov, t, Δt)
     (; gmres_maxiter, gmres_reltol, gmres_abstol, global_residual, global_Δu) = solver
 
     # Reset Δu on all chunks
@@ -494,7 +494,7 @@ function gather_residuals!(global_residual::Vector{Float64}, dh::ThreadsBodyData
 end
 
 # New JVP function using storage fields
-function jacobian_vector_product!(dh::ThreadsBodyDataHandler, solver::NewtonRaphson, t, Δt)
+function jacobian_vector_product!(dh::ThreadsBodyDataHandler, solver::NewtonKrylov, t, Δt)
     ε = solver.perturbation
 
     # Step 1: Store original state and apply positive perturbation
@@ -608,7 +608,7 @@ end
 
 # MPI version: Gather global vectors to all ranks, solve GMRES on full system, scatter back
 # This ensures all ranks stay synchronized during GMRES iterations
-function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonRaphson, t, Δt)
+function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, Δt)
     chunk = dh.chunk
     (; storage, system) = chunk
     (; gmres_maxiter, gmres_reltol, gmres_abstol, global_residual, global_Δu) = solver
@@ -665,7 +665,7 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonRaphson, t, 
 end
 
 # MPI version of JVP using storage fields
-function jacobian_vector_product_mpi!(dh::MPIBodyDataHandler, solver::NewtonRaphson, t, Δt)
+function jacobian_vector_product_mpi!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, Δt)
     chunk = dh.chunk
     ε = solver.perturbation
 
@@ -700,24 +700,24 @@ function newton_export_results(dh::MPIBodyDataHandler, options::JobOptions, n, t
 end
 
 # Required interface functions
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:position})
+function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:position})
     return copy(system.position)
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:displacement})
+function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:displacement})
     return zeros(3, get_n_loc_points(system))
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:b_int})
+function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:b_int})
     return zeros(3, get_n_points(system))
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:b_ext})
+function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:b_ext})
     return zeros(3, get_n_points(system))
 end
 
 # Newton-Raphson specific fields
-function init_field_solver(::NewtonRaphson, system::AbstractSystem,
+function init_field_solver(::NewtonKrylov, system::AbstractSystem,
                            ::Val{:displacement_copy})
     return zeros(3, get_n_loc_points(system))
 end
@@ -726,7 +726,7 @@ function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
     return Array{Float64,2}(undef, 0, 0)
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem,
+function init_field_solver(::NewtonKrylov, system::AbstractSystem,
                            ::Val{:b_int_copy})
     return zeros(3, get_n_points(system))
 end
@@ -735,14 +735,14 @@ function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
     return Array{Float64,2}(undef, 0, 0)
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:residual})
+function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:residual})
     return zeros(get_n_loc_dof(system))
 end
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:residual})
     return Vector{Float64}()
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:temp_force})
+function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:temp_force})
     return zeros(get_n_loc_dof(system))
 end
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
@@ -750,7 +750,7 @@ function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
     return Array{Float64,1}(undef, 0)
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:Δu})
+function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:Δu})
     return zeros(get_n_loc_dof(system))
 end
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:Δu})
@@ -758,21 +758,21 @@ function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:
 end
 
 # GMRES temporary buffers for Jacobian-free Newton-Krylov
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:v_temp})
+function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:v_temp})
     return zeros(get_n_loc_dof(system))
 end
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:v_temp})
     return Vector{Float64}()
 end
 
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:Jv_temp})
+function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:Jv_temp})
     return zeros(get_n_loc_dof(system))
 end
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:Jv_temp})
     return Vector{Float64}()
 end
 
-function req_point_data_fields_timesolver(::Type{<:NewtonRaphson})
+function req_point_data_fields_timesolver(::Type{<:NewtonKrylov})
     # Jacobian-free Newton-Krylov method: no jacobian, temp_force_b, or affected_points
     # Added v_temp, Jv_temp for GMRES temporary buffers
     fields = (:position, :displacement, :b_int, :b_ext, :residual, :displacement_copy,
@@ -780,15 +780,15 @@ function req_point_data_fields_timesolver(::Type{<:NewtonRaphson})
     return fields
 end
 
-function req_bond_data_fields_timesolver(::Type{<:NewtonRaphson})
+function req_bond_data_fields_timesolver(::Type{<:NewtonKrylov})
     return ()
 end
 
-function req_data_fields_timesolver(::Type{<:NewtonRaphson})
+function req_data_fields_timesolver(::Type{<:NewtonKrylov})
     return ()
 end
 
-function log_timesolver(options::AbstractJobOptions, nr::NewtonRaphson)
+function log_timesolver(options::AbstractJobOptions, nr::NewtonKrylov)
     msg = "JACOBIAN-FREE NEWTON-KRYLOV SOLVER\n"
     msg *= msg_qty("number of time steps", nr.n_steps)
     msg *= msg_qty("time step size", nr.Δt)
@@ -806,4 +806,4 @@ end
 # If this is uncommented, the solver is registered and all storages must support it!
 # The internal storages in this package, already do, but the user-defined ones may not.
 # Therefore, for now this is commented out.
-# register_solver!(NewtonRaphson)
+# register_solver!(NewtonKrylov)

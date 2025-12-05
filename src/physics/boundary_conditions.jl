@@ -638,7 +638,7 @@ $(internal_api_warning())
 $(experimental_api_warning())
 
 !!! warning "Compatibility limited"
-    This boundary condition type only works with the NewtonRaphson solver for now.
+    This boundary condition type only works with the NewtonKrylov solver for now.
 
 Apply a displacement boundary condition to specified points in a given dimension.
 A factor `β` is calculated as `n / n_steps`, where `n` is the current step number and

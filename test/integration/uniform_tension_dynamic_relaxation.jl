@@ -48,9 +48,9 @@
     @test_broken err_ux < 0.02
 end
 
-@testitem "Uniform tension NewtonRaphson" begin
+@testitem "Uniform tension NewtonKrylov" begin
     using Peridynamics.Printf
-    using Peridynamics: NewtonRaphson, displacement_bc!
+    using Peridynamics: NewtonKrylov, displacement_bc!
 
     l, w, h, Δx = 1.0, 0.1, 0.1, 1/30
     F = 2e6 # Force in N applied at the right boundary
@@ -72,7 +72,7 @@ end
     forcedensity_bc!(p -> F / volume_right, body, :right, :x)
 
     # run the simulation
-    nr = NewtonRaphson(; steps, tol=1e-3, maxiter=50)
+    nr = NewtonKrylov(; steps, tol=1e-3, maxiter=50)
     path = mktempdir()
     rm(path; recursive=true, force=true)
     job = Job(body, nr; freq=steps, path, fields=(:displacement,))
