@@ -352,13 +352,6 @@ function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
     return nothing
 end
 
-function get_affected_points(system::AbstractBondSystem, i)
-    points = [bond.neighbor for bond in system.bonds[each_bond_idx(system, i)]]
-    pushfirst!(points, i)
-    sort!(points)
-    return points
-end
-
 function log_system(::Type{System}, options::AbstractJobOptions,
                     dh::AbstractDataHandler) where {System<:AbstractBondSystem}
     n_bonds = calc_n_bonds(dh)

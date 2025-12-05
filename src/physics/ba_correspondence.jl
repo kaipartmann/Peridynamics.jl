@@ -176,13 +176,12 @@ end
     @pointfield von_mises_stress::Vector{Float64}
     bond_active::Vector{Bool}
     residual::Vector{Float64}
-    jacobian::Matrix{Float64}
     displacement_copy::Matrix{Float64}
     b_int_copy::Matrix{Float64}
-    temp_force_a::Vector{Float64}
-    temp_force_b::Vector{Float64}
+    temp_force::Vector{Float64}
     Δu::Vector{Float64}
-    affected_points::Vector{Vector{Int}}
+    v_temp::Vector{Float64}
+    Jv_temp::Vector{Float64}
 end
 
 function init_field(::BACMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
