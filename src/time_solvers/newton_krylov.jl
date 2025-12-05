@@ -229,7 +229,7 @@ end
 function calculate_perturbation!(nr::NewtonKrylov, dh::AbstractDataHandler)
     if nr.perturbation ≤ 0
         Δx = (minimum_volume(dh))^(1/3)
-        nr.perturbation = Δx * 1e-7
+        nr.perturbation = Δx * 1e-5
     end
     return nothing
 end
