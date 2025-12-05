@@ -22,6 +22,7 @@ GMRES is used as the Krylov solver for the resulting linear system at each itera
 - `gmres_maxiter::Int`: Maximum number of iterations for GMRES (default: min(200, n_dof)).
 - `gmres_reltol::Real`: Relative tolerance for GMRES (default: 1e-4).
 - `gmres_abstol::Real`: Absolute tolerance for GMRES (default: 1e-8).
+- `gmres_restart::Int`: Number of iterations between restarts for GMRES (default: 50).
 
 # Example:
 ```julia
