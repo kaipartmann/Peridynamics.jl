@@ -1,6 +1,3 @@
-using Test
-using ..Discretization: const_one_kernel, linear_kernel, cubic_b_spline_kernel, cubic_b_spline_kernel_norm
-
 # Test const_one_kernel
 @testitem "const_one_kernel returns 1 for any input" begin
     @test const_one_kernel(1.0, 2.0) == 1
