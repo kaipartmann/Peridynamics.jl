@@ -85,8 +85,8 @@ end
     @test length(s.v_temp) == 0
     @test length(s.Jv_temp) == 0
 
-    # Test with Peridynamics.NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with Peridynamics.NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -170,8 +170,8 @@ end
     @test length(s.v_temp) == 0
     @test length(s.Jv_temp) == 0
 
-    # Test with NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -257,8 +257,8 @@ end
     @test length(s.v_temp) == 0
     @test length(s.Jv_temp) == 0
 
-    # Test with Peridynamics.NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with Peridynamics.NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -343,8 +343,8 @@ end
     @test length(s.v_temp) == 0
     @test length(s.Jv_temp) == 0
 
-    # Test with NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -432,8 +432,8 @@ end
     @test length(s.v_temp) == 0
     @test length(s.Jv_temp) == 0
 
-    # Test with NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -585,8 +585,8 @@ end
     @test length(s.v_temp) == 0
     @test length(s.Jv_temp) == 0
 
-    # Test with NewtonRaphson, but only with 1 chunk!
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov, but only with 1 chunk!
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver; n_chunks=1)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -726,8 +726,8 @@ end
     @test length(s.von_mises_stress) == n_loc_points
     @test length(s.bond_active) == n_bonds
 
-    # Test with NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -805,8 +805,8 @@ end
     @test length(s.v_temp) == 0
     @test length(s.Jv_temp) == 0
 
-    # Test with NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)

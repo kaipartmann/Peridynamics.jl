@@ -143,8 +143,8 @@ end
     end
 end
 
-@testitem "MPI-Threads comparison BBMaterial{NoCorrection} NewtonRaphson" tags=[:mpi] begin
-    using Peridynamics: NewtonRaphson
+@testitem "MPI-Threads comparison BBMaterial{NoCorrection} NewtonKrylov" tags=[:mpi] begin
+    using Peridynamics: NewtonKrylov
     force_threads_run!()
     root = mktempdir()
     path_threads = joinpath(root, "results_threads")
@@ -165,7 +165,7 @@ end
         point_set!(p -> p[2] < -l/2+Δx, body, :set_bottom)
         forcedensity_bc!(p -> -1e3, body, :set_bottom, :y)
         forcedensity_bc!(p -> 1e3, body, :set_top, :y)
-        solver = NewtonRaphson(steps=5, stepsize=1.0, maxiter=200, tol=1e-3)
+        solver = NewtonKrylov(steps=5, stepsize=1.0, maxiter=200, tol=1e-3)
         job = Job(body, solver; path, freq=5)
         submit(job)
         return nothing
@@ -174,7 +174,7 @@ end
 
     mpi_cmd = """
     using Peridynamics
-    using Peridynamics: NewtonRaphson
+    using Peridynamics: NewtonKrylov
     function sim_bb(N::Int, path::String)
         l, Δx, δ, a = 100.0, 100.0/N, 3.015/N, 50.0
         pos, vol = uniform_box(l, l, 0.1l, Δx)
@@ -188,7 +188,7 @@ end
         point_set!(p -> p[2] < -l/2+Δx, body, :set_bottom)
         forcedensity_bc!(p -> -1e3, body, :set_bottom, :y)
         forcedensity_bc!(p -> 1e3, body, :set_top, :y)
-        solver = NewtonRaphson(steps=5, stepsize=1.0, maxiter=200, tol=1e-3)
+        solver = NewtonKrylov(steps=5, stepsize=1.0, maxiter=200, tol=1e-3)
         job = Job(body, solver; path, freq=5)
         submit(job)
         return nothing

@@ -72,5 +72,5 @@ Peridynamics.@autoinfiltrate
 Peridynamics.displacement_bc!
 Peridynamics.velocity_databc!
 Peridynamics.forcedensity_databc!
-Peridynamics.NewtonRaphson
+Peridynamics.NewtonKrylov
 ```

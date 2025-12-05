@@ -460,15 +460,15 @@ end
     end
 end
 
-# @testitem "Affected points RKCMaterial NewtonRaphson" begin
-#     using Peridynamics: NewtonRaphson
+# @testitem "Affected points RKCMaterial NewtonKrylov" begin
+#     using Peridynamics: NewtonKrylov
 #     position = [0.0 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0
 #                 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 #                 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
 #     volume = [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
 #     body = Body(RKCMaterial(), position, volume)
 #     material!(body; horizon=1.1, rho=1, E=210e9, nu=0.25)
-#     ts = NewtonRaphson(steps=1)
+#     ts = NewtonKrylov(steps=1)
 #     dh = Peridynamics.threads_data_handler(body, ts, 1)
 #     chunk = dh.chunks[1]
 #     (; storage, system) = chunk

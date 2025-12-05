@@ -118,8 +118,8 @@ end
     end
 end
 
-@testitem "symmetry CKIMaterial NewtonRaphson" begin
-    using Peridynamics: NewtonRaphson
+@testitem "symmetry CKIMaterial NewtonKrylov" begin
+    using Peridynamics: NewtonKrylov
     # simulation
     Δx = 0.22
     width = 1
@@ -135,7 +135,7 @@ end
     point_set!(z -> z < -width / 2 + 0.9Δx, body, :set_b)
     forcedensity_bc!(p -> 1e10, body, :set_a, :z)
     forcedensity_bc!(p -> -1e10, body, :set_b, :z)
-    dr = NewtonRaphson(steps=5, stepsize=1.0, maxiter=10, tol=1e-3)
+    dr = NewtonKrylov(steps=5, stepsize=1.0, maxiter=10, tol=1e-3)
     temp_root = mktempdir()
     job = Job(body, dr; path=temp_root, freq=1)
     dh = Peridynamics.submit_threads(job, 1)
