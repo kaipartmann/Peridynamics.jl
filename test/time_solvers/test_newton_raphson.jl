@@ -54,32 +54,32 @@ end
     @test nr.gmres_abstol == 1e-9
 end
 
-@testitem "newton_raphson_check" begin
+@testitem "newton_krylov_check" begin
     using Peridynamics: NewtonKrylov
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.end_time = -1
     msg = "`end_time` of NewtonKrylov smaller than zero!\n"
-    @test_throws ErrorException(msg) Peridynamics.newton_raphson_check(nr)
+    @test_throws ErrorException(msg) Peridynamics.newton_krylov_check(nr)
 
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.n_steps = -1
     msg = "`n_steps` of NewtonKrylov smaller than zero!\n"
-    @test_throws ErrorException(msg) Peridynamics.newton_raphson_check(nr)
+    @test_throws ErrorException(msg) Peridynamics.newton_krylov_check(nr)
 
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.Δt = -1
     msg = "`Δt` of NewtonKrylov smaller than zero!\n"
-    @test_throws ErrorException(msg) Peridynamics.newton_raphson_check(nr)
+    @test_throws ErrorException(msg) Peridynamics.newton_krylov_check(nr)
 
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.maxiter = -1
     msg = "`maxiter` of NewtonKrylov smaller than zero!\n"
-    @test_throws ErrorException(msg) Peridynamics.newton_raphson_check(nr)
+    @test_throws ErrorException(msg) Peridynamics.newton_krylov_check(nr)
 
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.tol = -1
     msg = "`tol` of NewtonKrylov smaller than zero!\n"
-    @test_throws ErrorException(msg) Peridynamics.newton_raphson_check(nr)
+    @test_throws ErrorException(msg) Peridynamics.newton_krylov_check(nr)
 end
 
 @testitem "show NewtonKrylov" begin

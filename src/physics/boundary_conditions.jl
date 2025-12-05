@@ -225,7 +225,7 @@ function apply_boundary_conditions!(chunk::AbstractBodyChunk, t)
     return nothing
 end
 
-# Only for the Newton-Raphson solver, incremental displacement BCs
+# Only for the Newton-Krylov solver, incremental displacement BCs
 function apply_incr_boundary_conditions!(chunk::AbstractBodyChunk, β)
     (; storage, condhandler) = chunk
     (; pos_single_dim_bcs, loc_point_sets) = condhandler
