@@ -51,13 +51,12 @@ end
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
     # Test with DynamicRelaxation
     solver = DynamicRelaxation(steps=1)
@@ -79,16 +78,15 @@ end
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
-    # Test with Peridynamics.NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with Peridynamics.NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -106,14 +104,13 @@ end
     @test length(s.strain_energy_density) == n_loc_points
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
-    @test length(s.residual) == n_dof
-    @test size(s.jacobian) == (n_dof, n_dof)
+    @test length(s.residual) == n_loc_dof
     @test size(s.displacement_copy) == (3, n_loc_points)
     @test size(s.b_int_copy) == (3, n_points)
-    @test length(s.temp_force_a) == n_dof
-    @test length(s.temp_force_b) == n_dof
-    @test length(s.Δu) == n_dof
-    @test length(s.affected_points) == n_loc_points
+    @test length(s.temp_force) == n_loc_dof
+    @test length(s.Δu) == n_loc_dof
+    @test length(s.v_temp) == n_loc_dof
+    @test length(s.Jv_temp) == n_loc_dof
 end
 
 @testitem "DHBBMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -139,13 +136,12 @@ end
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
     # Test with DynamicRelaxation
     solver = DynamicRelaxation(steps=1)
@@ -167,16 +163,15 @@ end
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
-    # Test with NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -194,14 +189,13 @@ end
     @test length(s.strain_energy_density) == n_loc_points
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
-    @test length(s.residual) == n_dof
-    @test size(s.jacobian) == (n_dof, n_dof)
+    @test length(s.residual) == n_loc_dof
     @test size(s.displacement_copy) == (3, n_loc_points)
     @test size(s.b_int_copy) == (3, n_points)
-    @test length(s.temp_force_a) == n_dof
-    @test length(s.temp_force_b) == n_dof
-    @test length(s.Δu) == n_dof
-    @test length(s.affected_points) == n_loc_points
+    @test length(s.temp_force) == n_loc_dof
+    @test length(s.Δu) == n_loc_dof
+    @test length(s.v_temp) == n_loc_dof
+    @test length(s.Jv_temp) == n_loc_dof
 end
 
 @testitem "GBBMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -228,13 +222,12 @@ end
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
     # Test with DynamicRelaxation
     solver = DynamicRelaxation(steps=1)
@@ -257,16 +250,15 @@ end
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
-    # Test with Peridynamics.NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with Peridynamics.NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -285,14 +277,13 @@ end
     @test length(s.weighted_volume) == n_loc_points
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
-    @test length(s.residual) == n_dof
-    @test size(s.jacobian) == (n_dof, n_dof)
+    @test length(s.residual) == n_loc_dof
     @test size(s.displacement_copy) == (3, n_loc_points)
     @test size(s.b_int_copy) == (3, n_points)
-    @test length(s.temp_force_a) == n_dof
-    @test length(s.temp_force_b) == n_dof
-    @test length(s.Δu) == n_dof
-    @test length(s.affected_points) == n_loc_points
+    @test length(s.temp_force) == n_loc_dof
+    @test length(s.Δu) == n_loc_dof
+    @test length(s.v_temp) == n_loc_dof
+    @test length(s.Jv_temp) == n_loc_dof
 end
 
 @testitem "OSBMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -318,13 +309,12 @@ end
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
     # Test with DynamicRelaxation
     solver = DynamicRelaxation(steps=1)
@@ -346,16 +336,15 @@ end
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
-    # Test with NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -373,14 +362,13 @@ end
     @test length(s.strain_energy_density) == n_loc_points
     @test length(s.bond_length) == n_bonds
     @test length(s.bond_active) == n_bonds
-    @test length(s.residual) == n_dof
-    @test size(s.jacobian) == (n_dof, n_dof)
+    @test length(s.residual) == n_loc_dof
     @test size(s.displacement_copy) == (3, n_loc_points)
     @test size(s.b_int_copy) == (3, n_points)
-    @test length(s.temp_force_a) == n_dof
-    @test length(s.temp_force_b) == n_dof
-    @test length(s.Δu) == n_dof
-    @test length(s.affected_points) == n_loc_points
+    @test length(s.temp_force) == n_loc_dof
+    @test length(s.Δu) == n_loc_dof
+    @test length(s.v_temp) == n_loc_dof
+    @test length(s.Jv_temp) == n_loc_dof
 end
 
 @testitem "CMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -408,13 +396,12 @@ end
     @test length(s.strain_energy_density) == n_loc_points
     @test length(s.bond_active) == n_bonds
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
     # Test with DynamicRelaxation
     solver = DynamicRelaxation(steps=1)
@@ -438,16 +425,15 @@ end
     @test length(s.strain_energy_density) == n_loc_points
     @test length(s.bond_active) == n_bonds
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
-    # Test with NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -467,14 +453,13 @@ end
     @test length(s.von_mises_stress) == n_loc_points
     @test length(s.strain_energy_density) == n_loc_points
     @test length(s.bond_active) == n_bonds
-    @test length(s.residual) == n_dof
-    @test size(s.jacobian) == (n_dof, n_dof)
+    @test length(s.residual) == n_loc_dof
     @test size(s.displacement_copy) == (3, n_loc_points)
     @test size(s.b_int_copy) == (3, n_points)
-    @test length(s.temp_force_a) == n_dof
-    @test length(s.temp_force_b) == n_dof
-    @test length(s.Δu) == n_dof
-    @test length(s.affected_points) == n_loc_points
+    @test length(s.temp_force) == n_loc_dof
+    @test length(s.Δu) == n_loc_dof
+    @test length(s.v_temp) == n_loc_dof
+    @test length(s.Jv_temp) == n_loc_dof
 end
 
 @testitem "CRMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -560,13 +545,12 @@ end
     @test size(s.gradient_weight) == (3, n_bonds)
     @test size(s.bond_first_piola_kirchhoff) == (9, n_bonds)
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
     # Test with DynamicRelaxation
     solver = DynamicRelaxation(steps=1)
@@ -594,16 +578,15 @@ end
     @test size(s.gradient_weight) == (3, n_bonds)
     @test size(s.bond_first_piola_kirchhoff) == (9, n_bonds)
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
-    # Test with NewtonRaphson, but only with 1 chunk!
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov, but only with 1 chunk!
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver; n_chunks=1)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -627,14 +610,13 @@ end
     @test length(s.bond_active) == n_bonds
     @test size(s.gradient_weight) == (3, n_bonds)
     @test size(s.bond_first_piola_kirchhoff) == (9, n_bonds)
-    @test length(s.residual) == n_dof
-    @test size(s.jacobian) == (n_dof, n_dof)
+    @test length(s.residual) == n_loc_dof
     @test size(s.displacement_copy) == (3, n_loc_points)
     @test size(s.b_int_copy) == (3, n_points)
-    @test length(s.temp_force_a) == n_dof
-    @test length(s.temp_force_b) == n_dof
-    @test length(s.Δu) == n_dof
-    @test length(s.affected_points) == n_loc_points
+    @test length(s.temp_force) == n_loc_dof
+    @test length(s.Δu) == n_loc_dof
+    @test length(s.v_temp) == n_loc_dof
+    @test length(s.Jv_temp) == n_loc_dof
 end
 
 @testitem "RKCRMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -744,8 +726,8 @@ end
     @test length(s.von_mises_stress) == n_loc_points
     @test length(s.bond_active) == n_bonds
 
-    # Test with NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -763,14 +745,13 @@ end
     @test size(s.stress) == (9, n_loc_points)
     @test length(s.von_mises_stress) == n_loc_points
     @test length(s.bond_active) == n_bonds
-    @test length(s.residual) == n_dof
-    @test size(s.jacobian) == (n_dof, n_dof)
+    @test length(s.residual) == n_loc_dof
     @test size(s.displacement_copy) == (3, n_loc_points)
     @test size(s.b_int_copy) == (3, n_points)
-    @test length(s.temp_force_a) == n_dof
-    @test length(s.temp_force_b) == n_dof
-    @test length(s.Δu) == n_dof
-    @test length(s.affected_points) == n_loc_points
+    @test length(s.temp_force) == n_loc_dof
+    @test length(s.Δu) == n_loc_dof
+    @test length(s.v_temp) == n_loc_dof
+    @test length(s.Jv_temp) == n_loc_dof
 end
 
 @testitem "CKIMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -793,13 +774,12 @@ end
     @test length(s.damage) == n_loc_points
     @test length(s.n_active_one_nis) == n_loc_points
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
     # Test with DynamicRelaxation
     solver = DynamicRelaxation(steps=1)
@@ -818,16 +798,15 @@ end
     @test length(s.damage) == n_loc_points
     @test length(s.n_active_one_nis) == n_loc_points
     @test length(s.residual) == 0
-    @test size(s.jacobian) == (0, 0)
     @test size(s.displacement_copy) == (0, 0)
     @test size(s.b_int_copy) == (0, 0)
-    @test length(s.temp_force_a) == 0
-    @test length(s.temp_force_b) == 0
+    @test length(s.temp_force) == 0
     @test length(s.Δu) == 0
-    @test length(s.affected_points) == 0
+    @test length(s.v_temp) == 0
+    @test length(s.Jv_temp) == 0
 
-    # Test with NewtonRaphson
-    solver = Peridynamics.NewtonRaphson(steps=1)
+    # Test with NewtonKrylov
+    solver = Peridynamics.NewtonKrylov(steps=1)
     s, system = test_setup(mat, solver)
     n_loc_points, n_points, n_bonds, n_loc_dof, n_dof = get_numbers(system)
     @test size(s.position) == (3, n_points)
@@ -842,12 +821,11 @@ end
     @test size(s.density_matrix) == (0, 0)
     @test length(s.damage) == n_loc_points
     @test length(s.n_active_one_nis) == n_loc_points
-    @test length(s.residual) == n_dof
-    @test size(s.jacobian) == (n_dof, n_dof)
+    @test length(s.residual) == n_loc_dof
     @test size(s.displacement_copy) == (3, n_loc_points)
     @test size(s.b_int_copy) == (3, n_points)
-    @test length(s.temp_force_a) == n_dof
-    @test length(s.temp_force_b) == n_dof
-    @test length(s.Δu) == n_dof
-    @test length(s.affected_points) == n_loc_points
+    @test length(s.temp_force) == n_loc_dof
+    @test length(s.Δu) == n_loc_dof
+    @test length(s.v_temp) == n_loc_dof
+    @test length(s.Jv_temp) == n_loc_dof
 end

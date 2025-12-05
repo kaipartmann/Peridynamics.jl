@@ -24,7 +24,6 @@
 end
 
 @testitem "Displacement BCs" begin
-    using Peridynamics: displacement_bc!
     position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
     volume = [1.0, 1.0]
     body = Body(BBMaterial(), position, volume)

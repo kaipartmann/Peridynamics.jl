@@ -1,7 +1,7 @@
 module Peridynamics
 
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, ProgressMeter,
-      WriteVTK, TimerOutputs, MPI, PrecompileTools, IterativeSolvers
+      WriteVTK, TimerOutputs, MPI, PrecompileTools, IterativeSolvers, LinearMaps
 @static if Sys.islinux()
     using ThreadPinning
 end
@@ -26,11 +26,11 @@ export NoCorrection, EnergySurfaceCorrection
 
 # Discretization
 export Body, point_set!, point_sets, no_failure!, material!, velocity_bc!, velocity_ic!,
-       forcedensity_bc!, precrack!, MultibodySetup, contact!, uniform_box, uniform_sphere,
-       uniform_cylinder, round_sphere, round_cylinder, n_points
+       forcedensity_bc!, displacement_bc!, precrack!, MultibodySetup, contact!, uniform_box,
+       uniform_sphere, uniform_cylinder, round_sphere, round_cylinder, n_points
 
 # Running simulations
-export VelocityVerlet, DynamicRelaxation, Job, Study, submit, submit!
+export VelocityVerlet, DynamicRelaxation, NewtonKrylov, Job, Study, submit, submit!
 
 # Pre processing
 export read_inp
@@ -136,7 +136,7 @@ include("core/mpi_multibody_data_handler.jl")
 
 include("time_solvers/velocity_verlet.jl")
 include("time_solvers/dynamic_relaxation.jl")
-include("time_solvers/newton_raphson.jl")
+include("time_solvers/newton_krylov.jl")
 
 include("physics/bond_based.jl")
 include("physics/dh_bond_based.jl")
