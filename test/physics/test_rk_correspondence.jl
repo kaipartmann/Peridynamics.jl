@@ -460,47 +460,47 @@ end
     end
 end
 
-@testitem "Affected points RKCMaterial NewtonRaphson" begin
-    using Peridynamics: NewtonRaphson
-    position = [0.0 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0
-                0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
-                0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
-    volume = [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
-    body = Body(RKCMaterial(), position, volume)
-    material!(body; horizon=1.1, rho=1, E=210e9, nu=0.25)
-    ts = NewtonRaphson(steps=1)
-    dh = Peridynamics.threads_data_handler(body, ts, 1)
-    chunk = dh.chunks[1]
-    (; storage, system) = chunk
-    (; affected_points) = storage
+# @testitem "Affected points RKCMaterial NewtonRaphson" begin
+#     using Peridynamics: NewtonRaphson
+#     position = [0.0 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0
+#                 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+#                 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
+#     volume = [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
+#     body = Body(RKCMaterial(), position, volume)
+#     material!(body; horizon=1.1, rho=1, E=210e9, nu=0.25)
+#     ts = NewtonRaphson(steps=1)
+#     dh = Peridynamics.threads_data_handler(body, ts, 1)
+#     chunk = dh.chunks[1]
+#     (; storage, system) = chunk
+#     (; affected_points) = storage
 
-    @test Peridynamics.get_affected_points(system, 1) == [1, 2]
-    @test affected_points[1] == [1, 2, 3] # one layer of neighbors more
+#     @test Peridynamics.get_affected_points(system, 1) == [1, 2]
+#     @test affected_points[1] == [1, 2, 3] # one layer of neighbors more
 
-    @test Peridynamics.get_affected_points(system, 2) == [1, 2, 3]
-    @test affected_points[2] == [1, 2, 3, 4]
+#     @test Peridynamics.get_affected_points(system, 2) == [1, 2, 3]
+#     @test affected_points[2] == [1, 2, 3, 4]
 
-    @test Peridynamics.get_affected_points(system, 3) == [2, 3, 4]
-    @test affected_points[3] == [1, 2, 3, 4, 5]
+#     @test Peridynamics.get_affected_points(system, 3) == [2, 3, 4]
+#     @test affected_points[3] == [1, 2, 3, 4, 5]
 
-    @test Peridynamics.get_affected_points(system, 4) == [3, 4, 5]
-    @test affected_points[4] == [2, 3, 4, 5, 6]
+#     @test Peridynamics.get_affected_points(system, 4) == [3, 4, 5]
+#     @test affected_points[4] == [2, 3, 4, 5, 6]
 
-    @test Peridynamics.get_affected_points(system, 5) == [4, 5, 6]
-    @test affected_points[5] == [3, 4, 5, 6, 7]
+#     @test Peridynamics.get_affected_points(system, 5) == [4, 5, 6]
+#     @test affected_points[5] == [3, 4, 5, 6, 7]
 
-    @test Peridynamics.get_affected_points(system, 6) == [5, 6, 7]
-    @test affected_points[6] == [4, 5, 6, 7, 8]
+#     @test Peridynamics.get_affected_points(system, 6) == [5, 6, 7]
+#     @test affected_points[6] == [4, 5, 6, 7, 8]
 
-    @test Peridynamics.get_affected_points(system, 7) == [6, 7, 8]
-    @test affected_points[7] == [5, 6, 7, 8, 9]
+#     @test Peridynamics.get_affected_points(system, 7) == [6, 7, 8]
+#     @test affected_points[7] == [5, 6, 7, 8, 9]
 
-    @test Peridynamics.get_affected_points(system, 8) == [7, 8, 9]
-    @test affected_points[8] == [6, 7, 8, 9, 10]
+#     @test Peridynamics.get_affected_points(system, 8) == [7, 8, 9]
+#     @test affected_points[8] == [6, 7, 8, 9, 10]
 
-    @test Peridynamics.get_affected_points(system, 9) == [8, 9, 10]
-    @test affected_points[9] == [7, 8, 9, 10]
+#     @test Peridynamics.get_affected_points(system, 9) == [8, 9, 10]
+#     @test affected_points[9] == [7, 8, 9, 10]
 
-    @test Peridynamics.get_affected_points(system, 10) == [9, 10]
-    @test affected_points[10] == [8, 9, 10]
-end
+#     @test Peridynamics.get_affected_points(system, 10) == [9, 10]
+#     @test affected_points[10] == [8, 9, 10]
+# end

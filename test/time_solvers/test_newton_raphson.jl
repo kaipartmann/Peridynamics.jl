@@ -23,7 +23,7 @@ end
     @test nr.maxiter == 100
     @test nr.tol == 1e-4
     @test nr.perturbation == -1
-    @test nr.gmres_maxiter == -1
+    @test nr.gmres_maxiter == 200
     @test nr.gmres_reltol == 1e-4
     @test nr.gmres_abstol == 1e-8
 end
@@ -141,8 +141,7 @@ end
     @test nr.perturbation > 0
 
     # Check that GMRES maxiter was set
-    @test nr.gmres_maxiter > 0
-    @test nr.gmres_maxiter == min(200, Peridynamics.get_n_dof(dh.chunks[1].system))
+    @test nr.gmres_maxiter == 200
 end
 
 @testitem "init_time_solver! NewtonRaphson supports multiple chunks" begin
@@ -206,7 +205,7 @@ end
     nr = NewtonRaphson(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
 
-    @test_throws ArgumentError Peridynamics.init_time_solver!(nr, dh)
+    @test_throws CompositeException Peridynamics.init_time_solver!(nr, dh)
 end
 
 @testitem "init_time_solver! NewtonRaphson MultibodySetup error" begin
@@ -275,25 +274,13 @@ end
     residual_field = Peridynamics.init_field_solver(nr, system, Val(:residual))
     @test residual_field == zeros(n_dof)
 
-    # Test jacobian field initialization (JFNK: returns empty matrix)
-    jacobian_field = Peridynamics.init_field_solver(nr, system, Val(:jacobian))
-    @test size(jacobian_field) == (0, 0)  # JFNK doesn't use jacobian matrix
-
     # Test temp_force_a field initialization
-    temp_a_field = Peridynamics.init_field_solver(nr, system, Val(:temp_force_a))
+    temp_a_field = Peridynamics.init_field_solver(nr, system, Val(:temp_force))
     @test temp_a_field == zeros(n_dof)
-
-    # Test temp_force_b field initialization (JFNK: returns empty vector)
-    temp_b_field = Peridynamics.init_field_solver(nr, system, Val(:temp_force_b))
-    @test length(temp_b_field) == 0  # JFNK doesn't use temp_force_b
 
     # Test Δu field initialization
     du_field = Peridynamics.init_field_solver(nr, system, Val(:Δu))
     @test du_field == zeros(n_dof)
-
-    # Test affected_points field initialization (JFNK: returns empty vector)
-    affected_field = Peridynamics.init_field_solver(nr, system, Val(:affected_points))
-    @test length(affected_field) == 0  # JFNK doesn't use affected_points
 
     # Test v_temp field initialization (JFNK temporary buffer)
     v_temp_field = Peridynamics.init_field_solver(nr, system, Val(:v_temp))
@@ -327,20 +314,17 @@ end
     residual = Peridynamics.init_field_solver(vv, system, Val(:residual))
     @test length(residual) == 0
 
-    jacobian = Peridynamics.init_field_solver(vv, system, Val(:jacobian))
-    @test size(jacobian) == (0, 0)
-
-    temp_a = Peridynamics.init_field_solver(vv, system, Val(:temp_force_a))
+    temp_a = Peridynamics.init_field_solver(vv, system, Val(:temp_force))
     @test length(temp_a) == 0
-
-    temp_b = Peridynamics.init_field_solver(vv, system, Val(:temp_force_b))
-    @test length(temp_b) == 0
 
     du = Peridynamics.init_field_solver(vv, system, Val(:Δu))
     @test length(du) == 0
 
-    affected = Peridynamics.init_field_solver(vv, system, Val(:affected_points))
-    @test length(affected) == 0
+    v_temp = Peridynamics.init_field_solver(vv, system, Val(:v_temp))
+    @test length(v_temp) == 0
+
+    Jv_temp = Peridynamics.init_field_solver(vv, system, Val(:Jv_temp))
+    @test length(Jv_temp) == 0
 end
 
 @testitem "req_point_data_fields_timesolver NewtonRaphson" begin
@@ -460,7 +444,7 @@ end
     chunk.storage.residual .= [1.0:12.0;]
 
     # Get residual norm from chunk
-    r_chunk = Peridynamics.get_residual_norm(chunk)
+    r_chunk = Peridynamics.get_residual_norm(dh)
     @test r_chunk ≈ norm(chunk.storage.residual)
 
     # Get residual norm from data handler
@@ -524,7 +508,7 @@ end
     displacement_bc!(p -> 0.0, body, :bottom, :z)
     nr = NewtonRaphson(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
     job = Job(body, nr)
-    @test_throws ArgumentError submit(job)
+    @test_throws CompositeException submit(job)
 
     ## RKCRMaterial should not work with NewtonRaphson
     body = Body(RKCRMaterial(), position, volume)
@@ -537,5 +521,5 @@ end
     displacement_bc!(p -> 0.0, body, :bottom, :z)
     nr = NewtonRaphson(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
     job = Job(body, nr)
-    @test_throws ArgumentError submit(job)
+    @test_throws CompositeException submit(job)
 end
