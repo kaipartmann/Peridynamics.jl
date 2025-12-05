@@ -143,6 +143,83 @@ end
     end
 end
 
+@testitem "MPI-Threads comparison BBMaterial{NoCorrection} NewtonRaphson" tags=[:mpi] begin
+    using Peridynamics: NewtonRaphson
+    force_threads_run!()
+    root = mktempdir()
+    path_threads = joinpath(root, "results_threads")
+    path_threads_vtk = joinpath(path_threads, "vtk")
+    path_mpi = joinpath(root, "results_mpi")
+    path_mpi_vtk = joinpath(path_mpi, "vtk")
+
+    function sim_bb(N::Int, path::String)
+        l, Δx, δ, a = 100.0, 100.0/N, 3.015/N, 50.0
+        pos, vol = uniform_box(l, l, 0.1l, Δx)
+        ids = sortperm(pos[2,:])
+        body = Body(BBMaterial(), pos[:, ids], vol[ids])
+        material!(body; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+        point_set!(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, body, :set_a)
+        point_set!(p -> p[1] ≤ -l/2+a && -2δ ≤ p[2] < 0, body, :set_b)
+        precrack!(body, :set_a, :set_b)
+        point_set!(p -> p[2] > l/2-Δx, body, :set_top)
+        point_set!(p -> p[2] < -l/2+Δx, body, :set_bottom)
+        forcedensity_bc!(p -> -1e3, body, :set_bottom, :y)
+        forcedensity_bc!(p -> 1e3, body, :set_top, :y)
+        solver = NewtonRaphson(steps=5, stepsize=1.0, maxiter=200, tol=1e-3)
+        job = Job(body, solver; path, freq=5)
+        submit(job)
+        return nothing
+    end
+    sim_bb(15, path_threads)
+
+    mpi_cmd = """
+    using Peridynamics
+    using Peridynamics: NewtonRaphson
+    function sim_bb(N::Int, path::String)
+        l, Δx, δ, a = 100.0, 100.0/N, 3.015/N, 50.0
+        pos, vol = uniform_box(l, l, 0.1l, Δx)
+        ids = sortperm(pos[2,:])
+        body = Body(BBMaterial(), pos[:, ids], vol[ids])
+        material!(body; horizon=3.015Δx, E=2.1e5, rho=8e-6)
+        point_set!(p -> p[1] ≤ -l/2+a && 0 ≤ p[2] ≤ 2δ, body, :set_a)
+        point_set!(p -> p[1] ≤ -l/2+a && -2δ ≤ p[2] < 0, body, :set_b)
+        precrack!(body, :set_a, :set_b)
+        point_set!(p -> p[2] > l/2-Δx, body, :set_top)
+        point_set!(p -> p[2] < -l/2+Δx, body, :set_bottom)
+        forcedensity_bc!(p -> -1e3, body, :set_bottom, :y)
+        forcedensity_bc!(p -> 1e3, body, :set_top, :y)
+        solver = NewtonRaphson(steps=5, stepsize=1.0, maxiter=200, tol=1e-3)
+        job = Job(body, solver; path, freq=5)
+        submit(job)
+        return nothing
+    end
+    sim_bb(15, "$path_mpi")
+    """
+    mpiexec = Peridynamics.MPI.mpiexec()
+    nprocs = get(ENV, "CI", "false") == "true" ? 2 : Sys.CPU_THREADS
+    jlcmd = Base.julia_cmd()
+    pdir = pkgdir(Peridynamics)
+    run(`$(mpiexec) -n $(nprocs) $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`)
+
+    @test isdir(path_threads_vtk)
+    @test isdir(path_mpi_vtk)
+    vtk_files_threads = Peridynamics.find_vtk_files(path_threads_vtk)
+    vtk_files_mpi = Peridynamics.find_vtk_files(path_mpi_vtk)
+    @test length(vtk_files_mpi) == length(vtk_files_threads) == 2
+    for i in eachindex(vtk_files_threads, vtk_files_mpi)
+        res_threads = read_vtk(vtk_files_threads[i])
+        res_mpi = read_vtk(vtk_files_mpi[i])
+        for key in keys(res_threads)
+            res_threads_qty = res_threads[key]
+            res_mpi_qty = res_mpi[key]
+            Δe = maximum(abs.(res_threads_qty .- res_mpi_qty))
+            #TODO: why is this error so high?
+            # See also: https://github.com/kaipartmann/Peridynamics.jl/issues/187
+            @test Δe < 0.03
+        end
+    end
+end
+
 @testitem "MPI-Threads comparison BBMaterial{EnergySurfaceCorrection}" tags=[:mpi,:skipci] begin
     force_threads_run!()
     root = mktempdir()
