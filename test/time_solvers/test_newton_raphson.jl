@@ -12,6 +12,8 @@
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_reltol=-1e-4)
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_abstol=0)
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_abstol=-1e-8)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_maxiter=0)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_maxiter=-10)
 end
 
 @testitem "NewtonKrylov steps" begin
