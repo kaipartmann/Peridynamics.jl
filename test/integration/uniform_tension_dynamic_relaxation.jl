@@ -75,7 +75,7 @@ end
     nr = NewtonRaphson(; steps, tol=1e-3, maxiter=50)
     path = mktempdir()
     rm(path; recursive=true, force=true)
-    job = Job(body, nr; freq=steps, path, fields=(:displacement, :b_ext))
+    job = Job(body, nr; freq=steps, path, fields=(:displacement,))
     submit(job; quiet=false)
 
     # Analytical solution

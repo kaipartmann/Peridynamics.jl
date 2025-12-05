@@ -41,10 +41,14 @@ mutable struct NewtonRaphson <: AbstractTimeSolver
     gmres_maxiter::Int
     gmres_reltol::Float64
     gmres_abstol::Float64
+    global_residual::Vector{Float64}
+    global_Δu::Vector{Float64}
+    mpi_dof_counts::Vector{Int32}
+    mpi_displs::Vector{Int32}
 
     function NewtonRaphson(; time::Real=-1, steps::Int=-1, stepsize::Real=1.0,
                             maxiter::Int=100, tol::Real=1e-4, perturbation::Real=-1,
-                            gmres_maxiter::Int=-1, gmres_reltol::Real=1e-4,
+                            gmres_maxiter::Int=200, gmres_reltol::Real=1e-4,
                             gmres_abstol::Real=1e-8)
         if time > 0 && steps > 0
             msg = "specify either time or number of steps, not both!"
@@ -67,6 +71,7 @@ mutable struct NewtonRaphson <: AbstractTimeSolver
             end_time = steps * stepsize
         end
 
+        # Validate parameters
         if maxiter ≤ 0
             msg = "maxiter has to be larger than zero: maxiter > 0"
             throw(ArgumentError(msg))
@@ -83,15 +88,31 @@ mutable struct NewtonRaphson <: AbstractTimeSolver
             msg = "gmres_abstol has to be larger than zero: gmres_abstol > 0"
             throw(ArgumentError(msg))
         end
+        if gmres_maxiter ≤ 0
+            msg = "gmres_maxiter has to be larger than zero: gmres_maxiter > 0"
+            throw(ArgumentError(msg))
+        end
+
+        # Initialize global GMRES buffers as empty (will be resized on first use)
+        # MPI buffers also initialized empty
+        global_residual = Vector{Float64}()
+        global_Δu = Vector{Float64}()
+        # MPI-specific cached data (lazily initialized)
+        mpi_dof_counts = Vector{Int32}()
+        mpi_displs = Vector{Int32}()
+
         new(end_time, n_steps, stepsize, maxiter, tol, perturbation, gmres_maxiter,
-            gmres_reltol, gmres_abstol)
+            gmres_reltol, gmres_abstol, global_residual, global_Δu, mpi_dof_counts,
+            mpi_displs)
     end
 end
 
 function Base.show(io::IO, @nospecialize(nr::NewtonRaphson))
     print(io, typeof(nr))
     fields = Vector{Symbol}()
+    excluded = (:global_residual, :global_Δu, :mpi_dof_counts, :mpi_displs)
     for field in fieldnames(typeof(nr))
+        field in excluded && continue
         value = getfield(nr, field)
         if value > 0
             push!(fields, field)
@@ -107,7 +128,9 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(nr::NewtonRaphson))
     else
         println(io, typeof(nr), ":")
         fields = Vector{Symbol}()
+        excluded = (:global_residual, :global_Δu, :mpi_dof_counts, :mpi_displs)
         for field in fieldnames(typeof(nr))
+            field in excluded && continue
             value = getfield(nr, field)
             if value > 0
                 push!(fields, field)
@@ -118,32 +141,30 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(nr::NewtonRaphson))
     return nothing
 end
 
-# Always use only one thread!
-function chop_body_threads(body::AbstractBody, solver::NewtonRaphson,
-                           point_decomp::PointDecomposition, param_spec::AbstractParamSpec)
-    if point_decomp.n_chunks > 1
-        msg = "NewtonRaphson solver currently not implemented for multithreading usage!\n"
-        msg *= "For now, it will force `n_chunks = 1`\n"
-        println() # to not interfere with logging
-        @warn msg
-    end
-    _point_decomp = PointDecomposition(body, 1) # force a single chunk for now!
-    ChunkType = body_chunk_type(body, solver, param_spec)
-    chunks = _chop_body_threads(ChunkType, body, solver, _point_decomp, param_spec)
-    return chunks
-end
-
 function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
     newton_raphson_check(nr)
-
-    # Check that only a single chunk is created
-    if dh.n_chunks != 1
-        msg = "NewtonRaphson solver currently only implemented for single chunk!\n"
-        msg *= "Number of chunks in data handler: $(dh.n_chunks)\n"
-        throw(ArgumentError(msg))
+    @threads :static for chunk in dh.chunks
+        validate_chunk_for_newton_raphson!(chunk)
     end
-    chunk = dh.chunks[1] # extract for the checks
+    calculate_perturbation!(nr, dh)
+    return nothing
+end
 
+# MPI support
+function init_time_solver!(nr::NewtonRaphson, dh::MPIBodyDataHandler)
+    newton_raphson_check(nr)
+    validate_chunk_for_newton_raphson!(dh.chunk)
+    calculate_perturbation!(nr, dh)
+    return nothing
+end
+
+# Overload for MultibodySetups to throw an error
+function init_time_solver!(::NewtonRaphson, ::AbstractDataHandler)
+    msg = "NewtonRaphson solver only implemented for single body setups!\n"
+    return throw(ArgumentError(msg))
+end
+
+function validate_chunk_for_newton_raphson!(chunk::AbstractBodyChunk)
     # Boundary condition checks
     (; condhandler) = chunk
     n_sdbcs = length(condhandler.single_dim_bcs)
@@ -152,12 +173,6 @@ function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
     if n_sdbcs + n_pdsdbcs + n_dbcs > 0
         msg = "NewtonRaphson solver does not support all boundary condition types!\n"
         msg *= "Specify only position-dependent boundary conditions!"
-        throw(ArgumentError(msg))
-    end
-    if length(condhandler.pos_single_dim_bcs) == 0
-        msg = "NewtonRaphson solver requires at least one boundary condition!\n"
-        msg *= "Specify a boundary conditions with `displacement_bc!`, or \n"
-        msg *= "`forcedensity_bc!` with a function signature `p -> ...`!"
         throw(ArgumentError(msg))
     end
 
@@ -171,7 +186,7 @@ function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
         throw(ArgumentError(msg))
     end
 
-    # No damage allowed in whole model
+    # No damage allowed
     (; mat, system, paramsetup) = chunk
     for i in each_point_idx(system)
         params = get_params(paramsetup, i)
@@ -182,43 +197,34 @@ function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
         end
     end
 
-    # Calculate perturbation size based on system characteristics
-    if nr.perturbation ≤ 0
-        # Use characteristic length scale based on volume
-        Δx = (minimum_volume(dh))^(1/3) # minimum grid spacing
-        nr.perturbation = Δx * 1e-7 # perturbation size
-    end
-
-    # Set GMRES max iterations based on system size
-    if nr.gmres_maxiter ≤ 0
-        nr.gmres_maxiter = min(200, get_n_dof(system))
-    end
-
     return nothing
 end
 
-# Overload for MultibodySetups to throw an error
-function init_time_solver!(::NewtonRaphson, ::AbstractDataHandler)
-    msg = "NewtonRaphson solver only implemented for single body multithreading!\n"
-    return throw(ArgumentError(msg))
+function calculate_perturbation!(nr::NewtonRaphson, dh::AbstractDataHandler)
+    if nr.perturbation ≤ 0
+        Δx = (minimum_volume(dh))^(1/3)
+        nr.perturbation = Δx * 1e-7
+    end
+    return nothing
 end
 
 function minimum_volume(dh::ThreadsBodyDataHandler)
-    # min_vols = fill(Inf, dh.n_chunks)
-    # @threads :static for chunk_id in eachindex(dh.chunks)
-    #     chunk = dh.chunks[chunk_id]
-    #     min_vols[chunk_id] = minimum(chunk.system.volume)
-    # end
-    # return minimum(min_vols)
-    return minimum(dh.chunks[1].system.volume)
+    min_vols = fill(Inf, dh.n_chunks)
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        vol = chunk.system.volume
+        if !isempty(vol)
+            min_vols[chunk_id] = minimum(vol)
+        end
+    end
+    return minimum(min_vols)
 end
 
-# TODO: Add MPI version later
-# function minimum_volume(dh::MPIBodyDataHandler)
-#     local_min_vol = minimum_volume(dh.chunk.system.volume)
-#     global_min_vol = MPI.Allreduce(local_min_vol, MPI.MIN, mpi_comm())
-#     return global_min_vol
-# end
+function minimum_volume(dh::MPIBodyDataHandler)
+    local_min_vol = minimum(dh.chunk.system.volume)
+    global_min_vol = MPI.Allreduce(local_min_vol, MPI.MIN, mpi_comm())
+    return global_min_vol
+end
 
 function newton_raphson_check(nr::NewtonRaphson)
     if nr.end_time < 0
@@ -256,27 +262,31 @@ function solve!(dh::AbstractDataHandler, nr::NewtonRaphson, options::AbstractJob
     return dh
 end
 
-# Newton-Raphson step function, for now only for a single chunk!
+# Newton-Raphson step function - distributed across all chunks
 function newton_raphson_step!(dh::ThreadsBodyDataHandler,
                               nr::NewtonRaphson, options::AbstractJobOptions, n::Int)
-    chunk = dh.chunks[1]
     (; n_steps, Δt, maxiter, tol) = nr
-    (; system, storage, condhandler) = chunk
-    (; free_dofs, constrained_dofs) = condhandler
 
     t = n * Δt
     β = n / n_steps # load step factor
 
-    # Apply boundary conditions and update position
-    apply_incr_boundary_conditions!(chunk, β)
-    update_position!(storage, system, constrained_dofs)
+    # Apply boundary conditions and update positions on all chunks
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        apply_incr_boundary_conditions!(chunk, β)
+        update_position!(chunk.storage, chunk.system, chunk.condhandler.constrained_dofs)
+    end
 
     for iter in 1:maxiter
-        # Calculate internal forces
+        # Calculate internal forces with halo exchange
         calc_force_density!(dh, t, Δt)
-        calc_residual!(chunk)
 
-        # Check convergence using combined residual from all chunks
+        # Calculate residual on each chunk
+        @threads :static for chunk_id in eachindex(dh.chunks)
+            calc_residual!(dh.chunks[chunk_id])
+        end
+
+        # Check convergence using global residual norm
         r = get_residual_norm(dh)
         msg = @sprintf("\r  step: %8d | iter: %8d | r: %16g", n, iter, r)
         log_it(options, msg)
@@ -292,11 +302,11 @@ function newton_raphson_step!(dh::ThreadsBodyDataHandler,
             throw(ErrorException(msg))
         end
 
-        # Solve linear system using Jacobian-free Newton-Krylov method
-        solve_linear_system!(chunk, nr, t, Δt)
+        # Solve linear system using distributed Jacobian-free Newton-Krylov method
+        solve_linear_system!(dh, nr, t, Δt)
     end
 
-    @threads for chunk_id in eachindex(dh.chunks)
+    @threads :static for chunk_id in eachindex(dh.chunks)
         export_results(dh, options, chunk_id, n, t)
     end
 
@@ -317,86 +327,284 @@ function calc_residual!(chunk::AbstractBodyChunk)
     (; residual, b_int, b_ext) = storage
     (; volume) = system
 
-    # Convert 2D force matrices to 1D residual vector
-    for (dof, _, i) in each_dof_idx(system)
-        residual[dof] = (b_int[dof] + b_ext[dof]) * volume[i] # scaling with volume
+    # Convert 2D force matrices to 1D residual vector (local DOFs only)
+    for (dof, _, i) in each_loc_dof_idx(system)
+        residual[dof] = (b_int[dof] + b_ext[dof]) * volume[i]
     end
 
     # Set residual to zero for constrained DOFs
     for dof in condhandler.constrained_dofs
-        residual[dof] = 0.0
+        @inbounds residual[dof] = 0.0
     end
 
     return nothing
 end
 
 function get_residual_norm(dh::ThreadsBodyDataHandler)
-    return get_residual_norm(dh.chunks[1])
+    # Compute global norm as sqrt(sum of squared local norms)
+    local_norms_sq = zeros(dh.n_chunks)
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        local_norms_sq[chunk_id] = get_local_residual_norm_sq(dh.chunks[chunk_id])
+    end
+    return sqrt(sum(local_norms_sq))
 end
 
-function get_residual_norm(chunk::AbstractBodyChunk)
-    return norm(chunk.storage.residual)
+function get_residual_norm(dh::MPIBodyDataHandler)
+    # Compute global norm using MPI reduction
+    local_norm_sq = get_local_residual_norm_sq(dh.chunk)
+    global_norm_sq = MPI.Allreduce(local_norm_sq, MPI.SUM, mpi_comm())
+    return sqrt(global_norm_sq)
 end
 
-"""
-    jacobian_vector_product!(Jv, chunk, solver, v, t, Δt)
+function get_local_residual_norm_sq(chunk::AbstractBodyChunk)
+    residual = chunk.storage.residual
+    n_loc_dof = get_n_loc_dof(chunk.system)
+    s = 0.0
+    for i in 1:n_loc_dof
+        @inbounds s += residual[i]^2
+    end
+    return s
+end
 
-Compute the Jacobian-vector product `J * v` using central finite differences.
-The result is stored in `Jv`.
+# MPI Newton-Raphson step
+function newton_raphson_step!(dh::MPIBodyDataHandler,
+                              nr::NewtonRaphson, options::AbstractJobOptions, n::Int)
+    chunk = dh.chunk
+    (; n_steps, Δt, maxiter, tol) = nr
 
-This is the core of the Jacobian-Free Newton-Krylov (JFNK) method.
-Uses central difference approximation for O(ε²) accuracy:
-    J * v ≈ (F(u + ε*v) - F(u - ε*v)) / (2ε)
-"""
-function jacobian_vector_product!(Jv::AbstractVector, chunk::AbstractBodyChunk,
-                                  solver::NewtonRaphson, v::AbstractVector, t, Δt)
-    (; storage, system, mat, paramsetup, condhandler) = chunk
-    (; b_int, position, displacement) = storage
-    (; b_int_copy, displacement_copy, temp_force_a) = storage
-    (; volume) = system
-    (; constrained_dofs) = condhandler
+    t = n * Δt
+    β = n / n_steps
+
+    # Apply boundary conditions and update position
+    apply_incr_boundary_conditions!(chunk, β)
+    update_position!(chunk.storage, chunk.system, chunk.condhandler.constrained_dofs)
+
+    for iter in 1:maxiter
+        # Calculate internal forces with halo exchange
+        calc_force_density!(dh, t, Δt)
+        calc_residual!(chunk)
+
+        # Check convergence using global residual norm
+        r = get_residual_norm(dh)
+        if mpi_isroot()
+            msg = @sprintf("\r  step: %8d | iter: %8d | r: %16g", n, iter, r)
+            log_it(options, msg)
+        end
+        if r < tol
+            if mpi_isroot()
+                print_log(stdout, " ✔\n")
+                add_to_logfile(options, "\n  " * "-"^42 * "> converged ✔")
+            end
+            break
+        elseif iter == maxiter
+            if mpi_isroot()
+                print_log(stdout, " ❌\n\n")
+                add_to_logfile(options, "\n  " * "-"^35 * "> did not converge ❌")
+            end
+            msg = "Newton-Raphson solver did not converge after max iterations!\n"
+            msg *= "Consider increasing `maxiter` or `tol`.\n"
+            throw(ErrorException(msg))
+        end
+
+        # Solve linear system using distributed Jacobian-free Newton-Krylov method
+        solve_linear_system!(dh, nr, t, Δt)
+    end
+
+    export_results(dh, options, n, t)
+
+    return nothing
+end
+
+function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonRaphson, t, Δt)
+    (; gmres_maxiter, gmres_reltol, gmres_abstol) = solver
+
+    # Reset Δu on all chunks
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        dh.chunks[chunk_id].storage.Δu .= 0.0
+    end
+
+    # Calculate total local DOF (same across all Newton iterations)
+    total_loc_dof = sum(get_n_loc_dof(c.system) for c in dh.chunks)
+
+    # Ensure global buffers are properly sized (lazy initialization)
+    if length(solver.global_residual) != total_loc_dof
+        resize!(solver.global_residual, total_loc_dof)
+        resize!(solver.global_Δu, total_loc_dof)
+    end
+
+    # Get references to pre-allocated buffers
+    global_residual = solver.global_residual
+    global_Δu = solver.global_Δu
+
+    # Create distributed Jacobian-free linear operator
+    # This operator works on concatenated local DOF vectors from all chunks
+    # Uses storage.v_temp and storage.Jv_temp from each chunk
+    J_linmap = LinearMap(total_loc_dof; issymmetric=false, ismutating=true) do Jv, v
+        # Scatter global v to chunk storage.v_temp
+        scatter_to_chunk_storage!(dh, v)
+
+        # Compute distributed JVP (uses storage.v_temp, writes to storage.Jv_temp)
+        jacobian_vector_product_storage!(dh, solver, t, Δt)
+
+        # Gather storage.Jv_temp to global Jv
+        gather_from_chunk_storage!(Jv, dh)
+    end
+
+    # Gather residuals from all chunks into global residual vector
+    gather_residuals!(global_residual, dh)
+
+    # Reset solution vector
+    global_Δu .= 0.0
+
+    # Solve using GMRES with the distributed matrix-free operator
+    restart = min(50, total_loc_dof)
+    gmres!(global_Δu, J_linmap, -global_residual;
+           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol, restart=restart)
+
+    # Scatter global_Δu to chunks and update displacements
+    scatter_to_chunk_storage!(dh, global_Δu)
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        update_displacement_from_Δu_storage!(chunk)
+    end
+
+    return nothing
+end
+
+# New scatter function using storage.v_temp
+function scatter_to_chunk_storage!(dh::ThreadsBodyDataHandler, v::AbstractVector{Float64})
+    offset = 0
+    for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        n_loc_dof = get_n_loc_dof(chunk.system)
+        v_temp = chunk.storage.v_temp
+        for i in 1:n_loc_dof
+            @inbounds v_temp[i] = v[offset + i]
+        end
+        offset += n_loc_dof
+    end
+    return nothing
+end
+
+# New gather function using storage.Jv_temp
+function gather_from_chunk_storage!(v::AbstractVector{Float64}, dh::ThreadsBodyDataHandler)
+    offset = 0
+    for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        n_loc_dof = get_n_loc_dof(chunk.system)
+        Jv_temp = chunk.storage.Jv_temp
+        for i in 1:n_loc_dof
+            @inbounds v[offset + i] = Jv_temp[i]
+        end
+        offset += n_loc_dof
+    end
+    return nothing
+end
+
+function gather_residuals!(global_residual::Vector{Float64}, dh::ThreadsBodyDataHandler)
+    offset = 0
+    for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        n_loc_dof = get_n_loc_dof(chunk.system)
+        residual = chunk.storage.residual
+        for i in 1:n_loc_dof
+            @inbounds global_residual[offset + i] = residual[i]
+        end
+        offset += n_loc_dof
+    end
+    return nothing
+end
+
+# New JVP function using storage fields
+function jacobian_vector_product_storage!(dh::ThreadsBodyDataHandler, solver::NewtonRaphson,
+                                          t, Δt)
     ε = solver.perturbation
 
-    # Store original displacement and force density
+    # Step 1: Store original state and apply positive perturbation
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        store_state_and_apply_perturbation_storage!(dh.chunks[chunk_id], ε)
+    end
+
+    # Step 2: Calculate forces at positively perturbed state (with halo exchange)
+    calc_force_density!(dh, t, Δt)
+
+    # Step 3: Store positive forces and apply negative perturbation
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        store_pos_force_and_apply_neg_perturbation_storage!(dh.chunks[chunk_id], ε)
+    end
+
+    # Step 4: Calculate forces at negatively perturbed state (with halo exchange)
+    calc_force_density!(dh, t, Δt)
+
+    # Step 5: Compute Jv and restore original state
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        compute_jvp_and_restore_storage!(dh.chunks[chunk_id], ε)
+    end
+
+    return nothing
+end
+
+function store_state_and_apply_perturbation_storage!(chunk::AbstractBodyChunk, ε::Float64)
+    (; storage, system) = chunk
+    (; b_int, position, displacement, b_int_copy, displacement_copy, v_temp) = storage
+
+    # Store original state
     displacement_copy .= displacement
     b_int_copy .= b_int
 
-    # Apply positive perturbation: u + ε*v
+    # Apply positive perturbation: u + ε*v (using v_temp)
     for (dof, _, _) in each_loc_dof_idx(system)
-        @inbounds displacement[dof] = displacement_copy[dof] + ε * v[dof]
+        @inbounds displacement[dof] = displacement_copy[dof] + ε * v_temp[dof]
         @inbounds position[dof] = system.position[dof] + displacement[dof]
     end
 
-    # Calculate forces at positively perturbed state
+    # Reset forces for new calculation
     b_int .= 0.0
-    calc_force_density!(storage, system, mat, paramsetup, t, Δt)
 
-    # Compute F(u + ε*v) * volume and store in temp_force_a
-    for (dof, _, i) in each_dof_idx(system)
-        @inbounds temp_force_a[dof] = b_int[dof] * volume[i]
+    return nothing
+end
+
+function store_pos_force_and_apply_neg_perturbation_storage!(chunk::AbstractBodyChunk,
+                                                              ε::Float64)
+    (; storage, system) = chunk
+    (; b_int, position, displacement, displacement_copy, temp_force, v_temp) = storage
+    (; volume) = system
+
+    # Store F(u + ε*v) * volume in temp_force
+    for (dof, _, i) in each_loc_dof_idx(system)
+        @inbounds temp_force[dof] = b_int[dof] * volume[i]
     end
 
-    # Apply negative perturbation: u - ε*v
+    # Apply negative perturbation: u - ε*v (using v_temp)
     for (dof, _, _) in each_loc_dof_idx(system)
-        @inbounds displacement[dof] = displacement_copy[dof] - ε * v[dof]
+        @inbounds displacement[dof] = displacement_copy[dof] - ε * v_temp[dof]
         @inbounds position[dof] = system.position[dof] + displacement[dof]
     end
 
-    # Calculate forces at negatively perturbed state
+    # Reset forces for new calculation
     b_int .= 0.0
-    calc_force_density!(storage, system, mat, paramsetup, t, Δt)
+
+    return nothing
+end
+
+function compute_jvp_and_restore_storage!(chunk::AbstractBodyChunk, ε::Float64)
+    (; storage, system, condhandler) = chunk
+    (; b_int, position, displacement, displacement_copy, b_int_copy, temp_force) = storage
+    (; Jv_temp, v_temp) = storage
+    (; volume) = system
+    (; constrained_dofs) = condhandler
 
     # Compute Jacobian-vector product: Jv = (F(u + εv) - F(u - εv)) / (2ε)
-    for (dof, _, i) in each_dof_idx(system)
-        @inbounds Jv[dof] = (temp_force_a[dof] - b_int[dof] * volume[i]) / (2ε)
+    for (dof, _, i) in each_loc_dof_idx(system)
+        @inbounds Jv_temp[dof] = (temp_force[dof] - b_int[dof] * volume[i]) / (2ε)
     end
 
     # Handle constrained DOFs: set Jv[dof] = v[dof] (identity row)
     for dof in constrained_dofs
-        @inbounds Jv[dof] = v[dof]
+        @inbounds Jv_temp[dof] = v_temp[dof]
     end
 
-    # Restore original displacement, position, and force density
+    # Restore original state
     for (dof, _, _) in each_loc_dof_idx(system)
         @inbounds displacement[dof] = displacement_copy[dof]
         @inbounds position[dof] = system.position[dof] + displacement[dof]
@@ -406,31 +614,121 @@ function jacobian_vector_product!(Jv::AbstractVector, chunk::AbstractBodyChunk,
     return nothing
 end
 
-function solve_linear_system!(chunk::AbstractBodyChunk, solver::NewtonRaphson, t, Δt)
-    (; storage, condhandler) = chunk
+function update_displacement_from_Δu_storage!(chunk::AbstractBodyChunk)
+    (; storage, system, condhandler) = chunk
+    (; position, displacement, v_temp) = storage
     (; free_dofs) = condhandler
-    (; position, displacement, residual, Δu) = storage
-    (; gmres_maxiter, gmres_reltol, gmres_abstol) = solver
 
-    Δu .= 0.0
-
-    # Create Jacobian-free linear operator using a closure
-    n_dof = get_n_dof(chunk.system)
-    J_linmap = LinearMap(n_dof; issymmetric=false, ismutating=true) do Jv, v
-        jacobian_vector_product!(Jv, chunk, solver, v, t, Δt)
-    end
-
-    # Solve using GMRES with the matrix-free operator
-    # Use larger restart value to improve convergence for ill-conditioned systems
-    maxiter, reltol, abstol = gmres_maxiter, gmres_reltol, gmres_abstol
-    restart = min(50, n_dof)  # Restart after 50 iterations
-    gmres!(Δu, J_linmap, -residual; maxiter, reltol, abstol, restart)
-
+    # v_temp now contains the Δu values
     for dof in free_dofs
-        @inbounds du = Δu[dof]
+        @inbounds du = v_temp[dof]
         @inbounds displacement[dof] += du
         @inbounds position[dof] += du
     end
+
+    return nothing
+end
+
+# MPI version: Gather global vectors to all ranks, solve GMRES on full system, scatter back
+# This ensures all ranks stay synchronized during GMRES iterations
+function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonRaphson, t, Δt)
+    chunk = dh.chunk
+    (; storage) = chunk
+    (; gmres_maxiter, gmres_reltol, gmres_abstol) = solver
+
+    n_loc_dof = get_n_loc_dof(chunk.system)
+    n_ranks = mpi_nranks()
+
+    # Initialize MPI-specific cached data on first use
+    if isempty(solver.mpi_dof_counts)
+        solver.mpi_dof_counts = MPI.Allgather(Int32(n_loc_dof), mpi_comm())
+        solver.mpi_displs = zeros(Int32, n_ranks)
+        for i in 2:n_ranks
+            solver.mpi_displs[i] = solver.mpi_displs[i-1] + solver.mpi_dof_counts[i-1]
+        end
+    end
+
+    local_dof_counts = solver.mpi_dof_counts
+    displs = solver.mpi_displs
+    total_dof = sum(local_dof_counts)
+    my_offset = displs[mpi_chunk_id()]
+
+    # Ensure global buffers are properly sized (lazy initialization)
+    if length(solver.global_residual) != total_dof
+        resize!(solver.global_residual, total_dof)
+        resize!(solver.global_Δu, total_dof)
+    end
+
+    # Get references to pre-allocated buffers
+    global_residual = solver.global_residual
+    global_Δu = solver.global_Δu
+
+    # Use v_temp as local residual buffer (copy residual into it)
+    v_temp = storage.v_temp
+    for i in 1:n_loc_dof
+        @inbounds v_temp[i] = storage.residual[i]
+    end
+
+    # Gather local residuals to all ranks
+    MPI.Allgatherv!(v_temp, VBuffer(global_residual, local_dof_counts), mpi_comm())
+
+    # Reset solution vector
+    global_Δu .= 0.0
+    storage.Δu .= 0.0
+
+    # Get reference to Jv_temp for use in closure
+    Jv_temp = storage.Jv_temp
+
+    # Create global Jacobian-free linear operator
+    # All ranks compute the same global JVP together
+    J_linmap = LinearMap(total_dof; issymmetric=false, ismutating=true) do Jv_global, v_global
+        # Each rank extracts its local portion into v_temp
+        for i in 1:n_loc_dof
+            @inbounds v_temp[i] = v_global[my_offset + i]
+        end
+
+        # Compute JVP with halo exchange (all ranks synchronized)
+        # Uses v_temp as input, Jv_temp as output
+        jacobian_vector_product_mpi_storage!(dh, solver, t, Δt)
+
+        # Gather all local JVPs to global
+        MPI.Allgatherv!(Jv_temp, VBuffer(Jv_global, local_dof_counts), mpi_comm())
+    end
+
+    # All ranks solve the same global GMRES problem
+    restart = min(50, total_dof)
+    gmres!(global_Δu, J_linmap, -global_residual;
+           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol, restart=restart)
+
+    # Extract local solution into v_temp and update displacements
+    for i in 1:n_loc_dof
+        @inbounds v_temp[i] = global_Δu[my_offset + i]
+    end
+    update_displacement_from_Δu_storage!(chunk)
+
+    return nothing
+end
+
+# MPI version of JVP using storage fields
+function jacobian_vector_product_mpi_storage!(dh::MPIBodyDataHandler, solver::NewtonRaphson,
+                                               t, Δt)
+    chunk = dh.chunk
+    ε = solver.perturbation
+
+    # Step 1: Store original state and apply positive perturbation
+    store_state_and_apply_perturbation_storage!(chunk, ε)
+
+    # Step 2: Calculate forces at positively perturbed state (with MPI halo exchange)
+    calc_force_density!(dh, t, Δt)
+
+    # Step 3: Store positive forces and apply negative perturbation
+    store_pos_force_and_apply_neg_perturbation_storage!(chunk, ε)
+
+    # Step 4: Calculate forces at negatively perturbed state (with MPI halo exchange)
+    calc_force_density!(dh, t, Δt)
+
+    # Step 5: Compute Jv and restore original state
+    compute_jvp_and_restore_storage!(chunk, ε)
 
     return nothing
 end
@@ -473,49 +771,47 @@ function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
 end
 
 function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:residual})
-    return zeros(get_n_dof(system))
+    return zeros(get_n_loc_dof(system))
 end
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:residual})
     return Vector{Float64}()
 end
 
-# Note: jacobian field removed - using Jacobian-free Newton-Krylov method
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
-                           ::Val{:jacobian})
-    return Array{Float64,2}(undef, 0, 0)
-end
-
-function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:temp_force_a})
-    return zeros(get_n_dof(system))
+function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:temp_force})
+    return zeros(get_n_loc_dof(system))
 end
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
-                           ::Val{:temp_force_a})
-    return Array{Float64,1}(undef, 0)
-end
-
-# Note: temp_force_b field removed - using forward difference in JFNK
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
-                           ::Val{:temp_force_b})
+                           ::Val{:temp_force})
     return Array{Float64,1}(undef, 0)
 end
 
 function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:Δu})
-    return zeros(get_n_dof(system))
+    return zeros(get_n_loc_dof(system))
 end
 function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:Δu})
     return Array{Float64,1}(undef, 0)
 end
 
-# Note: affected_points field removed - not needed for matrix-free approach
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
-                           ::Val{:affected_points})
-    return Vector{Vector{Int}}()
+# GMRES temporary buffers for Jacobian-free Newton-Krylov
+function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:v_temp})
+    return zeros(get_n_loc_dof(system))
+end
+function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:v_temp})
+    return Vector{Float64}()
+end
+
+function init_field_solver(::NewtonRaphson, system::AbstractSystem, ::Val{:Jv_temp})
+    return zeros(get_n_loc_dof(system))
+end
+function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:Jv_temp})
+    return Vector{Float64}()
 end
 
 function req_point_data_fields_timesolver(::Type{<:NewtonRaphson})
     # Jacobian-free Newton-Krylov method: no jacobian, temp_force_b, or affected_points
-    fields = (:position, :displacement, :b_int, :b_ext,
-              :residual, :displacement_copy, :temp_force_a, :b_int_copy, :Δu)
+    # Added v_temp, Jv_temp for GMRES temporary buffers
+    fields = (:position, :displacement, :b_int, :b_ext, :residual, :displacement_copy,
+              :temp_force, :b_int_copy, :Δu, :v_temp, :Jv_temp)
     return fields
 end
 

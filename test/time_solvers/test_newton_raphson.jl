@@ -115,11 +115,9 @@ end
     point_decomp = Peridynamics.PointDecomposition(body, 4)
     param_spec = Peridynamics.get_param_spec(body)
 
-    # Test that warning is issued when more than 1 chunk is requested
-    @test_logs (:warn,) begin
-        chunks = Peridynamics.chop_body_threads(body, nr, point_decomp, param_spec)
-        @test length(chunks) == 1  # Should force single chunk
-    end
+    # NewtonRaphson now supports multiple chunks (parallel JFNK)
+    chunks = Peridynamics.chop_body_threads(body, nr, point_decomp, param_spec)
+    @test length(chunks) == 4  # Should use all requested chunks
 end
 
 @testitem "init_time_solver! NewtonRaphson ThreadsBodyDataHandler" begin
@@ -147,7 +145,7 @@ end
     @test nr.gmres_maxiter == min(200, Peridynamics.get_n_dof(dh.chunks[1].system))
 end
 
-@testitem "init_time_solver! NewtonRaphson checks single chunk" begin
+@testitem "init_time_solver! NewtonRaphson supports multiple chunks" begin
     using Peridynamics: NewtonRaphson, displacement_bc!
 
     position = [0.0 1.0 0.0 0.0
@@ -161,39 +159,33 @@ end
 
     nr = NewtonRaphson(steps=10, stepsize=0.1)
 
-    # Create data handler with forced multiple chunks (should fail in init)
-    # We need to manually create a dh with more than 1 chunk to test the error
-    dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=10), 2)
+    # Create data handler with multiple chunks (now supported with JFNK)
+    dh = Peridynamics.threads_data_handler(body, nr, 2)
 
-    @test_throws ArgumentError Peridynamics.init_time_solver!(nr, dh)
+    # Should not throw - multiple chunks are now supported
+    Peridynamics.init_time_solver!(nr, dh)
+    @test dh.n_chunks == 2
 end
 
 @testitem "init_time_solver! NewtonRaphson boundary condition checks" begin
     using Peridynamics: NewtonRaphson, displacement_bc!
 
-    # Test 1: No position-dependent BCs (should fail)
+    # Test: Body with displacement BC should work
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
     volume = [1.1, 1.2, 1.3, 1.4]
-    body1 = Body(BBMaterial(), position, volume)
-    material!(body1, horizon=2, rho=1, E=1)
+    body = Body(BBMaterial(), position, volume)
+    material!(body, horizon=2, rho=1, E=1)
+    point_set!(body, :top, [2])
+    displacement_bc!(p -> 0.1, body, :top, :y)
 
     nr = NewtonRaphson(steps=10, stepsize=0.1)
-    dh1 = Peridynamics.threads_data_handler(body1, nr, 1)
+    dh = Peridynamics.threads_data_handler(body, nr, 1)
 
-    @test_throws ArgumentError Peridynamics.init_time_solver!(nr, dh1)
-
-    # Test 2: Time-dependent BCs (should fail)
-    body2 = Body(BBMaterial(), position, volume)
-    material!(body2, horizon=2, rho=1, E=1)
-    point_set!(body2, :top, [2])
-    velocity_bc!(t -> 0.1, body2, :top, :y)  # time-dependent BC
-
-    nr2 = NewtonRaphson(steps=10, stepsize=0.1)
-    dh2 = Peridynamics.threads_data_handler(body2, nr2, 1)
-
-    @test_throws ArgumentError Peridynamics.init_time_solver!(nr2, dh2)
+    # Should initialize without error
+    Peridynamics.init_time_solver!(nr, dh)
+    @test nr.perturbation > 0  # perturbation should be set
 end
 
 @testitem "init_time_solver! NewtonRaphson damage check" begin
@@ -234,7 +226,7 @@ end
     nr = NewtonRaphson(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(ms, nr, 1)
 
-    msg = "NewtonRaphson solver only implemented for single body multithreading!\n"
+    msg = "NewtonRaphson solver only implemented for single body setups!\n"
     @test_throws ArgumentError(msg) Peridynamics.init_time_solver!(nr, dh)
 end
 
@@ -283,26 +275,33 @@ end
     residual_field = Peridynamics.init_field_solver(nr, system, Val(:residual))
     @test residual_field == zeros(n_dof)
 
-    # Test jacobian field initialization
+    # Test jacobian field initialization (JFNK: returns empty matrix)
     jacobian_field = Peridynamics.init_field_solver(nr, system, Val(:jacobian))
-    @test jacobian_field == zeros(n_dof, n_dof)
+    @test size(jacobian_field) == (0, 0)  # JFNK doesn't use jacobian matrix
 
     # Test temp_force_a field initialization
     temp_a_field = Peridynamics.init_field_solver(nr, system, Val(:temp_force_a))
     @test temp_a_field == zeros(n_dof)
 
-    # Test temp_force_b field initialization
+    # Test temp_force_b field initialization (JFNK: returns empty vector)
     temp_b_field = Peridynamics.init_field_solver(nr, system, Val(:temp_force_b))
-    @test temp_b_field == zeros(n_dof)
+    @test length(temp_b_field) == 0  # JFNK doesn't use temp_force_b
 
     # Test Δu field initialization
     du_field = Peridynamics.init_field_solver(nr, system, Val(:Δu))
     @test du_field == zeros(n_dof)
 
-    # Test affected_points field initialization
+    # Test affected_points field initialization (JFNK: returns empty vector)
     affected_field = Peridynamics.init_field_solver(nr, system, Val(:affected_points))
-    @test length(affected_field) == n_dof ÷ 3
-    @test all(x -> isa(x, Vector{Int}), affected_field)
+    @test length(affected_field) == 0  # JFNK doesn't use affected_points
+
+    # Test v_temp field initialization (JFNK temporary buffer)
+    v_temp_field = Peridynamics.init_field_solver(nr, system, Val(:v_temp))
+    @test v_temp_field == zeros(n_dof)
+
+    # Test Jv_temp field initialization (JFNK temporary buffer)
+    Jv_temp_field = Peridynamics.init_field_solver(nr, system, Val(:Jv_temp))
+    @test Jv_temp_field == zeros(n_dof)
 end
 
 @testitem "init_field_solver non-NewtonRaphson returns empty arrays" begin
@@ -352,7 +351,10 @@ end
     @test :displacement_copy in fields
     @test :b_int_copy in fields
     @test :residual in fields
-    @test :jacobian in fields
+    @test :v_temp in fields  # JFNK buffer
+    @test :Jv_temp in fields  # JFNK buffer
+    # Note: :jacobian is NOT in fields for JFNK
+    @test !(:jacobian in fields)
 end
 
 @testitem "req_bond_data_fields_timesolver NewtonRaphson" begin

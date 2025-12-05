@@ -495,13 +495,6 @@ end
     return storage.one_ni_active[one_ni_id]
 end
 
-function get_affected_points(system::InteractionSystem, i)
-    points = [one_ni.neighbor for one_ni in system.one_nis[each_one_ni_idx(system, i)]]
-    pushfirst!(points, i)
-    sort!(points)
-    return points
-end
-
 function log_msg_interaction_system(n_one_nis::Int, n_two_nis::Int, n_three_nis::Int)
     msg = msg_qty("number of one-neighbor-interactions", n_one_nis)
     msg *= msg_qty("number of two-neighbor-interactions", n_two_nis)
