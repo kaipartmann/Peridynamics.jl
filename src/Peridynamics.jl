@@ -136,7 +136,7 @@ include("core/mpi_multibody_data_handler.jl")
 
 include("time_solvers/velocity_verlet.jl")
 include("time_solvers/dynamic_relaxation.jl")
-include("time_solvers/newton_raphson.jl")
+include("time_solvers/newton_krylov.jl")
 
 include("physics/bond_based.jl")
 include("physics/dh_bond_based.jl")

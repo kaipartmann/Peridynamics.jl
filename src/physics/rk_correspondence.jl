@@ -293,9 +293,9 @@ function calc_force_density!(dh::MPIBodyDataHandler{<:BondSystem,<:AbstractRKCMa
     return nothing
 end
 
-# Newton-Raphson specific method: calculate forces for perturbed positions
+# Newton-Krylov specific method: calculate forces for perturbed positions
 # During Jacobian assembly, we only update deformation gradients, NOT weights or damage.
-# Gradient weights and bond failure state are frozen at the current Newton-Raphson iterate.
+# Gradient weights and bond failure state are frozen at the current Newton-Krylov iterate.
 function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
                              mat::AbstractRKCMaterial, paramsetup::AbstractParameterSetup,
                              idxs::AbstractVector{Int}, t, Δt)
@@ -313,7 +313,7 @@ function calc_force_density!(storage::AbstractStorage, system::AbstractBondSyste
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
     end
 
-    # This is currently only used with Newton-Raphson, so we can assume only the
+    # This is currently only used with Newton-Krylov, so we can assume only the
     # thread-version of check_for_nans is required here
     check_for_nans(storage, t, Δt)
     return nothing

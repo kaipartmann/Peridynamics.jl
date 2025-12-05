@@ -142,9 +142,9 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(nr::NewtonKrylov))
 end
 
 function init_time_solver!(nr::NewtonKrylov, dh::ThreadsBodyDataHandler)
-    newton_raphson_check(nr)
+    newton_krylov_check(nr)
     @threads :static for chunk in dh.chunks
-        validate_chunk_for_newton_raphson!(chunk)
+        validate_chunk_for_newton_krylov!(chunk)
     end
     calculate_perturbation!(nr, dh)
     init_newton_buffers!(nr, dh)
@@ -153,8 +153,8 @@ end
 
 # MPI support
 function init_time_solver!(nr::NewtonKrylov, dh::MPIBodyDataHandler)
-    newton_raphson_check(nr)
-    validate_chunk_for_newton_raphson!(dh.chunk)
+    newton_krylov_check(nr)
+    validate_chunk_for_newton_krylov!(dh.chunk)
     calculate_perturbation!(nr, dh)
     init_newton_buffers!(nr, dh)
     return nothing
@@ -190,7 +190,7 @@ function init_time_solver!(::NewtonKrylov, ::AbstractDataHandler)
     return throw(ArgumentError(msg))
 end
 
-function validate_chunk_for_newton_raphson!(chunk::AbstractBodyChunk)
+function validate_chunk_for_newton_krylov!(chunk::AbstractBodyChunk)
     # Boundary condition checks
     (; condhandler) = chunk
     n_sdbcs = length(condhandler.single_dim_bcs)
@@ -205,9 +205,9 @@ function validate_chunk_for_newton_raphson!(chunk::AbstractBodyChunk)
     # Material limitations
     incompatible_mats = (:CRMaterial, :RKCRMaterial)
     if nameof(typeof(chunk.mat)) ∈ incompatible_mats
-        msg = "$(nameof(typeof(chunk.mat))) not compatible with Newton-Raphson!\n"
+        msg = "$(nameof(typeof(chunk.mat))) not compatible with Newton-Krylov!\n"
         msg *= "The material uses stress rotation designed for dynamic simulations.\n"
-        msg *= "For quasi-static Newton-Raphson simulations, consider using the material"
+        msg *= "For quasi-static Newton-Krylov simulations, consider using the material"
         msg *= " without stress rotation instead.\n"
         throw(ArgumentError(msg))
     end
@@ -252,7 +252,7 @@ function minimum_volume(dh::MPIBodyDataHandler)
     return global_min_vol
 end
 
-function newton_raphson_check(nr::NewtonKrylov)
+function newton_krylov_check(nr::NewtonKrylov)
     if nr.end_time < 0
         error("`end_time` of NewtonKrylov smaller than zero!\n")
     end
@@ -275,12 +275,12 @@ function solve!(dh::AbstractDataHandler, nr::NewtonKrylov, options::AbstractJobO
     export_reference_results(dh, options)
 
     # Log solver info
-    log_it(options, "NEWTON-RAPHSON ITERATIONS")
+    log_it(options, "NEWTON-KRYLOV ITERATIONS")
     print_log(stdout, "\n") # necessary for correct terminal output
 
     # Time stepping loop
     for n in 1:nr.n_steps
-        newton_raphson_step!(dh, nr, options, n)
+        newton_krylov_step!(dh, nr, options, n)
     end
 
     add_to_logfile(options, "\n") # necessary for correct logfile output
@@ -288,8 +288,8 @@ function solve!(dh::AbstractDataHandler, nr::NewtonKrylov, options::AbstractJobO
     return dh
 end
 
-# Newton-Raphson step function - distributed across all chunks
-function newton_raphson_step!(dh::AbstractDataHandler, nr::NewtonKrylov,
+# Newton-Krylov step function - distributed across all chunks
+function newton_krylov_step!(dh::AbstractDataHandler, nr::NewtonKrylov,
                               options::AbstractJobOptions, n::Int)
     (; n_steps, Δt, maxiter, tol) = nr
 
@@ -312,7 +312,7 @@ function newton_raphson_step!(dh::AbstractDataHandler, nr::NewtonKrylov,
         elseif iter == maxiter
             print_log(stdout, " ❌\n\n")
             add_to_logfile(options, "\n  " * "-"^35 * "> did not converge ❌")
-            msg = "Newton-Raphson solver did not converge after max iterations!\n"
+            msg = "Newton-Krylov solver did not converge after max iterations!\n"
             msg *= "Consider increasing `maxiter` or `tol`.\n"
             throw(ErrorException(msg))
         end
@@ -716,7 +716,7 @@ function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:b_ext}
     return zeros(3, get_n_points(system))
 end
 
-# Newton-Raphson specific fields
+# Newton-Krylov specific fields
 function init_field_solver(::NewtonKrylov, system::AbstractSystem,
                            ::Val{:displacement_copy})
     return zeros(3, get_n_loc_points(system))
