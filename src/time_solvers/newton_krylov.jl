@@ -1,9 +1,6 @@
 """
     NewtonKrylov(; kwargs...)
 
-$(internal_api_warning())
-$(experimental_api_warning())
-
 An implicit time integration solver for quasi-static peridynamic simulations using the
 Jacobian-Free Newton-Krylov (JFNK) method.
 
@@ -41,6 +38,7 @@ mutable struct NewtonKrylov <: AbstractTimeSolver
     gmres_maxiter::Int
     gmres_reltol::Float64
     gmres_abstol::Float64
+    gmres_restart::Int
     global_residual::Vector{Float64}
     global_Δu::Vector{Float64}
     mpi_dof_counts::Vector{Int32}
@@ -49,7 +47,7 @@ mutable struct NewtonKrylov <: AbstractTimeSolver
     function NewtonKrylov(; time::Real=-1, steps::Int=-1, stepsize::Real=1.0,
                             maxiter::Int=100, tol::Real=1e-4, perturbation::Real=-1,
                             gmres_maxiter::Int=200, gmres_reltol::Real=1e-4,
-                            gmres_abstol::Real=1e-8)
+                            gmres_abstol::Real=1e-8, gmres_restart::Int=50)
         if time > 0 && steps > 0
             msg = "specify either time or number of steps, not both!"
             throw(ArgumentError(msg))
@@ -92,6 +90,10 @@ mutable struct NewtonKrylov <: AbstractTimeSolver
             msg = "gmres_maxiter has to be larger than zero: gmres_maxiter > 0"
             throw(ArgumentError(msg))
         end
+        if gmres_restart ≤ 0
+            msg = "gmres_restart has to be larger than zero: gmres_restart > 0"
+            throw(ArgumentError(msg))
+        end
 
         # Initialize global GMRES buffers as empty (will be resized on first use)
         # MPI buffers also initialized empty
@@ -102,8 +104,8 @@ mutable struct NewtonKrylov <: AbstractTimeSolver
         mpi_displs = Vector{Int32}()
 
         new(end_time, n_steps, stepsize, maxiter, tol, perturbation, gmres_maxiter,
-            gmres_reltol, gmres_abstol, global_residual, global_Δu, mpi_dof_counts,
-            mpi_displs)
+            gmres_reltol, gmres_abstol, gmres_restart, global_residual, global_Δu,
+            mpi_dof_counts, mpi_displs)
     end
 end
 
@@ -407,7 +409,8 @@ function get_local_residual_norm_sq(chunk::AbstractBodyChunk)
 end
 
 function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonKrylov, t, Δt)
-    (; gmres_maxiter, gmres_reltol, gmres_abstol, global_residual, global_Δu) = solver
+    (; global_residual, global_Δu) = solver
+    (; gmres_maxiter, gmres_reltol, gmres_abstol, gmres_restart) = solver
 
     # Reset Δu on all chunks
     @threads :static for chunk_id in eachindex(dh.chunks)
@@ -438,9 +441,9 @@ function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonKrylov, 
     global_Δu .= 0.0
 
     # Solve using GMRES with the distributed matrix-free operator
-    restart = min(50, total_loc_dof)
     gmres!(global_Δu, J_linmap, -global_residual;
-           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol, restart)
+           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol,
+           restart=gmres_restart)
 
     # Scatter global_Δu to chunks and update displacements
     scatter_to_chunk!(dh, global_Δu)
@@ -611,8 +614,8 @@ end
 function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, Δt)
     chunk = dh.chunk
     (; storage, system) = chunk
-    (; gmres_maxiter, gmres_reltol, gmres_abstol, global_residual, global_Δu) = solver
-    (; mpi_dof_counts, mpi_displs) = solver
+    (; gmres_maxiter, gmres_reltol, gmres_abstol, gmres_restart) = solver
+    (; global_residual, global_Δu, mpi_dof_counts, mpi_displs) = solver
 
     n_loc_dof = get_n_loc_dof(system)
     total_dof = length(global_residual)
@@ -651,9 +654,9 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, �
     end
 
     # All ranks solve the same global GMRES problem
-    restart = min(50, total_dof)
     gmres!(global_Δu, J_linmap, -global_residual;
-           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol, restart)
+           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol,
+           restart=gmres_restart)
 
     # Extract local solution into v_temp and update displacements
     for i in 1:n_loc_dof

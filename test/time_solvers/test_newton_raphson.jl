@@ -1,5 +1,4 @@
 @testitem "NewtonKrylov wrong input" begin
-    using Peridynamics: NewtonKrylov
     @test_throws ArgumentError NewtonKrylov(time=1, steps=10)
     @test_throws ArgumentError NewtonKrylov()
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0)
@@ -14,10 +13,11 @@
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_abstol=-1e-8)
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_maxiter=0)
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_maxiter=-10)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_restart=0)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_restart=-10)
 end
 
 @testitem "NewtonKrylov steps" begin
-    using Peridynamics: NewtonKrylov
     nr = NewtonKrylov(steps=100)
     @test nr.end_time == 100
     @test nr.n_steps == 100
@@ -31,7 +31,6 @@ end
 end
 
 @testitem "NewtonKrylov time" begin
-    using Peridynamics: NewtonKrylov
     nr = NewtonKrylov(time=1.0, stepsize=0.01)
     @test nr.end_time == 1.0
     @test nr.n_steps == 100
@@ -41,7 +40,6 @@ end
 end
 
 @testitem "NewtonKrylov custom parameters" begin
-    using Peridynamics: NewtonKrylov
     nr = NewtonKrylov(steps=50, stepsize=0.02, maxiter=75, tol=1e-6,
                       perturbation=1e-8, gmres_maxiter=150, gmres_reltol=1e-5,
                       gmres_abstol=1e-9)
@@ -57,7 +55,6 @@ end
 end
 
 @testitem "newton_krylov_check" begin
-    using Peridynamics: NewtonKrylov
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.end_time = -1
     msg = "`end_time` of NewtonKrylov smaller than zero!\n"
@@ -85,12 +82,8 @@ end
 end
 
 @testitem "show NewtonKrylov" begin
-    using Peridynamics: NewtonKrylov
-
     io = IOBuffer()
-
     nr = NewtonKrylov(steps=10, stepsize=0.1)
-
     show(IOContext(io, :compact=>true), MIME("text/plain"), nr)
     msg = String(take!(io))
     @test contains(msg, "NewtonKrylov(end_time=1.0, n_steps=10, Δt=0.1, maxiter=100")
@@ -105,7 +98,6 @@ end
 end
 
 @testitem "chop_body_threads NewtonKrylov forces single chunk" begin
-    using Peridynamics: NewtonKrylov
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -123,8 +115,6 @@ end
 end
 
 @testitem "init_time_solver! NewtonKrylov ThreadsBodyDataHandler" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
-
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -147,8 +137,6 @@ end
 end
 
 @testitem "init_time_solver! NewtonKrylov supports multiple chunks" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
-
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -169,8 +157,6 @@ end
 end
 
 @testitem "init_time_solver! NewtonKrylov boundary condition checks" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
-
     # Test: Body with displacement BC should work
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
@@ -190,8 +176,6 @@ end
 end
 
 @testitem "init_time_solver! NewtonKrylov damage check" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
-
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -211,8 +195,6 @@ end
 end
 
 @testitem "init_time_solver! NewtonKrylov MultibodySetup error" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
-
     position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
     volume = [1.0, 1.0]
     body1 = Body(BBMaterial(), position, volume)
@@ -232,8 +214,6 @@ end
 end
 
 @testitem "init_field_solver NewtonKrylov" begin
-    using Peridynamics: NewtonKrylov
-
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -294,8 +274,6 @@ end
 end
 
 @testitem "init_field_solver non-NewtonKrylov returns empty arrays" begin
-    using Peridynamics: NewtonKrylov
-
     position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
     volume = [1.0, 1.0]
     body = Body(BBMaterial(), position, volume)
@@ -330,8 +308,6 @@ end
 end
 
 @testitem "req_point_data_fields_timesolver NewtonKrylov" begin
-    using Peridynamics: NewtonKrylov
-
     fields = Peridynamics.req_point_data_fields_timesolver(NewtonKrylov)
 
     @test :displacement_copy in fields
@@ -344,22 +320,16 @@ end
 end
 
 @testitem "req_bond_data_fields_timesolver NewtonKrylov" begin
-    using Peridynamics: NewtonKrylov
-
     fields = Peridynamics.req_bond_data_fields_timesolver(NewtonKrylov)
     @test fields == ()
 end
 
 @testitem "req_data_fields_timesolver NewtonKrylov" begin
-    using Peridynamics: NewtonKrylov
-
     fields = Peridynamics.req_data_fields_timesolver(NewtonKrylov)
     @test fields == ()
 end
 
 @testitem "update_position!" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
-
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -389,8 +359,6 @@ end
 end
 
 @testitem "calc_residual!" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
-
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -424,7 +392,6 @@ end
 end
 
 @testitem "get_residual_norm" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
     using Peridynamics.LinearAlgebra
 
     position = [0.0 1.0 0.0 0.0
@@ -455,8 +422,6 @@ end
 end
 
 @testitem "minimum_volume ThreadsBodyDataHandler" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
-
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -474,7 +439,6 @@ end
 end
 
 @testitem "NewtonKrylov throw maxiter" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -493,8 +457,6 @@ end
 end
 
 @testitem "Material limitation errors" begin
-    using Peridynamics: NewtonKrylov, displacement_bc!
-
     ## CRMaterial should not work with NewtonKrylov
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0

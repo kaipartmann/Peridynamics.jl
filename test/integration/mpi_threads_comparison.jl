@@ -144,7 +144,6 @@ end
 end
 
 @testitem "MPI-Threads comparison BBMaterial{NoCorrection} NewtonKrylov" tags=[:mpi] begin
-    using Peridynamics: NewtonKrylov
     force_threads_run!()
     root = mktempdir()
     path_threads = joinpath(root, "results_threads")
@@ -174,7 +173,6 @@ end
 
     mpi_cmd = """
     using Peridynamics
-    using Peridynamics: NewtonKrylov
     function sim_bb(N::Int, path::String)
         l, Δx, δ, a = 100.0, 100.0/N, 3.015/N, 50.0
         pos, vol = uniform_box(l, l, 0.1l, Δx)

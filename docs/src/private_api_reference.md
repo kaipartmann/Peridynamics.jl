@@ -69,8 +69,6 @@ Peridynamics.@autoinfiltrate
 
 ## Experimental Features
 ```@docs
-Peridynamics.displacement_bc!
 Peridynamics.velocity_databc!
 Peridynamics.forcedensity_databc!
-Peridynamics.NewtonKrylov
 ```
