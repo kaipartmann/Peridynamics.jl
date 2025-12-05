@@ -147,6 +147,7 @@ function init_time_solver!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
         validate_chunk_for_newton_raphson!(chunk)
     end
     calculate_perturbation!(nr, dh)
+    init_newton_buffers!(nr, dh)
     return nothing
 end
 
@@ -155,6 +156,31 @@ function init_time_solver!(nr::NewtonRaphson, dh::MPIBodyDataHandler)
     newton_raphson_check(nr)
     validate_chunk_for_newton_raphson!(dh.chunk)
     calculate_perturbation!(nr, dh)
+    init_newton_buffers!(nr, dh)
+    return nothing
+end
+
+function init_newton_buffers!(nr::NewtonRaphson, dh::ThreadsBodyDataHandler)
+    total_loc_dof = sum(get_n_loc_dof(c.system) for c in dh.chunks)
+    resize!(nr.global_residual, total_loc_dof)
+    resize!(nr.global_Δu, total_loc_dof)
+    return nothing
+end
+
+function init_newton_buffers!(nr::NewtonRaphson, dh::MPIBodyDataHandler)
+    n_loc_dof = get_n_loc_dof(dh.chunk.system)
+    n_ranks = mpi_nranks()
+
+    # Initialize MPI-specific cached data
+    nr.mpi_dof_counts = MPI.Allgather(Int32(n_loc_dof), mpi_comm())
+    nr.mpi_displs = zeros(Int32, n_ranks)
+    for i in 2:n_ranks
+        nr.mpi_displs[i] = nr.mpi_displs[i-1] + nr.mpi_dof_counts[i-1]
+    end
+
+    total_dof = sum(nr.mpi_dof_counts)
+    resize!(nr.global_residual, total_dof)
+    resize!(nr.global_Δu, total_dof)
     return nothing
 end
 
@@ -381,7 +407,7 @@ function get_local_residual_norm_sq(chunk::AbstractBodyChunk)
 end
 
 function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonRaphson, t, Δt)
-    (; gmres_maxiter, gmres_reltol, gmres_abstol) = solver
+    (; gmres_maxiter, gmres_reltol, gmres_abstol, global_residual, global_Δu) = solver
 
     # Reset Δu on all chunks
     @threads :static for chunk_id in eachindex(dh.chunks)
@@ -389,17 +415,7 @@ function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonRaphson,
     end
 
     # Calculate total local DOF (same across all Newton iterations)
-    total_loc_dof = sum(get_n_loc_dof(c.system) for c in dh.chunks)
-
-    # Ensure global buffers are properly sized (lazy initialization)
-    if length(solver.global_residual) != total_loc_dof
-        resize!(solver.global_residual, total_loc_dof)
-        resize!(solver.global_Δu, total_loc_dof)
-    end
-
-    # Get references to pre-allocated buffers
-    global_residual = solver.global_residual
-    global_Δu = solver.global_Δu
+    total_loc_dof = length(global_residual)
 
     # Create distributed Jacobian-free linear operator
     # This operator works on concatenated local DOF vectors from all chunks
@@ -424,7 +440,7 @@ function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonRaphson,
     # Solve using GMRES with the distributed matrix-free operator
     restart = min(50, total_loc_dof)
     gmres!(global_Δu, J_linmap, -global_residual;
-           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol, restart=restart)
+           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol, restart)
 
     # Scatter global_Δu to chunks and update displacements
     scatter_to_chunk!(dh, global_Δu)
@@ -595,34 +611,12 @@ end
 function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonRaphson, t, Δt)
     chunk = dh.chunk
     (; storage, system) = chunk
-    (; gmres_maxiter, gmres_reltol, gmres_abstol) = solver
+    (; gmres_maxiter, gmres_reltol, gmres_abstol, global_residual, global_Δu) = solver
+    (; mpi_dof_counts, mpi_displs) = solver
 
     n_loc_dof = get_n_loc_dof(system)
-    n_ranks = mpi_nranks()
-
-    # Initialize MPI-specific cached data on first use
-    if isempty(solver.mpi_dof_counts)
-        solver.mpi_dof_counts = MPI.Allgather(Int32(n_loc_dof), mpi_comm())
-        solver.mpi_displs = zeros(Int32, n_ranks)
-        for i in 2:n_ranks
-            solver.mpi_displs[i] = solver.mpi_displs[i-1] + solver.mpi_dof_counts[i-1]
-        end
-    end
-
-    local_dof_counts = solver.mpi_dof_counts
-    displs = solver.mpi_displs
-    total_dof = sum(local_dof_counts)
-    my_offset = displs[mpi_chunk_id()]
-
-    # Ensure global buffers are properly sized (lazy initialization)
-    if length(solver.global_residual) != total_dof
-        resize!(solver.global_residual, total_dof)
-        resize!(solver.global_Δu, total_dof)
-    end
-
-    # Get references to pre-allocated buffers
-    global_residual = solver.global_residual
-    global_Δu = solver.global_Δu
+    total_dof = length(global_residual)
+    my_offset = mpi_displs[mpi_chunk_id()]
 
     # Use v_temp as local residual buffer (copy residual into it)
     v_temp = storage.v_temp
@@ -631,7 +625,7 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonRaphson, t, 
     end
 
     # Gather local residuals to all ranks
-    MPI.Allgatherv!(v_temp, VBuffer(global_residual, local_dof_counts), mpi_comm())
+    MPI.Allgatherv!(v_temp, VBuffer(global_residual, mpi_dof_counts), mpi_comm())
 
     # Reset solution vector
     global_Δu .= 0.0
@@ -642,10 +636,10 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonRaphson, t, 
 
     # Create global Jacobian-free linear operator
     # All ranks compute the same global JVP together
-    J_linmap = LinearMap(total_dof; issymmetric=false, ismutating=true) do Jv_global, v_global
+    J_linmap = LinearMap(total_dof; issymmetric=false, ismutating=true) do Jv, v
         # Each rank extracts its local portion into v_temp
         for i in 1:n_loc_dof
-            @inbounds v_temp[i] = v_global[my_offset + i]
+            @inbounds v_temp[i] = v[my_offset + i]
         end
 
         # Compute JVP with halo exchange (all ranks synchronized)
@@ -653,13 +647,13 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonRaphson, t, 
         jacobian_vector_product_mpi!(dh, solver, t, Δt)
 
         # Gather all local JVPs to global
-        MPI.Allgatherv!(Jv_temp, VBuffer(Jv_global, local_dof_counts), mpi_comm())
+        MPI.Allgatherv!(Jv_temp, VBuffer(Jv, mpi_dof_counts), mpi_comm())
     end
 
     # All ranks solve the same global GMRES problem
     restart = min(50, total_dof)
     gmres!(global_Δu, J_linmap, -global_residual;
-           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol, restart=restart)
+           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol, restart)
 
     # Extract local solution into v_temp and update displacements
     for i in 1:n_loc_dof
@@ -671,8 +665,7 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonRaphson, t, 
 end
 
 # MPI version of JVP using storage fields
-function jacobian_vector_product_mpi!(dh::MPIBodyDataHandler, solver::NewtonRaphson,
-                                               t, Δt)
+function jacobian_vector_product_mpi!(dh::MPIBodyDataHandler, solver::NewtonRaphson, t, Δt)
     chunk = dh.chunk
     ε = solver.perturbation
 
