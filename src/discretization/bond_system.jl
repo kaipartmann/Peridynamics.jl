@@ -279,21 +279,6 @@ end
 
 function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
                              mat::AbstractBondSystemMaterial,
-                             paramsetup::AbstractParameterSetup, idxs::AbstractVector{Int},
-                             t, Δt)
-    (; dmgmodel) = mat
-    @inbounds storage.b_int[:, idxs] .= 0.0
-    @inbounds storage.n_active_bonds[idxs] .= 0
-    for i in idxs
-        calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
-        calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
-        force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
-    end
-    return nothing
-end
-
-function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
-                             mat::AbstractBondSystemMaterial,
                              paramsetup::AbstractParameterSetup, t, Δt)
     (; dmgmodel) = mat
     storage.b_int .= 0.0

@@ -416,14 +416,7 @@ end
 
 function calc_force_density!(chunk::AbstractBodyChunk{<:InteractionSystem}, t, Δt)
     (; system, mat, paramsetup, storage) = chunk
-    (; dmgmodel) = mat
-    storage.b_int .= 0
-    storage.n_active_one_nis .= 0
-    for point_id in each_point_idx(chunk)
-        calc_failure!(storage, system, mat, dmgmodel, paramsetup, point_id)
-        calc_damage!(storage, system, mat, dmgmodel, paramsetup, point_id)
-        force_density_point!(storage, system, mat, paramsetup, t, Δt, point_id)
-    end
+    calc_force_density!(storage, system, mat, paramsetup, t, Δt)
     return nothing
 end
 
@@ -434,21 +427,6 @@ function calc_force_density!(storage::AbstractStorage, system::InteractionSystem
     storage.b_int .= 0
     storage.n_active_one_nis .= 0
     for i in each_point_idx(system)
-        calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
-        calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
-        force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
-    end
-    return nothing
-end
-
-function calc_force_density!(storage::AbstractStorage, system::InteractionSystem,
-                             mat::AbstractInteractionSystemMaterial,
-                             paramsetup::AbstractParameterSetup, idxs::AbstractVector{Int},
-                             t, Δt)
-    (; dmgmodel) = mat
-    @inbounds storage.b_int[:, idxs] .= 0
-    @inbounds storage.n_active_one_nis[idxs] .= 0
-    for i in idxs
         calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
