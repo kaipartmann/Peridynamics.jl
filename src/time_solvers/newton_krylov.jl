@@ -521,7 +521,7 @@ function jacobian_vector_product!(dh::ThreadsBodyDataHandler, solver::NewtonKryl
     end
 
     # Step 4: Calculate forces at negatively perturbed state (with halo exchange)
-    calc_force_density!(dh, t, Δt)
+    # calc_force_density!(dh, t, Δt)
 
     # Step 5: Compute Jv and restore original state
     @threads :static for chunk_id in eachindex(dh.chunks)
@@ -542,27 +542,28 @@ function compute_perturbation(dh::ThreadsBodyDataHandler, solver::NewtonKrylov)
         chunk = dh.chunks[chunk_id]
         u_sq, v_sq = compute_u_v_norm_sq(chunk)
         @inbounds u_norm_sq_buf[chunk_id] = u_sq
-        @inbounds v_norm_sq_buf[chunk_id] = v_sq
+        # @inbounds v_norm_sq_buf[chunk_id] = v_sq
     end
 
     # Sum across chunks (no allocation)
     u_norm_sq = 0.0
-    v_norm_sq = 0.0
+    # v_norm_sq = 0.0
     @inbounds for i in eachindex(u_norm_sq_buf)
         u_norm_sq += u_norm_sq_buf[i]
-        v_norm_sq += v_norm_sq_buf[i]
+        # v_norm_sq += v_norm_sq_buf[i]
     end
 
     u_norm = sqrt(u_norm_sq)
-    v_norm = sqrt(v_norm_sq)
+    # v_norm = sqrt(v_norm_sq)
 
     # Avoid division by zero
-    if v_norm < eps(Float64)
-        v_norm = 1.0
-    end
+    # if v_norm < eps(Float64)
+    #     v_norm = 1.0
+    # end
 
     # cbrt(eps(Float64)) ≈ 6.055e-6 for Float64
-    ε = perturbation_scale * cbrt(eps(Float64)) * (u_norm + 1.0) / v_norm
+    # ε = perturbation_scale * cbrt(eps(Float64)) * (u_norm + 1.0) / v_norm
+    ε = perturbation_scale * cbrt(eps(Float64)) * u_norm
     return ε
 end
 
@@ -574,17 +575,18 @@ function compute_perturbation(dh::MPIBodyDataHandler, solver::NewtonKrylov)
 
     # Global reduction
     u_norm_sq = MPI.Allreduce(u_sq, MPI.SUM, mpi_comm())
-    v_norm_sq = MPI.Allreduce(v_sq, MPI.SUM, mpi_comm())
+    # v_norm_sq = MPI.Allreduce(v_sq, MPI.SUM, mpi_comm())
 
     u_norm = sqrt(u_norm_sq)
-    v_norm = sqrt(v_norm_sq)
+    # v_norm = sqrt(v_norm_sq)
 
     # Avoid division by zero
-    if v_norm < eps(Float64)
-        v_norm = 1.0
-    end
+    # if v_norm < eps(Float64)
+    #     v_norm = 1.0
+    # end
 
-    ε = perturbation_scale * cbrt(eps(Float64)) * (u_norm + 1.0) / v_norm
+    # ε = perturbation_scale * cbrt(eps(Float64)) * (u_norm + 1.0) / v_norm
+    ε = perturbation_scale * cbrt(eps(Float64)) * u_norm
     return ε
 end
 
@@ -595,7 +597,7 @@ function compute_u_v_norm_sq(chunk::AbstractBodyChunk)
     v_sq = 0.0
     for (dof, _, _) in each_loc_dof_idx(system)
         @inbounds u_sq += displacement[dof]^2
-        @inbounds v_sq += v_temp[dof]^2
+        # @inbounds v_sq += v_temp[dof]^2
     end
     return u_sq, v_sq
 end
@@ -623,7 +625,7 @@ end
 function store_pos_force_and_apply_neg_perturbation!(chunk::AbstractBodyChunk,
                                                               ε::Float64)
     (; storage, system) = chunk
-    (; b_int, position, displacement, displacement_copy, temp_force, v_temp) = storage
+    (; b_int, position, displacement, displacement_copy, temp_force, v_temp, b_int_copy) = storage
     (; volume) = system
 
     # Store F(u + ε*v) * volume in temp_force
@@ -632,13 +634,14 @@ function store_pos_force_and_apply_neg_perturbation!(chunk::AbstractBodyChunk,
     end
 
     # Apply negative perturbation: u - ε*v (using v_temp)
-    for (dof, _, _) in each_loc_dof_idx(system)
-        @inbounds displacement[dof] = displacement_copy[dof] - ε * v_temp[dof]
-        @inbounds position[dof] = system.position[dof] + displacement[dof]
-    end
+    # for (dof, _, _) in each_loc_dof_idx(system)
+    #     @inbounds displacement[dof] = displacement_copy[dof] - ε * v_temp[dof]
+    #     @inbounds position[dof] = system.position[dof] + displacement[dof]
+    # end
 
     # Reset forces for new calculation
-    b_int .= 0.0
+    # b_int .= 0.0
+    b_int .= b_int_copy
 
     return nothing
 end
@@ -652,7 +655,8 @@ function compute_jvp_and_restore!(chunk::AbstractBodyChunk, ε::Float64)
 
     # Compute Jacobian-vector product: Jv = (F(u + εv) - F(u - εv)) / (2ε)
     for (dof, _, i) in each_loc_dof_idx(system)
-        @inbounds Jv_temp[dof] = (temp_force[dof] - b_int[dof] * volume[i]) / (2ε)
+        # @inbounds Jv_temp[dof] = (temp_force[dof] - b_int[dof] * volume[i]) / (2ε)
+        @inbounds Jv_temp[dof] = (temp_force[dof] - b_int[dof] * volume[i]) / (ε)
     end
 
     # Handle constrained DOFs: set Jv[dof] = v[dof] (identity row)
@@ -762,7 +766,7 @@ function jacobian_vector_product_mpi!(dh::MPIBodyDataHandler, solver::NewtonKryl
     store_pos_force_and_apply_neg_perturbation!(chunk, ε)
 
     # Step 4: Calculate forces at negatively perturbed state (with MPI halo exchange)
-    calc_force_density!(dh, t, Δt)
+    # calc_force_density!(dh, t, Δt)
 
     # Step 5: Compute Jv and restore original state
     compute_jvp_and_restore!(chunk, ε)
