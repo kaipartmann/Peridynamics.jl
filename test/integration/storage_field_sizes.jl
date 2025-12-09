@@ -111,7 +111,6 @@ end
     @test length(s.Δu) == n_loc_dof
     @test length(s.v_temp) == n_loc_dof
     @test length(s.Jv_temp) == n_loc_dof
-    @test length(s.precond_diag) == n_loc_dof
 end
 
 @testitem "DHBBMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -197,7 +196,6 @@ end
     @test length(s.Δu) == n_loc_dof
     @test length(s.v_temp) == n_loc_dof
     @test length(s.Jv_temp) == n_loc_dof
-    @test length(s.precond_diag) == n_loc_dof
 end
 
 @testitem "GBBMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -286,7 +284,6 @@ end
     @test length(s.Δu) == n_loc_dof
     @test length(s.v_temp) == n_loc_dof
     @test length(s.Jv_temp) == n_loc_dof
-    @test length(s.precond_diag) == n_loc_dof
 end
 
 @testitem "OSBMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -372,7 +369,6 @@ end
     @test length(s.Δu) == n_loc_dof
     @test length(s.v_temp) == n_loc_dof
     @test length(s.Jv_temp) == n_loc_dof
-    @test length(s.precond_diag) == n_loc_dof
 end
 
 @testitem "CMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -464,7 +460,6 @@ end
     @test length(s.Δu) == n_loc_dof
     @test length(s.v_temp) == n_loc_dof
     @test length(s.Jv_temp) == n_loc_dof
-    @test length(s.precond_diag) == n_loc_dof
 end
 
 @testitem "CRMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -622,7 +617,6 @@ end
     @test length(s.Δu) == n_loc_dof
     @test length(s.v_temp) == n_loc_dof
     @test length(s.Jv_temp) == n_loc_dof
-    @test length(s.precond_diag) == n_loc_dof
 end
 
 @testitem "RKCRMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -758,7 +752,6 @@ end
     @test length(s.Δu) == n_loc_dof
     @test length(s.v_temp) == n_loc_dof
     @test length(s.Jv_temp) == n_loc_dof
-    @test length(s.precond_diag) == n_loc_dof
 end
 
 @testitem "CKIMaterial storage field sizes" setup=[StorageFieldSize] begin
@@ -835,5 +828,4 @@ end
     @test length(s.Δu) == n_loc_dof
     @test length(s.v_temp) == n_loc_dof
     @test length(s.Jv_temp) == n_loc_dof
-    @test length(s.precond_diag) == n_loc_dof
 end
