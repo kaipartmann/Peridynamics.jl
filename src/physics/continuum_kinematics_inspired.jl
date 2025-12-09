@@ -157,7 +157,6 @@ end
     Δu::Vector{Float64}
     v_temp::Vector{Float64}
     Jv_temp::Vector{Float64}
-    precond_diag::Vector{Float64}
 end
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,

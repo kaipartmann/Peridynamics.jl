@@ -28,21 +28,10 @@ with an optional diagonal preconditioner computed by probing the Jacobian.
 - `gmres_reltol::Real`: Relative tolerance for GMRES (default: 1e-4).
 - `gmres_abstol::Real`: Absolute tolerance for GMRES (default: 1e-8).
 - `gmres_restart::Int`: Number of iterations between restarts for GMRES (default: 50).
-- `preconditioner::Bool`: Whether to use a diagonal right preconditioner (default: true).
-    The preconditioner is based on material stiffness scaling, computed once at initialization
-    without any additional force evaluations.
-- `damping::Real`: Damping coefficient for load-step regularization (default: 0.0).
-    When damping > 0, adds a regularization term `damping * α * K * u` to the residual,
-    where α linearly decays from 1 at step 1 to 0 at the final step. This helps stabilize
-    convergence for materials with zero-energy modes (e.g., correspondence formulations).
-    The damping is applied to the Jacobian as well, adding `damping * α * K` to the diagonal.
-    Typical values are 0.01 to 0.1.
 
 # Example:
 ```julia
 solver = NewtonKrylov(steps=100, stepsize=1e-4, maxiter=50, tol=1e-6)
-# With damping for correspondence materials:
-solver = NewtonKrylov(steps=100, stepsize=1e-4, damping=0.05)
 ```
 """
 mutable struct NewtonKrylov <: AbstractTimeSolver
@@ -56,24 +45,17 @@ mutable struct NewtonKrylov <: AbstractTimeSolver
     gmres_reltol::Float64
     gmres_abstol::Float64
     gmres_restart::Int
-    use_preconditioner::Bool
-    damping::Float64
     global_residual::Vector{Float64}
     global_Δu::Vector{Float64}
-    global_precond::Vector{Float64}
     mpi_dof_counts::Vector{Int32}
     mpi_displs::Vector{Int32}
-    # Pre-allocated buffers for norm computation (avoid allocations in hot path)
     u_norm_sq_buf::Vector{Float64}
     v_norm_sq_buf::Vector{Float64}
-    # Damping stiffness scaling per DOF (computed at initialization)
-    damping_diag::Vector{Float64}
 
     function NewtonKrylov(; time::Real=-1, steps::Int=-1, stepsize::Real=1.0,
                             maxiter::Int=100, tol::Real=1e-4, perturbation_scale::Real=1.0,
                             gmres_maxiter::Int=200, gmres_reltol::Real=1e-4,
-                            gmres_abstol::Real=1e-8, gmres_restart::Int=50,
-                            preconditioner::Bool=true, damping::Real=0.0)
+                            gmres_abstol::Real=1e-8, gmres_restart::Int=100)
         if time > 0 && steps > 0
             msg = "specify either time or number of steps, not both!"
             throw(ArgumentError(msg))
@@ -127,30 +109,21 @@ mutable struct NewtonKrylov <: AbstractTimeSolver
             throw(ArgumentError(msg))
         end
 
-        # Validate damping
-        if damping < 0
-            msg = "damping must be non-negative: damping >= 0"
-            throw(ArgumentError(msg))
-        end
-
-        # Initialize global GMRES buffers as empty (will be resized on first use)
-        # MPI buffers also initialized empty
+        # MPI buffers initialized empty
         global_residual = Vector{Float64}()
         global_Δu = Vector{Float64}()
-        global_precond = Vector{Float64}()
+
         # MPI-specific cached data (lazily initialized)
         mpi_dof_counts = Vector{Int32}()
         mpi_displs = Vector{Int32}()
+
         # Norm computation buffers (lazily initialized)
         u_norm_sq_buf = Vector{Float64}()
         v_norm_sq_buf = Vector{Float64}()
-        # Damping diagonal (lazily initialized)
-        damping_diag = Vector{Float64}()
 
         new(end_time, n_steps, stepsize, maxiter, tol, perturbation_scale, gmres_maxiter,
-            gmres_reltol, gmres_abstol, gmres_restart, preconditioner, damping,
-            global_residual, global_Δu, global_precond, mpi_dof_counts, mpi_displs,
-            u_norm_sq_buf, v_norm_sq_buf, damping_diag)
+            gmres_reltol, gmres_abstol, gmres_restart, global_residual, global_Δu,
+            mpi_dof_counts, mpi_displs, u_norm_sq_buf, v_norm_sq_buf)
     end
 end
 
@@ -215,19 +188,9 @@ function init_newton_buffers!(nr::NewtonKrylov, dh::ThreadsBodyDataHandler)
     total_loc_dof = sum(get_n_loc_dof(c.system) for c in dh.chunks)
     resize!(nr.global_residual, total_loc_dof)
     resize!(nr.global_Δu, total_loc_dof)
-    if nr.use_preconditioner
-        resize!(nr.global_precond, total_loc_dof)
-        # Compute material-based preconditioner at initialization (cheap, no force evals)
-        compute_material_preconditioner!(dh, nr.global_precond)
-    end
-    # Pre-allocate buffers for norm computation to avoid allocations in hot path
+    # Pre-allocate buffers for norm computation to avoid allocations in hot parts
     resize!(nr.u_norm_sq_buf, dh.n_chunks)
     resize!(nr.v_norm_sq_buf, dh.n_chunks)
-    # Initialize damping diagonal if damping is enabled
-    if nr.damping > 0
-        resize!(nr.damping_diag, total_loc_dof)
-        compute_damping_diagonal!(dh, nr.damping_diag)
-    end
     return nothing
 end
 
@@ -242,20 +205,11 @@ function init_newton_buffers!(nr::NewtonKrylov, dh::MPIBodyDataHandler)
         nr.mpi_displs[i] = nr.mpi_displs[i-1] + nr.mpi_dof_counts[i-1]
     end
 
+    # Resize the GMRES global vectors
     total_dof = sum(nr.mpi_dof_counts)
     resize!(nr.global_residual, total_dof)
     resize!(nr.global_Δu, total_dof)
-    if nr.use_preconditioner
-        resize!(nr.global_precond, total_dof)
-        # Compute material-based preconditioner at initialization (cheap, no force evals)
-        compute_material_preconditioner_mpi!(dh, nr)
-    end
-    # Initialize damping diagonal if damping is enabled
-    if nr.damping > 0
-        resize!(nr.damping_diag, total_dof)
-        compute_damping_diagonal_mpi!(dh, nr)
-    end
-    # MPI doesn't need norm buffers (uses reduction)
+
     return nothing
 end
 
@@ -343,19 +297,10 @@ end
 # Newton-Krylov step function - distributed across all chunks
 function newton_krylov_step!(dh::AbstractDataHandler, nr::NewtonKrylov,
                               options::AbstractJobOptions, n::Int)
-    (; n_steps, Δt, maxiter, tol, damping) = nr
+    (; n_steps, Δt, maxiter, tol) = nr
 
     t = n * Δt
     β = n / n_steps # load step factor
-
-    # Compute damping decay factor: α = 1 at step 1, α = 0 at final step
-    # This provides regularization early on that vanishes at the final solution
-    if n_steps > 1
-        α = (n_steps - n) / (n_steps - 1)
-    else
-        α = 0.0  # No damping for single-step problems
-    end
-    damping_factor = damping * α
 
     apply_newton_bcs_and_pos_update!(dh, β)
 
@@ -378,7 +323,7 @@ function newton_krylov_step!(dh::AbstractDataHandler, nr::NewtonKrylov,
             throw(ErrorException(msg))
         end
 
-        solve_linear_system!(dh, nr, t, Δt, damping_factor)
+        solve_linear_system!(dh, nr, t, Δt)
     end
 
     newton_export_results(dh, options, n, t)
@@ -467,41 +412,9 @@ function get_local_residual_norm_sq(chunk::AbstractBodyChunk)
     return s
 end
 
-# Diagonal preconditioner struct that supports ldiv! for IterativeSolvers.jl
-struct DiagonalPreconditioner{T<:AbstractVector{Float64}}
-    diag_inv::T
-end
-
-# ldiv!(y, P, x) computes y = P \ x = P⁻¹ * x
-# For diagonal preconditioner P = diag(d), P⁻¹ = diag(1/d), so y[i] = x[i] / d[i]
-# Since we store the inverse already: y[i] = x[i] * diag_inv[i]
-function LinearAlgebra.ldiv!(y::AbstractVector, P::DiagonalPreconditioner,
-                              x::AbstractVector)
-    @inbounds for i in eachindex(x)
-        y[i] = x[i] * P.diag_inv[i]
-    end
-    return y
-end
-
-# ldiv!(P, x) computes P \ x in-place of x
-function LinearAlgebra.ldiv!(P::DiagonalPreconditioner, x::AbstractVector)
-    @inbounds for i in eachindex(x)
-        x[i] = x[i] * P.diag_inv[i]
-    end
-    return x
-end
-
-# P \ x - creates a new vector
-function Base.:\(P::DiagonalPreconditioner, x::AbstractVector)
-    y = similar(x)
-    ldiv!(y, P, x)
-    return y
-end
-
-function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonKrylov, t, Δt,
-                               damping_factor::Float64=0.0)
-    (; global_residual, global_Δu, global_precond, damping_diag) = solver
-    (; gmres_maxiter, gmres_reltol, gmres_abstol, gmres_restart, use_preconditioner) = solver
+function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonKrylov, t, Δt)
+    (; global_residual, global_Δu) = solver
+    (; gmres_maxiter, gmres_reltol, gmres_abstol, gmres_restart) = solver
 
     # Reset Δu on all chunks
     @threads :static for chunk_id in eachindex(dh.chunks)
@@ -511,13 +424,9 @@ function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonKrylov, 
     # Calculate total local DOF (same across all Newton iterations)
     total_loc_dof = length(global_residual)
 
-    # Preconditioner was already computed at initialization (material-based, very cheap)
-    # No additional work needed per iteration
-
     # Create distributed Jacobian-free linear operator
     # This operator works on concatenated local DOF vectors from all chunks
     # Uses storage.v_temp and storage.Jv_temp from each chunk
-    # If damping is enabled, adds damping_factor * D to the Jacobian
     J_linmap = LinearMap(total_loc_dof; issymmetric=false, ismutating=true) do Jv, v
         # Scatter global v to chunk storage.v_temp
         scatter_to_chunk!(dh, v)
@@ -527,46 +436,18 @@ function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonKrylov, 
 
         # Gather storage.Jv_temp to global Jv
         gather_from_chunk!(Jv, dh)
-
-        # Add damping term to Jacobian: Jv += damping_factor * D * v
-        # where D is the diagonal stiffness matrix (same scaling as preconditioner)
-        if damping_factor > 0
-            @inbounds for i in eachindex(Jv)
-                Jv[i] += damping_factor * damping_diag[i] * v[i]
-            end
-        end
     end
 
     # Gather residuals from all chunks into global residual vector
     gather_residuals!(global_residual, dh)
 
-    # Add damping term to residual: r += damping_factor * D * u
-    # This regularizes the system by penalizing large displacements early on
-    if damping_factor > 0
-        gather_displacements!(global_Δu, dh)  # temporarily store u in global_Δu
-        @inbounds for i in eachindex(global_residual)
-            global_residual[i] += damping_factor * damping_diag[i] * global_Δu[i]
-        end
-    end
-
     # Reset solution vector
     global_Δu .= 0.0
 
     # Solve using GMRES with the distributed matrix-free operator
-    # Use right preconditioning if enabled: solve J*P⁻¹*y = -r, then x = P⁻¹*y
-    if use_preconditioner
-        # Create right preconditioner using our custom struct
-        P_right = DiagonalPreconditioner(global_precond)
-
-        # Solve with right preconditioning
-        gmres!(global_Δu, J_linmap, -global_residual; Pr=P_right,
-               maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol,
-               restart=gmres_restart)
-    else
-        gmres!(global_Δu, J_linmap, -global_residual;
-               maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol,
-               restart=gmres_restart)
-    end
+    gmres!(global_Δu, J_linmap, -global_residual;
+           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol,
+           restart=gmres_restart)
 
     # Scatter global_Δu to chunks and update displacements
     scatter_to_chunk!(dh, global_Δu)
@@ -575,141 +456,6 @@ function solve_linear_system!(dh::ThreadsBodyDataHandler, solver::NewtonKrylov, 
         update_displacement_from_Δu!(chunk)
     end
 
-    return nothing
-end
-
-# Compute material-based diagonal preconditioner at initialization.
-# This is very cheap (no force evaluations) and provides a good scaling for GMRES.
-# The preconditioner estimates the Jacobian diagonal using material stiffness:
-# For peridynamics: d_i ~ bc * V_i * (number of neighbors) / δ²
-# where bc is the bond constant and V_i is the volume associated with point i.
-function compute_material_preconditioner!(dh::ThreadsBodyDataHandler,
-                                           global_precond::Vector{Float64})
-    offset = 0
-    for chunk_id in eachindex(dh.chunks)
-        chunk = dh.chunks[chunk_id]
-        n_loc_dof = compute_chunk_precond!(chunk)
-        # Gather to global precond vector
-        (; storage, system) = chunk
-        for i in each_loc_dof(system)
-            @inbounds global_precond[offset + i] = storage.precond_diag[i]
-        end
-        offset += n_loc_dof
-    end
-    return nothing
-end
-
-function compute_chunk_precond!(chunk::AbstractBodyChunk)
-    (; system, storage, paramsetup, condhandler) = chunk
-    (; precond_diag) = storage
-    (; volume) = system
-    (; constrained_dofs) = condhandler
-
-    # Compute diagonal scaling based on material stiffness
-    for (dof, _, i) in each_loc_dof_idx(system)
-        params = get_params(paramsetup, i)
-        # Get stiffness scaling from material parameters
-        # For most materials, K (bulk modulus) gives a good scaling
-        # d ~ K * volume, but we need to account for the peridynamic kernel
-        # A simple estimate: use K * volume / δ as diagonal scaling
-        K = params.K
-        δ = params.δ
-        V_i = volume[i]
-
-        # Stiffness scale: K * V / δ gives units of [force/length]
-        # This captures the local stiffness contribution
-        d = K * V_i / δ
-
-        # Store inverse for preconditioning (avoid division by zero)
-        if abs(d) < 1e-14
-            d = 1e-14
-        end
-        @inbounds precond_diag[dof] = 1.0 / d
-    end
-
-    # For constrained DOFs, use identity (d=1, so inv(d)=1)
-    for dof in constrained_dofs
-        @inbounds precond_diag[dof] = 1.0
-    end
-
-    return get_n_loc_dof(system)
-end
-
-function compute_material_preconditioner_mpi!(dh::MPIBodyDataHandler, solver::NewtonKrylov)
-    chunk = dh.chunk
-    (; global_precond, mpi_dof_counts) = solver
-    (; storage) = chunk
-
-    # Compute local preconditioner
-    compute_chunk_precond!(chunk)
-
-    # Gather to all ranks
-    MPI.Allgatherv!(storage.precond_diag, VBuffer(global_precond, mpi_dof_counts), mpi_comm())
-    return nothing
-end
-
-# Compute damping diagonal based on material stiffness
-# The damping term adds: damping * α * D * u to the residual
-# where D is a diagonal matrix with stiffness scaling (same as preconditioner but not inverted)
-# and α = (n_steps - n) / (n_steps - 1) is the decay factor (1 at step 1, 0 at final step)
-function compute_damping_diagonal!(dh::ThreadsBodyDataHandler, damping_diag::Vector{Float64})
-    offset = 0
-    for chunk_id in eachindex(dh.chunks)
-        chunk = dh.chunks[chunk_id]
-        (; system, paramsetup, condhandler) = chunk
-        (; volume) = system
-        (; constrained_dofs) = condhandler
-
-        # Compute stiffness-based damping diagonal
-        for (dof, _, i) in each_loc_dof_idx(system)
-            params = get_params(paramsetup, i)
-            K = params.K
-            δ = params.δ
-            V_i = volume[i]
-
-            # Same stiffness scaling as preconditioner: K * V / δ
-            d = K * V_i / δ
-            @inbounds damping_diag[offset + dof] = d
-        end
-
-        # Zero damping for constrained DOFs (they're fixed anyway)
-        for dof in constrained_dofs
-            @inbounds damping_diag[offset + dof] = 0.0
-        end
-
-        offset += get_n_loc_dof(system)
-    end
-    return nothing
-end
-
-function compute_damping_diagonal_mpi!(dh::MPIBodyDataHandler, solver::NewtonKrylov)
-    chunk = dh.chunk
-    (; damping_diag, mpi_dof_counts) = solver
-    (; system, paramsetup, condhandler) = chunk
-    (; volume) = system
-    (; constrained_dofs) = condhandler
-    n_loc_dof = get_n_loc_dof(system)
-
-    # Use precond_diag as temporary buffer for local damping values
-    local_damping = chunk.storage.precond_diag
-
-    # Compute stiffness-based damping diagonal
-    for (dof, _, i) in each_loc_dof_idx(system)
-        params = get_params(paramsetup, i)
-        K = params.K
-        δ = params.δ
-        V_i = volume[i]
-        d = K * V_i / δ
-        @inbounds local_damping[dof] = d
-    end
-
-    # Zero damping for constrained DOFs
-    for dof in constrained_dofs
-        @inbounds local_damping[dof] = 0.0
-    end
-
-    # Gather to all ranks
-    MPI.Allgatherv!(local_damping, VBuffer(damping_diag, mpi_dof_counts), mpi_comm())
     return nothing
 end
 
@@ -748,20 +494,6 @@ function gather_residuals!(global_residual::Vector{Float64}, dh::ThreadsBodyData
         (; residual) = storage
         for i in each_loc_dof(system)
             @inbounds global_residual[offset + i] = residual[i]
-        end
-        offset += get_n_loc_dof(system)
-    end
-    return nothing
-end
-
-# Gather displacements from chunks into a global vector (for damping computation)
-function gather_displacements!(global_u::Vector{Float64}, dh::ThreadsBodyDataHandler)
-    offset = 0
-    for chunk_id in eachindex(dh.chunks)
-        (; storage, system) = dh.chunks[chunk_id]
-        (; displacement) = storage
-        for (dof, _, _) in each_loc_dof_idx(system)
-            @inbounds global_u[offset + dof] = displacement[dof]
         end
         offset += get_n_loc_dof(system)
     end
@@ -859,7 +591,6 @@ end
 function compute_u_v_norm_sq(chunk::AbstractBodyChunk)
     (; storage, system) = chunk
     (; displacement, v_temp) = storage
-
     u_sq = 0.0
     v_sq = 0.0
     for (dof, _, _) in each_loc_dof_idx(system)
@@ -960,16 +691,12 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, �
                                damping_factor::Float64=0.0)
     chunk = dh.chunk
     (; storage, system) = chunk
-    (; gmres_maxiter, gmres_reltol, gmres_abstol, gmres_restart, use_preconditioner) = solver
-    (; global_residual, global_Δu, global_precond, mpi_dof_counts, mpi_displs) = solver
-    (; damping_diag) = solver
+    (; gmres_maxiter, gmres_reltol, gmres_abstol, gmres_restart) = solver
+    (; global_residual, global_Δu, mpi_dof_counts, mpi_displs) = solver
 
     n_loc_dof = get_n_loc_dof(system)
     total_dof = length(global_residual)
     my_offset = mpi_displs[mpi_chunk_id()]
-
-    # Preconditioner was already computed at initialization (material-based, very cheap)
-    # No additional work needed per iteration
 
     # Use v_temp as local residual buffer (copy residual into it)
     v_temp = storage.v_temp
@@ -979,21 +706,6 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, �
 
     # Gather local residuals to all ranks
     MPI.Allgatherv!(v_temp, VBuffer(global_residual, mpi_dof_counts), mpi_comm())
-
-    # Add damping term to residual: r += damping_factor * D * u
-    if damping_factor > 0
-        # First gather displacements
-        (; displacement) = storage
-        for (dof, _, _) in each_loc_dof_idx(system)
-            @inbounds v_temp[dof] = displacement[dof]
-        end
-        MPI.Allgatherv!(v_temp, VBuffer(global_Δu, mpi_dof_counts), mpi_comm())
-
-        # Add damping to residual
-        @inbounds for i in eachindex(global_residual)
-            global_residual[i] += damping_factor * damping_diag[i] * global_Δu[i]
-        end
-    end
 
     # Reset solution vector
     global_Δu .= 0.0
@@ -1017,27 +729,12 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, �
 
         # Gather all local JVPs to global
         MPI.Allgatherv!(Jv_temp, VBuffer(Jv, mpi_dof_counts), mpi_comm())
-
-        # Add damping term to Jacobian: Jv += damping_factor * D * v
-        if damping_factor > 0
-            @inbounds for i in eachindex(Jv)
-                Jv[i] += damping_factor * damping_diag[i] * v[i]
-            end
-        end
     end
 
-    # Solve using GMRES with right preconditioning if enabled
-    if use_preconditioner
-        P_right = DiagonalPreconditioner(global_precond)
-
-        gmres!(global_Δu, J_linmap, -global_residual; Pr=P_right,
-               maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol,
-               restart=gmres_restart)
-    else
-        gmres!(global_Δu, J_linmap, -global_residual;
-               maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol,
-               restart=gmres_restart)
-    end
+    # Solve using GMRES
+    gmres!(global_Δu, J_linmap, -global_residual;
+           maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol,
+           restart=gmres_restart)
 
     # Extract local solution into v_temp and update displacements
     for i in 1:n_loc_dof
@@ -1158,21 +855,11 @@ function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:
     return Vector{Float64}()
 end
 
-# Diagonal preconditioner storage
-function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:precond_diag})
-    return zeros(get_n_loc_dof(system))
-end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
-                           ::Val{:precond_diag})
-    return Vector{Float64}()
-end
-
 function req_point_data_fields_timesolver(::Type{<:NewtonKrylov})
     # Jacobian-free Newton-Krylov method: no jacobian, temp_force_b, or affected_points
     # Added v_temp, Jv_temp for GMRES temporary buffers
-    # Added precond_diag for diagonal preconditioner
     fields = (:position, :displacement, :b_int, :b_ext, :residual, :displacement_copy,
-              :temp_force, :b_int_copy, :Δu, :v_temp, :Jv_temp, :precond_diag)
+              :temp_force, :b_int_copy, :Δu, :v_temp, :Jv_temp)
     return fields
 end
 
@@ -1195,10 +882,6 @@ function log_timesolver(options::AbstractJobOptions, nr::NewtonKrylov)
     msg *= msg_qty("GMRES max iterations", nr.gmres_maxiter)
     msg *= msg_qty("GMRES relative tolerance", nr.gmres_reltol)
     msg *= msg_qty("GMRES absolute tolerance", nr.gmres_abstol)
-    msg *= msg_qty("using preconditioner", nr.use_preconditioner)
-    if nr.damping > 0
-        msg *= msg_qty("load-step damping", nr.damping)
-    end
     log_it(options, msg)
     return nothing
 end
