@@ -51,7 +51,7 @@ end
 @testitem "Uniform tension NewtonKrylov" begin
     using Peridynamics.Printf
 
-    l, w, h, Δx = 1.0, 0.1, 0.1, 1/30
+    l, w, h, Δx = 1.0, 0.1, 0.1, 1/70
     F = 2e6 # Force in N applied at the right boundary
     E = 200e9 # Young's modulus
     steps = 20 # Number of time steps for the simulation
@@ -71,7 +71,7 @@ end
     forcedensity_bc!(p -> F / volume_right, body, :right, :x)
 
     # run the simulation
-    nr = NewtonKrylov(; steps, tol=1e-3, maxiter=50)
+    nr = NewtonKrylov(; steps, tol=1e-3, maxiter=50, preconditioner=false)
     path = mktempdir()
     rm(path; recursive=true, force=true)
     job = Job(body, nr; freq=steps, path, fields=(:displacement,))
