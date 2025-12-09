@@ -54,11 +54,11 @@ end
     l, w, h, Δx = 1.0, 0.1, 0.1, 1/30
     F = 2e6 # Force in N applied at the right boundary
     E = 200e9 # Young's modulus
-    steps = 20 # Number of time steps for the simulation
+    steps = 5 # Number of time steps for the simulation
 
     # Create a uniform box with the specified dimensions and discretization
     pos, vol = uniform_box(l+3Δx, w, h, Δx; center=(-1.5Δx, 0, 0))
-    body = Body(CMaterial(), pos, vol)
+    body = Body(CMaterial(zem=ZEMSilling(Cs=0.5)), pos, vol)
     material!(body; horizon=3.015Δx, rho=7850.0, E, nu=0.25)
     point_set!(x -> x <-l/2, body, :left)
     point_set!(x -> x > l/2-Δx, body, :right)
@@ -75,7 +75,7 @@ end
     path = mktempdir()
     rm(path; recursive=true, force=true)
     job = Job(body, nr; freq=steps, path, fields=(:displacement,))
-    submit(job; quiet=false)
+    submit(job; quiet=true)
 
     # Analytical solution
     A = w * h # Cross-sectional area

@@ -9,7 +9,12 @@ via central finite differences: `J*v ≈ (F(u + ε*v) - F(u - ε*v)) / (2ε)`. T
 the need to store the full Jacobian matrix, reducing memory from O(n²) to O(n), enabling
 simulations with large numbers of points.
 
-GMRES is used as the Krylov solver for the resulting linear system at each iteration.
+The perturbation `ε` is computed adaptively using the standard JFNK heuristic for central
+differences: `ε = scale * cbrt(ε_mach) * (||u|| + 1) / ||v||`, where `ε_mach` is machine
+epsilon. This balances truncation error O(ε²) with roundoff error O(ε_mach/ε).
+
+GMRES is used as the Krylov solver for the resulting linear system at each iteration,
+with an optional diagonal preconditioner computed by probing the Jacobian.
 
 # Keywords:
 - `time::Real`: Total simulation time. Cannot be used together with `steps`.
@@ -17,9 +22,9 @@ GMRES is used as the Krylov solver for the resulting linear system at each itera
 - `stepsize::Real`: Manual time step size (default: 1.0).
 - `maxiter::Int`: Maximum number of iterations per step (default: 100).
 - `tol::Real`: Tolerance for convergence (default: 1e-4).
-- `perturbation::Real`: Perturbation size for finite difference approximation of the
-    Jacobian-vector product (default: 1e-7 times the point spacing).
-- `gmres_maxiter::Int`: Maximum number of iterations for GMRES (default: min(200, n_dof)).
+- `perturbation_scale::Real`: Scale factor for the adaptive perturbation heuristic
+    (default: 1.0). Increase if finite difference approximation is noisy.
+- `gmres_maxiter::Int`: Maximum number of iterations for GMRES (default: 200).
 - `gmres_reltol::Real`: Relative tolerance for GMRES (default: 1e-4).
 - `gmres_abstol::Real`: Absolute tolerance for GMRES (default: 1e-8).
 - `gmres_restart::Int`: Number of iterations between restarts for GMRES (default: 50).
@@ -35,7 +40,7 @@ mutable struct NewtonKrylov <: AbstractTimeSolver
     Δt::Float64
     maxiter::Int
     tol::Float64
-    perturbation::Float64
+    perturbation_scale::Float64
     gmres_maxiter::Int
     gmres_reltol::Float64
     gmres_abstol::Float64
@@ -44,11 +49,13 @@ mutable struct NewtonKrylov <: AbstractTimeSolver
     global_Δu::Vector{Float64}
     mpi_dof_counts::Vector{Int32}
     mpi_displs::Vector{Int32}
+    u_norm_sq_buf::Vector{Float64}
+    v_norm_sq_buf::Vector{Float64}
 
     function NewtonKrylov(; time::Real=-1, steps::Int=-1, stepsize::Real=1.0,
-                            maxiter::Int=100, tol::Real=1e-4, perturbation::Real=-1,
+                            maxiter::Int=100, tol::Real=1e-4, perturbation_scale::Real=1.0,
                             gmres_maxiter::Int=200, gmres_reltol::Real=1e-4,
-                            gmres_abstol::Real=1e-8, gmres_restart::Int=50)
+                            gmres_abstol::Real=1e-8, gmres_restart::Int=100)
         if time > 0 && steps > 0
             msg = "specify either time or number of steps, not both!"
             throw(ArgumentError(msg))
@@ -96,28 +103,41 @@ mutable struct NewtonKrylov <: AbstractTimeSolver
             throw(ArgumentError(msg))
         end
 
-        # Initialize global GMRES buffers as empty (will be resized on first use)
-        # MPI buffers also initialized empty
+        # Validate perturbation_scale
+        if perturbation_scale ≤ 0
+            msg = "perturbation_scale has to be larger than zero: perturbation_scale > 0"
+            throw(ArgumentError(msg))
+        end
+
+        # MPI buffers initialized empty
         global_residual = Vector{Float64}()
         global_Δu = Vector{Float64}()
+
         # MPI-specific cached data (lazily initialized)
         mpi_dof_counts = Vector{Int32}()
         mpi_displs = Vector{Int32}()
 
-        new(end_time, n_steps, stepsize, maxiter, tol, perturbation, gmres_maxiter,
+        # Norm computation buffers (lazily initialized)
+        u_norm_sq_buf = Vector{Float64}()
+        v_norm_sq_buf = Vector{Float64}()
+
+        new(end_time, n_steps, stepsize, maxiter, tol, perturbation_scale, gmres_maxiter,
             gmres_reltol, gmres_abstol, gmres_restart, global_residual, global_Δu,
-            mpi_dof_counts, mpi_displs)
+            mpi_dof_counts, mpi_displs, u_norm_sq_buf, v_norm_sq_buf)
     end
 end
 
 function Base.show(io::IO, @nospecialize(nr::NewtonKrylov))
     print(io, typeof(nr))
     fields = Vector{Symbol}()
-    excluded = (:global_residual, :global_Δu, :mpi_dof_counts, :mpi_displs)
+    excluded = (:global_residual, :global_Δu, :global_precond, :mpi_dof_counts, :mpi_displs,
+                :u_norm_sq_buf, :v_norm_sq_buf, :damping_diag)
     for field in fieldnames(typeof(nr))
         field in excluded && continue
         value = getfield(nr, field)
-        if value > 0
+        if value isa Number && value > 0
+            push!(fields, field)
+        elseif value isa Bool
             push!(fields, field)
         end
     end
@@ -131,11 +151,14 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(nr::NewtonKrylov))
     else
         println(io, typeof(nr), ":")
         fields = Vector{Symbol}()
-        excluded = (:global_residual, :global_Δu, :mpi_dof_counts, :mpi_displs)
+        excluded = (:global_residual, :global_Δu, :global_precond, :mpi_dof_counts,
+                    :mpi_displs, :u_norm_sq_buf, :v_norm_sq_buf, :damping_diag)
         for field in fieldnames(typeof(nr))
             field in excluded && continue
             value = getfield(nr, field)
-            if value > 0
+            if value isa Number && value > 0
+                push!(fields, field)
+            elseif value isa Bool
                 push!(fields, field)
             end
         end
@@ -149,7 +172,6 @@ function init_time_solver!(nr::NewtonKrylov, dh::ThreadsBodyDataHandler)
     @threads :static for chunk in dh.chunks
         validate_chunk_for_newton_krylov!(chunk)
     end
-    calculate_perturbation!(nr, dh)
     init_newton_buffers!(nr, dh)
     return nothing
 end
@@ -158,7 +180,6 @@ end
 function init_time_solver!(nr::NewtonKrylov, dh::MPIBodyDataHandler)
     newton_krylov_check(nr)
     validate_chunk_for_newton_krylov!(dh.chunk)
-    calculate_perturbation!(nr, dh)
     init_newton_buffers!(nr, dh)
     return nothing
 end
@@ -167,6 +188,9 @@ function init_newton_buffers!(nr::NewtonKrylov, dh::ThreadsBodyDataHandler)
     total_loc_dof = sum(get_n_loc_dof(c.system) for c in dh.chunks)
     resize!(nr.global_residual, total_loc_dof)
     resize!(nr.global_Δu, total_loc_dof)
+    # Pre-allocate buffers for norm computation to avoid allocations in hot parts
+    resize!(nr.u_norm_sq_buf, dh.n_chunks)
+    resize!(nr.v_norm_sq_buf, dh.n_chunks)
     return nothing
 end
 
@@ -181,9 +205,11 @@ function init_newton_buffers!(nr::NewtonKrylov, dh::MPIBodyDataHandler)
         nr.mpi_displs[i] = nr.mpi_displs[i-1] + nr.mpi_dof_counts[i-1]
     end
 
+    # Resize the GMRES global vectors
     total_dof = sum(nr.mpi_dof_counts)
     resize!(nr.global_residual, total_dof)
     resize!(nr.global_Δu, total_dof)
+
     return nothing
 end
 
@@ -229,32 +255,6 @@ function validate_chunk_for_newton_krylov!(chunk::AbstractBodyChunk)
     return nothing
 end
 
-function calculate_perturbation!(nr::NewtonKrylov, dh::AbstractDataHandler)
-    if nr.perturbation ≤ 0
-        Δx = (minimum_volume(dh))^(1/3)
-        nr.perturbation = Δx * 1e-5
-    end
-    return nothing
-end
-
-function minimum_volume(dh::ThreadsBodyDataHandler)
-    min_vols = fill(Inf, dh.n_chunks)
-    @threads :static for chunk_id in eachindex(dh.chunks)
-        chunk = dh.chunks[chunk_id]
-        vol = chunk.system.volume
-        if !isempty(vol)
-            min_vols[chunk_id] = minimum(vol)
-        end
-    end
-    return minimum(min_vols)
-end
-
-function minimum_volume(dh::MPIBodyDataHandler)
-    local_min_vol = minimum(dh.chunk.system.volume)
-    global_min_vol = MPI.Allreduce(local_min_vol, MPI.MIN, mpi_comm())
-    return global_min_vol
-end
-
 function newton_krylov_check(nr::NewtonKrylov)
     if nr.end_time < 0
         error("`end_time` of NewtonKrylov smaller than zero!\n")
@@ -270,6 +270,9 @@ function newton_krylov_check(nr::NewtonKrylov)
     end
     if nr.tol < 0
         error("`tol` of NewtonKrylov smaller than zero!\n")
+    end
+    if nr.perturbation_scale ≤ 0
+        error("`perturbation_scale` of NewtonKrylov must be larger than zero!\n")
     end
     return nothing
 end
@@ -499,7 +502,10 @@ end
 
 # New JVP function using storage fields
 function jacobian_vector_product!(dh::ThreadsBodyDataHandler, solver::NewtonKrylov, t, Δt)
-    ε = solver.perturbation
+    # Compute adaptive perturbation: ε = scale * cbrt(eps) * (||u|| + 1) / ||v||
+    # For central differences, the optimal ε balances truncation error O(ε²) with
+    # roundoff error O(eps_mach/ε), giving ε ~ cbrt(eps_mach)
+    ε = compute_perturbation(dh, solver)
 
     # Step 1: Store original state and apply positive perturbation
     @threads :static for chunk_id in eachindex(dh.chunks)
@@ -523,6 +529,75 @@ function jacobian_vector_product!(dh::ThreadsBodyDataHandler, solver::NewtonKryl
     end
 
     return nothing
+end
+
+# Compute adaptive perturbation using the standard JFNK heuristic for central differences:
+# ε = scale * cbrt(eps_mach) * (||u|| + 1) / ||v||
+# where eps_mach is machine epsilon, u is current displacement, v is the direction vector
+function compute_perturbation(dh::ThreadsBodyDataHandler, solver::NewtonKrylov)
+    (; perturbation_scale, u_norm_sq_buf, v_norm_sq_buf) = solver
+
+    # Compute ||u||² and ||v||² in parallel using pre-allocated buffers
+    @threads :static for chunk_id in eachindex(dh.chunks)
+        chunk = dh.chunks[chunk_id]
+        u_sq, v_sq = compute_u_v_norm_sq(chunk)
+        @inbounds u_norm_sq_buf[chunk_id] = u_sq
+        @inbounds v_norm_sq_buf[chunk_id] = v_sq
+    end
+
+    # Sum across chunks (no allocation)
+    u_norm_sq = 0.0
+    v_norm_sq = 0.0
+    @inbounds for i in eachindex(u_norm_sq_buf)
+        u_norm_sq += u_norm_sq_buf[i]
+        v_norm_sq += v_norm_sq_buf[i]
+    end
+
+    u_norm = sqrt(u_norm_sq)
+    v_norm = sqrt(v_norm_sq)
+
+    # Avoid division by zero
+    if v_norm < eps(Float64)
+        v_norm = 1.0
+    end
+
+    # cbrt(eps(Float64)) ≈ 6.055e-6 for Float64
+    ε = perturbation_scale * cbrt(eps(Float64)) * (u_norm + 1.0) / v_norm
+    return ε
+end
+
+function compute_perturbation(dh::MPIBodyDataHandler, solver::NewtonKrylov)
+    (; perturbation_scale) = solver
+
+    # Compute local norms
+    u_sq, v_sq = compute_u_v_norm_sq(dh.chunk)
+
+    # Global reduction
+    u_norm_sq = MPI.Allreduce(u_sq, MPI.SUM, mpi_comm())
+    v_norm_sq = MPI.Allreduce(v_sq, MPI.SUM, mpi_comm())
+
+    u_norm = sqrt(u_norm_sq)
+    v_norm = sqrt(v_norm_sq)
+
+    # Avoid division by zero
+    if v_norm < eps(Float64)
+        v_norm = 1.0
+    end
+
+    ε = perturbation_scale * cbrt(eps(Float64)) * (u_norm + 1.0) / v_norm
+    return ε
+end
+
+function compute_u_v_norm_sq(chunk::AbstractBodyChunk)
+    (; storage, system) = chunk
+    (; displacement, v_temp) = storage
+    u_sq = 0.0
+    v_sq = 0.0
+    for (dof, _, _) in each_loc_dof_idx(system)
+        @inbounds u_sq += displacement[dof]^2
+        @inbounds v_sq += v_temp[dof]^2
+    end
+    return u_sq, v_sq
 end
 
 function store_state_and_apply_perturbation!(chunk::AbstractBodyChunk, ε::Float64)
@@ -612,7 +687,8 @@ end
 
 # MPI version: Gather global vectors to all ranks, solve GMRES on full system, scatter back
 # This ensures all ranks stay synchronized during GMRES iterations
-function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, Δt)
+function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, Δt,
+                               damping_factor::Float64=0.0)
     chunk = dh.chunk
     (; storage, system) = chunk
     (; gmres_maxiter, gmres_reltol, gmres_abstol, gmres_restart) = solver
@@ -640,6 +716,7 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, �
 
     # Create global Jacobian-free linear operator
     # All ranks compute the same global JVP together
+    # If damping is enabled, adds damping_factor * D to the Jacobian
     J_linmap = LinearMap(total_dof; issymmetric=false, ismutating=true) do Jv, v
         # Each rank extracts its local portion into v_temp
         for i in 1:n_loc_dof
@@ -654,7 +731,7 @@ function solve_linear_system!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, �
         MPI.Allgatherv!(Jv_temp, VBuffer(Jv, mpi_dof_counts), mpi_comm())
     end
 
-    # All ranks solve the same global GMRES problem
+    # Solve using GMRES
     gmres!(global_Δu, J_linmap, -global_residual;
            maxiter=gmres_maxiter, reltol=gmres_reltol, abstol=gmres_abstol,
            restart=gmres_restart)
@@ -671,7 +748,9 @@ end
 # MPI version of JVP using storage fields
 function jacobian_vector_product_mpi!(dh::MPIBodyDataHandler, solver::NewtonKrylov, t, Δt)
     chunk = dh.chunk
-    ε = solver.perturbation
+
+    # Compute adaptive perturbation
+    ε = compute_perturbation(dh, solver)
 
     # Step 1: Store original state and apply positive perturbation
     store_state_and_apply_perturbation!(chunk, ε)
@@ -799,7 +878,7 @@ function log_timesolver(options::AbstractJobOptions, nr::NewtonKrylov)
     msg *= msg_qty("simulation time", nr.end_time)
     msg *= msg_qty("max iterations per step", nr.maxiter)
     msg *= msg_qty("convergence tolerance", nr.tol)
-    msg *= msg_qty("perturbation size", nr.perturbation)
+    msg *= msg_qty("perturbation scale", nr.perturbation_scale)
     msg *= msg_qty("GMRES max iterations", nr.gmres_maxiter)
     msg *= msg_qty("GMRES relative tolerance", nr.gmres_reltol)
     msg *= msg_qty("GMRES absolute tolerance", nr.gmres_abstol)

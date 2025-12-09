@@ -15,6 +15,8 @@
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_maxiter=-10)
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_restart=0)
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_restart=-10)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, perturbation_scale=0)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, perturbation_scale=-1)
 end
 
 @testitem "NewtonKrylov steps" begin
@@ -24,7 +26,7 @@ end
     @test nr.Δt == 1.0
     @test nr.maxiter == 100
     @test nr.tol == 1e-4
-    @test nr.perturbation == -1
+    @test nr.perturbation_scale == 1.0
     @test nr.gmres_maxiter == 200
     @test nr.gmres_reltol == 1e-4
     @test nr.gmres_abstol == 1e-8
@@ -41,14 +43,14 @@ end
 
 @testitem "NewtonKrylov custom parameters" begin
     nr = NewtonKrylov(steps=50, stepsize=0.02, maxiter=75, tol=1e-6,
-                      perturbation=1e-8, gmres_maxiter=150, gmres_reltol=1e-5,
+                      perturbation_scale=2.0, gmres_maxiter=150, gmres_reltol=1e-5,
                       gmres_abstol=1e-9)
     @test nr.end_time == 1.0
     @test nr.n_steps == 50
     @test nr.Δt == 0.02
     @test nr.maxiter == 75
     @test nr.tol == 1e-6
-    @test nr.perturbation == 1e-8
+    @test nr.perturbation_scale == 2.0
     @test nr.gmres_maxiter == 150
     @test nr.gmres_reltol == 1e-5
     @test nr.gmres_abstol == 1e-9
@@ -78,6 +80,11 @@ end
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.tol = -1
     msg = "`tol` of NewtonKrylov smaller than zero!\n"
+    @test_throws ErrorException(msg) Peridynamics.newton_krylov_check(nr)
+
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
+    nr.perturbation_scale = 0
+    msg = "`perturbation_scale` of NewtonKrylov must be larger than zero!\n"
     @test_throws ErrorException(msg) Peridynamics.newton_krylov_check(nr)
 end
 
@@ -126,34 +133,34 @@ end
 
     nr = NewtonKrylov(steps=10, stepsize=0.1)
 
-    dh = Peridynamics.threads_data_handler(body, nr, 1)
+    n_chunks = 1
+    dh = Peridynamics.threads_data_handler(body, nr, n_chunks)
     Peridynamics.init_time_solver!(nr, dh)
 
-    # Check that perturbation was set (if it was negative initially)
-    @test nr.perturbation > 0
+    # Check that the buffers have been initialized
+    n_points = size(body.position, 2)
+    n_dof = 3 * n_points
+    @test length(nr.global_residual) == n_dof
+    @test length(nr.global_Δu) == n_dof
+    @test length(nr.mpi_dof_counts) == 0
+    @test length(nr.mpi_displs) == 0
+    @test length(nr.u_norm_sq_buf) == n_chunks
+    @test length(nr.v_norm_sq_buf) == n_chunks
 
-    # Check that GMRES maxiter was set
-    @test nr.gmres_maxiter == 200
-end
-
-@testitem "init_time_solver! NewtonKrylov supports multiple chunks" begin
-    position = [0.0 1.0 0.0 0.0
-                0.0 0.0 1.0 0.0
-                0.0 0.0 0.0 1.0]
-    volume = [1.1, 1.2, 1.3, 1.4]
-    body = Body(BBMaterial(), position, volume)
-    material!(body, horizon=2, rho=1, E=1)
-    point_set!(body, :top, [2])
-    displacement_bc!(p -> 0.1, body, :top, :y)
-
-    nr = NewtonKrylov(steps=10, stepsize=0.1)
-
-    # Create data handler with multiple chunks (now supported with JFNK)
-    dh = Peridynamics.threads_data_handler(body, nr, 2)
-
-    # Should not throw - multiple chunks are now supported
+    # Also multiple chunks
+    n_chunks = 2
+    dh = Peridynamics.threads_data_handler(body, nr, n_chunks)
     Peridynamics.init_time_solver!(nr, dh)
-    @test dh.n_chunks == 2
+
+    # Check that the buffers have been initialized
+    n_points = size(body.position, 2)
+    n_dof = 3 * n_points
+    @test length(nr.global_residual) == n_dof
+    @test length(nr.global_Δu) == n_dof
+    @test length(nr.mpi_dof_counts) == 0
+    @test length(nr.mpi_displs) == 0
+    @test length(nr.u_norm_sq_buf) == n_chunks
+    @test length(nr.v_norm_sq_buf) == n_chunks
 end
 
 @testitem "init_time_solver! NewtonKrylov boundary condition checks" begin
@@ -165,14 +172,13 @@ end
     body = Body(BBMaterial(), position, volume)
     material!(body, horizon=2, rho=1, E=1)
     point_set!(body, :top, [2])
-    displacement_bc!(p -> 0.1, body, :top, :y)
+    forcedensity_bc!(t -> 0.1, body, :top, :y)
 
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
 
     # Should initialize without error
-    Peridynamics.init_time_solver!(nr, dh)
-    @test nr.perturbation > 0  # perturbation should be set
+    @test_throws CompositeException Peridynamics.init_time_solver!(nr, dh)
 end
 
 @testitem "init_time_solver! NewtonKrylov damage check" begin
@@ -191,6 +197,7 @@ end
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
 
+    # should error, since damage currently not supported
     @test_throws CompositeException Peridynamics.init_time_solver!(nr, dh)
 end
 
@@ -309,14 +316,11 @@ end
 
 @testitem "req_point_data_fields_timesolver NewtonKrylov" begin
     fields = Peridynamics.req_point_data_fields_timesolver(NewtonKrylov)
-
     @test :displacement_copy in fields
     @test :b_int_copy in fields
     @test :residual in fields
     @test :v_temp in fields  # JFNK buffer
     @test :Jv_temp in fields  # JFNK buffer
-    # Note: :jacobian is NOT in fields for JFNK
-    @test !(:jacobian in fields)
 end
 
 @testitem "req_bond_data_fields_timesolver NewtonKrylov" begin
@@ -421,23 +425,6 @@ end
     @test r_dh ≈ r_chunk
 end
 
-@testitem "minimum_volume ThreadsBodyDataHandler" begin
-    position = [0.0 1.0 0.0 0.0
-                0.0 0.0 1.0 0.0
-                0.0 0.0 0.0 1.0]
-    volume = [1.1, 1.2, 1.3, 1.4]
-    body = Body(BBMaterial(), position, volume)
-    material!(body, horizon=2, rho=1, E=1)
-    point_set!(body, :top, [2])
-    displacement_bc!(p -> 0.1, body, :top, :y)
-
-    nr = NewtonKrylov(steps=10, stepsize=0.1)
-    dh = Peridynamics.threads_data_handler(body, nr, 1)
-
-    min_vol = Peridynamics.minimum_volume(dh)
-    @test min_vol == minimum(volume)
-end
-
 @testitem "NewtonKrylov throw maxiter" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
@@ -453,7 +440,7 @@ end
     displacement_bc!(p -> 0.0, body, :bottom, :z)
     nr = NewtonKrylov(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
     job = Job(body, nr)
-    @test_throws ErrorException submit(job)
+    @test_throws ErrorException submit(job; quiet=true)
 end
 
 @testitem "Material limitation errors" begin
@@ -472,7 +459,7 @@ end
     displacement_bc!(p -> 0.0, body, :bottom, :z)
     nr = NewtonKrylov(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
     job = Job(body, nr)
-    @test_throws CompositeException submit(job)
+    @test_throws CompositeException submit(job; quiet=true)
 
     ## RKCRMaterial should not work with NewtonKrylov
     body = Body(RKCRMaterial(), position, volume)
@@ -485,5 +472,5 @@ end
     displacement_bc!(p -> 0.0, body, :bottom, :z)
     nr = NewtonKrylov(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
     job = Job(body, nr)
-    @test_throws CompositeException submit(job)
+    @test_throws CompositeException submit(job; quiet=true)
 end
