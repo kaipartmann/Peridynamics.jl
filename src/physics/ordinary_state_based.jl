@@ -118,6 +118,7 @@ OSBMaterial(; kwargs...) = OSBMaterial{NoCorrection}(; kwargs...)
     Δu::Vector{Float64}
     v_temp::Vector{Float64}
     Jv_temp::Vector{Float64}
+    precond_diag::Vector{Float64}
 end
 
 function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})

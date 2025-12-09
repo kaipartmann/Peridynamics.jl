@@ -15,6 +15,8 @@
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_maxiter=-10)
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_restart=0)
     @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, gmres_restart=-10)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, perturbation_scale=0)
+    @test_throws ArgumentError NewtonKrylov(steps=10, stepsize=0.1, perturbation_scale=-1)
 end
 
 @testitem "NewtonKrylov steps" begin
@@ -24,10 +26,11 @@ end
     @test nr.Δt == 1.0
     @test nr.maxiter == 100
     @test nr.tol == 1e-4
-    @test nr.perturbation == -1
+    @test nr.perturbation_scale == 1.0
     @test nr.gmres_maxiter == 200
     @test nr.gmres_reltol == 1e-4
     @test nr.gmres_abstol == 1e-8
+    @test nr.use_preconditioner == true
 end
 
 @testitem "NewtonKrylov time" begin
@@ -41,17 +44,18 @@ end
 
 @testitem "NewtonKrylov custom parameters" begin
     nr = NewtonKrylov(steps=50, stepsize=0.02, maxiter=75, tol=1e-6,
-                      perturbation=1e-8, gmres_maxiter=150, gmres_reltol=1e-5,
-                      gmres_abstol=1e-9)
+                      perturbation_scale=2.0, gmres_maxiter=150, gmres_reltol=1e-5,
+                      gmres_abstol=1e-9, preconditioner=false)
     @test nr.end_time == 1.0
     @test nr.n_steps == 50
     @test nr.Δt == 0.02
     @test nr.maxiter == 75
     @test nr.tol == 1e-6
-    @test nr.perturbation == 1e-8
+    @test nr.perturbation_scale == 2.0
     @test nr.gmres_maxiter == 150
     @test nr.gmres_reltol == 1e-5
     @test nr.gmres_abstol == 1e-9
+    @test nr.use_preconditioner == false
 end
 
 @testitem "newton_krylov_check" begin
@@ -78,6 +82,11 @@ end
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     nr.tol = -1
     msg = "`tol` of NewtonKrylov smaller than zero!\n"
+    @test_throws ErrorException(msg) Peridynamics.newton_krylov_check(nr)
+
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
+    nr.perturbation_scale = 0
+    msg = "`perturbation_scale` of NewtonKrylov must be larger than zero!\n"
     @test_throws ErrorException(msg) Peridynamics.newton_krylov_check(nr)
 end
 
