@@ -588,9 +588,10 @@ function get_interaction_parameters(mat::AbstractInteractionSystemMaterial,
     end
 
     if C1 ≈ 0 && C2 ≈ 0 && C3 ≈ 0
-        C1 = 30 / π * μ / δ^4
+        C□ = 8 * δ^4 * 0.9605919564548167 # instead of π * δ^4
+        C1 = 30μ / C□
         C2 = 0.0
-        C3 = 32 / π^4 * (λ - μ) / δ^12
+        C3 = 32 * (λ - μ) / C□^4
     else
         msg = "interaction parameters for $(typeof(mat)) specified manually!\n"
         msg *= "Be careful when adjusting these parameters to avoid unexpected outcomes!"
