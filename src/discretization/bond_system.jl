@@ -263,21 +263,6 @@ end
 
 function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
                              mat::AbstractBondSystemMaterial,
-                             paramsetup::AbstractParameterSetup, idxs::AbstractVector{Int},
-                             t, Δt)
-    (; dmgmodel) = mat
-    @inbounds storage.b_int[:, idxs] .= 0.0
-    @inbounds storage.n_active_bonds[idxs] .= 0
-    for i in idxs
-        calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
-        calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
-        force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
-    end
-    return nothing
-end
-
-function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
-                             mat::AbstractBondSystemMaterial,
                              paramsetup::AbstractParameterSetup, t, Δt)
     (; dmgmodel) = mat
     storage.b_int .= 0.0
@@ -334,13 +319,6 @@ function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
                       paramsetup::AbstractParameterSetup, i)
     @inbounds storage.damage[i] = 1 - storage.n_active_bonds[i] / system.n_neighbors[i]
     return nothing
-end
-
-function get_affected_points(system::AbstractBondSystem, i)
-    points = [bond.neighbor for bond in system.bonds[each_bond_idx(system, i)]]
-    pushfirst!(points, i)
-    sort!(points)
-    return points
 end
 
 function log_system(::Type{System}, options::AbstractJobOptions,

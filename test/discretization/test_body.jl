@@ -775,7 +775,7 @@ end
             material type ...................................................... CMaterial
             kernel function ................................................ linear_kernel
             constitutive model ....................... Peridynamics.SaintVenantKirchhoff()
-            zero-energy mode stabilization ................ Peridynamics.ZEMSilling(100.0)
+            zero-energy mode stabilization .................. Peridynamics.ZEMSilling(0.5)
             damage model type ............................... Peridynamics.CriticalStretch
             maximum damage .......................................................... 0.85
             MATERIAL PROPERTIES #1
