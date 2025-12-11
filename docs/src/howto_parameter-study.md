@@ -33,7 +33,7 @@ The line
 creates a setup in which the material parameters are defined.
 
 
-Now, various setups are created in which the respective parameters are defined as desired. A separate simulation is performed for each setup. Here the parameter `m`, which controls the peridynamic horizon `h = m * Δx`, varies. 
+Now various setups are created in which the respective parameters are defined as desired. A separate simulation is performed for each setup. Here the parameter `m`, which controls the peridynamic horizon `h = m * Δx`, varies. 
 
 ```bash
 setups = [

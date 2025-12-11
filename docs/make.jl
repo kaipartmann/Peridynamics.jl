@@ -72,6 +72,7 @@ makedocs(;
         "How-to guides" => [
             "howto_mpi.md",
             "howto_visualization.md",
+            "howto_parameter-study.md",
         ],
         "Tutorials" => [
             joinpath("generated", "tutorial_tension_static.md"),
