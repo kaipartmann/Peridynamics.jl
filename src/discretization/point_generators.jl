@@ -483,7 +483,30 @@ end
 
 #################################################################
 
-function rotate!(position, dimension, angle)
+"""
+    rotate!(position, dimension, angle)
+
+Rotate a set of 3D points in-place about one of the coordinate axes.
+
+# Arguments
+- `position::AbstractMatrix{<:Real}`: A `3×n` matrix of point coordinates (each
+    column is a 3-D point). The matrix is modified in-place.
+- `dimension::Union{Integer,Symbol}`: The axis to rotate about. Either specified as Symbol or
+    integer.
+    -  x-direction: `:x` or `1`
+    -  y-direction: `:y` or `2`
+    -  z-direction: `:z` or `3`
+- `angle::Real`: Rotation angle in degrees. A positive angle performs a
+    right-handed rotation about the specified axis.
+
+# Examples
+
+```julia-repl
+julia> # rotate a point cloud 30° about the z-axis
+julia> rotate!(positions, 3, 30.0)
+```
+"""
+function rotate!(position, dimension::Union{Integer,Symbol}, angle)
     # Create rotation matrix
     dim = get_dim(dimension)
     if dim == 1
