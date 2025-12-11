@@ -58,6 +58,7 @@ uniform_sphere
 uniform_cylinder
 round_sphere
 round_cylinder
+trunc_pyramid
 n_points
 ```
 
