@@ -89,7 +89,7 @@ open(wave_position_data_file, "a+") do io
 
 With the `readdlm` command the created CSV file is read. Then the resulting columns are assigned to `t`, `x̂`, and `û`.
 
-```bash
+```julia
 results = readdlm(wave_position_data_file, ',', Float64)
 t, x̂, û = results[:,1], results[:,2], results[:,3]
 ```
