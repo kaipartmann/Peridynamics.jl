@@ -508,17 +508,7 @@ julia> rotate!(positions, 3, 30.0)
 """
 function rotate!(position, dimension::Union{Integer,Symbol}, angle)
     # Create rotation matrix
-    dim = get_dim(dimension)
-    if dim == 1
-        R = SMatrix{3,3,Float64,9}(
-                    1, 0, 0, 0, cosd(angle), sind(angle), 0, -sind(angle), cosd(angle))
-    elseif dim == 2
-        R = SMatrix{3,3,Float64,9}(
-        cosd(angle), 0, -sind(angle), 0, 1, 0, sind(angle), 0, cosd(angle))
-    else
-        R = SMatrix{3,3,Float64,9}(
-        cosd(angle), sind(angle), 0, -sind(angle), cosd(angle), 0, 0, 0, 1)
-    end
+    R = get_rotation_matrix(dimension, angle)
 
     # Apply rotation to all position vectors
     for i in axes(position, 2)
@@ -528,9 +518,23 @@ function rotate!(position, dimension::Union{Integer,Symbol}, angle)
     return nothing
 end
 
-function rotate!(position; angles=(0,0,0))
-    for i in 1:3
-        rotate!(position, i, angles[i])
-    end
-    return nothing
+function get_rotation_matrix(dimension::Union{Integer,Symbol}, angle)
+    dim = get_dim(dimension)
+    R = get_rotation_matrix(Val(dim), angle)
+    return R
+end
+
+function get_rotation_matrix(::Val{0x1}, angle)
+    return SMatrix{3,3,Float64,9}(
+        1, 0, 0, 0, cosd(angle), sind(angle), 0, -sind(angle), cosd(angle))
+end
+
+function get_rotation_matrix(::Val{0x2}, angle)
+    return SMatrix{3,3,Float64,9}(
+        cosd(angle), 0, -sind(angle), 0, 1, 0, sind(angle), 0, cosd(angle))
+end
+
+function get_rotation_matrix(::Val{0x3}, angle)
+    return SMatrix{3,3,Float64,9}(
+        cosd(angle), sind(angle), 0, -sind(angle), cosd(angle), 0, 0, 0, 1)
 end

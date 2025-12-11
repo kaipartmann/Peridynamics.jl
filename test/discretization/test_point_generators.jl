@@ -154,7 +154,6 @@ end
     @test pos ≈ pos_res
     @test vol == fill(0.20943951023931953, 15)
 
-    # rotate!(pos, alpha = 90)
     rotate!(pos, :x, 90)
 
     @test pos ≈ [
@@ -165,7 +164,6 @@ end
     @test vol == fill(0.20943951023931953, 15)
 
     pos, vol = round_cylinder(1, 2, 0.5)
-    # rotate!(pos, beta = 90)
     rotate!(pos, 2, 90)
 
     @test pos ≈ [
@@ -175,7 +173,7 @@ end
     ]
     @test vol == fill(0.20943951023931953, 15)
 
-    # with center Keywords
+    # with center keyword
     pos, vol = round_cylinder(1, 2, 0.5; center=(1, 2, 1))
     pos_center = [
     1.25 0.875 0.8749999999999999 1.25 0.875 0.8749999999999999 1.25 0.875 0.8749999999999999 1.25 0.875 0.8749999999999999 1.25 0.875 0.8749999999999999;
@@ -185,7 +183,6 @@ end
     @test pos ≈ pos_center
     @test vol == fill(0.20943951023931953, 15)
 
-    # rotate!(pos, alpha = 90)
     rotate!(pos, :1, 90)
     @test pos ≈ [
         transpose(pos_center[1,:]);
@@ -201,13 +198,6 @@ end
         -0.75  -0.75  -0.75  -0.75  -0.25  -0.25  -0.25  -0.25   0.25   0.25   0.25  0.25   0.75   0.75   0.75  0.75
     ]
     @test pos ≈ pos_cyl
-
-    pos, vol = uniform_cylinder(1, 2, 0.5; angles=(90, 0, 0))
-    @test pos ≈ [
-        transpose(pos_cyl[1,:]);
-        -transpose(pos_cyl[3,:]);
-        transpose(pos_cyl[2,:]);
-    ]
 
     pos, vol = uniform_box(1, 1, 1, 0.5)
     pos_box = [
