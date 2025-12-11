@@ -79,9 +79,10 @@ wave_position_data_file = joinpath(post_path, "wavepos.csv")
 ```
 
 The relevant simulation data (here the values for `t`, `x̂` and `û`) is now saved in the CSV file.
-```bash
+```julia
 open(wave_position_data_file, "a+") do io
     @printf(io, "%.12f,%.12f,%.12f\n", t, x̂, û)
+end
 ```
 
 
