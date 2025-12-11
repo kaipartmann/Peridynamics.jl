@@ -225,7 +225,7 @@ function apply_boundary_conditions!(chunk::AbstractBodyChunk, t)
     return nothing
 end
 
-# Only for the Newton-Raphson solver, incremental displacement BCs
+# Only for the Newton-Krylov solver, incremental displacement BCs
 function apply_incr_boundary_conditions!(chunk::AbstractBodyChunk, β)
     (; storage, condhandler) = chunk
     (; pos_single_dim_bcs, loc_point_sets) = condhandler
@@ -634,11 +634,8 @@ end
 """
     displacement_bc!(f::Function, body::Body, points::Vector{Int}, dim::Int)
 
-$(internal_api_warning())
-$(experimental_api_warning())
-
 !!! warning "Compatibility limited"
-    This boundary condition type only works with the NewtonRaphson solver for now.
+    This boundary condition type only works with the NewtonKrylov solver for now.
 
 Apply a displacement boundary condition to specified points in a given dimension.
 A factor `β` is calculated as `n / n_steps`, where `n` is the current step number and

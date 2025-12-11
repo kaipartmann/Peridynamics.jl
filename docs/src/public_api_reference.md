@@ -50,6 +50,7 @@ material!
 velocity_bc!
 velocity_ic!
 forcedensity_bc!
+displacement_bc!
 precrack!
 contact!
 uniform_box
@@ -80,6 +81,7 @@ reset_mpi_progress_bars!
 ```@docs
 VelocityVerlet
 DynamicRelaxation
+NewtonKrylov
 Job
 Study
 submit
