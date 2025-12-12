@@ -59,6 +59,7 @@ uniform_cylinder
 round_sphere
 round_cylinder
 trunc_pyramid
+rotate!
 n_points
 ```
 
