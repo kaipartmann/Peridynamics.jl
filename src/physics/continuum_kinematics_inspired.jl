@@ -76,6 +76,7 @@ When specifying the `fields` keyword of [`Job`](@ref) for a [`Body`](@ref) with
 - `b_ext::Matrix{Float64}`: External force density of each point.
 - `damage::Vector{Float64}`: Damage of each point.
 - `n_active_one_nis::Vector{Int}`: Number of intact one-neighbor interactions of each point.
+- `strain_energy_density::Vector{Float64}`: Strain energy density of each point.
 """
 struct CKIMaterial{DM} <: AbstractInteractionSystemMaterial
     dmgmodel::DM
@@ -149,6 +150,7 @@ end
     @pointfield density_matrix::Matrix{Float64}
     @pointfield damage::Vector{Float64}
     @pointfield n_active_one_nis::Vector{Int}
+    @pointfield strain_energy_density::Vector{Float64}
     one_ni_active::Vector{Bool}
     residual::Vector{Float64}
     displacement_copy::Matrix{Float64}
@@ -157,6 +159,11 @@ end
     Δu::Vector{Float64}
     v_temp::Vector{Float64}
     Jv_temp::Vector{Float64}
+end
+
+function init_field(::CKIMaterial, ::AbstractTimeSolver, system::InteractionSystem,
+                    ::Val{:strain_energy_density})
+    return zeros(get_n_loc_points(system))
 end
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,
@@ -174,8 +181,6 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
         j, L = one_ni.neighbor, one_ni.length
         Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
-        # ε = (l - L) / L
-        # stretch_based_failure!(storage, system, one_ni, params, ε, i, one_ni_id)
         b_int = one_ni_failure(storage, one_ni_id) * params.C1 * (1 / L - 1 / l) *
                 system.volume_one_nis[i] .* Δxij
         update_add_vector!(storage.b_int, i, b_int)
@@ -191,8 +196,6 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
         j, L = one_ni.neighbor, one_ni.length
         Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
-        # ε = (l - L) / L
-        # stretch_based_failure!(storage, system, one_ni, params_i, ε, i, one_ni_id)
         params_j = get_params(paramhandler, j)
         b_int = one_ni_failure(storage, one_ni_id) * (params_i.C1 + params_j.C1) / 2 *
                 (1 / L - 1 / l) * system.volume_one_nis[i] .* Δxij
@@ -401,4 +404,107 @@ function force_density_point_three_ni!(storage::CKIStorage, system::InteractionS
         storage.b_int[3, i] += temp * (Δxijx * Δxily - Δxijy * Δxilx)
     end
     return nothing
+end
+
+function strain_energy_density_point!(storage::CKIStorage, system::InteractionSystem,
+                                      mat::CKIMaterial, paramsetup::AbstractParameterSetup,
+                                      i)
+    storage.strain_energy_density[i] = 0.0
+    params = get_params(paramsetup, i)
+    strain_energy_density_point_one_ni!(storage, system, mat, params, i)
+    has_two_nis(params) && strain_energy_density_point_two_ni!(storage, system, mat, params, i)
+    has_three_nis(params) && strain_energy_density_point_three_ni!(storage, system, mat, params, i)
+    return nothing
+end
+
+function strain_energy_density_point_one_ni!(storage::CKIStorage, system::InteractionSystem,
+                                             ::CKIMaterial, params::CKIPointParameters, i)
+    Ψ = 0.0
+    for one_ni_id in each_one_ni_idx(system, i)
+        one_ni = system.one_nis[one_ni_id]
+        j, L = one_ni.neighbor, one_ni.length
+        Δxij = get_vector_diff(storage.position, i, j)
+        l = norm(Δxij)
+        εl = (l - L) / L
+        ψij = 0.5 * params.C1 * εl * εl * L
+        failure = one_ni_failure(storage, one_ni_id)
+        Ψ += 0.5 * failure * ψij * system.volume_one_nis[i]
+    end
+    storage.strain_energy_density[i] += Ψ
+    return nothing
+end
+
+function strain_energy_density_point_two_ni!(storage::CKIStorage, system::InteractionSystem,
+                                             ::CKIMaterial, params::CKIPointParameters, i)
+    Ψ = 0.0
+    for two_ni_id in each_two_ni_idx(system, i)
+        two_ni = system.two_nis[two_ni_id]
+        oni_j_id, oni_k_id, surface_ref = two_ni.oni_j, two_ni.oni_k, two_ni.surface
+        j = system.one_nis[oni_j_id].neighbor
+        k = system.one_nis[oni_k_id].neighbor
+        Δxijx = storage.position[1, j] - storage.position[1, i]
+        Δxijy = storage.position[2, j] - storage.position[2, i]
+        Δxijz = storage.position[3, j] - storage.position[3, i]
+        Δxikx = storage.position[1, k] - storage.position[1, i]
+        Δxiky = storage.position[2, k] - storage.position[2, i]
+        Δxikz = storage.position[3, k] - storage.position[3, i]
+        aijkx = Δxijy * Δxikz - Δxijz * Δxiky
+        aijky = Δxijz * Δxikx - Δxijx * Δxikz
+        aijkz = Δxijx * Δxiky - Δxijy * Δxikx
+        surface = sqrt(aijkx * aijkx + aijky * aijky + aijkz * aijkz)
+        εa = (surface - surface_ref) / surface_ref
+        ψijk = 0.5 * params.C2 * εa * εa * surface_ref
+        failure = one_ni_failure(storage, oni_j_id) * one_ni_failure(storage, oni_k_id)
+        Ψ += 1/3 * failure * ψijk * system.volume_two_nis[i]
+    end
+    storage.strain_energy_density[i] += Ψ
+    return nothing
+end
+
+function strain_energy_density_point_three_ni!(storage::CKIStorage,
+                                               system::InteractionSystem, ::CKIMaterial,
+                                               params::CKIPointParameters, i)
+    Ψ = 0.0
+    for three_ni_id in each_three_ni_idx(system, i)
+        three_ni = system.three_nis[three_ni_id]
+        oni_j_id = three_ni.oni_j
+        oni_k_id = three_ni.oni_k
+        oni_l_id = three_ni.oni_l
+        volume_ref = three_ni.volume
+        j = system.one_nis[oni_j_id].neighbor
+        k = system.one_nis[oni_k_id].neighbor
+        l = system.one_nis[oni_l_id].neighbor
+        Δxijx = storage.position[1, j] - storage.position[1, i]
+        Δxijy = storage.position[2, j] - storage.position[2, i]
+        Δxijz = storage.position[3, j] - storage.position[3, i]
+        Δxikx = storage.position[1, k] - storage.position[1, i]
+        Δxiky = storage.position[2, k] - storage.position[2, i]
+        Δxikz = storage.position[3, k] - storage.position[3, i]
+        Δxilx = storage.position[1, l] - storage.position[1, i]
+        Δxily = storage.position[2, l] - storage.position[2, i]
+        Δxilz = storage.position[3, l] - storage.position[3, i]
+        # ijk
+        aijkx = Δxijy * Δxikz - Δxijz * Δxiky
+        aijky = Δxijz * Δxikx - Δxijx * Δxikz
+        aijkz = Δxijx * Δxiky - Δxijy * Δxikx
+        volume = aijkx * Δxilx + aijky * Δxily + aijkz * Δxilz
+        abs_volume = abs(volume)
+        abs_volume_ref = abs(volume_ref)
+        εv = (abs_volume - abs_volume_ref) / abs_volume_ref
+        ψijkl = 0.5 * params.C3 * εv * εv * abs_volume_ref
+        failure = one_ni_failure(storage, oni_j_id) * one_ni_failure(storage, oni_k_id) *
+                  one_ni_failure(storage, oni_l_id)
+        Ψ += 1/4 * failure * ψijkl * system.volume_three_nis[i]
+    end
+    storage.strain_energy_density[i] += Ψ
+    return nothing
+end
+
+function export_field(::Val{:strain_energy_density}, mat::CKIMaterial,
+                      system::InteractionSystem, storage::CKIStorage,
+                      paramsetup::CKIPointParameters, t)
+    for i in each_point_idx(system)
+        strain_energy_density_point!(storage, system, mat, paramsetup, i)
+    end
+    return storage.strain_energy_density
 end

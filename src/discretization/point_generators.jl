@@ -11,7 +11,8 @@ and point spacing `ΔX0`.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center`: The coordinates of the center of the cuboid. Default: `(0, 0, 0)`
+- `center`: The coordinates of the center of the cuboid. The center coordinates are added
+            to all point coordinates. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -70,7 +71,8 @@ sphere can occur.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center`: The coordinates of the center of the sphere. Default: `(0, 0, 0)`
+- `center`: The coordinates of the center of the sphere. The center coordinates are added
+            to all point coordinates. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -131,7 +133,8 @@ spacings, edges on the surface of the cylinder can occur.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center`: The coordinates of the center of the cylinder. Default: `(0, 0, 0)`
+- `center`: The coordinates of the center of the cylinder. The center coordinates are added
+            to all point coordinates. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -196,7 +199,8 @@ with a specific `diameter` and the point spacing `ΔX0`. Internally, some parts 
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center`: The coordinates of the center of the sphere. Default: `(0, 0, 0)`
+- `center`: The coordinates of the center of the sphere. The center coordinates are added
+            to all point coordinates. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -252,7 +256,8 @@ of the cylinder.
 - `ΔX0::Real`: Spacing of the points.
 
 # Keywords
-- `center`: The coordinates of the center of the cylinder. Default: `(0, 0, 0)`
+- `center`: The coordinates of the center of the cylinder. The center coordinates are added
+            to all point coordinates. Default: `(0, 0, 0)`
 
 # Returns
 - `position::Matrix{Float64}`: A `3×n_points` matrix with the position of the points.
@@ -304,6 +309,79 @@ function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center=(0, 0, 
     volumes .= 2 * π * radius^2 * height / n_points
     return coordinates, volumes
 end
+
+##########################################
+
+"""
+        trunc_pyramid(L, d0, dL, nd; center=(0,0,0))
+
+Create a grid of points distributed in a truncated pyramid shape (frustum)
+with points arranged in square cross-sections. Internally the function generates layers for
+`x ∈ [0, L]` and then recenters the x-coordinates by subtracting `L/2`, so the
+resulting x-range is `[-L/2, L/2]` before applying the `center` offset. The
+`center` vector is added to all point coordinates, therefore the middle of the
+longitudinal axis of the frustum ends up at `center`.
+
+The square side length varies linearly from `d0` at the left end (internal
+`x = 0`, final `x = -L/2 + center_x`) to `dL` at the right end (internal
+`x = L`, final `x = +L/2 + center_x`). Each cross-section (layer) contains
+`nd × nd` points placed on a regular square grid; the layer thickness is
+determined by the local spacing `Δx = d / nd` where `d` is the side length of that layer, and point volumes
+are set to `Δx^3` for the corresponding layer.
+
+# Arguments
+- `L::Real`: Length of the pyramid in the x-direction (unshifted internal
+    coordinate goes from `0` to `L`).
+- `d0::Real`: Side length of the square cross-section at the internal left end
+    `x = 0` (final `x = -L/2 + center_x`).
+- `dL::Real`: Side length of the square cross-section at the internal right end
+    `x = L` (final `x = +L/2 + center_x`).
+- `nd::Integer`: Number of points per side in each square cross-section.
+
+# Keywords
+- `center`: The coordinates of the center of the pyramid. The center coordinates are added
+    to all generated point coordinates. Default: `(0, 0, 0)`.
+
+# Returns
+- `position::Matrix{Float64}`: A `3×n_points` matrix with the coordinates of
+    all generated points.
+- `volume::Vector{Float64}`: A vector with the volume assigned to each point.
+    Volumes are set per-layer to the cube of the local spacing (i.e. `Δx^3`).
+
+# Examples
+
+```julia-repl
+julia> # centered at origin (default): left end at x = -L/2, right end at x = +L/2
+julia> position, volume = trunc_pyramid(10.0, 4.0, 2.0, 4);
+
+julia> # place the pyramid so its center (middle of the longitudinal axis) is at x = 5.0
+julia> position, volume = trunc_pyramid(10.0, 4.0, 2.0, 4; center=(5.0,0.0,0.0));
+```
+"""
+function trunc_pyramid(L::Real, d0::Real, dL::Real, nd::Int; center=(0, 0, 0))
+    center_x, center_y, center_z = center
+    _position = Vector{Matrix{Float64}}()
+    _volume = Vector{Vector{Float64}}()
+    x = 0.5 * (d0 / nd)  # start half a layer in to avoid zero spacing at x=0
+    while x ≤ L
+        d = get_d(x, d0, dL, L)
+        Δx = d / nd
+        push!(_position, makerow(x, d, Δx, nd))
+        push!(_volume, fill(Δx^3, nd^2))
+        x += Δx
+    end
+    position = reduce(hcat, _position)
+    for i in axes(position, 2)
+        position[1, i] -= L / 2  # recenter x-coordinates
+    end
+    isapprox(center_x, 0; atol=eps()) || (position[1, :] .+= center_x)
+    isapprox(center_y, 0; atol=eps()) || (position[2, :] .+= center_y)
+    isapprox(center_z, 0; atol=eps()) || (position[3, :] .+= center_z)
+    volume = reduce(vcat, _volume)
+    return position, volume
+end
+
+
 
 ##########################################
 
@@ -537,4 +615,17 @@ end
 function get_rotation_matrix(::Val{0x3}, angle)
     return SMatrix{3,3,Float64,9}(
         cosd(angle), sind(angle), 0, -sind(angle), cosd(angle), 0, 0, 0, 1)
+end
+
+############################################################
+
+get_d(x, d0, dL, L) = - (d0 - dL) / L * x + d0
+
+function makerow(x, d, Δx, nd)
+    gridx = x:x
+    _gridyz = range(; start = (-d + Δx) / 2, stop = (d - Δx) / 2, length=nd)
+    gridyz = _gridyz .- sum(_gridyz) / length(_gridyz)
+    __position = vec(collect(Iterators.product(gridx, gridyz, gridyz)))
+    _position = reinterpret(reshape, eltype(eltype(__position)), __position)
+    return _position
 end
