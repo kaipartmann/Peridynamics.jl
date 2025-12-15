@@ -291,8 +291,7 @@ julia> volume
 function round_cylinder(diameter::Real, height::Real, ΔX0::Real; center=(0, 0, 0))
     radius = diameter / 2
 
-    xy = sphere_shape_coords(ΔX0, radius,
-                             SVector{2}((center[1], center[2])))
+    xy = sphere_shape_coords(ΔX0, radius, SVector{2}((center[1], center[2])))
     _z = range(-height/2, height/2, step=ΔX0)
     z = _z .- sum(_z) / length(_z) .+ center[3]
     n_layers = length(z)
@@ -558,6 +557,64 @@ function _round_sphere(particle_spacing, radius, center::SVector{3})
     end
 
     return particle_coords
+end
+
+#################################################################
+
+"""
+    rotate!(position, dimension, angle)
+
+Rotate a set of 3D points in-place about one of the coordinate axes.
+
+# Arguments
+- `position::AbstractMatrix{<:Real}`: A `3×n` matrix of point coordinates (each
+    column is a 3-D point). The matrix is modified in-place.
+- `dimension::Union{Integer,Symbol}`: The axis to rotate about. Either specified as Symbol or
+    integer.
+    -  x-direction: `:x` or `1`
+    -  y-direction: `:y` or `2`
+    -  z-direction: `:z` or `3`
+- `angle::Real`: Rotation angle in degrees. A positive angle performs a
+    right-handed rotation about the specified axis.
+
+# Examples
+
+```julia-repl
+julia> # rotate a point cloud 30° about the z-axis
+julia> rotate!(positions, 3, 30.0)
+```
+"""
+function rotate!(position, dimension::Union{Integer,Symbol}, angle)
+    # Create rotation matrix
+    R = get_rotation_matrix(dimension, angle)
+
+    # Apply rotation to all position vectors
+    for i in axes(position, 2)
+        pos = get_vector(position, i)
+        update_vector!(position, i, R * pos)
+    end
+    return nothing
+end
+
+function get_rotation_matrix(dimension::Union{Integer,Symbol}, angle)
+    dim = get_dim(dimension)
+    R = get_rotation_matrix(Val(dim), angle)
+    return R
+end
+
+function get_rotation_matrix(::Val{0x1}, angle)
+    return SMatrix{3,3,Float64,9}(
+        1, 0, 0, 0, cosd(angle), sind(angle), 0, -sind(angle), cosd(angle))
+end
+
+function get_rotation_matrix(::Val{0x2}, angle)
+    return SMatrix{3,3,Float64,9}(
+        cosd(angle), 0, -sind(angle), 0, 1, 0, sind(angle), 0, cosd(angle))
+end
+
+function get_rotation_matrix(::Val{0x3}, angle)
+    return SMatrix{3,3,Float64,9}(
+        cosd(angle), sind(angle), 0, -sind(angle), cosd(angle), 0, 0, 0, 1)
 end
 
 ############################################################
