@@ -262,6 +262,7 @@ end
 function _update_acc_and_vel!(chunk::AbstractBodyChunk,
                               paramhandler::AbstractParameterHandler, Δt½::Float64)
     (; acceleration, velocity, velocity_half, b_int, b_ext) = chunk.storage
+    system = chunk.system
     for i in each_point_idx(chunk)
         params = get_params(paramhandler, i)
         for dim in each_dim(system)
