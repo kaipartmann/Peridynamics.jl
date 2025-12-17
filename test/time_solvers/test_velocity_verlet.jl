@@ -108,3 +108,143 @@ end
     msg = String(take!(io))
     @test contains(msg, "VelocityVerlet:\n  n_steps        1\n  safety_factor  0.7")
 end
+
+@testitem "update_vel_half!" begin
+    pos = [0.0 1.0; 0.0 0.0; 0.0 0.0]
+    vol = [1.0, 1.0]
+    body = Body(BBMaterial(), pos, vol)
+    material!(body, horizon=1.5, rho=1, E=1, Gc=1)
+    vv = VelocityVerlet(steps=1)
+    dh = Peridynamics.threads_data_handler(body, vv, 1)
+    chunk = dh.chunks[1]
+
+    # Set initial conditions
+    chunk.storage.velocity .= [1.0 2.0; 3.0 4.0; 5.0 6.0]
+    chunk.storage.acceleration .= [0.1 0.2; 0.3 0.4; 0.5 0.6]
+    chunk.storage.velocity_half .= 0.0
+
+    Δt½ = 0.5
+    Peridynamics.update_vel_half!(chunk, Δt½)
+
+    # Check: velocity_half = velocity + acceleration * Δt½
+    expected = [1.0 2.0; 3.0 4.0; 5.0 6.0] .+ [0.1 0.2; 0.3 0.4; 0.5 0.6] .* Δt½
+    @test chunk.storage.velocity_half ≈ expected
+end
+
+@testitem "update_disp_and_pos!" begin
+    pos = [0.0 1.0; 0.0 0.0; 0.0 0.0]
+    vol = [1.0, 1.0]
+    body = Body(BBMaterial(), pos, vol)
+    material!(body, horizon=1.5, rho=1, E=1, Gc=1)
+    vv = VelocityVerlet(steps=1)
+    dh = Peridynamics.threads_data_handler(body, vv, 1)
+    chunk = dh.chunks[1]
+
+    # Set initial conditions
+    initial_displacement = [0.1 0.2; 0.3 0.4; 0.5 0.6]
+    initial_position = copy(chunk.storage.position)
+    chunk.storage.displacement .= initial_displacement
+    chunk.storage.velocity_half .= [1.0 2.0; 3.0 4.0; 5.0 6.0]
+
+    Δt = 0.1
+    Peridynamics.update_disp_and_pos!(chunk, Δt)
+
+    # Check: displacement += velocity_half * Δt
+    #        position += velocity_half * Δt
+    du = [1.0 2.0; 3.0 4.0; 5.0 6.0] .* Δt
+    @test chunk.storage.displacement ≈ initial_displacement .+ du
+    @test chunk.storage.position ≈ initial_position .+ du
+end
+
+@testitem "_update_acc! and _update_vel!" begin
+    # Test the inline helper functions directly
+    acceleration = zeros(6)
+    velocity = zeros(6)
+    velocity_half = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    b_int = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]
+    b_ext = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    rho = 2.0
+    Δt½ = 0.5
+
+    for dof in 1:6
+        Peridynamics._update_acc!(acceleration, b_int, b_ext, rho, dof)
+        Peridynamics._update_vel!(velocity, velocity_half, acceleration, Δt½, dof)
+    end
+
+    # Check: acceleration = (b_int + b_ext) / rho
+    expected_acc = (b_int .+ b_ext) ./ rho
+    @test acceleration ≈ expected_acc
+
+    # Check: velocity = velocity_half + acceleration * Δt½
+    expected_vel = velocity_half .+ expected_acc .* Δt½
+    @test velocity ≈ expected_vel
+end
+
+@testitem "update_acc_and_vel! with uniform parameters" begin
+    # Test with uniform parameters (single AbstractPointParameters)
+    pos = [0.0 1.0; 0.0 0.0; 0.0 0.0]
+    vol = [1.0, 1.0]
+    body = Body(BBMaterial(), pos, vol)
+    material!(body, horizon=1.5, rho=2.0, E=1, Gc=1)
+    vv = VelocityVerlet(steps=1)
+    dh = Peridynamics.threads_data_handler(body, vv, 1)
+    chunk = dh.chunks[1]
+
+    # Set initial conditions
+    chunk.storage.velocity_half .= [1.0 2.0; 3.0 4.0; 5.0 6.0]
+    chunk.storage.b_int .= [10.0 20.0; 30.0 40.0; 50.0 60.0]
+    chunk.storage.b_ext .= [1.0 2.0; 3.0 4.0; 5.0 6.0]
+    chunk.storage.acceleration .= 0.0
+    chunk.storage.velocity .= 0.0
+
+    Δt½ = 0.5
+    Peridynamics.update_acc_and_vel!(chunk, Δt½)
+
+    # Check: acceleration = (b_int + b_ext) / rho
+    rho = 2.0
+    expected_acc = (chunk.storage.b_int .+ chunk.storage.b_ext) ./ rho
+    @test chunk.storage.acceleration ≈ expected_acc
+
+    # Check: velocity = velocity_half + acceleration * Δt½
+    expected_vel = [1.0 2.0; 3.0 4.0; 5.0 6.0] .+ expected_acc .* Δt½
+    @test chunk.storage.velocity ≈ expected_vel
+end
+
+@testitem "update_acc_and_vel! with parameter handler" begin
+    # Test with AbstractParameterHandler (multiple point parameters)
+    pos = [0.0 1.0 2.0; 0.0 0.0 0.0; 0.0 0.0 0.0]
+    vol = [1.0, 1.0, 1.0]
+    body = Body(BBMaterial(), pos, vol)
+    material!(body, horizon=1.5, rho=1.0, E=1, Gc=1)
+    # Add a second parameter set with different density
+    point_set!(body, :set2, [3])
+    material!(body, :set2, horizon=1.5, rho=3.0, E=1, Gc=1)
+
+    vv = VelocityVerlet(steps=1)
+    dh = Peridynamics.threads_data_handler(body, vv, 1)
+    chunk = dh.chunks[1]
+
+    # Set initial conditions
+    chunk.storage.velocity_half .= [1.0 2.0 3.0; 4.0 5.0 6.0; 7.0 8.0 9.0]
+    chunk.storage.b_int .= [10.0 20.0 30.0; 40.0 50.0 60.0; 70.0 80.0 90.0]
+    chunk.storage.b_ext .= [1.0 2.0 3.0; 4.0 5.0 6.0; 7.0 8.0 9.0]
+    chunk.storage.acceleration .= 0.0
+    chunk.storage.velocity .= 0.0
+
+    Δt½ = 0.5
+    Peridynamics.update_acc_and_vel!(chunk, Δt½)
+
+    # Check that accelerations are computed correctly for each point
+    # Points 1 and 2 should use rho=1.0, point 3 should use rho=3.0
+    for i in 1:3
+        params = Peridynamics.get_params(chunk, i)
+        for dim in 1:3
+            dof = (i - 1) * 3 + dim
+            expected_acc = (chunk.storage.b_int[dof] + chunk.storage.b_ext[dof]) / params.rho
+            @test chunk.storage.acceleration[dof] ≈ expected_acc
+
+            expected_vel = chunk.storage.velocity_half[dof] + expected_acc * Δt½
+            @test chunk.storage.velocity[dof] ≈ expected_vel
+        end
+    end
+end
