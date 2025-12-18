@@ -19,7 +19,11 @@ export LinearElastic, NeoHooke, NeoHookePenalty, SaintVenantKirchhoff, ZEMSillin
 export const_one_kernel, linear_kernel, cubic_b_spline_kernel, cubic_b_spline_kernel_norm
 
 # Damage models
-export CriticalStretch
+export CriticalStretch, EquivalentStress
+
+# Equivalent stress functions for EquivalentStress damage model
+export equiv_von_mises_stress, equiv_hydrostatic_stress, equiv_first_principal_stress,
+       equiv_max_shear_stress, equiv_tensile_principal_stress
 
 # Systems related types
 export NoCorrection, EnergySurfaceCorrection
@@ -27,7 +31,7 @@ export NoCorrection, EnergySurfaceCorrection
 # Discretization
 export Body, point_set!, point_sets, no_failure!, material!, velocity_bc!, velocity_ic!,
        forcedensity_bc!, displacement_bc!, precrack!, MultibodySetup, contact!, uniform_box,
-       uniform_sphere, uniform_cylinder, round_sphere, round_cylinder, rotate!, trunc_pyramid, 
+       uniform_sphere, uniform_cylinder, round_sphere, round_cylinder, rotate!, trunc_pyramid,
        n_points
 
 # Running simulations

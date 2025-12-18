@@ -166,13 +166,89 @@ function log_material_property(::Val{:beta}, mat; indentation)
     return msg_qty("SVD truncation parameter", mat.beta; indentation)
 end
 
-@params RKCMaterial StandardPointParameters
+#-------------------------------------------------------------------------------------------
+# RKCPointParameters - Extended point parameters for RKC materials with stress-based damage
+#-------------------------------------------------------------------------------------------
+
+"""
+    RKCPointParameters
+
+$(internal_api_warning())
+
+Type containing the material parameters for RKC-based peridynamics models. Extends the
+standard parameters with critical von Mises stress `σc` for stress-based damage models.
+
+# Fields
+
+- `δ::Float64`: Horizon.
+- `rho::Float64`: Density.
+- `E::Float64`: Young's modulus.
+- `nu::Float64`: Poisson's ratio.
+- `G::Float64`: Shear modulus.
+- `K::Float64`: Bulk modulus.
+- `λ::Float64`: 1st Lamé parameter.
+- `μ::Float64`: 2nd Lamé parameter.
+- `Gc::Float64`: Critical energy release rate.
+- `εc::Float64`: Critical strain.
+- `σc::Float64`: Critical von Mises stress.
+- `bc::Float64`: Bond constant.
+"""
+struct RKCPointParameters <: AbstractPointParameters
+    δ::Float64
+    rho::Float64
+    E::Float64
+    nu::Float64
+    G::Float64
+    K::Float64
+    λ::Float64
+    μ::Float64
+    Gc::Float64
+    εc::Float64
+    σc::Float64
+    bc::Float64
+end
+
+function RKCPointParameters(mat::AbstractRKCMaterial, p::Dict{Symbol,Any})
+    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
+
+    # Get fracture parameters based on damage model type
+    Gc, εc, σc = get_rkc_frac_params(mat.dmgmodel, p, δ, K, E)
+
+    bc = 18 * K / (π * δ^4) # bond constant
+    return RKCPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, σc, bc)
+end
+
+function get_rkc_frac_params(dmgmodel::CriticalStretch, p::Dict{Symbol,Any}, δ, K, E)
+    (; Gc, εc) = get_frac_params(dmgmodel, p, δ, K)
+    σc = 0.0  # not used for CriticalStretch
+    return Gc, εc, σc
+end
+
+function get_rkc_frac_params(dmgmodel::EquivalentStress, p::Dict{Symbol,Any}, δ, K, E)
+    (; Gc, σc) = get_frac_params(dmgmodel, p, δ, K)
+    εc = 0.0  # not used for EquivalentStress
+    return Gc, εc, σc
+end
+
+function get_rkc_frac_params(dmgmodel::AbstractDamageModel, p::Dict{Symbol,Any}, δ, K, E)
+    # Fallback for other damage models
+    Gc, εc, σc = 0.0, 0.0, 0.0
+    return Gc, εc, σc
+end
+
+# Override allowed_material_kwargs for RKC materials to include sigma_c
+function allowed_material_kwargs(::AbstractRKCMaterial)
+    return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...,
+            :sigma_c)
+end
+
+@params RKCMaterial RKCPointParameters
 
 @storage RKCMaterial struct RKCStorage
     @lthfield position::Matrix{Float64}
     @pointfield displacement::Matrix{Float64}
     @pointfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
+    @lthfield velocity_half::Matrix{Float64}
     @pointfield velocity_half_old::Matrix{Float64}
     @pointfield acceleration::Matrix{Float64}
     @htlfield b_int::Matrix{Float64}
@@ -188,6 +264,7 @@ end
     @lthfield defgrad::Matrix{Float64}
     @lthfield weighted_volume::Vector{Float64}
     bond_active::Vector{Bool}
+    bond_softening::Vector{Float64}  # Gradual damage variable for stress-based softening
     gradient_weight::Matrix{Float64}
     bond_first_piola_kirchhoff::Matrix{Float64}
     residual::Vector{Float64}
@@ -197,6 +274,16 @@ end
     Δu::Vector{Float64}
     v_temp::Vector{Float64}
     Jv_temp::Vector{Float64}
+end
+
+function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:bond_softening})
+    return zeros(get_n_bonds(system))  # Initialize all bonds with zero damage
+end
+
+function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
+                    ::Val{:velocity_half})
+    return zeros(3, get_n_points(system))
 end
 
 function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
@@ -322,6 +409,146 @@ function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
     return nothing
 end
 
+#-------------------------------------------------------------------------------------------
+# EquivalentStress damage implementation for RKC materials
+#-------------------------------------------------------------------------------------------
+
+"""
+    calc_failure!(storage, system, mat, dmgmodel::EquivalentStress, paramsetup, i)
+
+Calculate bond failure for the EquivalentStress damage model. This function
+implements gradual bond softening based on an equivalent stress measure at each bond.
+
+The equivalent stress is computed using the `stress_func` specified in the damage model,
+which can be von Mises, hydrostatic, first principal stress, or a custom function.
+
+**Important:** This function uses the stress from the PREVIOUS timestep (stored in
+`bond_first_piola_kirchhoff`). This means failure evaluation lags by one timestep,
+which is acceptable for small timesteps and provides numerical stability.
+
+The bond softening damage `d` evolves based on the excess stress beyond the critical
+stress `σc`. When softening is enabled:
+- Bonds gradually lose their contribution via the factor `(1 - d)`
+- Once `d = 1`, the bond is considered fully broken (`bond_active = false`)
+
+When softening is disabled, bonds are immediately switched off when the critical
+stress is exceeded.
+"""
+function calc_failure!(storage::RKCStorage, system::AbstractBondSystem,
+                       mat::AbstractRKCMaterial, dmgmodel::EquivalentStress,
+                       paramsetup::AbstractParameterSetup, i)
+    params = get_params(paramsetup, i)
+    σc = params.σc
+    (; position, n_active_bonds, bond_active, bond_softening,
+       bond_first_piola_kirchhoff, defgrad) = storage
+    (; bonds) = system
+
+    # Skip if no fracture parameters defined
+    if isapprox(σc, 0; atol=eps())
+        for bond_id in each_bond_idx(system, i)
+            n_active_bonds[i] += bond_active[bond_id]
+        end
+        return nothing
+    end
+
+    Fi = get_tensor(defgrad, i)
+
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+
+        if bond_active[bond_id]
+            # Get bond deformation gradient (averaged)
+            ΔXij = get_vector_diff(system.position, i, j)
+            Δxij = get_vector_diff(position, i, j)
+            Fj = get_tensor(defgrad, j)
+            Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
+
+            # Get bond first Piola-Kirchhoff stress from PREVIOUS timestep and convert to Cauchy
+            # Note: At t=0, this will be zero, so no damage occurs on the first step
+            Pij = get_tensor(bond_first_piola_kirchhoff, bond_id)
+            σij = cauchy_stress_safe(Pij, Fij)
+
+            # Skip if stress calculation failed (NaN protection)
+            if any(isnan, σij)
+                n_active_bonds[i] += bond_active[bond_id]
+                continue
+            end
+
+            # Calculate equivalent stress using the specified stress function
+            σeq = dmgmodel.stress_func(σij)
+
+            # Skip only if equivalent stress is NaN (numerical failure)
+            # Negative values are valid (e.g., compressive hydrostatic stress) and simply
+            # won't trigger failure since σeq > σc will be false when σeq < 0 and σc > 0
+            if isnan(σeq)
+                n_active_bonds[i] += bond_active[bond_id]
+                continue
+            end
+
+            if σeq > σc && bond.fail_permit
+                if dmgmodel.softening
+                    # Gradual softening: increase bond damage based on excess stress
+                    # Linear softening law with rate limiting for stability
+                    softening_rate = 0.1
+                    Δd_proposed = softening_rate * (σeq - σc) / σc
+                    # Apply rate limiting from damage model to prevent sudden energy release
+                    Δd = min(Δd_proposed, dmgmodel.max_damage_rate)
+                    bond_softening[bond_id] = min(1.0, bond_softening[bond_id] + Δd)
+
+                    # Mark bond as broken when fully damaged
+                    if bond_softening[bond_id] >= 1.0
+                        bond_active[bond_id] = false
+                        storage.update_gradients[i] = true
+                    end
+                else
+                    # Immediate failure (no softening)
+                    bond_active[bond_id] = false
+                    bond_softening[bond_id] = 1.0
+                    storage.update_gradients[i] = true
+                end
+            end
+        end
+
+        n_active_bonds[i] += bond_active[bond_id]
+    end
+
+    return nothing
+end
+
+"""
+    calc_damage!(storage, system, mat, dmgmodel::EquivalentStress, paramsetup, i)
+
+Calculate point damage for EquivalentStress. The damage includes contributions
+from both fully broken bonds and partially softened bonds.
+"""
+function calc_damage!(storage::RKCStorage, system::AbstractBondSystem,
+                      mat::AbstractRKCMaterial, dmgmodel::EquivalentStress,
+                      paramsetup::AbstractParameterSetup, i)
+    (; n_neighbors) = system
+    (; n_active_bonds, damage, update_gradients, bond_softening, bond_active) = storage
+
+    # Calculate effective damage including softening
+    total_softening = 0.0
+    for bond_id in each_bond_idx(system, i)
+        if bond_active[bond_id]
+            total_softening += bond_softening[bond_id]
+        else
+            total_softening += 1.0  # fully broken
+        end
+    end
+
+    old_damage = damage[i]
+    new_damage = total_softening / n_neighbors[i]
+
+    if new_damage > old_damage + 1e-10  # Use tolerance for update trigger
+        update_gradients[i] = true
+    end
+
+    damage[i] = new_damage
+    return nothing
+end
+
 function update_gradients(::AbstractRKCMaterial, storage::AbstractStorage, i)
     return storage.update_gradients[i]
 end
@@ -340,15 +567,15 @@ end
 function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
                       mat::AbstractRKCMaterial, params::AbstractPointParameters, t, Δt, i)
     (; bonds, volume) = system
-    (; bond_active, gradient_weight, weighted_volume, update_gradients) = storage
+    (; bond_active, bond_softening, gradient_weight, weighted_volume, update_gradients) = storage
     (; monomial, lambda, beta) = mat
     (; δ) = params
 
-    # get dimenion of the monomial vector and the gradient extraction matrix
+    # get dimension of the monomial vector and the gradient extraction matrix
     q_dim = get_q_dim(monomial)
     Q∇ᵀ = get_gradient_extraction_matrix(monomial)
 
-    # calculate moment matrix M
+    # calculate moment matrix M with phase-field degradation function g(d) = (1-d)²
     M = zero(SMatrix{q_dim,q_dim,Float64,q_dim*q_dim})
     wi = 0.0
     for bond_id in each_bond_idx(system, i)
@@ -356,23 +583,38 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Q = get_monomial_vector(monomial, ΔXij ./ δ) # normalize by δ
-        ωij = kernel(system, bond_id) * bond_active[bond_id]
+
+        # Phase-field degradation: g(d) = (1-d)² for smooth energy degradation
+        # This ensures proper energy dissipation and numerical stability
+        # bond_active gives 0 or 1, bond_softening gives continuous damage d ∈ [0,1]
+        d = bond_softening[bond_id]
+        degradation = bond_active[bond_id] * (1.0 - d) * (1.0 - d)
+        ωij = kernel(system, bond_id) * degradation
+
         temp = ωij * volume[j]
         M += temp * (Q * Q')
         wi += temp
     end
+
+    # Add small regularization to weighted volume to prevent division by zero
+    wi = max(wi, 1e-30)
     weighted_volume[i] = wi
 
     # calculate regularized inverse of M
     Minv = invreg(M, lambda, beta)
 
-    # calculate gradient weights Φ
+    # calculate gradient weights Φ with phase-field degradation
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Q = get_monomial_vector(monomial, ΔXij ./ δ) # normalize by δ
-        ωij = kernel(system, bond_id) * bond_active[bond_id]
+
+        # Apply phase-field degradation g(d) = (1-d)²
+        d = bond_softening[bond_id]
+        degradation = bond_active[bond_id] * (1.0 - d) * (1.0 - d)
+        ωij = kernel(system, bond_id) * degradation
+
         temp = ωij / δ * volume[j] # note the division by δ here, due to normalization of Q
         MinvQ = Minv * Q
         Φ = temp * (Q∇ᵀ * MinvQ)
@@ -497,9 +739,19 @@ function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSyst
                               mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
                               Δt, i)
     (; bonds, volume) = system
-    (; bond_active, defgrad, weighted_volume) = storage
+    (; bond_active, bond_softening, defgrad, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
     wi = weighted_volume[i]
+
+    # Early return if weighted volume is too small (fully fragmented point)
+    if wi < 1e-30
+        return zero(SMatrix{3,3,Float64,9})
+    end
+
+    # Check if tensile splitting is enabled and get parameters
+    use_tensile_split = _use_tensile_split(mat.dmgmodel)
+    g_d_min = _get_residual_stiffness(mat.dmgmodel)
+
     ∑P = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
         if bond_active[bond_id]
@@ -510,46 +762,123 @@ function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSyst
             Fj = get_tensor(defgrad, j)
             Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
             Pij = calc_first_piola_kirchhoff!(storage, mat, params, Fij, bond_id)
+
+            # Skip if stress calculation produced NaN
+            if any(isnan, Pij) || any(isinf, Pij)
+                continue
+            end
+
             Tempij = I - ΔXij * ΔXij' / (L * L)
-            wj = weighted_volume[j]
+            wj = max(weighted_volume[j], 1e-30)  # Prevent division by zero
             ϕ = 0.5 / wi + 0.5 / wj
-            ω̃ij = kernel(system, bond_id) * ϕ * volume[j]
-            ∑Pij = ω̃ij * (Pij * Tempij)
-            ∑P += ∑Pij
+
+            d = bond_softening[bond_id]
+            ωij_base = kernel(system, bond_id) * ϕ * volume[j]
+
+            if use_tensile_split && d > 0.0
+                # Phase-field style: degrade only tensile stress, keep compressive intact
+                Pij_eff = degraded_stress(Pij, Fij, d)
+                ∑Pij = ωij_base * (Pij_eff * Tempij)
+            else
+                # Standard degradation: g(d) = max(ε, (1-d)²) with stiffness floor
+                degradation = max(g_d_min, (1.0 - d) * (1.0 - d))
+                ω̃ij = ωij_base * degradation
+                ∑Pij = ω̃ij * (Pij * Tempij)
+            end
+
+            # Safety check: skip if result has NaN
+            if !any(isnan, ∑Pij) && !any(isinf, ∑Pij)
+                ∑P += ∑Pij
+            end
         end
     end
     return ∑P
 end
 
+# Helper to check if tensile splitting is enabled
+@inline _use_tensile_split(::AbstractDamageModel) = false
+@inline _use_tensile_split(dm::EquivalentStress) = dm.tensile_split
+
+# Helper to get residual stiffness from damage model
+@inline _get_residual_stiffness(::AbstractDamageModel) = 1e-6
+@inline _get_residual_stiffness(dm::EquivalentStress) = dm.residual_stiffness
+
+# Helper to get viscous damping coefficient from damage model
+@inline _get_viscous_damping(::AbstractDamageModel) = 0.0
+@inline _get_viscous_damping(dm::EquivalentStress) = dm.viscous_damping
+
 function rkc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
                             mat::AbstractRKCMaterial, params::AbstractPointParameters,
                             ∑P, t, Δt, i)
     (; bonds, volume) = system
-    (; bond_active, gradient_weight, bond_first_piola_kirchhoff, weighted_volume,
-       b_int) = storage
+    (; bond_active, bond_softening, gradient_weight, bond_first_piola_kirchhoff,
+       weighted_volume, b_int, defgrad) = storage
     wi = weighted_volume[i]
+
+    # Early return if weighted volume is too small (fully fragmented point)
+    if wi < 1e-30
+        return nothing
+    end
+
+    # Check if tensile splitting is enabled and get parameters
+    use_tensile_split = _use_tensile_split(mat.dmgmodel)
+    g_d_min = _get_residual_stiffness(mat.dmgmodel)
+    viscous_coeff = _get_viscous_damping(mat.dmgmodel)
+    Fi = get_tensor(defgrad, i)
+
     for bond_id in each_bond_idx(system, i)
         if bond_active[bond_id]
             bond = bonds[bond_id]
             j, L = bond.neighbor, bond.length
             ΔXij = get_vector_diff(system.position, i, j)
             Pij = get_tensor(bond_first_piola_kirchhoff, bond_id)
+
+            # Skip if stress has NaN
+            if any(isnan, Pij) || any(isinf, Pij)
+                continue
+            end
+
             Φij = get_vector(gradient_weight, bond_id)
             ϕ = 1 / wi
-            ω̃ij = kernel(system, bond_id) * ϕ
-            tij = ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij / volume[j]
+
+            d = bond_softening[bond_id]
+            ωij_base = kernel(system, bond_id) * ϕ
+
+            if use_tensile_split && d > 0.0
+                # Phase-field style: degrade only tensile stress
+                Δxij = get_vector_diff(storage.position, i, j)
+                Fj = get_tensor(defgrad, j)
+                Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
+                Pij_eff = degraded_stress(Pij, Fij, d)
+                tij = ωij_base / (L * L) * (Pij_eff * ΔXij) + ∑P * Φij / volume[j]
+            else
+                # Standard degradation: g(d) = max(ε, (1-d)²) with stiffness floor
+                degradation = max(g_d_min, (1.0 - d) * (1.0 - d))
+                ω̃ij = ωij_base * degradation
+                tij = ω̃ij / (L * L) * (Pij * ΔXij) + ∑P * Φij / volume[j]
+            end
+
+            # Add viscous damping force proportional to damage
+            # This dissipates kinetic energy near cracks, preventing explosions
+            if d > 0.0 && viscous_coeff > 0.0
+                Δvij = get_vector_diff(storage.velocity_half, i, j)
+                # Damping force proportional to relative velocity and damage
+                # Use critical damping scaling based on material properties
+                c_damp = viscous_coeff * d * params.rho * sqrt(params.E / params.rho)
+                damping_force = -c_damp * Δvij / L
+                tij = tij + ωij_base * damping_force
+            end
+
+            # Safety check: skip if traction has NaN
+            if any(isnan, tij) || any(isinf, tij)
+                continue
+            end
+
             update_add_vector!(b_int, i, tij * volume[j])
             update_add_vector!(b_int, j, -tij * volume[i])
         end
     end
     return nothing
-end
-
-function calc_first_piola_kirchhoff!(storage::RKCStorage, mat::RKCMaterial,
-                                     params::StandardPointParameters, F, bond_id)
-    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
-    update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
-    return P
 end
 
 function bond_avg(Fi, Fj, ΔXij, Δxij, L)
@@ -559,12 +888,26 @@ function bond_avg(Fi, Fj, ΔXij, Δxij, L)
     return Fij
 end
 
+function calc_first_piola_kirchhoff!(storage::RKCStorage, mat::RKCMaterial,
+                                     params::AbstractPointParameters, F, bond_id)
+    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+    update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
+    return P
+end
+
 function cauchy_stress_point!(storage::AbstractStorage, system::BondSystem,
-                              ::AbstractRKCMaterial, ::StandardPointParameters, i)
+                              ::AbstractRKCMaterial, ::AbstractPointParameters, i)
     (; bonds) = system
     (; bond_active, defgrad, bond_first_piola_kirchhoff, n_active_bonds) = storage
     Fi = get_tensor(defgrad, i)
     σi = zero(SMatrix{3,3,Float64,9})
+
+    # Early return with zero stress if all bonds are broken (prevents NaN)
+    if n_active_bonds[i] == 0
+        update_tensor!(storage.cauchy_stress, i, σi)
+        return nothing
+    end
+
     for bond_id in each_bond_idx(system, i)
         if bond_active[bond_id]
             bond = bonds[bond_id]
@@ -574,7 +917,7 @@ function cauchy_stress_point!(storage::AbstractStorage, system::BondSystem,
             Fj = get_tensor(defgrad, j)
             Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
             Pij = get_tensor(bond_first_piola_kirchhoff, bond_id)
-            σij = cauchy_stress(Pij, Fij)
+            σij = cauchy_stress_safe(Pij, Fij)
             σi += σij
         end
     end

@@ -16,6 +16,21 @@ function cauchy_stress(P, F)
     return σ
 end
 
+"""
+    cauchy_stress_safe(P, F)
+
+Compute the Cauchy stress tensor from the first Piola-Kirchhoff stress and deformation
+gradient with NaN protection. Returns zero stress if the Jacobian is too small or NaN.
+"""
+function cauchy_stress_safe(P, F)
+    J = det(F)
+    if J < 1e-30 || isnan(J)
+        return zero(SMatrix{3,3,Float64,9})
+    end
+    σ = 1/J .* P * F'
+    return σ
+end
+
 function first_piola_kirchhoff(σ, F)
     J = det(F)
     P = J * σ * inv(F)'
@@ -103,4 +118,155 @@ function rotate_stress(storage::AbstractStorage, σ, i)
     R = get_tensor(storage.rotation, i)
     T = R * σ * R'
     return T
+end
+
+#-------------------------------------------------------------------------------------------
+# Phase-field style stress splitting functions
+#-------------------------------------------------------------------------------------------
+
+"""
+    stress_split_spectral(P::SMatrix{3,3}, F::SMatrix{3,3})
+
+Compute the spectral decomposition of the first Piola-Kirchhoff stress tensor into
+tensile (positive) and compressive (negative) parts. This follows the phase-field
+fracture approach by Miehe et al. (2010).
+
+Returns a tuple `(P_plus, P_minus, success)` where:
+- `P_plus`: The tensile part of the stress (associated with positive principal stresses)
+- `P_minus`: The compressive part of the stress (associated with negative principal stresses)
+- `success`: Boolean indicating whether the decomposition was successful
+
+The split is performed in Cauchy stress space using spectral decomposition, then
+converted back to first Piola-Kirchhoff stress.
+
+# Phase-field energy splitting background
+
+In phase-field fracture, the strain energy is split as:
+```math
+\\Psi(\\epsilon, d) = g(d) \\Psi^+(\\epsilon) + \\Psi^-(\\epsilon)
+```
+where `g(d) = (1-d)²` is the degradation function and only the tensile part `Ψ⁺`
+drives fracture. This prevents unrealistic crack growth under compression.
+
+# Reference
+Miehe, C., Hofacker, M., & Welschinger, F. (2010). A phase field model for rate-independent
+crack propagation. *Computer Methods in Applied Mechanics and Engineering*, 199(45-48), 2765-2778.
+"""
+function stress_split_spectral(P::SMatrix{3,3,T,9}, F::SMatrix{3,3,T,9}) where {T}
+    zero_P = zero(SMatrix{3,3,T,9})
+
+    # Check deformation gradient validity
+    J = det(F)
+    if J < 1e-10 || isnan(J) || isinf(J)
+        return zero_P, zero_P, false
+    end
+
+    # Check if stress is already very small or has NaN
+    P_norm = norm(P)
+    if isnan(P_norm) || isinf(P_norm)
+        return zero_P, zero_P, false
+    end
+    if P_norm < 1e-30
+        return zero_P, zero_P, true  # zero stress splits into zeros
+    end
+
+    # Convert to Cauchy stress for spectral decomposition
+    σ = (1/J) .* P * F'
+
+    # Check for NaN/Inf in Cauchy stress
+    if any(isnan, σ) || any(isinf, σ)
+        return zero_P, zero_P, false
+    end
+
+    # Spectral decomposition of Cauchy stress
+    σ_sym = Symmetric(σ)
+    eig_result = eigen(σ_sym)
+    λ = eig_result.values
+    V = eig_result.vectors
+
+    # Check eigendecomposition validity
+    if any(isnan, λ) || any(isinf, λ) || any(isnan, V) || any(isinf, V)
+        return zero_P, zero_P, false
+    end
+
+    # Split into positive and negative parts using Macaulay brackets
+    σ_plus = zero(SMatrix{3,3,T,9})
+    σ_minus = zero(SMatrix{3,3,T,9})
+
+    for i in 1:3
+        ni = SVector{3,T}(V[1,i], V[2,i], V[3,i])
+        proj = ni * ni'  # outer product (projection tensor)
+        if λ[i] > 0
+            σ_plus += λ[i] * proj
+        else
+            σ_minus += λ[i] * proj
+        end
+    end
+
+    # Convert back to first Piola-Kirchhoff stress using F^{-T}
+    # Use pseudo-inverse approach for numerical stability
+    F_inv = try
+        inv(F)
+    catch
+        return zero_P, zero_P, false
+    end
+
+    if any(isnan, F_inv) || any(isinf, F_inv)
+        return zero_P, zero_P, false
+    end
+
+    Finv_T = F_inv'
+    P_plus = J * σ_plus * Finv_T
+    P_minus = J * σ_minus * Finv_T
+
+    # Final validity check
+    if any(isnan, P_plus) || any(isinf, P_plus) || any(isnan, P_minus) || any(isinf, P_minus)
+        return zero_P, zero_P, false
+    end
+
+    return P_plus, P_minus, true
+end
+
+"""
+    degraded_stress(P::SMatrix{3,3}, F::SMatrix{3,3}, d::Real)
+
+Apply phase-field style degradation to the stress tensor with tensile/compressive
+splitting. The degradation function `g(d) = (1-d)²` is applied only to the tensile
+part of the stress, while the compressive part remains undegraded.
+
+```math
+\\boldsymbol{P}_{\\text{eff}} = g(d) \\boldsymbol{P}^+ + \\boldsymbol{P}^-
+```
+
+This prevents unrealistic behavior under compression and is consistent with the
+physics of brittle fracture where cracks cannot propagate under pure compression.
+
+If the spectral decomposition fails (due to ill-conditioned deformation gradient),
+falls back to standard degradation: `g(d) * P`.
+
+A minimum stiffness floor is enforced: `g(d) = max(ε, (1-d)²)` to prevent complete
+loss of stiffness and associated numerical instabilities.
+
+# Arguments
+- `P`: First Piola-Kirchhoff stress tensor
+- `F`: Deformation gradient
+- `d`: Damage variable (0 = intact, 1 = fully broken)
+
+# Returns
+The effective (degraded) first Piola-Kirchhoff stress tensor.
+"""
+function degraded_stress(P::SMatrix{3,3,T,9}, F::SMatrix{3,3,T,9}, d::Real) where {T}
+    # Minimum stiffness floor to prevent complete loss of resistance
+    # This improves numerical stability near full damage
+    g_d_min = 1e-6
+    g_d = max(g_d_min, (1.0 - d) * (1.0 - d))  # quadratic degradation with floor
+
+    P_plus, P_minus, success = stress_split_spectral(P, F)
+
+    if !success
+        # Fallback to standard (non-split) degradation
+        return g_d * P
+    end
+
+    return g_d * P_plus + P_minus
 end
