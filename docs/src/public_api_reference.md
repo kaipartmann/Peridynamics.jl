@@ -1,7 +1,7 @@
 # Public API
 
 ```@meta
-
+CollapsedDocStrings = true
 ```
 
 ```@contents
