@@ -113,7 +113,16 @@ First, a standard result structure for post-processing results is created. Then 
 ```julia
 default_result = (; c_0=NaN, c_w=NaN, dc=NaN, dcp=NaN)
 results = process_each_job(study, default_result) do job, setup
+    (; E, rho, T, npyz) = setup
+    Δx = 0.002 / npyz
+    
+    # ... postprocessing code for each job (see sections 3.2-3.3) ...
+    
+    return (; c_0, c_w, dc, dcp)
+end
 ```
+
+The `do` block receives `job` and `setup` as parameters and should return the computed results for each simulation.
 
 
 #### 3.2 Create an output file and write the results to it
@@ -127,8 +136,6 @@ wave_position_data_file = joinpath(post_path, "wavepos.csv")
 
 ```julia
 open(wave_position_data_file, "a+") do io
-    @printf(io, "%.12f,%.12f,%.12f\n", t, x̂, û)
-end
     @printf(io, "%.12f,%.12f,%.12f\n", t, x̂, û)
 end
 ```
