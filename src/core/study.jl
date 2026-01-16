@@ -361,6 +361,11 @@ their completion status yet.
     involves file I/O or expensive computations that should not be duplicated across ranks.
     Note that the returned results vector will contain meaningful data only on the root rank
     unless you manually broadcast results afterward. (default: `false`)
+- `process_failed::Bool`: If `true`, also process simulations that failed. This is useful
+    when simulations intentionally run until an instability occurs (e.g., crack propagation
+    or fracture simulations) and are expected to fail, but their partial results still need
+    to be analyzed. When enabled, the warning about skipping failed jobs is suppressed.
+    (default: `false`)
 
 # Returns
 - `Vector{<:NamedTuple}`: A vector of results with the same length as the number of
@@ -369,8 +374,9 @@ their completion status yet.
 
 # Behavior
 - Refreshes job completion status from logfile (if exists) before processing
-- Only processes jobs where `study.sim_success[i] == true`
-- Failed jobs automatically receive `default_result` (warning logged)
+- By default, only processes jobs where `study.sim_success[i] == true`
+- With `process_failed=true`, all jobs are processed regardless of success status
+- Failed jobs automatically receive `default_result` (warning logged) unless `process_failed=true`
 - If processing function `f` throws an error, that job receives `default_result` (error
     logged with MPI barrier synchronization)
 - Processing is sequential (one job at a time)
@@ -469,13 +475,13 @@ See also: [`Study`](@ref), [`submit!`](@ref), [`process_each_export`](@ref),
 [`mpi_isroot`](@ref)
 """
 function process_each_job(f::F, study::Study, default_result::NamedTuple;
-                          only_root::Bool=false) where {F}
+                          only_root::Bool=false, process_failed::Bool=false) where {F}
     # Refresh sim_success from logfile if it exists (in case study was interrupted/resumed)
     isfile(study.logfile) && update_sim_success_from_log!(study)
 
     results = fill(default_result, length(study.jobs))
     for (i, job) in enumerate(study.jobs)
-        if study.sim_success[i]
+        if study.sim_success[i] || process_failed
             setup = study.setups[i]
             res = try
                 # Only execute on root if only_root=true
@@ -505,6 +511,7 @@ function process_each_job(f::F, study::Study, default_result::NamedTuple;
             end
             results[i] = res
         else
+            # This branch is only reached when process_failed=false and sim_success[i]=false
             if mpi_isroot()
                 @warn "skipping processing for failed job `$(job.options.root)`"
             end
