@@ -60,11 +60,9 @@ submit!(study)
 
 ### 3. Postprocessing
 
-Now that the simulations are complete, post-processing can begin. This is necessary in order to calculate and display the actual values needed from the raw data generated. In this example the needed values are the theoretical wave velocity `c_0`, the measured wave velocity from the simulation `c_w` and the difference between them two `dc` as well as the percentage deviation `dcp`.
+Now that the simulations are complete, the post-processing can begin. This is necessary in order to calculate and display the actual values needed from the raw data generated. In this example the needed values are the theoretical wave velocity `c_0`, the measured wave velocity from the simulation `c_w` and the difference between them two `dc` as well as the percentage deviation `dcp`.
 
 The complete postprocessing code is shown below and will be discussed in the following sections. 
-
-
 
 ```julia
 default_result = (; c_0=NaN, c_w=NaN, dc=NaN, dcp=NaN)
@@ -72,43 +70,48 @@ results = process_each_job(study, default_result) do job, setup
     (; E, rho, T, npyz) = setup
     Δx = 0.002 / npyz
 
-    post_path = joinpath(job.options.root, "post") 
-    mkpath(post_path)
-    wave_position_data_file = joinpath(post_path, "wavepos.csv")
-
-    process_each_export(job; serial=true) do r0, r, id 
+    default_exp_ret = (; time=NaN, wave_position=NaN, amplitude_ux=NaN)
+    res = process_each_export(job, default_exp_ret) do r0, r, id
         t = first(r[:time])
-        t < 1.5T && return nothing 
+        t < 1.5T && return default_exp_ret  
         ymax = @views maximum(r0[:position][2, :]) 
         pids = findall(eachcol(r0[:position])) do point 
             isapprox(point[2], ymax; atol=1.01Δx/2) 
         end
         û, pids_id = @views findmax(r[:displacement][1, pids])
         x̂ = r[:position][1, pids[pids_id]] 
-        open(wave_position_data_file, "a+") do io 
-            @printf(io, "%.12f,%.12f,%.12f\n", t, x̂, û)
-        end
-        return nothing
+        return (; time=t, wave_position=x̂, amplitude_ux=û)  
     end
 
-    results = readdlm(wave_position_data_file, ',', Float64)
-    t, x̂, û = results[:,1], results[:,2], results[:,3]
-    c_0 = sqrt(E / rho)
-    c_w = calc_velocity(t, x̂, û)
-    dc = c_w - c_0
-    dcp = 100 * dc / c_0
-    printstyled("\nRESULTS FOR SIMULATION: `$(basename(job.options.root))`:\n", bold=true)
-    printstyled(@sprintf("c_0 = %8.2f m/s\n", c_0); color=:green, bold=true)
-    printstyled(@sprintf("c_w = %8.2f m/s\n", c_w); color=:blue, bold=true)
-    printstyled(@sprintf("Δc  = %8.2f m/s (%.3f %%)\n", dc, dcp); color=:red, bold=true)
+    allres = (; (k => getfield.(res, k) for k in keys(default_exp_ret))...)  
+    (; time, wave_position, amplitude_ux) = allres  
+    idxs = findall(x -> !isnan(x), time)
 
-    return (; c_0, c_w, dc, dcp)
-end
+    c_0 = sqrt(E / rho)  
+    c_w = calc_velocity(time[idxs], wave_position[idxs], amplitude_ux[idxs])  
+    dc = c_w - c_0  
+    dcp = 100 * dc / c_0 
+
+    @mpiroot begin  
+            bold = true  
+            simname = basename(job.options.root)  
+            printstyled("\nRESULTS FOR SIMULATION: `$(simname)`:\n"; bold)  
+            printstyled(@sprintf("c_0 = %8.2f m/s\n", c_0); color=:green, bold)  
+            printstyled(@sprintf("c_w = %8.2f m/s\n", c_w); color=:blue, bold)  
+            printstyled(@sprintf("Δc  = %8.2f m/s (%.3f %%)\n", dc, dcp); color=:red, bold)  
+    end  
+
+    return (; c_0, c_w, dc, dcp)  
+end  
 ```
+
 
 #### 3.1 Postprocessing function
 
-First, a standard result structure for post-processing results is created. Then the `process_each_job` function iterates over all simulations (study) and executes the postprocessing code shown below for each individual setup. 
+First, `default_result` is used to define a default result structure (a NamedTuple). 
+The function `process_each_job` then runs through all simulations (`study`) and executes the postprocessing code listed in sections 3.2-3 for each individual setup. The results are stored in `res`.
+The `do` block receives `job` and `setup` as parameters and returns the calculated results for each simulation.
+
 
 ```julia
 default_result = (; c_0=NaN, c_w=NaN, dc=NaN, dcp=NaN)
@@ -122,48 +125,56 @@ results = process_each_job(study, default_result) do job, setup
 end
 ```
 
-The `do` block receives `job` and `setup` as parameters and should return the computed results for each simulation.
 
+#### 3.2 Identify irrelevant data 
 
-#### 3.2 Create an output file and write the results to it
-
-To create a CSV file (here `wavepos.csv` resp. `wave_position_data_file`) in a desired path where the data can be saved, the following can be executed.
-```julia
-post_path = joinpath(job.options.root, "post")
-mkpath(post_path) 
-wave_position_data_file = joinpath(post_path, "wavepos.csv")
-```
+Now, invalid or irrelevant data that is not to be processed further is collected.
+For this purpose, another named tuple `default_exp_ret` is defined as the result structure. The function `process_each_export` iterates over the stored export data of the job and then stores only the relevant results in `res`. 
 
 ```julia
-open(wave_position_data_file, "a+") do io
-    @printf(io, "%.12f,%.12f,%.12f\n", t, x̂, û)
+default_exp_ret = (; time=NaN, wave_position=NaN, amplitude_ux=NaN)
+res = process_each_export(job, default_exp_ret) do r0, r, id
+        t = first(r[:time])
+        t < 1.5T && return default_exp_ret  
+        ymax = @views maximum(r0[:position][2, :]) 
+        pids = findall(eachcol(r0[:position])) do point 
+            isapprox(point[2], ymax; atol=1.01Δx/2) 
+        end
+        û, pids_id = @views findmax(r[:displacement][1, pids])
+        x̂ = r[:position][1, pids[pids_id]] 
+        return (; time=t, wave_position=x̂, amplitude_ux=û)  
 end
 ```
 
 
-#### 3.3 Calculate and display the values
+#### 3.3 Transformation of the results
 
-With the `readdlm` command the created CSV file is read. Then the resulting columns are assigned to `t`, `x̂`, and `û`.
+Now, from the results stored in `res`, the vectors of the fields (`time`, `wave_position`, `amplitude_ux`) are collected in a NamedTuple, unpacked into local vectors, and the indices of the non-NaN entries are determined with `findall` so that only valid measurement points are used later.
 
 ```julia
-results = readdlm(wave_position_data_file, ',', Float64)
-t, x̂, û = results[:,1], results[:,2], results[:,3]
+allres = (; (k => getfield.(res, k) for k in keys(default_exp_ret))...)  
+(; time, wave_position, amplitude_ux) = allres  
+idxs = findall(x -> !isnan(x), time)
 ```
 
 
-Now the actual values can be calculated:
-```julia
-c_0 = sqrt(E / rho)
-c_w = calc_velocity(t, x̂, û)
-dc = c_w - c_0
-dcp = 100 * dc / c_0 
-```
 
+#### 3.4 Calculate and display the values
 
-Finally, the four determined values are displayed in the terminal:
+Now the actual values can be calculated and displayed:
+
 ```julia
-printstyled("\nRESULTS FOR SIMULATION: `$(basename(job.options.root))`:\n", bold=true)
-printstyled(@sprintf("c_0 = %8.2f m/s\n", c_0); color=:green, bold=true)
-printstyled(@sprintf("c_w = %8.2f m/s\n", c_w); color=:blue, bold=true)
-printstyled(@sprintf("Δc  = %8.2f m/s (%.3f %%)\n", dc, dcp); color=:red, bold=true)
+    c_0 = sqrt(E / rho)  
+    c_w = calc_velocity(time[idxs], wave_position[idxs], amplitude_ux[idxs])  
+    dc = c_w - c_0  
+    dcp = 100 * dc / c_0 
+
+    @mpiroot begin  
+            bold = true  
+            simname = basename(job.options.root)  
+            printstyled("\nRESULTS FOR SIMULATION: `$(simname)`:\n"; bold)  
+            printstyled(@sprintf("c_0 = %8.2f m/s\n", c_0); color=:green, bold)  
+            printstyled(@sprintf("c_w = %8.2f m/s\n", c_w); color=:blue, bold)  
+            printstyled(@sprintf("Δc  = %8.2f m/s (%.3f %%)\n", dc, dcp); color=:red, bold)  
+    end  
 ```
