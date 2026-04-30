@@ -1,7 +1,7 @@
 # Public API
 
 ```@meta
-
+CollapsedDocStrings = true
 ```
 
 ```@contents
@@ -58,6 +58,8 @@ uniform_sphere
 uniform_cylinder
 round_sphere
 round_cylinder
+trunc_pyramid
+rotate!
 n_points
 ```
 

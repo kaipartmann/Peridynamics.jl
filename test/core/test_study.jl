@@ -546,7 +546,7 @@ end
 
     default_result = (; n_steps=0, processed=false)
 
-    # Process jobs - should skip failed job with warning
+    # Process jobs - should skip failed job with warning (default behavior)
     results = Peridynamics.process_each_job(process_func, study, default_result)
 
     @test length(results) == 3
@@ -559,6 +559,21 @@ end
     # Third job processed
     @test results[3].n_steps == 15
     @test results[3].processed == true
+
+    # Now test with process_failed=true - should also process the failed job
+    results_all = Peridynamics.process_each_job(process_func, study, default_result;
+                                                process_failed=true)
+
+    @test length(results_all) == 3
+    # First job processed
+    @test results_all[1].n_steps == 5
+    @test results_all[1].processed == true
+    # Second job also processed now (even though simulation failed)
+    @test results_all[2].n_steps == 10
+    @test results_all[2].processed == true
+    # Third job processed
+    @test results_all[3].n_steps == 15
+    @test results_all[3].processed == true
 end
 
 @testitem "process_each_job with processing errors" begin
@@ -743,6 +758,108 @@ end
     counter[] = 0
     results2 = Peridynamics.process_each_job(process_func, study, default_result)
     @test counter[] == 2  # Same behavior without MPI
+end
+
+@testitem "process_each_job with process_failed=true and processing errors" begin
+    function create_job(setup::NamedTuple, root::String)
+        body = Body(BBMaterial(), rand(3, 10), rand(10))
+        material!(body, horizon=1, E=1, rho=1, Gc=1)
+        velocity_ic!(body, :all_points, :x, 1.0)
+        vv = VelocityVerlet(steps=setup.n_steps)
+
+        # Create invalid path for job that should fail during simulation
+        if setup.sim_fail
+            path = "/invalid/path/sim_$(setup.id)"
+        else
+            path = joinpath(root, "sim_$(setup.id)")
+        end
+
+        job = Job(body, vv; path=path, freq=5)
+        return job
+    end
+    setups = [
+        (; id=1, n_steps=5, sim_fail=false, proc_fail=false),
+        (; id=2, n_steps=5, sim_fail=true, proc_fail=false),   # sim fails
+        (; id=3, n_steps=5, sim_fail=false, proc_fail=true),   # processing fails
+    ]
+    study = Peridynamics.Study(create_job, setups; root=joinpath(mktempdir(), "study"))
+    Peridynamics.submit!(study; quiet=true)
+
+    @test study.sim_success == [true, false, true]
+
+    # Processing function that errors for specific setup
+    function process_func(job, setup)
+        if setup.proc_fail
+            error("Intentional processing error")
+        end
+        return (; id=setup.id, status="ok")
+    end
+    default_result = (; id=0, status="failed")
+
+    # With process_failed=true, even the failed simulation should be processed
+    results = Peridynamics.process_each_job(process_func, study, default_result;
+                                            process_failed=true)
+
+    @test length(results) == 3
+    # First job: sim success, processing success
+    @test results[1].id == 1
+    @test results[1].status == "ok"
+    # Second job: sim failed but processed with process_failed=true
+    @test results[2].id == 2
+    @test results[2].status == "ok"
+    # Third job: sim success but processing error -> default_result
+    @test results[3].id == 0
+    @test results[3].status == "failed"
+
+    # Verify error logfile was created for the processing error
+    error_logfiles = filter(f -> occursin("proc_error.log", f), readdir(study.jobpaths[3]))
+    @test length(error_logfiles) == 1
+end
+
+@testitem "process_each_job with process_failed and only_root combined" begin
+    function create_job(setup::NamedTuple, root::String)
+        body = Body(BBMaterial(), rand(3, 10), rand(10))
+        material!(body, horizon=1, E=1, rho=1, Gc=1)
+        velocity_ic!(body, :all_points, :x, 1.0)
+        vv = VelocityVerlet(steps=5)
+
+        # Make second job fail during simulation
+        if setup.fail
+            path = "/invalid/path/sim_$(setup.id)"
+        else
+            path = joinpath(root, "sim_$(setup.id)")
+        end
+
+        job = Job(body, vv; path=path, freq=5)
+        return job
+    end
+    setups = [
+        (; id=1, fail=false),
+        (; id=2, fail=true),
+    ]
+    study = Peridynamics.Study(create_job, setups; root=joinpath(mktempdir(), "study"))
+    Peridynamics.submit!(study; quiet=true)
+
+    @test study.sim_success == [true, false]
+
+    counter = Ref(0)
+    function process_func(job, setup)
+        counter[] += 1
+        return (; id=setup.id, processed=true)
+    end
+    default_result = (; id=0, processed=false)
+
+    # Test with both only_root=true and process_failed=true
+    results = Peridynamics.process_each_job(process_func, study, default_result;
+                                            only_root=true, process_failed=true)
+
+    @test length(results) == 2
+    # Both jobs should be processed (process_failed=true includes failed sim)
+    @test results[1].id == 1
+    @test results[1].processed == true
+    @test results[2].id == 2
+    @test results[2].processed == true
+    @test counter[] == 2  # Both jobs processed
 end
 
 @testitem "process_each_job with only_root in MPI" tags=[:mpi] begin

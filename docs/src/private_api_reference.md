@@ -1,7 +1,7 @@
 # Private API
 
 ```@meta
-
+CollapsedDocStrings = true
 ```
 
 ```@contents

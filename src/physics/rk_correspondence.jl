@@ -561,10 +561,11 @@ end
 
 function cauchy_stress_point!(storage::AbstractStorage, system::BondSystem,
                               ::AbstractRKCMaterial, ::StandardPointParameters, i)
-    (; bonds) = system
-    (; bond_active, defgrad, bond_first_piola_kirchhoff, n_active_bonds) = storage
+    (; bonds, volume) = system
+    (; bond_active, defgrad, bond_first_piola_kirchhoff, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
     σi = zero(SMatrix{3,3,Float64,9})
+    wi = weighted_volume[i]
     for bond_id in each_bond_idx(system, i)
         if bond_active[bond_id]
             bond = bonds[bond_id]
@@ -575,10 +576,12 @@ function cauchy_stress_point!(storage::AbstractStorage, system::BondSystem,
             Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
             Pij = get_tensor(bond_first_piola_kirchhoff, bond_id)
             σij = cauchy_stress(Pij, Fij)
-            σi += σij
+            ϕ = 1 / wi
+            ω̃ij = kernel(system, bond_id) * ϕ * volume[j]
+            σi += ω̃ij * σij
         end
     end
-    update_tensor!(storage.cauchy_stress, i, σi ./ n_active_bonds[i])
+    update_tensor!(storage.cauchy_stress, i, σi)
     return nothing
 end
 
@@ -624,11 +627,36 @@ custom_field(::Type{RKCStorage}, ::Val{:hydrostatic_stress}) = true
 function export_field(::Val{:strain_energy_density}, mat::AbstractRKCMaterial,
                       system::BondSystem, storage::AbstractStorage,
                       paramsetup::AbstractParameterSetup, t)
-    model = mat.constitutive_model
     for i in each_point_idx(system)
         params = get_params(paramsetup, i)
-        F = get_tensor(storage.defgrad, i)
-        storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F)
+        strain_energy_density_point!(storage, system, mat, params, i)
     end
     return storage.strain_energy_density
+end
+
+function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
+                                      mat::AbstractRKCMaterial,
+                                      params::StandardPointParameters, i)
+    (; bonds, volume) = system
+    (; bond_active, defgrad, weighted_volume) = storage
+    model = mat.constitutive_model
+    Fi = get_tensor(defgrad, i)
+    Ψi = 0.0
+    wi = weighted_volume[i]
+    for bond_id in each_bond_idx(system, i)
+        if bond_active[bond_id]
+            bond = bonds[bond_id]
+            j, L = bond.neighbor, bond.length
+            ΔXij = get_vector_diff(system.position, i, j)
+            Δxij = get_vector_diff(storage.position, i, j)
+            Fj = get_tensor(defgrad, j)
+            Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
+            Ψij = strain_energy_density(model, storage, params, Fij)
+            ϕ = 1 / wi
+            ω̃ij = kernel(system, bond_id) * ϕ * volume[j]
+            Ψi += ω̃ij * Ψij
+        end
+    end
+    storage.strain_energy_density[i] = Ψi
+    return nothing
 end

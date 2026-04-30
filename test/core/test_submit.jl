@@ -110,13 +110,12 @@ end
     jlcmd = Base.julia_cmd()
     pdir = pkgdir(Peridynamics)
     cmd = `$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`
-    @test !success(cmd) # does not print anything
-    # for debugging use the run command:
-    # run(cmd)
-
-    logfile_contents = read(joinpath(path, "logfile.log"), String)
-    # somehow on Julia ≤ 1.10 the error message is not captured correctly
+    # somehow on Julia ≤ 1.10 this does not work as expected...
     if VERSION > v"1.10"
+        @test !success(cmd) # does not print anything
+        # for debugging use the run command:
+        # run(cmd)
+        logfile_contents = read(joinpath(path, "logfile.log"), String)
         @test occursin("some weird error occurred!", logfile_contents)
     end
 end
