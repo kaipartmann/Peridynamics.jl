@@ -13,6 +13,7 @@ using Peridynamics
 include(joinpath(@__DIR__, "tension.jl"))
 include(joinpath(@__DIR__, "wave_in_bar.jl"))
 include(joinpath(@__DIR__, "mode_i.jl"))
+include(joinpath(@__DIR__, "bartwist.jl"))
 
 """
     ChunkFixture
@@ -213,4 +214,85 @@ function gauge_crossing(times, tip_x, gauge::Real)
     (isnothing(i) || i == 1 || !isfinite(tip_x[i - 1])) && return NaN
     return times[i - 1] +
            (gauge - tip_x[i - 1]) / (tip_x[i] - tip_x[i - 1]) * (times[i] - times[i - 1])
+end
+
+"""
+    end_rotation(X, x, ids)
+
+Angle by which the points `ids` have turned about the x-axis, from their reference positions
+`X` to their current positions `x`.
+
+Summing the cross and dot products of all points before taking the `atan` and not afterwards is
+what makes this the best-fit rigid rotation of the whole set instead of the average of angles
+that individually wrap at `±π`, and it weights every point with its distance from the axis, so
+the points near the axis, whose angle is the least well resolved, count the least.
+"""
+function end_rotation(X, x, ids)
+    cross = sum(X[2, i] * x[3, i] - X[3, i] * x[2, i] for i in ids)
+    dot = sum(X[2, i] * x[2, i] + X[3, i] * x[3, i] for i in ids)
+    return atan(cross, dot)
+end
+
+"Adds multiples of `2π` to `angles` so that they form a continuous history."
+function unwrap!(angles)
+    offset = 0.0
+    for i in 2:length(angles)
+        step = angles[i] + offset - angles[i - 1]
+        abs(step) > π && (offset -= 2π * round(step / 2π))
+        angles[i] += offset
+    end
+    return angles
+end
+
+"""
+    twist_history(job)
+
+Rotation of the free end of a [`bartwist`](@ref) `job` over time, as `(times, angles)` sorted by
+time.
+
+`job` needs a `path`, the history is read back from its export files. The angle is unwrapped, so
+it is not limited to `±π` and a bar that turns further than half a revolution still gives a
+usable history.
+"""
+function twist_history(job)
+    submit(job; quiet=true)
+    times, angles = Float64[], Float64[]
+    process_each_export(job, nothing; serial=true) do r0, r, _
+        X = r0[:position]
+        # the last lattice plane, which is the end face of the bar. All of its points share one
+        # `x` up to rounding, so the tolerance only has to be small against the bar itself.
+        x_end = maximum(@view X[1, :])
+        tol = 1e-6 * (x_end - minimum(@view X[1, :]))
+        ids = [i for i in axes(X, 2) if X[1, i] > x_end - tol]
+        push!(times, first(r[:time]))
+        push!(angles, end_rotation(X, r[:position], ids))
+        return nothing
+    end
+    p = sortperm(times)
+    return (times[p], unwrap!(angles[p]))
+end
+
+"""
+    twist_measurements(times, angles)
+
+Angular frequency and peak angle of the first half swing of a torsional vibration
+`angles(times)` that starts at zero.
+
+The frequency is taken from the zero crossing that ends that half swing and not from the peak
+itself, because the history is sampled at a fixed rate and is flat at the peak but steepest at
+the crossing, so the same sample spacing is worth several times less error there. The half swing
+is located by the first sample that reaches half of the largest angle of the record, which is
+inside it for any decaying or steady vibration, and not by the largest angle itself, which may
+well belong to a later swing. Returns `NaN` for the frequency if the record does not reach the
+crossing.
+"""
+function twist_measurements(times, angles)
+    j = findfirst(a -> abs(a) ≥ 0.5maximum(abs, angles), angles)
+    direction = sign(angles[j])
+    k = findfirst(i -> i > j && sign(angles[i]) == -direction, eachindex(angles))
+    isnothing(k) && return (; omega=NaN, peak=maximum(abs, angles))
+    # linear interpolation of the crossing, which is half a period after the start
+    t_zero = times[k - 1] +
+             angles[k - 1] / (angles[k - 1] - angles[k]) * (times[k] - times[k - 1])
+    return (; omega=π / t_zero, peak=maximum(abs, @view angles[1:(k - 1)]))
 end

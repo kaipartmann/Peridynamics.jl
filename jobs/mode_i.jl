@@ -25,13 +25,14 @@ then fails at its boundary.
 - `v::Real`: Velocity imposed on the top and bottom edges. (default: `0.1`)
 - `time::Real`: Simulated time. The default is long enough for the crack to cross the plate
     and arrest at the far edge. (default: `3e-4`)
+- `steps`: Number of time steps. Overrides `time` if specified. (default: `nothing`)
 - `freq::Int`: Export frequency, only relevant together with `path`. (default: `10`)
 - `path`: Where to export results. Nothing is exported if this is `nothing`. (default:
     `nothing`)
 """
 function mode_i(; mat=BBMaterial(), npxy::Int=40, l::Real=0.1, a::Real=0.05, m::Real=3.015,
                 E::Real=32e9, nu::Real=0.25, rho::Real=2500.0, Gc::Real=100.0, v::Real=0.1,
-                time::Real=3e-4, freq::Int=10, path=nothing)
+                time::Real=3e-4, steps=nothing, freq::Int=10, path=nothing)
     Δx = l / npxy
     δ = m * Δx
     pos, vol = uniform_box(l, l, 0.1l, Δx)
@@ -45,7 +46,7 @@ function mode_i(; mat=BBMaterial(), npxy::Int=40, l::Real=0.1, a::Real=0.05, m::
     point_set!(p -> p[2] < -l / 2 + Δx, body, :set_bottom)
     velocity_bc!(t -> -v, body, :set_bottom, :y)
     velocity_bc!(t -> v, body, :set_top, :y)
-    solver = VelocityVerlet(; time)
+    solver = isnothing(steps) ? VelocityVerlet(; time) : VelocityVerlet(; steps)
     isnothing(path) && return Job(body, solver)
     return Job(body, solver; path, freq, fields=(:displacement, :damage))
 end
