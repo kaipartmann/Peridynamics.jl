@@ -60,3 +60,29 @@ end
     # reset to the value as before
     Peridynamics.MPI_RUN[] = mpi_run_current_value
 end
+
+@testitem "semidiscretize Job" begin
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
+    position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
+    body = Body(BBMaterial(), position, ones(2))
+    material!(body; horizon=1.5, E=1.0, rho=1.0, Gc=1.0)
+    velocity_ic!(body, :all_points, :x, 1.0)
+    job = Job(body, VelocityVerlet(steps=2, stepsize=0.1))
+
+    ode = semidiscretize(job; n_chunks=1)
+    @test ode isa Peridynamics.SciMLBase.ODEProblem
+    @test ode.tspan == (0.0, 0.2)
+    @test ode.p.job === job
+    @test ode.p.data_handler isa Peridynamics.AbstractThreadsBodyDataHandler
+    @test length(ode.u0.x[1]) == 6
+    @test length(ode.u0.x[2]) == 6
+
+    du = similar(ode.u0)
+    ode.f(du, ode.u0, ode.p, 0.0)
+    @test du.x[1] ≈ zeros(6)
+    @test du.x[2] ≈ [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+end

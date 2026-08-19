@@ -2,6 +2,7 @@ module Peridynamics
 
 using Base.Threads, Printf, LinearAlgebra, StaticArrays, PointNeighbors, ProgressMeter,
       WriteVTK, TimerOutputs, MPI, PrecompileTools, IterativeSolvers, LinearMaps
+using SciMLBase: SciMLBase
 @static if Sys.islinux()
     using ThreadPinning
 end
@@ -31,7 +32,8 @@ export Body, point_set!, point_sets, no_failure!, material!, velocity_bc!, veloc
        n_points
 
 # Running simulations
-export VelocityVerlet, DynamicRelaxation, NewtonKrylov, Job, Study, submit, submit!
+export VelocityVerlet, DynamicRelaxation, NewtonKrylov, Job, Study, submit, submit!,
+       semidiscretize
 
 # Pre processing
 export read_inp
@@ -150,6 +152,8 @@ include("physics/correspondence_rotated.jl")
 include("physics/rk_correspondence.jl")
 include("physics/rk_correspondence_rotated.jl")
 include("physics/ba_correspondence.jl")
+
+include("core/semidiscretization.jl")
 
 include("VtkReader/VtkReader.jl")
 using .VtkReader
