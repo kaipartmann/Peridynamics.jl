@@ -108,11 +108,9 @@
         :randn => "use a deterministic fixture or the seeded `rng = Fixtures.rng()`",
     ]
 
-    "The test directories that mirror a directory of `src/` one-to-one."
-    function mirrored_dirs()
-        return [d for d in readdir(SRC_ROOT) if isdir(joinpath(SRC_ROOT, d)) &&
-                                                 isdir(joinpath(TEST_ROOT, d))]
-    end
+    "The unit test directories, `test/unit/<dir>`, which mirror `src/<dir>` one-to-one."
+    const UNIT_ROOT = joinpath(TEST_ROOT, "unit")
+    unit_dirs() = [d for d in readdir(UNIT_ROOT) if isdir(joinpath(UNIT_ROOT, d))]
 end
 
 @testitem "conventions: time loops are tagged" tags=[:lint] setup=[Conventions] begin # lint-ok: guard
@@ -187,15 +185,19 @@ end
 end
 
 @testitem "conventions: unit test files mirror src" tags=[:lint] setup=[Conventions] begin
-    # `test/<dir>/test_<name>.jl` tests `src/<dir>/<name>.jl`. Files still to be renamed or
-    # moved are listed here and the list shrinks to nothing.
-    pending = Set([
-    ])
+    # `test/unit/<dir>/test_<name>.jl` tests `src/<dir>/<name>.jl`: every directory below
+    # `test/unit/` is a directory of `src/`, and every file in it names the src file it tests.
+    # Files still to be renamed or moved are listed here and the list shrinks to nothing.
+    pending = Set([])
     violations = String[]
-    for dir in Conventions.mirrored_dirs()
-        for file in readdir(joinpath(Conventions.TEST_ROOT, dir))
+    for dir in Conventions.unit_dirs()
+        if !isdir(joinpath(Conventions.SRC_ROOT, dir))
+            push!(violations, "unit/$(dir): no directory src/$(dir)")
+            continue
+        end
+        for file in readdir(joinpath(Conventions.UNIT_ROOT, dir))
             endswith(file, ".jl") || continue
-            rel = joinpath(dir, file)
+            rel = joinpath("unit", dir, file)
             rel in pending && continue
             m = match(r"^test_(.*)\.jl$", file)
             if m === nothing

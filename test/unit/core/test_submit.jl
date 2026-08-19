@@ -9,6 +9,8 @@
 end
 
 @testitem "submit threads error handling" tags=[:simulation] begin
+    # `submit_threads` is called directly, so the quiet flag is not reset by `submit`
+    Peridynamics.set_quiet!(true)
     ref_position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
     volume = [1.0, 1.0]
     body = Body(BBMaterial(), ref_position, volume)
@@ -24,6 +26,8 @@ end
 end
 
 @testitem "submit MPI error handling" begin
+    # `submit_mpi` is called directly, so the quiet flag is not reset by `submit`
+    Peridynamics.set_quiet!(true)
     #-- simulation should fail at step 2 due to NaN values --#
     pos = [0.0 1.0; 0.0 0.0; 0.0 0.0]
     vol = [1.0, 1.0]

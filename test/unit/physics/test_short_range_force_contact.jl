@@ -1,7 +1,7 @@
 # Short-range force contact between bodies of a `MultibodySetup`,
 # `src/physics/short_range_force_contact.jl`.
 
-@testitem "contact!: two bodies of two points, one explicit step" tags=[:simulation] begin
+@testitem "contact!: two bodies of two points, one explicit step" setup=[Fixtures] tags=[:simulation] begin
     # for now, this test only works with multithreading!
     mpi_run_current_value = Peridynamics.MPI_RUN[]
     Peridynamics.MPI_RUN[] = false
@@ -30,7 +30,7 @@
     ms = MultibodySetup(:body1 => body1, :body2 => body2)
     contact!(ms, :body1, :body2; radius=point_spacing)
     job = Job(ms, VelocityVerlet(steps=1))
-    dh = Peridynamics.submit_threads(job, 1)
+    dh = Fixtures.run_threads(job; n_chunks=1)
 
     @test ms.srf_contacts[1].penalty_factor == 1e12
     @test ms.srf_contacts[2].penalty_factor == 1e12

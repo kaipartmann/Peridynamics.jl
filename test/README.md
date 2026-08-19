@@ -4,7 +4,7 @@ Test items (`@testitem`, TestItemRunner) organized by what they check. Run them 
 
 ```
 julia -t 6 test/runtestitems.jl                       # everything (incl. :skipci)
-julia -t 6 test/runtestitems.jl file:test/core/test_study.jl
+julia -t 6 test/runtestitems.jl file:test/unit/core/test_study.jl
 julia -t 6 test/runtestitems.jl tag:simulation        # every time loop in the suite
 julia -t 8 test/runtestitems.jl tag:verification      # ~1 h, never on CI
 julia -t 2 -e 'using Pkg; Pkg.test()'                 # what CI runs (PERIDYNAMICS_TESTS=default)
@@ -14,7 +14,7 @@ julia -t 2 -e 'using Pkg; Pkg.test()'                 # what CI runs (PERIDYNAMI
 
 | Directory | Contents | Tags | CI job |
 |---|---|---|---|
-| `core/ discretization/ physics/ time_solvers/ auxiliary/ VtkReader/ AbaqusMeshConverter/` | unit tests, one `test_<file>.jl` per file of `src/<dir>/` | — | `test` |
+| `unit/<dir>/` | unit tests mirroring `src/`: `unit/<dir>/test_<file>.jl` tests `src/<dir>/<file>.jl` | — | `test` |
 | `materials/` | one item per property, looping `Fixtures.MATERIALS` (storage fields, force density invariants, stress/energy exports, the material interface) | — / `:slow` | `test` / `extras` |
 | `simulation/` | the per-commit time loops: symmetry of every solver, uniform tension | `:simulation` | `test` |
 | `mpi/` | three `mpiexec` runs (core paths, abort, threads comparison), scripts in `mpi/scripts/` | `:mpi` | `extras` |

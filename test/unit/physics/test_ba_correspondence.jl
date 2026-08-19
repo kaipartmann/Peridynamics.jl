@@ -1,6 +1,6 @@
 # `BACMaterial`: the bond-associated correspondence formulation of
 # `src/physics/ba_correspondence.jl`. The bond-associated system and its invariants are tested
-# in `test/discretization/test_bond_associated_system.jl`, the force density invariants for all
+# in `test/unit/discretization/test_bond_associated_system.jl`, the force density invariants for all
 # materials in `test/materials/`.
 
 @testitem "BACMaterial: constructor and show" begin
