@@ -108,7 +108,7 @@ function run_comparison_case(name::AbstractString, path::AbstractString; n_chunk
 end
 
 "Number of MPI ranks (and threads chunks) of the comparison."
-const COMPARISON_NRANKS = 2
+const COMPARISON_NRANKS = 4
 
 "The directory the results of case `name` are exported to below `root`."
 case_path(root, name) = joinpath(root, replace(name, " " => "_"))
