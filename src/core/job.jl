@@ -48,7 +48,7 @@ struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractJobOptions}
     options::O
 
     function Job(spatial_setup::S, time_solver::T, options::O) where {S,T,O}
-        pre_submission_check(spatial_setup)
+        pre_submission_check(spatial_setup, time_solver)
         return new{S,T,O}(spatial_setup, time_solver, options)
     end
 end

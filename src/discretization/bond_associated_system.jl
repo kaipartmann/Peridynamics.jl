@@ -6,7 +6,7 @@ struct BondAssociatedSystem <: AbstractBondSystem
     n_neighbors::Vector{Int}
     bond_ids::Vector{UnitRange{Int}}
     intersection_bond_ids::Vector{Vector{Int}}
-    hood_volume::Vector{Float64}
+    ba_volume_sum::Vector{Float64}
     ba_hood_volume::Vector{Float64}
     kernels::Vector{Float64}
     chunk_handler::ChunkHandler
@@ -15,15 +15,16 @@ end
 function BondAssociatedSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
     check_bond_associated_system_compat(body.mat)
     bonds, n_neighbors, bond_ids, chunk_handler = get_bond_data(body, pd, chunk_id)
-    intersection_bond_ids = find_intersection_bond_ids(body, chunk_handler.loc_points,
-                                                       bonds, bond_ids)
     position, volume = get_pos_and_vol_chunk(body, chunk_handler.point_ids)
-    hood_volume = zeros(get_n_points(chunk_handler))
+    intersection_bond_ids = find_intersection_bond_ids(body, position,
+                                                       chunk_handler.loc_points, bonds,
+                                                       bond_ids)
+    ba_volume_sum = zeros(get_n_points(chunk_handler))
     ba_hood_volume = zeros(length(bonds))
     kernels = find_kernels(body, chunk_handler, bonds, bond_ids)
     bas = BondAssociatedSystem(position, volume, bonds, n_neighbors, bond_ids,
-                               intersection_bond_ids, hood_volume, ba_hood_volume, kernels,
-                               chunk_handler)
+                               intersection_bond_ids, ba_volume_sum, ba_hood_volume,
+                               kernels, chunk_handler)
     return bas
 end
 
@@ -46,7 +47,10 @@ function check_bond_associated_system_compat(::AbstractBondAssociatedSystemMater
     return nothing
 end
 
-function find_intersection_bond_ids(body, loc_points, bonds, bond_ids)
+# `position` has to be the chunk-local matrix and not `body.position`, because
+# `get_bond_data` already localized `bond.neighbor`. Only for the first chunk both are the
+# same, all others would get the bond-associated families of the wrong points.
+function find_intersection_bond_ids(body, position, loc_points, bonds, bond_ids)
     intersection_bond_ids = Vector{Vector{Int}}(undef, length(bonds))
     for (li, i) in enumerate(loc_points)
         δb = get_point_param(body, :δb, i)
@@ -55,12 +59,12 @@ function find_intersection_bond_ids(body, loc_points, bonds, bond_ids)
         for bond_id in bond_ids_of_i
             bond = bonds[bond_id]
             j = bond.neighbor
-            Xj = get_vector(body.position, j)
+            Xj = get_vector(position, j)
             intersecting_bonds = Vector{Int}()
             for (ibond_id, bond_id) in enumerate(bond_ids_of_i)
                 bond = bonds[bond_id]
                 jj = bond.neighbor
-                Xjj = get_vector(body.position, jj)
+                Xjj = get_vector(position, jj)
                 ΔX = Xj - Xjj
                 L² = dot(ΔX, ΔX)
                 if L² < δb²
@@ -78,16 +82,16 @@ end
     return view(each_bond_idx(system, point_id), system.intersection_bond_ids[bond_id])
 end
 
-function calc_hood_volumes!(chunk::AbstractBodyChunk{<:BondAssociatedSystem})
+# `ba_hood_volume`: volume of the bond-associated family of a bond.
+# `ba_volume_sum`: sum of those volumes over all bonds of a point. Note that this is much
+# larger than the volume of the family of the point, because the families overlap.
+function calc_ba_volumes!(chunk::AbstractBodyChunk{<:BondAssociatedSystem})
     (; system) = chunk
-    (; volume, bonds, hood_volume, ba_hood_volume) = system
+    (; volume, bonds, ba_volume_sum, ba_hood_volume) = system
 
     for i in each_point_idx(chunk)
-        _hood_volume = volume[i]
+        _volume_sum = 0.0
         for bond_idx in each_bond_idx(system, i)
-            bond = bonds[bond_idx]
-            j = bond.neighbor
-            _hood_volume += volume[j]
             _ba_hood_volume = 0.0
             for i_bond_idx in each_intersecting_bond_idx(system, i, bond_idx)
                 i_bond = bonds[i_bond_idx]
@@ -95,22 +99,23 @@ function calc_hood_volumes!(chunk::AbstractBodyChunk{<:BondAssociatedSystem})
                 _ba_hood_volume += volume[jj]
             end
             ba_hood_volume[bond_idx] = _ba_hood_volume
+            _volume_sum += _ba_hood_volume
         end
-        hood_volume[i] = _hood_volume
+        ba_volume_sum[i] = _volume_sum
     end
 
     return nothing
 end
 
-@inline get_hood_volume(chunk::AbstractBodyChunk) = chunk.system.hood_volume
+@inline get_ba_volume_sum(chunk::AbstractBodyChunk) = chunk.system.ba_volume_sum
 
 function initialize!(dh::AbstractThreadsBodyDataHandler{<:BondAssociatedSystem},
                      solver::AbstractTimeSolver)
     @threads :static for chunk in dh.chunks
-        calc_hood_volumes!(chunk)
+        calc_ba_volumes!(chunk)
     end
     @threads :static for chunk_id in eachindex(dh.chunks)
-        exchange_loc_to_halo!(get_hood_volume, dh, chunk_id)
+        exchange_loc_to_halo!(get_ba_volume_sum, dh, chunk_id)
     end
     calc_force_density!(dh, 0.0, solver.Δt)
     return nothing
@@ -118,15 +123,18 @@ end
 
 function initialize!(dh::AbstractMPIBodyDataHandler{<:BondAssociatedSystem},
                      solver::AbstractTimeSolver)
-    calc_hood_volumes!(dh.chunk)
-    exchange_loc_to_halo!(get_hood_volume, dh)
+    calc_ba_volumes!(dh.chunk)
+    exchange_loc_to_halo!(get_ba_volume_sum, dh)
     calc_force_density!(dh, 0.0, solver.Δt)
     return nothing
 end
 
+# Share of the strain energy of a point carried by one of its bonds. These shares have to
+# sum to one over the bonds of a point, otherwise the stiffness of the material is scaled by
+# whatever they add up to.
 @inline function volume_fraction_factor(system::BondAssociatedSystem, point_idx::Int,
                                         bond_idx::Int)
-    return system.ba_hood_volume[bond_idx] / system.hood_volume[point_idx]
+    return system.ba_hood_volume[bond_idx] / system.ba_volume_sum[point_idx]
 end
 
 function req_point_data_fields_fracture(::Type{<:AbstractBondAssociatedSystemMaterial})

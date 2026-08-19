@@ -29,7 +29,8 @@ struct ThreadsBodyDataHandler{Sys,M,P,S} <: AbstractThreadsBodyDataHandler{Sys,M
 end
 
 function threads_data_handler(body::AbstractBody, solver::AbstractTimeSolver, n_chunks::Int)
-    point_decomp = PointDecomposition(body, n_chunks)
+    # never create more chunks than points, because empty chunks cannot be exported
+    point_decomp = PointDecomposition(body, min(n_chunks, body.n_points))
     param_spec = get_param_spec(body)
     chunks = chop_body_threads(body, solver, point_decomp, param_spec)
     n_chunks = length(chunks)

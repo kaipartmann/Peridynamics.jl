@@ -17,6 +17,11 @@ Manifest.toml
 *.vtu
 *.pvtu
 
+# Benchmark output
+/benchmark/results/
+/benchmark/baselines/
+/benchmark/hpc/results/
+
 # local debugging
 /scripts/
 /paper/

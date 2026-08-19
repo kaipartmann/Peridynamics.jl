@@ -19,6 +19,33 @@ end
     return nothing
 end
 
+@inline function update_add_tensor!(Mₙ::AbstractMatrix{T}, i::Int,
+                                    Tₙ₊₁::StaticMatrix{3,3,T}) where {T}
+    Mₙ[1, i] += Tₙ₊₁[1]
+    Mₙ[2, i] += Tₙ₊₁[2]
+    Mₙ[3, i] += Tₙ₊₁[3]
+    Mₙ[4, i] += Tₙ₊₁[4]
+    Mₙ[5, i] += Tₙ₊₁[5]
+    Mₙ[6, i] += Tₙ₊₁[6]
+    Mₙ[7, i] += Tₙ₊₁[7]
+    Mₙ[8, i] += Tₙ₊₁[8]
+    Mₙ[9, i] += Tₙ₊₁[9]
+    return nothing
+end
+
+@inline function zero_tensor!(Mₙ::AbstractMatrix{T}, i::Int) where {T}
+    Mₙ[1, i] = zero(T)
+    Mₙ[2, i] = zero(T)
+    Mₙ[3, i] = zero(T)
+    Mₙ[4, i] = zero(T)
+    Mₙ[5, i] = zero(T)
+    Mₙ[6, i] = zero(T)
+    Mₙ[7, i] = zero(T)
+    Mₙ[8, i] = zero(T)
+    Mₙ[9, i] = zero(T)
+    return nothing
+end
+
 @inline function get_vector(M::AbstractMatrix{T}, i::Int) where {T}
     return SVector{3,T}(M[1, i], M[2, i], M[3, i])
 end

@@ -116,7 +116,7 @@ end
 @inline each_body_idx(ms::AbstractMultibodySetup) = eachindex(ms.bodies)
 @inline each_body_name(ms::AbstractMultibodySetup) = ms.body_names
 
-function pre_submission_check(ms::AbstractMultibodySetup)
+function pre_submission_check(ms::AbstractMultibodySetup, time_solver::AbstractTimeSolver)
     if mpi_run()
         @mpiroot begin
             @error "Multibody simulations with MPI are not yet implemented!\n"
@@ -128,7 +128,7 @@ function pre_submission_check(ms::AbstractMultibodySetup)
     # check all bodies separately
     n_all_bcs, n_all_ics = 0, 0
     for body in each_body(ms)
-        pre_submission_check(body; body_in_multibody_setup=true)
+        pre_submission_check(body, time_solver; body_in_multibody_setup=true)
         n_all_bcs += n_bcs(body)
         n_all_ics += n_ics(body)
     end

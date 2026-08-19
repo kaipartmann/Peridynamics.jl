@@ -505,6 +505,39 @@ end
     @test_throws ErrorException job = Job(body, vv)
 end
 
+@testitem "displacement bc with a solver that cannot apply it" begin
+    # `displacement_bc!` adds a `PosSingleDimBC`, which only the `NewtonKrylov` solver applies.
+    # With any other solver it used to be silently ignored.
+    pos, vol = uniform_box(1, 1, 1, 0.25)
+    make_body() = begin
+        body = Body(BBMaterial(), pos, vol)
+        material!(body; horizon=0.8, E=210e9, rho=8000, Gc=1)
+        displacement_bc!(p -> 0.01 * p[1], body, :all_points, :x)
+        body
+    end
+
+    @test_throws ArgumentError Job(make_body(), VelocityVerlet(steps=1))
+    @test_throws ArgumentError Job(make_body(), DynamicRelaxation(steps=1))
+
+    # the message has to say which solver is needed and which one was given
+    err = try
+        Job(make_body(), VelocityVerlet(steps=1))
+    catch e
+        e
+    end
+    @test contains(err.msg, "NewtonKrylov")
+    @test contains(err.msg, "VelocityVerlet")
+
+    # the same body with the solver that can apply the condition is fine
+    @test Job(make_body(), NewtonKrylov(steps=1)) isa Job
+
+    # a body whose load is prescribed with a condition the solver applies is unaffected
+    body = Body(BBMaterial(), pos, vol)
+    material!(body; horizon=0.8, E=210e9, rho=8000, Gc=1)
+    velocity_bc!(t -> 1.0, body, :all_points, :x)
+    @test Job(body, VelocityVerlet(steps=1)) isa Job
+end
+
 @testitem "show Body" begin
     # setup
     n_points = 10
