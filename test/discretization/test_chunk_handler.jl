@@ -1,4 +1,4 @@
-@testitem "find_localizer" begin
+@testitem "find_localizer" setup=[Fixtures] begin
     point_ids_1 = [10, 20, 30, 40]
     localizer_1 = Peridynamics.find_localizer(point_ids_1)
     @test localizer_1[10] == 1
@@ -6,14 +6,14 @@
     @test localizer_1[30] == 3
     @test localizer_1[40] == 4
 
-    point_ids_2 = unique(rand(1:200, 200))
+    point_ids_2 = unique(rand(Fixtures.rng(), 1:200, 200))
     localizer_2 = Peridynamics.find_localizer(point_ids_2)
     for (li, gi) in enumerate(point_ids_2)
         @test localizer_2[gi] == li
     end
 end
 
-@testitem "localize!" begin
+@testitem "localize!" setup=[Fixtures] begin
     point_ids_1 = [10, 20, 30, 40]
     localizer_1 = Peridynamics.find_localizer(point_ids_1)
     point_set_1 = [40, 30, 20, 10]
@@ -23,7 +23,7 @@ end
     Peridynamics.localize!(point_ids_1, localizer_1)
     @test point_ids_1 == [1, 2, 3, 4]
 
-    point_ids_2 = unique(rand(1:200, 200))
+    point_ids_2 = unique(rand(Fixtures.rng(), 1:200, 200))
     localizer_2 = Peridynamics.find_localizer(point_ids_2)
     Peridynamics.localize!(point_ids_2, localizer_2)
     for i in eachindex(point_ids_2)
@@ -31,7 +31,7 @@ end
     end
 end
 
-@testitem "localize" begin
+@testitem "localize" setup=[Fixtures] begin
     point_ids = collect(101:200)
     loc_points = 101:200
     n_loc_points = length(loc_points)
@@ -46,7 +46,7 @@ end
     @test loc_point_set == [1, 10, 20]
 end
 
-@testitem "localized_point_sets" begin
+@testitem "localized_point_sets" setup=[Fixtures] begin
     point_ids = collect(101:200)
     loc_points = 101:200
     n_loc_points = length(loc_points)
@@ -62,7 +62,7 @@ end
     @test loc_point_sets[:b] == Vector{Int}()
 end
 
-@testitem "localize!(Vector{Bonds}, ...)" begin
+@testitem "localize!(Vector{Bonds}, ...)" setup=[Fixtures] begin
     # change two bonds
     bonds = [Peridynamics.Bond(100, 1.0, true), Peridynamics.Bond(101, 30.0, false)]
     localizer = Dict(100 => 1, 101 => 2)
@@ -81,7 +81,7 @@ end
     @test_throws KeyError(100) Peridynamics.localize!(bonds, localizer)
 end
 
-@testitem "ChunkHandler" begin
+@testitem "ChunkHandler" setup=[Fixtures] begin
     pd = Peridynamics.PointDecomposition(Peridynamics.distribute_equally(4, 2))
     # bonds = [Peridynamics.Bond(2, 1.0, true),
     #          Peridynamics.Bond(3, 1.0, true),
@@ -141,7 +141,7 @@ end
     @test ch.localizer[4] == 4
 end
 
-@testitem "get_loc_view" begin
+@testitem "get_loc_view" setup=[Fixtures] begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -156,10 +156,11 @@ end
 
     bonds1, n_neighbors1, bond_ids1, ch1 = Peridynamics.get_bond_data(body, pd, 1)
     bonds2, n_neighbors2, bond_ids2, ch2 = Peridynamics.get_bond_data(body, pd, 2)
-    v_float = rand(N)
-    m_float = rand(3, N)
-    v_int = rand(Int, N)
-    m_int = rand(Int, 3, N)
+    rng = Fixtures.rng()
+    v_float = rand(rng, N)
+    m_float = rand(rng, 3, N)
+    v_int = rand(rng, Int, N)
+    m_int = rand(rng, Int, 3, N)
 
     @test Peridynamics.get_loc_view(v_int, ch1) == @view v_int[1:2]
     @test Peridynamics.get_loc_view(m_int, ch1) == @view m_int[:, 1:2]
@@ -171,7 +172,7 @@ end
     @test Peridynamics.get_loc_view(m_float, ch2) == @view m_float[:, 1:2]
 end
 
-@testitem "sort_halo_by_src!" begin
+@testitem "sort_halo_by_src!" setup=[Fixtures] begin
     # 10 points, 2 chunks, all halo points from same chunk
     halo_points = [8, 7, 6] # unsorted
     point_src = Dict(
@@ -201,7 +202,7 @@ end
     @test hidxs_by_src[4] == 5:6
 end
 
-@testitem "ChunkHandler, 10 points, 2 chunks" begin
+@testitem "ChunkHandler, 10 points, 2 chunks" setup=[Fixtures] begin
     position = [0.0 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0
                 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
                 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
@@ -240,7 +241,7 @@ end
     @test keys(ch2.localizer) == Set(5:10)
 end
 
-@testitem "ChunkHandler, 10 points, 5 chunks" begin
+@testitem "ChunkHandler, 10 points, 5 chunks" setup=[Fixtures] begin
     position = [0.0 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0
                 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
                 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]

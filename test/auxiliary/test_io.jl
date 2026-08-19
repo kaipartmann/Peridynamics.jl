@@ -207,19 +207,25 @@
     end
 
     # setup
-    bbb = Body(BBMaterial(), rand(3, 10), rand(10))
-    bosb = Body(OSBMaterial(), rand(3, 10), rand(10))
-    bcc = Body(CMaterial(), rand(3, 10), rand(10))
+    position = zeros(3, 10)
+    position[1, :] .= 0.0:9.0
+    bbb = Body(BBMaterial(), position, ones(10))
+    bosb = Body(OSBMaterial(), position, ones(10))
+    bcc = Body(CMaterial(), position, ones(10))
     ms = MultibodySetup(:a => bbb, :b => bosb, :c => bcc)
     vv = VelocityVerlet(steps=1)
     dr = DynamicRelaxation(steps=1)
 
+    # the full battery once: nothing in `get_job_options` except the export field check
+    # depends on the material or the solver
     tests_body_specific(bbb, vv)
-    tests_body_specific(bosb, vv)
-    tests_body_specific(bcc, vv)
-    tests_body_specific(bbb, dr)
-    tests_body_specific(bosb, dr)
-    tests_body_specific(bcc, dr)
+    # the export field check per storage type and solver
+    for body in (bbb, bosb, bcc), solver in (vv, dr)
+        jo = Peridynamics.get_job_options(body, solver, Dict{Symbol,Any}(:path => "rootpath"))
+        @test jo.fields == [field for field in Peridynamics.default_export_fields()]
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :abcd))
+        @test_throws ArgumentError Peridynamics.get_job_options(body, solver, o)
+    end
 
     tests_multibody_specific(ms, vv)
 
@@ -256,7 +262,7 @@ end
     o = Dict{Symbol,Any}(:path => temp_root, :freq => 1)
     options = Peridynamics.get_job_options(body, vv, o)
 
-    u_rand = rand(3, 8)
+    u_rand = reshape(0.1:0.1:2.4, 3, 8) # any data, read back below
     chunk.storage.displacement .= u_rand
 
     Peridynamics.export_reference_results(dh, options)
@@ -310,8 +316,8 @@ end
     o = Dict{Symbol,Any}(:path => temp_root, :freq => 1)
     options = Peridynamics.get_job_options(ms, vv, o)
 
-    u_rand_a = rand(3, 8)
-    u_rand_b = rand(3, 8)
+    u_rand_a = reshape(0.1:0.1:2.4, 3, 8)
+    u_rand_b = reshape(3.1:0.1:5.4, 3, 8)
     chunk_a.storage.displacement .= u_rand_a
     chunk_b.storage.displacement .= u_rand_b
 

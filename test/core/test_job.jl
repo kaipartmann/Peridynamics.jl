@@ -1,14 +1,14 @@
-@testitem "show Job" begin
+@testitem "show Job" setup=[Fixtures] begin
     # for now, this test only works with multithreading!
     mpi_run_current_value = Peridynamics.MPI_RUN[]
     Peridynamics.MPI_RUN[] = false
 
     io = IOBuffer()
 
-    b1 = Body(BBMaterial(), rand(3,10), rand(10))
+    b1 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
     material!(b1, horizon=1, E=1, rho=1, Gc=1)
     velocity_ic!(b1, :all_points, :x, 1.0)
-    b2 = Body(OSBMaterial(), rand(3,5), rand(5))
+    b2 = Body(OSBMaterial(), Fixtures.line_position(5), ones(5))
     material!(b2, horizon=1, E=1, nu=0.25, rho=1, Gc=1)
     ms = MultibodySetup(:a => b1, :b => b2)
     job = Job(ms, VelocityVerlet(steps=1))
@@ -26,12 +26,12 @@
     Peridynamics.MPI_RUN[] = mpi_run_current_value
 end
 
-@testitem "Job pre submission checks" begin
+@testitem "Job pre submission checks" setup=[Fixtures] begin
     # for now, this test only works with multithreading!
     mpi_run_current_value = Peridynamics.MPI_RUN[]
     Peridynamics.MPI_RUN[] = false
 
-    b1 = Body(BBMaterial(), rand(3,10), rand(10))
+    b1 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
     vv = VelocityVerlet(steps=1)
     @test_throws ErrorException Job(b1, vv)
 
@@ -44,8 +44,8 @@ end
     job = Job(b1, vv)
     @test job.spatial_setup isa Body{<:BBMaterial}
 
-    b2 = Body(BBMaterial(), rand(3,10), rand(10))
-    b3 = Body(OSBMaterial(), rand(3,5), rand(5))
+    b2 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
+    b3 = Body(OSBMaterial(), Fixtures.line_position(5), ones(5))
     ms = MultibodySetup(:b2 => b2, :b3 => b3)
     @test_throws ErrorException Job(ms, vv)
 

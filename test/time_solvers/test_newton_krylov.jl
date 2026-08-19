@@ -177,7 +177,8 @@ end
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
 
-    # Should initialize without error
+    # a force density condition that is not position dependent is rejected (inside the
+    # threaded loop, hence the CompositeException)
     @test_throws CompositeException Peridynamics.init_time_solver!(nr, dh)
 end
 
@@ -416,16 +417,19 @@ end
     # Set some residual values
     chunk.storage.residual .= [1.0:12.0;]
 
-    # Get residual norm from chunk
-    r_chunk = Peridynamics.get_residual_norm(dh)
-    @test r_chunk ≈ norm(chunk.storage.residual)
-
-    # Get residual norm from data handler
-    r_dh = Peridynamics.get_residual_norm(dh)
-    @test r_dh ≈ r_chunk
+    # the norm over all chunks of the data handler
+    @test Peridynamics.get_residual_norm(dh) ≈ norm(chunk.storage.residual)
+    # with two chunks: the norm of the concatenated residuals
+    dh2 = Peridynamics.threads_data_handler(body, nr, 2)
+    Peridynamics.init_time_solver!(nr, dh2)
+    dh2.chunks[1].storage.residual .= 3.0
+    dh2.chunks[2].storage.residual .= 4.0
+    n1 = length(dh2.chunks[1].storage.residual)
+    n2 = length(dh2.chunks[2].storage.residual)
+    @test Peridynamics.get_residual_norm(dh2) ≈ sqrt(9n1 + 16n2)
 end
 
-@testitem "NewtonKrylov throw maxiter" begin
+@testitem "NewtonKrylov throw maxiter" tags=[:simulation] begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -443,34 +447,19 @@ end
     @test_throws ErrorException submit(job; quiet=true)
 end
 
-@testitem "Material limitation errors" begin
-    ## CRMaterial should not work with NewtonKrylov
-    position = [0.0 1.0 0.0 0.0
-                0.0 0.0 1.0 0.0
-                0.0 0.0 0.0 1.0]
-    volume = [1.0, 1.0, 1.0, 1.0]
-    body = Body(CRMaterial(), position, volume)
-    material!(body, horizon=2, rho=1, E=1, nu=0.25)
-    point_set!(body, :top, [4])
-    point_set!(body, :bottom, [1])
-    displacement_bc!(p -> 0.1, body, :top, :y)
-    displacement_bc!(p -> 0.0, body, :bottom, :x)
-    displacement_bc!(p -> 0.0, body, :bottom, :y)
-    displacement_bc!(p -> 0.0, body, :bottom, :z)
-    nr = NewtonKrylov(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
-    job = Job(body, nr)
-    @test_throws CompositeException submit(job; quiet=true)
-
-    ## RKCRMaterial should not work with NewtonKrylov
-    body = Body(RKCRMaterial(), position, volume)
-    material!(body, horizon=2, rho=1, E=1, nu=0.25)
-    point_set!(body, :top, [4])
-    point_set!(body, :bottom, [1])
-    displacement_bc!(p -> 0.1, body, :top, :y)
-    displacement_bc!(p -> 0.0, body, :bottom, :x)
-    displacement_bc!(p -> 0.0, body, :bottom, :y)
-    displacement_bc!(p -> 0.0, body, :bottom, :z)
-    nr = NewtonKrylov(steps=10, stepsize=0.1, maxiter=2, tol=1e-6)
-    job = Job(body, nr)
-    @test_throws CompositeException submit(job; quiet=true)
+@testitem "NewtonKrylov: the rotated formulations are rejected" begin
+    # the materials with a stress rotation history are meant for dynamic simulations; the
+    # solver rejects them when it is initialized on the data handler
+    for mat in (CRMaterial(), RKCRMaterial())
+        position = [0.0 1.0 0.0 0.0
+                    0.0 0.0 1.0 0.0
+                    0.0 0.0 0.0 1.0]
+        body = Body(mat, position, [1.0, 1.0, 1.0, 1.0])
+        material!(body, horizon=2, rho=1, E=1, nu=0.25)
+        point_set!(body, :top, [4])
+        displacement_bc!(p -> 0.1, body, :top, :y)
+        nr = NewtonKrylov(steps=1, maxiter=1)
+        dh = Peridynamics.threads_data_handler(body, nr, 1)
+        @test_throws CompositeException Peridynamics.init_time_solver!(nr, dh)
+    end
 end

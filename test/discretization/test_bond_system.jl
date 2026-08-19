@@ -65,7 +65,7 @@
     mat_incompatible = CKIMaterial()
     body_incompatible = Body(mat_incompatible, position, volume)
 
-    @test_throws ArgumentError system = Peridynamics.BondSystem(body_incompatible, pd, 1)
+    @test_throws ArgumentError Peridynamics.BondSystem(body_incompatible, pd, 1)
 end
 
 @testitem "find_bonds!" begin
@@ -225,4 +225,12 @@ end
     @test contains(msg, "linear_kernel")
     msg = Peridynamics.log_material_property(Val(:zem), mat; indentation)
     @test contains(msg, "ZEMSilling")
+end
+
+@testitem "find_bonds: duplicate points are an error" begin
+    pos, vol = uniform_box(1, 1, 1, 1 / 5)
+    pos[:, end] .= pos[:, end - 1] # two points at the same position
+    body = Body(BBMaterial(), pos, vol)
+    material!(body, horizon=4 / 100, E=1, rho=1, Gc=1)
+    @test_throws ErrorException Peridynamics.find_bonds(body, 1:n_points(body))
 end

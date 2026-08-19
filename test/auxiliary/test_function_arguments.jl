@@ -10,7 +10,7 @@
     @test_throws ArgumentError Peridynamics.get_method_of_function(f)
 end
 
-@testitem "get_argument_names_of_function" begin
+@testitem "get_argument_names_of_function" begin # lint-ok: rand is only the body of an example function
     func_method = Peridynamics.get_method_of_function(x -> 2x)
     argnames = Peridynamics.get_argument_names_of_function(func_method)
     @test argnames == [:x]

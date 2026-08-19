@@ -1,18 +1,19 @@
 
 
-@testitem "read complete results" begin
+@testitem "read complete results" setup=[Fixtures] begin
+    rng = Fixtures.rng()
     using Peridynamics.WriteVTK
 
     root = mktempdir()
     bname = joinpath(root, "vtk_test_1")
     name = bname * ".vtu"
     n_points = 10
-    position = rand(3, n_points)
+    position = rand(rng, 3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
-    damage = rand(n_points)
-    displacement = rand(3, n_points)
-    integer_test = rand(1:100, n_points)
-    time = rand() * 1000
+    damage = rand(rng, n_points)
+    displacement = rand(rng, 3, n_points)
+    integer_test = rand(rng, 1:100, n_points)
+    time = rand(rng, ) * 1000
     vtk_grid(bname, position, cells) do vtk
         vtk["Damage", VTKPointData()] = damage
         vtk["Displacement", VTKPointData()] = displacement
@@ -29,18 +30,19 @@
 end
 
 #-- read incomplete results
-@testitem "read incomplete results" begin
+@testitem "read incomplete results" setup=[Fixtures] begin
+    rng = Fixtures.rng()
     using Peridynamics.WriteVTK
 
     root = mktempdir()
     bname = joinpath(root, "vtk_test_2")
     name = bname * ".vtu"
     n_points = 10
-    position = rand(3, n_points)
+    position = rand(rng, 3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
-    damage = rand(n_points)
-    time = rand() * 1000
-    random_point_data = rand(n_points)
+    damage = rand(rng, n_points)
+    time = rand(rng, ) * 1000
+    random_point_data = rand(rng, n_points)
     random_field_data =  [1e-5, 1.0, 5]
     vtk_grid(bname, position, cells) do vtk
         vtk["time", VTKFieldData()] = time
@@ -58,22 +60,24 @@ end
     @test result[:random_field_data] == random_field_data
 end
 
-@testitem "wrong file type" begin
+@testitem "wrong file type" setup=[Fixtures] begin
+    rng = Fixtures.rng()
     @test_throws ArgumentError read_vtk("something.wrong")
 end
 
-@testitem "corrupt file raw encoding" begin
+@testitem "corrupt file raw encoding" setup=[Fixtures] begin
+    rng = Fixtures.rng()
     using Peridynamics.WriteVTK
 
     root = mktempdir()
     bname = joinpath(root, "vtk_test_3")
     name = bname * ".vtu"
     n_points = 10
-    position = rand(3, n_points)
+    position = rand(rng, 3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
-    damage = rand(n_points)
-    time = rand() * 1000
-    random_point_data = rand(n_points)
+    damage = rand(rng, n_points)
+    time = rand(rng, ) * 1000
+    random_point_data = rand(rng, n_points)
     random_field_data =  [1e-5, 1.0, 5]
     vtk_grid(bname, position, cells) do vtk
         vtk["Time", VTKFieldData()] = time
@@ -90,18 +94,19 @@ end
     @test_throws ErrorException read_vtk(name)
 end
 
-@testitem "corrupt file offset marker" begin
+@testitem "corrupt file offset marker" setup=[Fixtures] begin
+    rng = Fixtures.rng()
     using Peridynamics.WriteVTK
 
     root = mktempdir()
     bname = joinpath(root, "vtk_test_4")
     name = bname * ".vtu"
     n_points = 10
-    position = rand(3, n_points)
+    position = rand(rng, 3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
-    damage = rand(n_points)
-    time = rand() * 1000
-    random_point_data = rand(n_points)
+    damage = rand(rng, n_points)
+    time = rand(rng, ) * 1000
+    random_point_data = rand(rng, n_points)
     random_field_data =  [1e-5, 1.0, 5]
     vtk_grid(bname, position, cells) do vtk
         vtk["Time", VTKFieldData()] = time
@@ -119,18 +124,19 @@ end
 end
 
 #-- corrupt file </AppendedData>
-@testitem "corrupt file appended data" begin
+@testitem "corrupt file appended data" setup=[Fixtures] begin
+    rng = Fixtures.rng()
     using Peridynamics.WriteVTK
 
     root = mktempdir()
     bname = joinpath(root, "vtk_test_5")
     name = bname * ".vtu"
     n_points = 10
-    position = rand(3, n_points)
+    position = rand(rng, 3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
-    damage = rand(n_points)
-    time = rand() * 1000
-    random_point_data = rand(n_points)
+    damage = rand(rng, n_points)
+    time = rand(rng, ) * 1000
+    random_point_data = rand(rng, n_points)
     random_field_data =  [1e-5, 1.0, 5]
     vtk_grid(bname, position, cells) do vtk
         vtk["Time", VTKFieldData()] = time
@@ -147,7 +153,8 @@ end
     @test_throws ErrorException read_vtk(name)
 end
 
-@testitem "read pvtu file" begin
+@testitem "read pvtu file" setup=[Fixtures] begin
+    rng = Fixtures.rng()
     using Peridynamics.WriteVTK
 
     root = mktempdir()
@@ -155,12 +162,12 @@ end
     name = bname * ".pvtu"
     n_points = 10
     n_parts = 3
-    position = [rand(3, n_points) for _ in 1:n_parts]
+    position = [rand(rng, 3, n_points) for _ in 1:n_parts]
     cells = [Peridynamics.get_cells(n_points) for _ in 1:n_parts]
-    damage = [rand(n_points) for _ in 1:n_parts]
-    displacement = [rand(3, n_points) for _ in 1:n_parts]
-    integer_test = [rand(1:100, n_points) for _ in 1:n_parts]
-    time = rand() * 1000
+    damage = [rand(rng, n_points) for _ in 1:n_parts]
+    displacement = [rand(rng, 3, n_points) for _ in 1:n_parts]
+    integer_test = [rand(rng, 1:100, n_points) for _ in 1:n_parts]
+    time = rand(rng, ) * 1000
     for i in 1:n_parts
         pvtk_grid(bname, position[i], cells[i]; part=i, nparts=n_parts) do vtk
             vtk["damage", VTKPointData()] = damage[i]
@@ -179,7 +186,8 @@ end
     @test result[:time] ≈ [time]
 end
 
-@testitem "read pvtu files with nothing exported" begin
+@testitem "read pvtu files with nothing exported" setup=[Fixtures] begin
+    rng = Fixtures.rng()
     using Peridynamics.WriteVTK
 
     root = mktempdir()
@@ -187,7 +195,7 @@ end
     name = bname * ".pvtu"
     n_points = 10
     n_parts = 3
-    position = [rand(3, n_points) for _ in 1:n_parts]
+    position = [rand(rng, 3, n_points) for _ in 1:n_parts]
     cells = [Peridynamics.get_cells(n_points) for _ in 1:n_parts]
     for i in 1:n_parts
         pvtk_grid(bname, position[i], cells[i]; part=i, nparts=n_parts) do vtk
@@ -199,14 +207,15 @@ end
     @test result[:position] ≈ reduce(hcat, position)
 end
 
-@testitem "read vtu files with nothing exported" begin
+@testitem "read vtu files with nothing exported" setup=[Fixtures] begin
+    rng = Fixtures.rng()
     using Peridynamics.WriteVTK
 
     root = mktempdir()
     bname = joinpath(root, "vtk_test_6")
     name = bname * ".vtu"
     n_points = 10
-    position = rand(3, n_points)
+    position = rand(rng, 3, n_points)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
     vtk_grid(bname, position, cells) do vtk
     end

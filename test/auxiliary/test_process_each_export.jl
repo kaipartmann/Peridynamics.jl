@@ -1,4 +1,4 @@
-@testitem "process_each_export - serial and threads" begin
+@testitem "process_each_export - serial and threads" tags=[:simulation] begin
     # Single simulation for all serial and threading tests
     Peridynamics.MPI_RUN[] = false
 
@@ -16,6 +16,15 @@
 
     # Test argument validation before submission
     @test_throws ArgumentError process_each_export((r0, r, id) -> nothing, job)
+
+    # processing errors are reported on stderr; captured here and asserted
+    function capture_stderr(f)
+        return mktemp() do path, io
+            result = redirect_stderr(f, io)
+            flush(io)
+            return result, read(path, String)
+        end
+    end
 
     submit(job, quiet=true)
 
@@ -112,12 +121,15 @@
 
     # Test 7: Error handling with result collection
     default_err = (; value=999.0)
-    results_err = process_each_export(job, default_err) do r0, r, id
-        if id == 2
-            error("Intentional error for testing")
+    results_err, printed = capture_stderr() do
+        process_each_export(job, default_err) do r0, r, id
+            if id == 2
+                error("Intentional error for testing")
+            end
+            return (; value=Float64(id))
         end
-        return (; value=Float64(id))
     end
+    @test contains(printed, "1 error(s) occurred during export processing")
     @test results_err[1].value == 1.0
     @test results_err[2].value == 999.0  # Uses default due to error
     @test results_err[3].value == 3.0
@@ -132,12 +144,15 @@
 
     # Test 8: Multiple errors (serial mode)
     default_multi = (; val=0.0)
-    results_multi = process_each_export(job, default_multi; serial=true) do r0, r, id
-        if id == 3 || id == 5
-            error("Error at timestep $id")
+    results_multi, printed = capture_stderr() do
+        process_each_export(job, default_multi; serial=true) do r0, r, id
+            if id == 3 || id == 5
+                error("Error at timestep $id")
+            end
+            return (; val=Float64(id) * 0.1)
         end
-        return (; val=Float64(id) * 0.1)
     end
+    @test contains(printed, "2 error(s) occurred during export processing")
     @test results_multi[2].val ≈ 0.2
     @test results_multi[3].val == 0.0  # Error -> default
     @test results_multi[4].val ≈ 0.4
@@ -148,13 +163,16 @@
 
     # Test 9: Error logging without result collection
     counter[] = 0
-    process_each_export(job; serial=true) do r0, r, id
-        counter[] += 1
-        if id == 4
-            error("Legacy mode error test")
+    _, printed = capture_stderr() do
+        process_each_export(job; serial=true) do r0, r, id
+            counter[] += 1
+            if id == 4
+                error("Legacy mode error test")
+            end
+            return nothing
         end
-        return nothing
     end
+    @test contains(printed, "1 error(s) occurred during export processing")
     @test counter[] == 6  # All files processed despite error
 
     error_logs = filter(f -> contains(f, "proc_error_file"), readdir(error_dir))
@@ -185,132 +203,4 @@ end
     vtk_files = Peridynamics.find_vtk_files(root)
     @test basename.(vtk_files) == ["_1.pvtu", "timestep_02.pvtu",
                                    "abcd_timestep_000005.pvtu", "timestep_123.pvtu"]
-end
-
-@testitem "process_each_export - MPI tests" tags=[:mpi] begin
-    # Single simulation for all MPI tests
-    root = mktempdir()
-    l, Δx = 1.0, 1 / 4
-    pos, vol = uniform_box(l, l, l, Δx)
-    body = Body(BBMaterial(), pos, vol)
-    material!(body; horizon=3.015Δx, E=2.1e5, rho=8e-6)
-    point_set!(y -> y > l / 2 - Δx, body, :set_top)
-    point_set!(y -> y < -l / 2 + Δx, body, :set_bottom)
-    velocity_bc!(t -> 30, body, :set_top, :y)
-    velocity_bc!(t -> -30, body, :set_bottom, :y)
-    vv = VelocityVerlet(steps=5)
-    job = Job(body, vv; path=root, freq=1)
-    submit(job, quiet=true)
-
-    mpiexec = Peridynamics.MPI.mpiexec()
-    jlcmd = Base.julia_cmd()
-    pdir = pkgdir(Peridynamics)
-    vtk_path = joinpath(root, "vtk")
-
-    # Prepare directories for all tests
-    root_post_mpi = joinpath(root, "post_mpi")
-    mkpath(root_post_mpi)
-    counter_file = joinpath(root, "counter.txt")
-    results_dir_parallel = joinpath(root, "mpi_results_parallel")
-    mkpath(results_dir_parallel)
-    results_dir_serial = joinpath(root, "mpi_results_serial")
-    mkpath(results_dir_serial)
-
-    # Single MPI command running all 5 tests sequentially
-    mpi_cmd_all = """
-    using Peridynamics, Test
-    files = "$(vtk_path)"
-
-    # Test 1: Legacy mode - file I/O without result collection
-    process_each_export(files) do r0, r, id
-        filename = "max_disp_\$(id).txt"
-        open(joinpath("$(root_post_mpi)", filename), "w") do io
-            write(io, "max_disp: \$(maximum(r[:displacement][1,:]))")
-        end
-        return nothing
-    end
-
-    # Test 2: MPI with barrier
-    counter_file = "$(counter_file)"
-    process_each_export(files; serial=true, barrier=true) do r0, r, id
-        if mpi_isroot()
-            open(counter_file, "a") do io
-                println(io, "processed: \$id")
-            end
-        end
-    end
-    if mpi_isroot()
-        open(counter_file, "a") do io
-            println(io, "all ranks synchronized")
-        end
-    end
-
-    # Test 3: MPI parallel mode with result collection (serial=false)
-    results_dir_parallel = "$(results_dir_parallel)"
-    default_value = (; max_disp=NaN, min_disp=NaN, file_id=0)
-    results = process_each_export(files, default_value; serial=false) do r0, r, id
-        return (; max_disp=maximum(r[:displacement]), min_disp=minimum(r[:displacement]),
-                  file_id=id)
-    end
-    @test length(results) == 6
-    @test all(results[i].file_id == i for i in 1:6)
-    rank = Peridynamics.mpi_rank()
-    open(joinpath(results_dir_parallel, "parallel_rank_\$(rank).txt"), "w") do io
-        for r in results
-            println(io, "file_id=\$(r.file_id), max=\$(r.max_disp), min=\$(r.min_disp)")
-        end
-    end
-
-    # Test 4: MPI serial mode with broadcast (serial=true)
-    results_dir_serial = "$(results_dir_serial)"
-    default_value2 = (; max_disp=NaN, avg_disp=NaN, file_id=0)
-    results2 = process_each_export(files, default_value2; serial=true) do r0, r, id
-        disp = r[:displacement]
-        return (; max_disp=maximum(disp), avg_disp=sum(disp)/length(disp), file_id=id)
-    end
-    @test length(results2) == 6
-    @test all(results2[i].file_id == i for i in 1:6)
-    open(joinpath(results_dir_serial, "serial_rank_\$(rank).txt"), "w") do io
-        for r in results2
-            println(io, "file_id=\$(r.file_id), max=\$(r.max_disp), avg=\$(r.avg_disp)")
-        end
-    end
-
-    # Test 5: Non-bitstype error with MPI
-    default_value3 = (; name="test")  # String is not a bitstype
-    @test_throws ArgumentError process_each_export(files, default_value3) do r0, r, id
-        return (; name="result")
-    end
-    """
-
-    # Run all tests in single MPI call
-    @test success(`$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd_all)`)
-
-    # Verify Test 1 outputs
-    @test isfile(joinpath(root_post_mpi, "max_disp_1.txt"))
-    @test contains(read(joinpath(root_post_mpi, "max_disp_1.txt"), String), "max_disp: 0.0")
-    @test isfile(joinpath(root_post_mpi, "max_disp_6.txt"))
-
-    # Verify Test 2 outputs
-    @test isfile(counter_file)
-    @test contains(read(counter_file, String), "processed: 1")
-    @test contains(read(counter_file, String), "all ranks synchronized")
-
-    # Verify Test 3 outputs
-    @test isfile(joinpath(results_dir_parallel, "parallel_rank_0.txt"))
-    @test isfile(joinpath(results_dir_parallel, "parallel_rank_1.txt"))
-    results_rank0 = read(joinpath(results_dir_parallel, "parallel_rank_0.txt"), String)
-    results_rank1 = read(joinpath(results_dir_parallel, "parallel_rank_1.txt"), String)
-    @test results_rank0 == results_rank1
-    @test contains(results_rank0, "file_id=1")
-    @test contains(results_rank0, "file_id=6")
-
-    # Verify Test 4 outputs
-    @test isfile(joinpath(results_dir_serial, "serial_rank_0.txt"))
-    @test isfile(joinpath(results_dir_serial, "serial_rank_1.txt"))
-    results_rank0 = read(joinpath(results_dir_serial, "serial_rank_0.txt"), String)
-    results_rank1 = read(joinpath(results_dir_serial, "serial_rank_1.txt"), String)
-    @test results_rank0 == results_rank1
-    @test contains(results_rank0, "file_id=1")
-    @test contains(results_rank0, "file_id=6")
 end

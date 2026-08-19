@@ -11,9 +11,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 jobs:
+  # The test suite is split into two jobs that run in parallel and upload coverage with
+  # different flags, which codecov merges per commit (see `codecov.yml`):
+  #   test:   the per-commit unit, material and simulation items
+  #   extras: the `:mpi`, `:perf`, `:lint` and `:slow` items
+  # The selection is made in `test/runtests.jl` via `PERIDYNAMICS_TESTS`.
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -41,10 +47,47 @@ jobs:
       - uses: codecov/codecov-action@v6
         with:
           files: lcov.info
+          flags: unit
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     env:
       JULIA_NUM_THREADS: 2
+      PERIDYNAMICS_TESTS: default
+  extras:
+    name: Extras (MPI, perf, lint) - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    runs-on: ${{ matrix.os }}
+    # a hung MPI rank must not keep the job alive for the 6 h default
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - '1.10'
+          - '1.11'
+          - '1.12'
+        os:
+          - ubuntu-latest
+        arch:
+          - x64
+    steps:
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
+      - uses: julia-actions/cache@v3
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v6
+        with:
+          files: lcov.info
+          flags: extras
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    env:
+      JULIA_NUM_THREADS: 2
+      PERIDYNAMICS_TESTS: extras
   docs:
     name: Documentation
     runs-on: ubuntu-latest

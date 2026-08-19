@@ -1,4 +1,4 @@
-@testitem "InterfaceError" begin
+@testitem "InterfaceError" begin # lint-ok: println is the example method of the error
     using Peridynamics.Printf
     ie1 = Peridynamics.InterfaceError(Float64, println)
     msg_correct = "interface method not correctly defined!"

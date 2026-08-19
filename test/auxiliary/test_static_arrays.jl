@@ -41,27 +41,28 @@ end
     @test Peridynamics.get_vector_diff(a, 1, 2) ≈ [3, 3, 3]
 end
 
-@testitem "invreg" begin
+@testitem "invreg" setup=[Fixtures] begin
     using Peridynamics.StaticArrays
     using Peridynamics.LinearAlgebra
+    rng = Fixtures.rng()
 
     # Test with well-conditioned matrices
-    A = @SMatrix rand(3, 3)
+    A = SMatrix{3,3}(rand(rng, 3, 3))
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
     @test Peridynamics.invreg(A, 0, sqrt(eps())) * A ≈ I
     @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I
 
-    A = @SMatrix rand(4, 4)
+    A = SMatrix{4,4}(rand(rng, 4, 4))
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
     @test Peridynamics.invreg(A, 0, sqrt(eps())) * A ≈ I
     @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I
 
-    A = @SMatrix rand(5, 5)
+    A = SMatrix{5,5}(rand(rng, 5, 5))
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
     @test Peridynamics.invreg(A, 0, sqrt(eps())) * A ≈ I
     @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I
 
-    A = @SMatrix rand(6, 6)
+    A = SMatrix{6,6}(rand(rng, 6, 6))
     @test Peridynamics.invreg(A, 0, 0) * A ≈ I
     @test Peridynamics.invreg(A, 0, sqrt(eps())) * A ≈ I
     @test Peridynamics.invreg(A, 1e-10, sqrt(eps())) * A ≈ I

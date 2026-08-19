@@ -1,508 +1,201 @@
-@testitem "Body BBMaterial" begin
-    # setup
-    n_points = 10
-    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
+# `Body`: the point cloud with its point sets, material parameters, conditions and pre-cracks
+# (`src/discretization/body.jl`). The bodies here are deterministic point clouds; a `Body` does
+# not care where the points are until a system is built.
 
-    # test body creation
-    @test body.mat == BBMaterial()
-    @test body.n_points == n_points
-    @test body.position == position
-    @test body.volume == volume
-    @test body.fail_permit == fill(true, n_points)
-    @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
-    @test body.posdep_single_dim_bcs == Vector{Peridynamics.PosDepSingleDimBC}()
-    @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
-    @test body.posdep_single_dim_ics == Vector{Peridynamics.PosDepSingleDimIC}()
-    @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
-    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
-    @test body.point_params == Vector{Peridynamics.StandardPointParameters}()
-    @test body.params_map == zeros(Int, n_points)
+@testmodule BodyCase begin
+    using Peridynamics
+    "A body of `n` points on a line with unit volumes; no material yet."
+    function line(mat=BBMaterial(), n=4)
+        position = zeros(3, n)
+        position[1, :] .= 0:(n - 1)
+        return Body(mat, position, ones(n))
+    end
+    "The 4-point tetrahedron with unit volumes; no material yet."
+    function tetra()
+        position = [0.0 1.0 0.0 0.0
+                    0.0 0.0 1.0 0.0
+                    0.0 0.0 0.0 1.0]
+        return Body(BBMaterial(), position, [1.0, 1.0, 1.0, 1.0])
+    end
+    """
+    The 8-point body of the `log_msg_body` items: two parameter sets, two initial and two
+    boundary conditions, a pre-crack, points without failure and a name. `matkwargs` are the
+    `material!` keywords the material needs beyond `horizon`, `rho`, `E` and `Gc`.
+    """
+    function logged_body(mat; matkwargs...)
+        position, volume = uniform_box(1, 1, 1, 0.5)
+        body = Body(mat, position, volume)
+        point_set!(body, :a, 1:2)
+        material!(body; horizon=1, rho=1, E=1, Gc=1, matkwargs...)
+        material!(body, :a; horizon=2, rho=2, E=2, Gc=2, matkwargs...)
+        velocity_ic!(body, :a, :z, 1.0)
+        velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
+        velocity_bc!(t -> t, body, :a, 1)
+        forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
+        point_set!(body, :b, 3:4)
+        precrack!(body, :a, :b)
+        no_failure!(body, :a)
+        Peridynamics.change_name!(body, :testbody)
+        return body
+    end
 end
 
-@testitem "Body CKIMaterial" begin
-    # setup
-    n_points = 10
-    mat, position, volume = CKIMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
-
-    # test body creation
-    @test body.mat == CKIMaterial()
-    @test body.n_points == n_points
-    @test body.position == position
-    @test body.volume == volume
-    @test body.fail_permit == fill(true, n_points)
-    @test body.single_dim_bcs == Vector{Peridynamics.SingleDimBC}()
-    @test body.single_dim_ics == Vector{Peridynamics.SingleDimIC}()
-    @test body.point_sets_precracks == Vector{Peridynamics.PointSetsPreCrack}()
-    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
-    @test body.point_params == Vector{Peridynamics.CKIPointParameters}()
-    @test body.params_map == zeros(Int, n_points)
-end
-
-@testitem "check_pos_and_vol" begin
-    # setup
+@testitem "Body: construction" setup=[BodyCase] begin
+    for mat in (BBMaterial(), CKIMaterial())
+        body = BodyCase.line(mat, 10)
+        @test body.mat == mat
+        @test body.n_points == n_points(body) == 10
+        @test body.position[1, :] == 0:9
+        @test body.volume == ones(10)
+        @test body.fail_permit == fill(true, 10)
+        @test isempty(body.single_dim_bcs) && isempty(body.posdep_single_dim_bcs)
+        @test isempty(body.single_dim_ics) && isempty(body.posdep_single_dim_ics)
+        @test isempty(body.point_sets_precracks)
+        @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:10)
+        @test eltype(body.point_params) === Peridynamics.point_param_type(mat)
+        @test isempty(body.point_params)
+        @test body.params_map == zeros(Int, 10)
+    end
+    # the material is the first argument, the point cloud must be a 3×n matrix with n volumes
     position = [0.0 1.0 0.0 0.0
-                0.0 0.0 1.0 0.0]
-    volume = [1, 1, 1, 1]
-    n_points = length(volume)
-    mat = BBMaterial()
-    @test_throws DimensionMismatch Peridynamics.check_pos_and_vol(n_points, position,
-                                                                  volume)
-    @test_throws DimensionMismatch body = Body(mat, position, volume)
-    @test_throws DimensionMismatch Peridynamics.check_pos_and_vol(n_points-1, position,
-                                                                  volume)
+                0.0 0.0 1.0 0.0] # only two rows
+    @test_throws DimensionMismatch Body(BBMaterial(), position, ones(4))
+    @test_throws DimensionMismatch Peridynamics.check_pos_and_vol(4, position, ones(4))
+    @test_throws DimensionMismatch Peridynamics.check_pos_and_vol(3, position, ones(4))
+    @test_throws ErrorException Body(BBMaterial(), zeros(3, 0), Float64[])
+    @test_throws ErrorException Body(BBMaterial(), [NaN 1.0; 0.0 0.0; 0.0 0.0], ones(2))
+    @test_throws ErrorException Body(BBMaterial(), [0.0 1.0; 0.0 0.0; 0.0 0.0], [1.0, NaN])
 end
 
-@testitem "point_set!" begin
-    # setup
-    position = [0.0 1.0 0.0 0.0
-                0.0 0.0 1.0 0.0
-                0.0 0.0 0.0 1.0]
-    volume = [1, 1, 1, 1]
-    mat = BBMaterial()
-    body = Body(mat, position, volume)
-
-    # test body
-    @test body.n_points == 4
-    @test body.position == position
+@testitem "point_set!: indices, predicates and errors" setup=[BodyCase] begin
+    body = BodyCase.tetra()
     @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:4)
-
-    # add point set
     point_set!(body, :a, 1:2)
     @test body.point_sets == Dict(:all_points => 1:4, :a => 1:2)
-
-    # try adding point set with identical name
+    # an existing name is an error
     @test_throws ErrorException point_set!(body, :a, 3:4)
-
-    # add another point set via function definition
+    # a predicate on the position
     point_set!(x -> x > 0.5, body, :b)
     @test body.point_sets == Dict(:all_points => 1:4, :a => 1:2, :b => [2])
-
-    # add point set with do syntax
+    # with do syntax
     point_set!(body, :c) do p
         p[3] > 0.0
     end
     @test body.point_sets == Dict(:all_points => 1:4, :a => 1:2, :b => [2], :c => [4])
-
-    # point_set!
+    # indices outside the body
     @test_throws BoundsError point_set!(body, :d, 1:5)
-
-    #
+    # the public accessor
+    @test point_sets(body) === body.point_sets
     @test_throws ErrorException Peridynamics.check_if_set_is_defined(body.point_sets, :d)
 end
 
-@testitem "material!" begin
-    # setup
-    n_points = 4
-    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
-
-    # test body creation
-    @test body.mat == BBMaterial()
-    @test body.n_points == n_points
-    @test body.point_params == Vector{Peridynamics.StandardPointParameters}()
-    @test body.params_map == zeros(Int, n_points)
-    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
-
-    # add point set
+@testitem "material!: parameters for the body and for point sets" setup=[BodyCase] begin
+    body = BodyCase.tetra()
     point_set!(body, :a, 1:2)
-    @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2)
-
-    # add material
+    @test isempty(body.point_params) && body.params_map == zeros(Int, 4)
+    # the whole body
     material!(body; horizon=1, E=1, rho=1, Gc=1)
-    @test body.point_params == [
-        Peridynamics.StandardPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666,
-                                             0.4, 0.4, 1.0, 0.9128709291752769,
-                                             3.819718634205488),
-    ]
+    @test length(body.point_params) == 1
+    p1 = body.point_params[1]
+    @test (p1.δ, p1.E, p1.rho, p1.nu, p1.Gc) == (1.0, 1.0, 1.0, 0.25, 1.0)
+    @test p1.G ≈ 0.4 && p1.K ≈ 2 / 3 # from E = 1 and nu = 1/4
+    @test p1.εc ≈ sqrt(5 * p1.Gc / (9 * p1.K * p1.δ)) # critical stretch of a bond-based material
     @test body.params_map == [1, 1, 1, 1]
-
-    # add material to set
+    # a point set gets its own parameters
     material!(body, :a; horizon=2, E=2, rho=2, Gc=2)
-    @test body.point_params == [
-        Peridynamics.StandardPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666,
-                                             0.4, 0.4, 1.0, 0.9128709291752769,
-                                             3.819718634205488),
-        Peridynamics.StandardPointParameters(2.0, 2.0, 2.0, 0.25, 0.8, 1.3333333333333333,
-                                             0.8, 0.8, 2.0, 0.6454972243679028,
-                                             0.477464829275686),
-    ]
+    @test length(body.point_params) == 2
+    p2 = body.point_params[2]
+    @test (p2.δ, p2.E, p2.rho, p2.Gc) == (2.0, 2.0, 2.0, 2.0)
     @test body.params_map == [2, 2, 1, 1]
-
-    # add material to body -> overwriting everything!
+    # the whole body again overwrites everything
     material!(body; horizon=3, E=3, rho=3, Gc=3)
-    @test body.point_params == [
-        Peridynamics.StandardPointParameters(3.0, 3.0, 3.0, 0.25, 1.2, 2.0, 1.2, 1.2, 3.0,
-                                             0.5270462766947299, 0.1414710605261292),
-    ]
+    @test length(body.point_params) == 1
+    @test body.point_params[1].δ == 3.0
     @test body.params_map == [1, 1, 1, 1]
 end
 
-@testitem "material! without failure criteria" begin
-    # setup
-    n_points = 4
-    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
-
-    # if εc = 0
-    material!(body; horizon=1, E=1, rho=1, epsilon_c=0)
-    @test isapprox(body.point_params[1].Gc, 0; atol=eps())
-    @test isapprox(body.point_params[1].εc, 0; atol=eps())
-    @test isapprox(body.fail_permit, zeros(n_points); atol=eps())
-
-    # if Gc = 0
-    material!(body; horizon=1, E=1, rho=1, Gc=0)
-    @test isapprox(body.point_params[1].Gc, 0; atol=eps())
-    @test isapprox(body.point_params[1].εc, 0; atol=eps())
-    @test isapprox(body.fail_permit, zeros(n_points); atol=eps())
-
-    # if εc and Gc are both not defined
-    material!(body; horizon=1, E=1, rho=1, )
-    @test isapprox(body.point_params[1].Gc, 0; atol=eps())
-    @test isapprox(body.point_params[1].εc, 0; atol=eps())
-    @test isapprox(body.fail_permit, zeros(n_points); atol=eps())
-
-    # if εc and Gc are both defined
+@testitem "material!: with and without failure" setup=[BodyCase] begin
+    body = BodyCase.tetra()
+    # no critical stretch and no energy release rate: the points cannot fail
+    for kwargs in ((; epsilon_c=0), (; Gc=0), (;))
+        material!(body; horizon=1, E=1, rho=1, kwargs...)
+        @test body.point_params[1].Gc == 0 && body.point_params[1].εc == 0
+        @test body.fail_permit == zeros(Bool, 4)
+    end
+    # both given is ambiguous
     @test_throws ArgumentError material!(body; horizon=1, E=1, rho=1, epsilon_c=1, Gc=2)
-
-    # if material without failure is overwritten by material with failure
-    material!(body; horizon=1, E=1, rho=1, )
-    @test isapprox(body.fail_permit, zeros(n_points); atol=eps())
+    # overwriting toggles the failure permission
     material!(body; horizon=1, E=1, rho=1, Gc=1)
-    @test isapprox(body.fail_permit, ones(n_points); atol=eps())
+    @test all(body.fail_permit)
     material!(body; horizon=1, E=1, rho=1, Gc=0)
-    @test isapprox(body.fail_permit, zeros(n_points); atol=eps())
+    @test !any(body.fail_permit)
     material!(body; horizon=1, E=1, rho=1, epsilon_c=1)
-    @test isapprox(body.fail_permit, ones(n_points); atol=eps())
-
-    # pointsets:
+    @test all(body.fail_permit)
+    # per point set
     point_set!(body, :a, 1:2)
     material!(body, :a; horizon=1, E=1, rho=1, Gc=0)
     @test body.fail_permit == [0, 0, 1, 1]
-
     material!(body; horizon=1, E=1, rho=1, Gc=0)
     @test body.fail_permit == [0, 0, 0, 0]
-
     material!(body, :a; horizon=1, E=1, rho=1, epsilon_c=1)
     @test body.fail_permit == [1, 1, 0, 0]
 end
 
-@testitem "no_failure!" begin
-    # setup
-    n_points = 4
-    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
+@testitem "no_failure!" setup=[BodyCase] begin
+    body = BodyCase.tetra()
     point_set!(body, :a, 1:2)
-
-    # no material parameters defined
+    # needs material parameters for every point
     @test_throws ArgumentError no_failure!(body)
-
-    # not all points have material parameters
     material!(body, :a; horizon=1, E=1, rho=1, Gc=1)
     @test_throws ArgumentError no_failure!(body)
-
-    # whole body
+    # the whole body
     material!(body; horizon=1, E=1, rho=1, Gc=1)
     no_failure!(body)
     @test body.fail_permit == [0, 0, 0, 0]
-
-    # point set
+    # a point set
     material!(body; horizon=1, E=1, rho=1, Gc=1)
     @test body.fail_permit == [1, 1, 1, 1]
     no_failure!(body, :a)
     @test body.fail_permit == [0, 0, 1, 1]
-
-
 end
 
-@testitem "velocity_bc!" begin
-    # setup
-    n_points = 4
-    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
+@testitem "velocity_bc! and forcedensity_bc!: declaration" setup=[Fixtures, BodyCase] begin
+    # the dimension as an integer or a symbol, on different sets; the conditions are stored in
+    # the order they are declared, with the field they act on
+    for (bc!, field) in ((velocity_bc!, :velocity_half), (forcedensity_bc!, :b_ext))
+        body = BodyCase.tetra()
+        point_set!(body, :a, 1:2)
+        point_set!(body, :b, 3:4)
+        material!(body; horizon=1, E=1, rho=1, Gc=1)
+        @test !Peridynamics.has_conditions(body)
+        dims = [(:a, 1), (:a, 2), (:a, 3), (:b, :x), (:b, :y), (:b, :z)]
+        for (i, (set, dim)) in enumerate(dims)
+            bc!(Fixtures.f_one, body, set, dim)
+            @test length(body.single_dim_bcs) == i
+            bc = body.single_dim_bcs[i]
+            @test all(bc.fun(t) == 1 for t in (-1, 0, 1, Inf, NaN))
+            @test bc.field === field
+            @test bc.point_set === set
+            @test bc.dim == UInt8(dim isa Int ? dim : findfirst(==(dim), (:x, :y, :z)))
+        end
+        @test Peridynamics.has_conditions(body)
+        # position dependent: f(p, t), on a fresh body (the dimensions above are taken)
+        body = BodyCase.tetra()
+        point_set!(body, :a, 1:2)
+        material!(body; horizon=1, E=1, rho=1, Gc=1)
+        bc!(Fixtures.f_pt, body, :a, 1)
+        @test length(body.posdep_single_dim_bcs) == 1
+        bc = body.posdep_single_dim_bcs[1]
+        @test bc([2.0, 0.0, 0.0], 3.0) == 6.0 # p[1] * t
+        @test bc.field === field && bc.point_set === :a && bc.dim == 0x01
+    end
+end
 
-    # test body creation
-    @test body.n_points == n_points
-    @test body.position == position
-    @test body.volume == volume
-    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
-
-    # add point set
-    point_set!(body, :a, 1:2)
-    point_set!(body, :b, 3:4)
-    @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2, :b => 3:4)
-
-    # add material
+@testitem "Job: a body without conditions is rejected" setup=[BodyCase] begin
+    body = BodyCase.tetra()
     material!(body; horizon=1, E=1, rho=1, Gc=1)
-    @test body.point_params == [
-        Peridynamics.StandardPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666,
-                                             0.4, 0.4, 1.0, 0.9128709291752769,
-                                             3.819718634205488),
-    ]
-    @test body.params_map == [1, 1, 1, 1]
-
-    # velocity bc 1
-    velocity_bc!(t -> 1, body, :a, 1)
-    @test length(body.single_dim_bcs) == 1
-    bc1 = body.single_dim_bcs[1]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc1.fun(t) == 1
-    end
-    @test bc1.field === :velocity_half
-    @test bc1.point_set === :a
-    @test bc1.dim == 0x01
-
-    # velocity bc 2
-    velocity_bc!(t -> 2, body, :a, 2)
-    @test length(body.single_dim_bcs) == 2
-    bc2 = body.single_dim_bcs[2]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc2.fun(t) == 2
-    end
-    @test bc2.field === :velocity_half
-    @test bc2.point_set === :a
-    @test bc2.dim == 0x02
-
-    # velocity bc 3
-    velocity_bc!(t -> 3, body, :a, 3)
-    @test length(body.single_dim_bcs) == 3
-    bc3 = body.single_dim_bcs[3]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc3.fun(t) == 3
-    end
-    @test bc3.field === :velocity_half
-    @test bc3.point_set === :a
-    @test bc3.dim == 0x03
-
-    # velocity bc 4
-    velocity_bc!(t -> 4, body, :b, :x)
-    @test length(body.single_dim_bcs) == 4
-    bc4 = body.single_dim_bcs[4]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc4.fun(t) == 4
-    end
-    @test bc4.field === :velocity_half
-    @test bc4.point_set === :b
-    @test bc4.dim == 0x01
-
-    # velocity bc 5
-    velocity_bc!(t -> 5, body, :b, :y)
-    @test length(body.single_dim_bcs) == 5
-    bc5 = body.single_dim_bcs[5]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc5.fun(t) == 5
-    end
-    @test bc5.field === :velocity_half
-    @test bc5.point_set === :b
-    @test bc5.dim == 0x02
-
-    # velocity bc 6
-    velocity_bc!(t -> 6, body, :b, :z)
-    @test length(body.single_dim_bcs) == 6
-    bc6 = body.single_dim_bcs[6]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc6.fun(t) == 6
-    end
-    @test bc6.field === :velocity_half
-    @test bc6.point_set === :b
-    @test bc6.dim == 0x03
-
-    #test has_conditions
-    @test Peridynamics.has_conditions(body) == true
-end
-
-@testitem "velocity_bc! position dependent" begin
-    # setup
-    n_points = 4
-    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
-
-    # test body creation
-    @test body.n_points == n_points
-    @test body.position == position
-    @test body.volume == volume
-    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
-
-    # add point set
-    point_set!(body, :a, 1:2)
-    point_set!(body, :b, 3:4)
-    @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2, :b => 3:4)
-
-    # add material
-    material!(body; horizon=1, E=1, rho=1, Gc=1)
-    @test body.point_params == [
-        Peridynamics.StandardPointParameters(1.0, 1.0, 1.0, 0.25, 0.4, 0.6666666666666666,
-                                             0.4, 0.4, 1.0, 0.9128709291752769,
-                                             3.819718634205488),
-    ]
-    @test body.params_map == [1, 1, 1, 1]
-
-    # velocity bc 1
-    velocity_bc!((p, t) -> 1, body, :a, 1)
-    @test length(body.posdep_single_dim_bcs) == 1
-    bc1 = body.posdep_single_dim_bcs[1]
-    _p = [0, 0, 0]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc1(_p, t) == 1
-    end
-    @test bc1.field === :velocity_half
-    @test bc1.point_set === :a
-    @test bc1.dim == 0x01
-
-
-    # velocity bc 2
-    velocity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
-    @test length(body.posdep_single_dim_bcs) == 2
-    bc2 = body.posdep_single_dim_bcs[2]
-    _p = [0, 0, 0]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc1(_p, t) == 1
-    end
-    @test bc2.field === :velocity_half
-    @test bc2.point_set === :a
-    @test bc2.dim == 0x02
-    @test bc2([1,2,3], 1.0) == 7.0
-end
-
-@testitem "forcedensity_bc!" begin
-    # setup
-    n_points = 4
-    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
-
-    # test body creation
-    @test body.n_points == n_points
-    @test body.position == position
-    @test body.volume == volume
-    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
-
-    # add point set
-    point_set!(body, :a, 1:2)
-    point_set!(body, :b, 3:4)
-    @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2, :b => 3:4)
-
-    # force bc 1
-    forcedensity_bc!(t -> 1, body, :a, 1)
-    @test length(body.single_dim_bcs) == 1
-    bc1 = body.single_dim_bcs[1]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc1.fun(t) == 1
-    end
-    @test bc1.field === :b_ext
-    @test bc1.point_set === :a
-    @test bc1.dim == 0x01
-
-    # force bc 2
-    forcedensity_bc!(t -> 2, body, :a, 2)
-    @test length(body.single_dim_bcs) == 2
-    bc2 = body.single_dim_bcs[2]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc2.fun(t) == 2
-    end
-    @test bc2.field === :b_ext
-    @test bc2.point_set === :a
-    @test bc2.dim == 0x02
-
-    # force bc 3
-    forcedensity_bc!(t -> 3, body, :a, 3)
-    @test length(body.single_dim_bcs) == 3
-    bc3 = body.single_dim_bcs[3]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc3.fun(t) == 3
-    end
-    @test bc3.field === :b_ext
-    @test bc3.point_set === :a
-    @test bc3.dim == 0x03
-
-    # force bc 4
-    forcedensity_bc!(t -> 4, body, :b, :x)
-    @test length(body.single_dim_bcs) == 4
-    bc4 = body.single_dim_bcs[4]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc4.fun(t) == 4
-    end
-    @test bc4.field === :b_ext
-    @test bc4.point_set === :b
-    @test bc4.dim == 0x01
-
-    # force bc 5
-    forcedensity_bc!(t -> 5, body, :b, :y)
-    @test length(body.single_dim_bcs) == 5
-    bc5 = body.single_dim_bcs[5]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc5.fun(t) == 5
-    end
-    @test bc5.field === :b_ext
-    @test bc5.point_set === :b
-    @test bc5.dim == 0x02
-
-    # force bc 6
-    forcedensity_bc!(t -> 6, body, :b, :z)
-    @test length(body.single_dim_bcs) == 6
-    bc6 = body.single_dim_bcs[6]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc6.fun(t) == 6
-    end
-    @test bc6.field === :b_ext
-    @test bc6.point_set === :b
-    @test bc6.dim == 0x03
-end
-
-@testitem "forcedensity_bc! position dependent" begin
-    # setup
-    n_points = 4
-    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
-
-    # test body creation
-    @test body.n_points == n_points
-    @test body.position == position
-    @test body.volume == volume
-    @test body.point_sets == Dict{Symbol,Vector{Int}}(:all_points => 1:n_points)
-
-    # add point set
-    point_set!(body, :a, 1:2)
-    point_set!(body, :b, 3:4)
-    @test body.point_sets == Dict(:all_points => 1:n_points, :a => 1:2, :b => 3:4)
-
-    # force bc 1
-    forcedensity_bc!((p,t) -> 1, body, :a, 1)
-    @test length(body.posdep_single_dim_bcs) == 1
-    bc1 = body.posdep_single_dim_bcs[1]
-    _p = [0, 0, 0]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc1(_p, t) == 1
-    end
-    @test bc1.field === :b_ext
-    @test bc1.point_set === :a
-    @test bc1.dim == 0x01
-
-    # force bc 2
-    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
-    @test length(body.posdep_single_dim_bcs) == 2
-    bc2 = body.posdep_single_dim_bcs[2]
-    _p = [0, 0, 0]
-    for t in [-1, 0, 1, Inf, NaN]
-        @test bc1(_p, t) == 1
-    end
-    @test bc2.field === :b_ext
-    @test bc2.point_set === :a
-    @test bc2.dim == 0x02
-    @test bc2([1,2,3], 1.0) == 7.0
-end
-
-@testitem "missing bc/ic" begin
-    # setup
-    n_points = 4
-    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
-    material!(body; horizon=1, E=1, rho=1, Gc=1)
-    vv = VelocityVerlet(steps=8)
-    # test has_conditions
-    @test Peridynamics.has_conditions(body) == false
-    # test pre_submission_check
-    @test_throws ErrorException job = Job(body, vv)
+    @test !Peridynamics.has_conditions(body)
+    @test_throws ErrorException Job(body, VelocityVerlet(steps=8))
 end
 
 @testitem "displacement bc with a solver that cannot apply it" begin
@@ -538,133 +231,51 @@ end
     @test Job(body, VelocityVerlet(steps=1)) isa Job
 end
 
-@testitem "show Body" begin
-    # setup
-    n_points = 10
-    mat, position, volume = BBMaterial(), rand(3, n_points), rand(n_points)
-    body = Body(mat, position, volume)
-
-    io = IOBuffer()
-
-    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial}"
-
-    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test contains(msg, "1 point set(s):")
-    @test contains(msg, "10-point set `all_points`")
-
+@testitem "show: Body" setup=[BodyCase] begin
+    body = BodyCase.line(BBMaterial(), 10)
+    compact(body) = sprint(show, MIME("text/plain"), body; context=:compact => true)
+    full(body) = sprint(show, MIME("text/plain"), body; context=:compact => false)
+    @test compact(body) == "10-point Body{BBMaterial}"
+    @test contains(full(body), "1 point set(s):")
+    @test contains(full(body), "10-point set `all_points`")
     point_set!(body, :a, 1:2)
-
-    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial}"
-
-    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test contains(msg, "2 point set(s):")
-    @test contains(msg, "2-point set `a`")
-    @test contains(msg, "10-point set `all_points`")
-
+    @test contains(full(body), "2 point set(s):") && contains(full(body), "2-point set `a`")
     material!(body, horizon=1, rho=1, E=1, Gc=1)
-
-    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial}"
-
-    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test contains(msg, "1 point parameter(s):")
-    @test contains(msg, "δ=1.0, E=1.0, nu=0.25, rho=1.0, Gc=1.0")
-
+    @test contains(full(body), "1 point parameter(s):")
+    @test contains(full(body), "δ=1.0, E=1.0, nu=0.25, rho=1.0, Gc=1.0")
     material!(body, :a, horizon=2, rho=2, E=2, Gc=2)
-
-    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial}"
-
-    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test !contains(msg, "1 point parameter(s):")
-    @test contains(msg, "2 point parameter(s):")
-    @test contains(msg, "δ=1.0, E=1.0, nu=0.25, rho=1.0, Gc=1.0")
-    @test contains(msg, "δ=2.0, E=2.0, nu=0.25, rho=2.0, Gc=2.0")
-
+    @test !contains(full(body), "1 point parameter(s):")
+    @test contains(full(body), "2 point parameter(s):")
+    @test contains(full(body), "δ=2.0, E=2.0, nu=0.25, rho=2.0, Gc=2.0")
     velocity_ic!(body, :a, :z, 1.0)
     velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
     velocity_bc!(t -> t, body, :a, 1)
     forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
-
-    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial}"
-
-    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test contains(msg, "2 point set(s):")
-    @test contains(msg, "2-point set `a`")
-    @test contains(msg, "10-point set `all_points`")
+    msg = full(body)
     @test contains(msg, "2 boundary condition(s):")
     @test contains(msg, "BC on velocity: point_set=a, dim=1")
     @test contains(msg, "Pos.-dep. BC on force density: point_set=a, dim=2")
     @test contains(msg, "2 initial condition(s):")
     @test contains(msg, "IC on velocity: point_set=a, dim=3")
     @test contains(msg, "Pos.-dep. IC on velocity: point_set=a, dim=2")
-
     point_set!(body, :b, 3:4)
-
     precrack!(body, :a, :b)
-
-    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial}"
-
-    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test contains(msg, "1 predefined crack(s)")
-
+    @test contains(full(body), "1 predefined crack(s)")
     no_failure!(body, :a)
-
-    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial}"
-
-    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test contains(msg, "2 points with failure prohibited")
-
+    @test contains(full(body), "2 points with failure prohibited")
     Peridynamics.change_name!(body, :testbody)
-
-    show(IOContext(io, :compact=>true), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test msg == "10-point Body{BBMaterial} with name `testbody`"
-
-    show(IOContext(io, :compact=>false), MIME("text/plain"), body)
-    msg = String(take!(io))
-    @test contains(msg, "with name `testbody`")
+    @test compact(body) == "10-point Body{BBMaterial} with name `testbody`"
+    @test contains(full(body), "with name `testbody`")
+    # the compact form never changes with the content
+    @test compact(BodyCase.line(BBMaterial(), 10)) == "10-point Body{BBMaterial}"
 end
 
-@testitem "log_msg_body BBMaterial" begin
-    # setup
-    n_points = 10
-    position, volume = uniform_box(1, 1, 1, 0.5)
-    body = Body(BBMaterial(), position, volume)
-    point_set!(body, :a, 1:2)
-    material!(body, horizon=1, rho=1, E=1, Gc=1)
-    material!(body, :a, horizon=2, rho=2, E=2, Gc=2)
-    velocity_ic!(body, :a, :z, 1.0)
-    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
-    velocity_bc!(t -> t, body, :a, 1)
-    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
-    point_set!(body, :b, 3:4)
-    precrack!(body, :a, :b)
-    no_failure!(body, :a)
-    Peridynamics.change_name!(body, :testbody)
+# The body description written to the logfile, one item per material type because the
+# material properties block differs. The bodies are built by `BodyCase.logged_body`.
 
-    msg = Peridynamics.log_msg_body(body)
-
-    @test msg == """
+@testitem "log_msg_body: BBMaterial" setup=[BodyCase] begin
+    body = BodyCase.logged_body(BBMaterial())
+    @test Peridynamics.log_msg_body(body) == """
         BODY `testbody`
           POINT CLOUD
             number of points ........................................................... 8
@@ -706,26 +317,9 @@ end
         """
 end
 
-@testitem "log_msg_body OSBMaterial" begin
-    # setup
-    n_points = 10
-    position, volume = uniform_box(1, 1, 1, 0.5)
-    body = Body(OSBMaterial(), position, volume)
-    point_set!(body, :a, 1:2)
-    material!(body, horizon=1, rho=1, E=1, nu=0.25, Gc=1)
-    material!(body, :a, horizon=2, rho=2, E=2, nu=0.25, Gc=2)
-    velocity_ic!(body, :a, :z, 1.0)
-    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
-    velocity_bc!(t -> t, body, :a, 1)
-    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
-    point_set!(body, :b, 3:4)
-    precrack!(body, :a, :b)
-    no_failure!(body, :a)
-    Peridynamics.change_name!(body, :testbody)
-
-    msg = Peridynamics.log_msg_body(body)
-
-    @test msg == """
+@testitem "log_msg_body: OSBMaterial" setup=[BodyCase] begin
+    body = BodyCase.logged_body(OSBMaterial(); nu=0.25)
+    @test Peridynamics.log_msg_body(body) == """
         BODY `testbody`
           POINT CLOUD
             number of points ........................................................... 8
@@ -768,26 +362,9 @@ end
         """
 end
 
-@testitem "log_msg_body CMaterial" begin
-    # setup
-    n_points = 10
-    position, volume = uniform_box(1, 1, 1, 0.5)
-    body = Body(CMaterial(), position, volume)
-    point_set!(body, :a, 1:2)
-    material!(body, horizon=1, rho=1, E=1, nu=0.25, Gc=1)
-    material!(body, :a, horizon=2, rho=2, E=2, nu=0.25, Gc=2)
-    velocity_ic!(body, :a, :z, 1.0)
-    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
-    velocity_bc!(t -> t, body, :a, 1)
-    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
-    point_set!(body, :b, 3:4)
-    precrack!(body, :a, :b)
-    no_failure!(body, :a)
-    Peridynamics.change_name!(body, :testbody)
-
-    msg = Peridynamics.log_msg_body(body)
-
-    @test msg == """
+@testitem "log_msg_body: CMaterial" setup=[BodyCase] begin
+    body = BodyCase.logged_body(CMaterial(); nu=0.25)
+    @test Peridynamics.log_msg_body(body) == """
         BODY `testbody`
           POINT CLOUD
             number of points ........................................................... 8
@@ -832,27 +409,9 @@ end
         """
 end
 
-
-@testitem "log_msg_body BACMaterial" begin
-    # setup
-    n_points = 10
-    position, volume = uniform_box(1, 1, 1, 0.5)
-    body = Body(BACMaterial(), position, volume)
-    point_set!(body, :a, 1:2)
-    material!(body, horizon=1, rho=1, E=1, nu=0.25, Gc=1)
-    material!(body, :a, horizon=2, rho=2, E=2, nu=0.25, Gc=2)
-    velocity_ic!(body, :a, :z, 1.0)
-    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
-    velocity_bc!(t -> t, body, :a, 1)
-    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
-    point_set!(body, :b, 3:4)
-    precrack!(body, :a, :b)
-    no_failure!(body, :a)
-    Peridynamics.change_name!(body, :testbody)
-
-    msg = Peridynamics.log_msg_body(body)
-
-    @test msg == """
+@testitem "log_msg_body: BACMaterial" setup=[BodyCase] begin
+    body = BodyCase.logged_body(BACMaterial(); nu=0.25)
+    @test Peridynamics.log_msg_body(body) == """
         BODY `testbody`
           POINT CLOUD
             number of points ........................................................... 8
@@ -898,27 +457,9 @@ end
         """
 end
 
-
-@testitem "log_msg_body CKIMaterial" begin
-    # setup
-    n_points = 10
-    position, volume = uniform_box(1, 1, 1, 0.5)
-    body = Body(CKIMaterial(), position, volume)
-    point_set!(body, :a, 1:2)
-    material!(body, horizon=1, rho=1, E=1, nu=0.25, Gc=1)
-    material!(body, :a, horizon=2, rho=2, E=2, nu=0.25, Gc=2)
-    velocity_ic!(body, :a, :z, 1.0)
-    velocity_ic!(p -> p[1] * 2.0, body, :a, :y)
-    velocity_bc!(t -> t, body, :a, 1)
-    forcedensity_bc!((p, t) -> p[1] + p[2] + p[3] + t, body, :a, 2)
-    point_set!(body, :b, 3:4)
-    precrack!(body, :a, :b)
-    no_failure!(body, :a)
-    Peridynamics.change_name!(body, :testbody)
-
-    msg = Peridynamics.log_msg_body(body)
-
-    @test msg == """
+@testitem "log_msg_body: CKIMaterial" setup=[BodyCase] begin
+    body = BodyCase.logged_body(CKIMaterial(); nu=0.25)
+    @test Peridynamics.log_msg_body(body) == """
         BODY `testbody`
           POINT CLOUD
             number of points ........................................................... 8
@@ -965,7 +506,7 @@ end
         """
 end
 
-@testitem "Body from inp file" begin
+@testitem "Body: from an Abaqus inp file" begin
     file = joinpath(@__DIR__, "..", "AbaqusMeshConverter", "models", "CubeC3D8.inp")
     body = Body(BBMaterial(), file)
     @test size(body.position) == (3, 125)

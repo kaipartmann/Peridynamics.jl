@@ -1,174 +1,148 @@
-@testitem "All conditions" begin
-    position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
-    volume = [1.0, 1.0]
-    body = Body(BBMaterial(), position, volume)
-    material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)
-    point_set!(body, :a, 1:2)
-    velocity_bc!(t -> t, body, :a, :x)
-    velocity_bc!((p,t) -> p[1] * t, body, :a, :y)
-    forcedensity_bc!(t -> t, body, :a, :x)
-    forcedensity_bc!((p,t) -> p[1] * t, body, :a, :y)
-    velocity_ic!(body, :a, :x, 1.234)
-    velocity_ic!(p -> p[1] * 3.456, body, :a, :y)
+# Boundary conditions (`src/physics/boundary_conditions.jl`): declaration on a body, conflicts,
+# argument checks and their application to a chunk.
+#
+# The condition functions specialize `velocity_bc!` & co. on the function type, so the items
+# use the named functions of `Fixtures` (`f_t`, `f_pt`, ...) instead of a fresh lambda per
+# call.
 
-    dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
-    chunk = dh.chunks[1]
-    (; velocity_half, velocity, b_ext) = chunk.storage
-
-    @test velocity ≈ [1.234 1.234; 0.0 3.456; 0.0 0.0]
-
-    Peridynamics.apply_boundary_conditions!(chunk, 2.345)
-
-    @test velocity_half ≈ [2.345 2.345; 0.0 2.345; 0.0 0.0]
-    @test b_ext ≈ [2.345 2.345; 0.0 2.345; 0.0 0.0]
+@testmodule ConditionCase begin
+    using Peridynamics
+    "A two-point body with the sets `:a` (both points) and `:b` (the second point)."
+    function two_points()
+        body = Body(BBMaterial(), [0.0 1.0; 0.0 0.0; 0.0 0.0], [1.0, 1.0])
+        material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)
+        point_set!(body, :a, 1:2)
+        point_set!(body, :b, [2])
+        return body
+    end
 end
 
-@testitem "Displacement BCs" begin
-    position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
-    volume = [1.0, 1.0]
-    body = Body(BBMaterial(), position, volume)
-    material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)
-    point_set!(body, :a, 1:2)
-    displacement_bc!(p -> 2, body, :a, :y)
+@testitem "boundary conditions: applied to the chunk" setup=[Fixtures, ConditionCase] begin
+    body = ConditionCase.two_points()
+    velocity_bc!(Fixtures.f_t, body, :a, :x)      # f(t)
+    velocity_bc!(Fixtures.f_pt, body, :a, :y)     # f(p, t)
+    forcedensity_bc!(Fixtures.f_t, body, :a, :x)
+    forcedensity_bc!(Fixtures.f_pt, body, :a, :y)
+    velocity_ic!(body, :a, :x, 1.234)
+    velocity_ic!(p -> p[1] * 3.456, body, :a, :y)
+    chunk = Fixtures.handler(body, VelocityVerlet(steps=1); init=false).chunks[1]
+    (; velocity_half, velocity, b_ext) = chunk.storage
+    # the initial conditions are applied at construction
+    @test velocity ≈ [1.234 1.234; 0.0 3.456; 0.0 0.0]
+    # the boundary conditions at a time
+    t = 2.345
+    Peridynamics.apply_boundary_conditions!(chunk, t)
+    @test velocity_half ≈ [t t; 0.0 1.0 * t; 0.0 0.0] # f_pt = p[1] * t with p[1] = 0, 1
+    @test b_ext ≈ [t t; 0.0 1.0 * t; 0.0 0.0]
+end
+
+@testitem "displacement_bc!: applied incrementally" setup=[Fixtures, ConditionCase] begin
+    body = ConditionCase.two_points()
+    displacement_bc!(Fixtures.f_p, body, :a, :y) # f(p) = 2
     ts = DynamicRelaxation(; steps=10, stepsize=1.0)
-    dh = Peridynamics.threads_data_handler(body, ts, 1)
-    chunk = dh.chunks[1]
+    chunk = Fixtures.handler(body, ts; init=false).chunks[1]
     (; displacement) = chunk.storage
-
-    @test displacement ≈ [0.0 0.0; 0.0 0.0; 0.0 0.0]
-
+    @test iszero(displacement)
+    # the prescribed displacement is reached at the end of the time, half of it at half the time
     Peridynamics.apply_incr_boundary_conditions!(chunk, 0.5)
     @test displacement ≈ [0.0 0.0; 1.0 1.0; 0.0 0.0]
-
     Peridynamics.apply_incr_boundary_conditions!(chunk, 1.0)
     @test displacement ≈ [0.0 0.0; 2.0 2.0; 0.0 0.0]
 end
 
-@testitem "Condition errors" begin
-    using Peridynamics: displacement_bc!
-
-    position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
-    volume = [1.0, 1.0]
-    body = Body(BBMaterial(), position, volume)
-    material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)
-    point_set!(body, :a, 1:2)
-    point_set!(body, :b, [2])
-
-    # conflicts with existing conditions:
-    velocity_bc!(t -> t, body, :a, :x)
-    @test_throws ArgumentError velocity_bc!(t -> 2 * t, body, :a, :x)
-    @test_throws ArgumentError velocity_bc!((p,t) -> p[1] * t, body, :a, :x)
-    @test_throws ArgumentError velocity_bc!((p,t) -> p[1] * t, body, :b, :x)
-
-    velocity_bc!((p,t) -> p[1] * t, body, :a, :y)
-    @test_throws ArgumentError velocity_bc!((p,t) -> p[2] * t, body, :a, :y)
-    @test_throws ArgumentError velocity_bc!(t -> t, body, :a, :y)
-    @test_throws ArgumentError velocity_bc!(t -> t, body, :b, :y)
-
-    forcedensity_bc!(t -> t, body, :a, :x)
-    @test_throws ArgumentError forcedensity_bc!(t -> 2 * t, body, :a, :x)
-    @test_throws ArgumentError forcedensity_bc!((p,t) -> p[1] * t, body, :a, :x)
-    @test_throws ArgumentError forcedensity_bc!((p,t) -> p[1] * t, body, :b, :x)
-
-    forcedensity_bc!((p,t) -> p[1] * t, body, :a, :y)
-    @test_throws ArgumentError forcedensity_bc!((p,t) -> p[2] * t, body, :a, :y)
-    @test_throws ArgumentError forcedensity_bc!(t -> t, body, :a, :y)
-    @test_throws ArgumentError forcedensity_bc!(t -> t, body, :b, :y)
-
-    velocity_ic!(body, :a, :x, 1.234)
-    @test_throws ArgumentError velocity_ic!(body, :a, :x, 1.234)
-    @test_throws ArgumentError velocity_ic!(p -> 3.456, body, :a, :x)
-    @test_throws ArgumentError velocity_ic!(p -> 3.456, body, :b, :x)
-
-    velocity_ic!(p -> 3.456, body, :a, :y)
-    @test_throws ArgumentError velocity_ic!(p -> 3.456, body, :a, :y)
-    @test_throws ArgumentError velocity_ic!(body, :a, :y, 1.234)
-    @test_throws ArgumentError velocity_ic!(body, :b, :y, 1.234)
-
-    displacement_bc!(p -> 2, body, :a, :y)
-    @test_throws ArgumentError displacement_bc!(p -> 3, body, :a, :y)
-    @test_throws ArgumentError displacement_bc!(p -> 3, body, :b, :y)
-
-    # Wrong condition function arguments
-    @test_throws ArgumentError velocity_bc!((a, b) -> a * b, body, :a, :z)
-    @test_throws ArgumentError velocity_bc!((k, t, u) -> k * t * u, body, :a, :z)
-    @test_throws ArgumentError forcedensity_bc!((a, b) -> a * b, body, :a, :z)
-    @test_throws ArgumentError forcedensity_bc!((k, t, u) -> k * t * u, body, :a, :z)
-    @test_throws ArgumentError velocity_ic!(k -> 3.456, body, :a, :z)
-    @test_throws ArgumentError velocity_ic!((a, b) -> 3.456, body, :a, :z)
-    @test_throws ArgumentError displacement_bc!(k -> 3.456, body, :a, :z)
-    @test_throws ArgumentError displacement_bc!((a, b) -> 1.23, body, :a, :z)
-    @test_throws ArgumentError displacement_bc!(t -> 1.23, body, :a, :z)
-    @test_throws ArgumentError displacement_bc!((p,t) -> 1.23, body, :a, :z)
-
-    # unknown symbols
-    @test_throws ArgumentError velocity_bc!(t -> 1, body, :a, :k)
-    @test_throws ArgumentError velocity_bc!(t -> 1, body, :a, 4)
+@testitem "boundary conditions: conflicts on the same points and dimension" setup=[Fixtures, ConditionCase] begin
+    F = Fixtures
+    body = ConditionCase.two_points()
+    # a second condition on the same field, set and dimension, or on an overlapping set
+    velocity_bc!(F.f_t, body, :a, :x)
+    @test_throws ArgumentError velocity_bc!(F.f_2t, body, :a, :x)
+    @test_throws ArgumentError velocity_bc!(F.f_pt, body, :a, :x)
+    @test_throws ArgumentError velocity_bc!(F.f_pt, body, :b, :x)
+    velocity_bc!(F.f_pt, body, :a, :y)
+    @test_throws ArgumentError velocity_bc!(F.f_pt2, body, :a, :y)
+    @test_throws ArgumentError velocity_bc!(F.f_t, body, :a, :y)
+    @test_throws ArgumentError velocity_bc!(F.f_t, body, :b, :y)
+    forcedensity_bc!(F.f_t, body, :a, :x)
+    @test_throws ArgumentError forcedensity_bc!(F.f_2t, body, :a, :x)
+    @test_throws ArgumentError forcedensity_bc!(F.f_pt, body, :a, :x)
+    @test_throws ArgumentError forcedensity_bc!(F.f_pt, body, :b, :x)
+    forcedensity_bc!(F.f_pt, body, :a, :y)
+    @test_throws ArgumentError forcedensity_bc!(F.f_pt2, body, :a, :y)
+    @test_throws ArgumentError forcedensity_bc!(F.f_t, body, :a, :y)
+    @test_throws ArgumentError forcedensity_bc!(F.f_t, body, :b, :y)
+    displacement_bc!(F.f_p, body, :a, :y)
+    @test_throws ArgumentError displacement_bc!(F.f_p1, body, :a, :y)
+    @test_throws ArgumentError displacement_bc!(F.f_p1, body, :b, :y)
+    # the other dimensions and the other set are free
+    velocity_bc!(F.f_t, body, :a, :z)
+    forcedensity_bc!(F.f_t, body, :a, :z)
 end
 
-@testitem "Condition errors DataBCs" begin
-    position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
-    volume = [1.0, 1.0]
-    body = Body(BBMaterial(), position, volume)
-    material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)
-    point_set!(body, :a, 1:2)
-    point_set!(body, :b, [2])
+@testitem "boundary conditions: argument checks" setup=[Fixtures, ConditionCase] begin
+    F = Fixtures
+    body = ConditionCase.two_points()
+    # the condition function must be f(t), f(p, t) or, for displacements, f(p)
+    @test_throws ArgumentError velocity_bc!(F.f_bad_ab, body, :a, :z)
+    @test_throws ArgumentError velocity_bc!(F.f_bad_ktu, body, :a, :z)
+    @test_throws ArgumentError forcedensity_bc!(F.f_bad_ab, body, :a, :z)
+    @test_throws ArgumentError forcedensity_bc!(F.f_bad_ktu, body, :a, :z)
+    @test_throws ArgumentError displacement_bc!(F.f_bad_k, body, :a, :z)
+    @test_throws ArgumentError displacement_bc!(F.f_bad_ab, body, :a, :z)
+    @test_throws ArgumentError displacement_bc!(F.f_t, body, :a, :z)
+    @test_throws ArgumentError displacement_bc!(F.f_pt, body, :a, :z)
+    # unknown dimensions
+    @test_throws ArgumentError velocity_bc!(F.f_one, body, :a, :k)
+    @test_throws ArgumentError velocity_bc!(F.f_one, body, :a, 4)
+    # unknown point set
+    @test_throws ErrorException velocity_bc!(F.f_one, body, :c, :x)
+end
 
-    # data has wrong dimensions
-    data = rand(2, 3) # not matching the number of points
-    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [1, 2])
-    data = rand(3, 2) # not matching the number of dimensions
-    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [1, 2])
+@testitem "data boundary conditions: declaration, conflicts and checks" setup=[Fixtures, ConditionCase] begin
+    F = Fixtures
+    body = ConditionCase.two_points()
+    # the data has one row per dimension and one column per point of the body
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, zeros(2, 3), :a, [1, 2])
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, zeros(3, 2), :a, [1, 2])
+    Peridynamics.velocity_databc!(body, ones(1, 2), :a, [1])
+    # conflicts with standard conditions
+    @test_throws ArgumentError velocity_bc!(F.f_2t, body, :a, :x)
+    Peridynamics.velocity_databc!(body, ones(1, 2), :a, [:y])
+    @test_throws ArgumentError velocity_bc!(F.f_t, body, :a, :y)
+    @test_throws ArgumentError velocity_bc!(F.f_t, body, :b, :y)
+    Peridynamics.forcedensity_databc!(body, ones(1, 2), :a, [:x])
+    @test_throws ArgumentError Peridynamics.forcedensity_databc!(body, 2 * ones(1, 2), :a, [:x])
+    @test_throws ArgumentError forcedensity_bc!(F.f_pt, body, :a, :x)
+    @test_throws ArgumentError forcedensity_bc!(F.f_pt, body, :b, :x)
+    Peridynamics.forcedensity_databc!(body, ones(2, 2), :a, [:y, :z])
+    for dim in (:y, :z), set in (:a, :b)
+        @test_throws ArgumentError forcedensity_bc!(F.f_t, body, set, dim)
+    end
+    # unknown and malformed dimensions
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, ones(1, 2), :a, [:k])
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, ones(1, 2), :a, [4])
+    @test_throws MethodError Peridynamics.velocity_databc!(body, ones(1, 2), :a, 3)
+    @test_throws MethodError Peridynamics.velocity_databc!(body, ones(2, 2), :a, [:x, 2])
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, ones(4, 2), :a, [1, 2, 3, 4])
+    # conflicts when the standard conditions come first
+    body = ConditionCase.two_points()
+    velocity_bc!(F.f_2t, body, :a, :x)
+    forcedensity_bc!(F.f_t, body, :a, :y)
+    @test_throws ArgumentError Peridynamics.velocity_databc!(body, ones(1, 2), :a, [1])
+    @test_throws ArgumentError Peridynamics.forcedensity_databc!(body, ones(2, 2), :a, [:y, :z])
+end
 
-    # should work for just the x-dimension
-    data = rand(1, 2)
-    Peridynamics.velocity_databc!(body, data, :a, [1])
-
-    # conflicts with existing conditions:
-    @test_throws ArgumentError velocity_bc!(t -> 2 * t, body, :a, :x)
-
-    data = rand(1, 2)
-    Peridynamics.velocity_databc!(body, data, :a, [:y])
-
-    @test_throws ArgumentError velocity_bc!(t -> t, body, :a, :y)
-    @test_throws ArgumentError velocity_bc!(t -> t, body, :b, :y)
-
-    data = rand(1, 2)
-    Peridynamics.forcedensity_databc!(body, data, :a, [:x])
-    @test_throws ArgumentError Peridynamics.forcedensity_databc!(body, 2 * data, :a, [:x])
-    @test_throws ArgumentError forcedensity_bc!((p,t) -> p[1] * t, body, :a, :x)
-    @test_throws ArgumentError forcedensity_bc!((p,t) -> p[1] * t, body, :b, :x)
-
-    data = rand(2, 2)
-    Peridynamics.forcedensity_databc!(body, data, :a, [:y, :z])
-    @test_throws ArgumentError forcedensity_bc!(t -> t, body, :a, :y)
-    @test_throws ArgumentError forcedensity_bc!(t -> t, body, :b, :y)
-    @test_throws ArgumentError forcedensity_bc!(t -> t, body, :a, :z)
-    @test_throws ArgumentError forcedensity_bc!(t -> t, body, :b, :z)
-
-    # unknown symbols
-    data = rand(1, 2)
-    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [:k])
-    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [4])
-    @test_throws MethodError Peridynamics.velocity_databc!(body, data, :a, 3)
-    data = rand(2, 2)
-    @test_throws MethodError Peridynamics.velocity_databc!(body, data, :a, [:x, 2])
-
-    # too many dimensions
-    data = rand(4, 2)
-    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [1, 2, 3, 4])
-
-    # reset the body
-    body = Body(BBMaterial(), position, volume)
-    material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)
-    point_set!(body, :a, 1:2)
-    point_set!(body, :b, [2])
-
-    # check for conflicts when standard conditions are set first
-    velocity_bc!(t -> 2 * t, body, :a, :x)
-    forcedensity_bc!(t -> t, body, :a, :y)
-    data = rand(1, 2)
-    @test_throws ArgumentError Peridynamics.velocity_databc!(body, data, :a, [1])
-    data = rand(2, 2)
-    @test_throws ArgumentError Peridynamics.forcedensity_databc!(body, data, :a, [:y, :z])
+@testitem "data boundary conditions: applied to the chunk" setup=[Fixtures, ConditionCase] begin
+    body = ConditionCase.two_points()
+    v_data = [1.0 2.0; 3.0 4.0]   # velocities in y and z per point
+    f_data = [5.0 6.0]            # force density in x per point
+    Peridynamics.velocity_databc!(body, v_data, :a, [:y, :z])
+    Peridynamics.forcedensity_databc!(body, f_data, :b, [:x]) # only point 2
+    msg = sprint(show, MIME("text/plain"), body; context=:compact => false)
+    @test contains(msg, "2 boundary condition(s):")
+    @test contains(msg, "Data BC on velocity: point_set=a, dims=UInt8[0x02, 0x03]")
+    @test contains(msg, "Data BC on force density: point_set=b, dims=UInt8[0x01]")
+    chunk = Fixtures.handler(body, VelocityVerlet(steps=1); init=false).chunks[1]
+    Peridynamics.apply_boundary_conditions!(chunk, 0.0)
+    @test chunk.storage.velocity_half ≈ [0.0 0.0; 1.0 2.0; 3.0 4.0]
+    @test chunk.storage.b_ext ≈ [0.0 6.0; 0.0 0.0; 0.0 0.0]
 end

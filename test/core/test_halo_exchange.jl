@@ -142,7 +142,7 @@ end
     @test b2.storage.bond_active == [0, 0, 1, 0, 0, 1]
     @test b2.storage.n_active_bonds == [1, 1]
 
-    randpos = rand(3, 4)
+    randpos = [0.1 0.2 0.3 0.4; 0.5 0.6 0.7 0.8; 0.9 1.0 1.1 1.2]
     dh.chunks[2].storage.position .= randpos
     Peridynamics.exchange_loc_to_halo!(dh, 1)
 
@@ -239,8 +239,8 @@ end
     dh = Peridynamics.threads_data_handler(body, ts, 2)
 
     # test data
-    randpos = rand(3, 4)
-    randbint = rand(3, 4)
+    randpos = [0.1 0.2 0.3 0.4; 0.5 0.6 0.7 0.8; 0.9 1.0 1.1 1.2]
+    randbint = [0.11 0.21 0.31 0.41; 0.12 0.22 0.32 0.42; 0.13 0.23 0.33 0.43]
     dh.chunks[2].storage.position .= randpos
     dh.chunks[2].storage.b_int .= randbint
 
@@ -264,8 +264,8 @@ end
     dh = Peridynamics.threads_data_handler(body, ts, 2)
 
     # test data
-    randbint = rand(3, 4)
-    randpos = rand(3, 4)
+    randbint = [0.11 0.21 0.31 0.41; 0.12 0.22 0.32 0.42; 0.13 0.23 0.33 0.43]
+    randpos = [0.1 0.2 0.3 0.4; 0.5 0.6 0.7 0.8; 0.9 1.0 1.1 1.2]
     dh.chunks[2].storage.b_int .= randbint
     dh.chunks[2].storage.position .= randpos
 
@@ -279,98 +279,4 @@ end
 
     @test dh.chunks[1].storage.b_int[:,1:2] ≈ randbint[:,3:4]
     @test dh.chunks[1].storage.position[:,1:2] ≈ position[:,1:2] + randpos[:,3:4]
-end
-
-@testitem "local-to-halo exchange MPI" tags=[:mpi] begin
-    mpi_cmd = """
-    using Peridynamics, Test
-    position = [0.0 1.0 0.0 0.0
-                0.0 0.0 1.0 0.0
-                0.0 0.0 0.0 1.0]
-    volume = [1.1, 1.2, 1.3, 1.4]
-    mat = CMaterial()
-    body = Body(mat, position, volume)
-    material!(body, horizon=2, rho=1, E=1, nu=0.25, Gc=1)
-    ts = VelocityVerlet(steps=10)
-    dh = Peridynamics.mpi_data_handler(body, ts)
-
-    # test data
-    randpos = [0.1 0.2 0.3 0.4
-               0.1 0.2 0.3 0.4
-               0.1 0.2 0.3 0.4]
-    randbint = [0.11 0.21 0.31 0.41
-                0.12 0.22 0.32 0.42
-                0.13 0.23 0.33 0.43]
-    rank = Peridynamics.mpi_rank()
-    if rank == 1
-        dh.chunk.storage.position .= randpos
-        dh.chunk.storage.b_int .= randbint
-    end
-
-    # exchange local-to-halo
-    Peridynamics.exchange_loc_to_halo!(dh)
-    Peridynamics.exchange_loc_to_halo!(chunk -> chunk.storage.b_int, dh)
-
-    if rank == 0
-        @test dh.chunk.storage.position[:,3:4] ≈ randpos[:,1:2]
-        @test dh.chunk.storage.b_int[:,3:4] ≈ randbint[:,1:2]
-    end
-    """
-    mpiexec = Peridynamics.MPI.mpiexec()
-    jlcmd = Base.julia_cmd()
-    pdir = pkgdir(Peridynamics)
-    cmd = `$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`
-    @test success(cmd) # does not print anything
-    # for debugging use the run command:
-    # run(cmd)
-end
-
-@testitem "halo-to-local exchange MPI" tags=[:mpi] begin
-    mpi_cmd = """
-    using Peridynamics, Test
-    position = [0.0 1.0 0.0 0.0
-                0.0 0.0 1.0 0.0
-                0.0 0.0 0.0 1.0]
-    volume = [1.1, 1.2, 1.3, 1.4]
-    mat = CMaterial()
-    body = Body(mat, position, volume)
-    material!(body, horizon=2, rho=1, E=1, nu=0.25, Gc=1)
-    ts = VelocityVerlet(steps=10)
-    dh = Peridynamics.mpi_data_handler(body, ts)
-
-    # test data
-    randpos = [0.1 0.2 0.3 0.4
-               0.1 0.2 0.3 0.4
-               0.1 0.2 0.3 0.4]
-    randbint = [0.11 0.21 0.31 0.41
-                0.12 0.22 0.32 0.42
-                0.13 0.23 0.33 0.43]
-    rank = Peridynamics.mpi_rank()
-    if rank == 1
-        dh.chunk.storage.position .= randpos
-        dh.chunk.storage.b_int .= randbint
-    end
-
-    # check that dest chunk is not modified
-    if rank == 0
-        @test iszero(dh.chunk.storage.b_int)
-        @test dh.chunk.storage.position ≈ position
-    end
-
-    # exchange local-to-halo
-    Peridynamics.exchange_halo_to_loc!(dh)
-    Peridynamics.exchange_halo_to_loc!(chunk -> chunk.storage.position, dh)
-
-    if rank == 0
-        @test dh.chunk.storage.b_int[:,1:2] ≈ randbint[:,3:4]
-        @test dh.chunk.storage.position[:,1:2] ≈ position[:,1:2] + randpos[:,3:4]
-    end
-    """
-    mpiexec = Peridynamics.MPI.mpiexec()
-    jlcmd = Base.julia_cmd()
-    pdir = pkgdir(Peridynamics)
-    cmd = `$(mpiexec) -n 2 $(jlcmd) --project=$(pdir) -e $(mpi_cmd)`
-    @test success(cmd) # does not print anything
-    # for debugging use the run command:
-    # run(cmd)
 end

@@ -1,4 +1,4 @@
-@testitem "time solver interface" begin
+@testitem "time solver interface" begin  # lint-ok: asserts that the solve! fallback throws
     struct MyCustomDataHandler <: Peridynamics.AbstractDataHandler end
     struct MyCustomTimeSolver <: Peridynamics.AbstractTimeSolver end
     struct MyCustomSystem <: Peridynamics.AbstractSystem end

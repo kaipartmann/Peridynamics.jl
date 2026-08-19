@@ -4,7 +4,7 @@
                 0.0 0.0 1.0]
     volume = fill(1.0, 3)
     body = Body(CKIMaterial(), position, volume)
-    material!(body; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1)
+    @test_logs (:warn, r"specified manually") material!(body; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1)
     pd = Peridynamics.PointDecomposition(body, 1)
 
     system = Peridynamics.InteractionSystem(body, pd, 1)
@@ -34,7 +34,7 @@
     @test system.three_ni_idxs == Vector{UnitRange{Int}}()
 
     point_set!(body, :a, 1:2)
-    material!(body, :a; horizon=1.5, rho=7e-6, E=200e3, nu=0.3, Gc=1.0, C1=1, C2=1)
+    @test_logs (:warn, r"specified manually") material!(body, :a; horizon=1.5, rho=7e-6, E=200e3, nu=0.3, Gc=1.0, C1=1, C2=1)
 
     ts = VelocityVerlet(steps=1)
     dh = Peridynamics.threads_data_handler(body, ts, 1)
@@ -48,7 +48,7 @@ end
                 0.0 0.0 1.0 0.0]
     volume = fill(1.0, 4)
     body = Body(CKIMaterial(), position, volume)
-    material!(body; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C3=1)
+    @test_logs (:warn, r"specified manually") material!(body; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C3=1)
     pd = Peridynamics.PointDecomposition(body, 1)
 
     system = Peridynamics.InteractionSystem(body, pd, 1)
@@ -86,7 +86,7 @@ end
     @test system.three_ni_idxs == [1:1, 2:2, 3:3, 4:4]
 
     point_set!(body, :a, 1:2)
-    material!(body, :a; horizon=1.5, rho=7e-6, E=200e3, nu=0.3, Gc=1.0, C1=1, C3=1)
+    @test_logs (:warn, r"specified manually") material!(body, :a; horizon=1.5, rho=7e-6, E=200e3, nu=0.3, Gc=1.0, C1=1, C3=1)
 
     ts = VelocityVerlet(steps=1)
     dh = Peridynamics.threads_data_handler(body, ts, 1)
@@ -100,7 +100,7 @@ end
                 0.0 0.0 0.0 1.0 2.0]
     volume = fill(1.0, 5)
     body = Body(CKIMaterial(), position, volume)
-    material!(body; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1, C3=1)
+    @test_logs (:warn, r"specified manually") material!(body; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1, C3=1)
     pd = Peridynamics.PointDecomposition(body, 1)
 
     system = Peridynamics.InteractionSystem(body, pd, 1)
@@ -150,7 +150,7 @@ end
                 0.0 0.0 0.0 1.0 2.0]
     volume = fill(1.0, 5)
     body = Body(CKIMaterial(), position, volume)
-    material!(body; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1, C3=1)
+    @test_logs (:warn, r"specified manually") material!(body; horizon=1.5, rho=8e-6, E=210e3, nu=0.3, Gc=1.0, C1=1, C2=1, C3=1)
 
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     is = dh.chunks[1].system
@@ -202,4 +202,29 @@ end
     pos, vol = uniform_box(1, 0.25, 0.25, 0.25)
     body = Body(BBMaterial(), pos, vol)
     @test_throws ArgumentError Peridynamics.check_interaction_system_compat(body.mat)
+end
+
+@testitem "interaction counts of a uniform cube" setup=[Fixtures] begin
+    # The one-, two- and three-neighbor interactions of a 4³ cube with a horizon of 2.015 Δx.
+    # The counts are regression values: every point has the same family as in a bond system
+    # (1128 one-neighbor interactions in total), and the pairs and triplets are built from those
+    # families by `find_two_nis` and `find_three_nis`; a change here means the family or the
+    # pair/triplet search changed. The interaction parameters are explicit, because with
+    # `nu = 0.25` no triplets would be built at all (see `Fixtures.cki_kwargs`).
+    Δx = 0.25
+    pos, vol = uniform_box(1, 1, 1, Δx)
+    body = Body(CKIMaterial(), pos, vol)
+    @test_logs (:warn, r"specified manually") material!(body; horizon=2.015Δx, rho=7850,
+                                                          E=210e9, nu=0.25,
+                                                          Fixtures.cki_kwargs()...)
+    pd = Peridynamics.PointDecomposition(body, 1)
+    system = Peridynamics.get_system(body, pd, 1)
+    @test n_points(body) == 64
+    @test length(system.one_nis) == 1128
+    @test length(system.two_nis) == 5400
+    @test length(system.three_nis) == 9144
+    # every interaction count is consistent with the per-point bookkeeping
+    @test sum(system.n_one_nis) == length(system.one_nis)
+    @test sum(system.n_two_nis) == length(system.two_nis)
+    @test sum(system.n_three_nis) == length(system.three_nis)
 end

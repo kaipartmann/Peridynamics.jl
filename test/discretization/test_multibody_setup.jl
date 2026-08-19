@@ -1,7 +1,7 @@
-@testitem "MultibodySetup" begin
-    b1 = Body(BBMaterial(), rand(3,10), rand(10))
-    b2 = Body(BBMaterial(), rand(3,10), rand(10))
-    b3 = Body(OSBMaterial(), rand(3,10), rand(10))
+@testitem "MultibodySetup" setup=[Fixtures] begin
+    b1 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
+    b2 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
+    b3 = Body(OSBMaterial(), Fixtures.line_position(10), ones(10))
 
     ms = MultibodySetup(:a => b1, :b => b2)
 
@@ -23,11 +23,11 @@
     @test_throws ArgumentError MultibodySetup(:a => b1)
 end
 
-@testitem "contact!" begin
+@testitem "contact!" setup=[Fixtures] begin
     using Peridynamics.PointNeighbors
 
-    b1 = Body(BBMaterial(), rand(3,10), rand(10))
-    b2 = Body(BBMaterial(), rand(3,10), rand(10))
+    b1 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
+    b2 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
     ms = MultibodySetup(:body1 => b1, :body2 => b2)
 
     nhs = GridNeighborhoodSearch{3}(search_radius=1, n_points=10)
@@ -59,13 +59,13 @@ end
     @test_throws ArgumentError contact!(ms, :body1, :b; radius=1)
 end
 
-@testitem "show MultibodySetup" begin
+@testitem "show MultibodySetup" setup=[Fixtures] begin
     io = IOBuffer()
 
-    b1 = Body(BBMaterial(), rand(3,10), rand(10))
+    b1 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
     material!(b1, horizon=1, E=1, rho=1, Gc=1)
     velocity_ic!(b1, :all_points, :x, 1.0)
-    b2 = Body(OSBMaterial(), rand(3,5), rand(5))
+    b2 = Body(OSBMaterial(), Fixtures.line_position(5), ones(5))
     material!(b2, horizon=1, E=1, nu=0.25, rho=1, Gc=1)
     ms = MultibodySetup(:a => b1, :b => b2)
 

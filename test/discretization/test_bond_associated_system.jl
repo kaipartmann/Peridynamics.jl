@@ -79,7 +79,10 @@ end
     # A homogeneous deformation makes every `P_b` the same `P`, and the force state then gives
     # `Σ_j T_ij ⊗ ΔX_ij V_j = P Σ_b w_b`. So the weights have to sum to one and the operator
     # applied to `P` has to be the identity, also at the surface with incomplete families.
-    for (npyz, m, bond_horizon) in ((6, 3.015, nothing), (6, 2.015, nothing),
+    # the identities are exact per point and hold at any resolution, so the bodies are small;
+    # the third case keeps five points per edge so that the bond horizon gives non-trivial
+    # intersections
+    for (npyz, m, bond_horizon) in ((4, 3.015, nothing), (4, 2.015, nothing),
                                     (5, 3.015, 3.015 / 5 * 1.5))
         Δx = 1.0 / npyz
         δ = m * Δx
@@ -136,7 +139,7 @@ end
     # The force state has to be `-∂/∂x_k Σ_i V_i W_i` with `W_i = Σ_b w_b W(F_b)`, otherwise no
     # energy is conserved. Compares the force density against a central difference of the energy,
     # so this covers the force loop and not only the weights.
-    npyz = 5
+    npyz = 4
     Δx = 1.0 / npyz
     pos, vol = uniform_box(1, 1, 1, Δx)
     mat = BACMaterial()
@@ -200,7 +203,7 @@ end
                   numerical = -(Ep - Em) / (2h) / system.volume[i]
                   abs(numerical - b_int[d, i]) / scale
               end
-              for i in (1, 13, 63, 64, 125), d in 1:3]
+              for i in (1, 22, 43, 64), d in 1:3] # two corners, two interior points
     @test maximum(errors) < 1e-6
 end
 

@@ -1,3 +1,6 @@
+# `RKCMaterial`: the reproducing kernel correspondence formulation of
+# `src/physics/rk_correspondence.jl`.
+
 @testitem "damage changed flag" begin
     pos, vol = uniform_box(1, 1, 1, 0.4)
     body = Body(RKCMaterial(kernel=cubic_b_spline_kernel_norm), pos, vol)
@@ -67,40 +70,6 @@ end
     @test_throws ArgumentError RKCMaterial(beta = -0.5)
 end
 
-@testitem "RKCRMaterial initialization" begin
-    # Test default constructor
-    mat1 = RKCRMaterial()
-    @test mat1.kernel == const_one_kernel
-    @test mat1.constitutive_model isa SaintVenantKirchhoff
-    @test mat1.dmgmodel isa CriticalStretch
-    @test mat1.monomial == :C1
-    @test mat1.lambda == 0
-    @test mat1.beta ≈ sqrt(eps())
-
-    # Test constructor with parameters (only linear elastic models are supported)
-    mat2 = RKCRMaterial(
-        kernel = linear_kernel,
-        model = LinearElastic(),
-        dmgmodel = CriticalStretch(),
-        monomial = :C1,
-        lambda = 0,
-        beta = 1e-10,
-    )
-    @test mat2.kernel == linear_kernel
-    @test mat2.constitutive_model isa LinearElastic
-    @test mat2.dmgmodel isa CriticalStretch
-    @test mat2.monomial == :C1
-    @test mat2.lambda == 0
-    @test mat2.beta == 1e-10
-
-    # Test failure with non-LinearElastic model
-    @test_throws ArgumentError RKCRMaterial(model = NeoHooke())
-
-    # Test constructor with invalid lambda/beta
-    @test_throws ArgumentError RKCRMaterial(lambda = -0.5)
-    @test_throws ArgumentError RKCRMaterial(beta = -0.5)
-end
-
 @testitem "gradient weights calculation" begin
     using Peridynamics.LinearAlgebra
 
@@ -130,183 +99,29 @@ end
     @test weighted_volume[1] > 0
 end
 
-@testitem "deformation gradient calculation for RKCMaterial" begin
+@testitem "RKCMaterial: deformation gradient of a homogeneous deformation" begin
+    # the reproducing kernel gradient reproduces the identity and a homogeneous stretch
+    # exactly, for every point of a small cube in which every point sees every other point
     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
-
-    pos, vol = uniform_box(1, 1, 1, 0.1)
+    pos, vol = uniform_box(1, 1, 1, 0.25)
     body = Body(RKCMaterial(kernel=cubic_b_spline_kernel_norm), pos, vol)
-    material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
-
+    material!(body; horizon=0.76, rho=1, E=210e9, nu=0.25, Gc=1.0)
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
-    chunk = dh.chunks[1]
-    (; storage, system, paramsetup, mat) = chunk
-    (; position, displacement, defgrad) = storage
-
-    # No displacement, should be identity matrix
+    (; storage) = dh.chunks[1]
+    (; position, defgrad) = storage
+    # no displacement: the identity
     Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-
-    for i in 1:64
-        F = Peridynamics.get_tensor(defgrad, i)
-        @test F ≈ [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0] atol=1e-12
-    end
-
-    # Apply small uniform stretch in x-direction
-    F_a = @SMatrix [1.00001 0.0 0.0
-                    0.0 1.0 0.0
-                    0.0 0.0 1.0]
+    @test all(isapprox(Peridynamics.get_tensor(defgrad, i), I; atol=1e-12) for i in eachindex(vol))
+    # a small uniform stretch in x
+    F_a = @SMatrix [1.00001 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     for i in eachindex(vol)
-        position[:,i] = F_a * position[:,i]
+        position[:, i] = F_a * position[:, i]
     end
-
     Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-
-    # Check that deformation gradient captures the stretch
-    for i in eachindex(vol)
-        F = Peridynamics.get_tensor(defgrad, i)
-        @test F ≈ F_a atol=1e-5
-    end
+    @test all(isapprox(Peridynamics.get_tensor(defgrad, i), F_a; atol=1e-5) for i in eachindex(vol))
 end
 
-@testitem "deformation gradient calculation for RKCRMaterial" begin
-    using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
-
-    pos, vol = uniform_box(1, 1, 1, 0.1)
-    body = Body(RKCRMaterial(), pos, vol)
-    material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
-
-    dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
-    chunk = dh.chunks[1]
-    (; storage, system, paramsetup, mat) = chunk
-    (; position, displacement, defgrad, defgrad_dot, velocity_half) = storage
-
-    # No displacement, should be identity matrix
-    Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-
-    for i in eachindex(vol)
-        F = Peridynamics.get_tensor(defgrad, i)
-        @test F ≈ [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0] atol=1e-12
-    end
-
-    # Apply small uniform stretch in x-direction
-    F_a = @SMatrix [1.00001 0.0 0.0
-                    0.0 1.0 0.0
-                    0.0 0.0 1.0]
-    for i in eachindex(vol)
-        X = Peridynamics.get_vector(position, i)
-        X_new = F_a * X
-        Peridynamics.update_vector!(position, i, X_new)
-    end
-
-    Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-
-    # Check that deformation gradient captures the stretch
-    for i in eachindex(vol)
-        F = Peridynamics.get_tensor(defgrad, i)
-        @test F ≈ F_a atol=1e-5
-    end
-
-    # Add a velocity field to check defgrad_dot
-    velocity_half .= 0.0
-    for i in eachindex(vol)
-        velocity_half[1,i] = position[1,i] * 0.1
-    end
-
-    # Recalculate with velocity
-    Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-
-    # Check that defgrad_dot is calculated correctly
-    for i in eachindex(vol)
-        F_dot = Peridynamics.get_tensor(defgrad_dot, i)
-        @test F_dot[1,1] > 0  # Should have positive rate in x direction
-        @test abs(F_dot[2,2]) < 1e-14
-        @test abs(F_dot[3,3]) < 1e-14
-    end
 end
-
-# @testitem "stress calculation RKCMaterial" begin
-#     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
-
-#     pos, vol = uniform_box(1, 1, 1, 0.1)
-#     body = Body(RKCMaterial(), pos, vol)
-#     material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
-
-#     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
-#     chunk = dh.chunks[1]
-#     (; storage, system, paramsetup, mat) = chunk
-#     # (; position, displacement, defgrad, defgrad_dot, velocity_half, stress) = storage
-#     (; position, displacement, defgrad, velocity_half, stress) = storage
-#     (; first_piola_kirchhoff) = storage
-
-#     # Apply small uniform stretch in x-direction
-#     F_a = @SMatrix [1.00001 0.0 0.0
-#                     0.0 1.0 0.0
-#                     0.0 0.0 1.0]
-#     for i in eachindex(vol)
-#         X = Peridynamics.get_vector(position, i)
-#         X_new = F_a * X
-#         Peridynamics.update_vector!(position, i, X_new)
-#     end
-
-#     # Calculate force density (which calculates stress)
-#     Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-
-#     # Check stress tensor
-#     for i in 1:8
-#         σ = Peridynamics.get_tensor(first_piola_kirchhoff, i)
-#         # For small strain, stress should primarily be in xx component
-#         @test σ[1,1] > 0  # Positive stress in x direction
-#         @test abs(σ[2,3]) < 1e-10  # No shear in yz
-#         @test abs(σ[1,3]) < 1e-10  # No shear in xz
-#         @test abs(σ[1,2]) < 1e-10  # No shear in xy
-#     end
-# end
-
-# @testitem "stress calculation RKCRMaterial with rotation" begin
-#     using Peridynamics.LinearAlgebra
-
-#     pos, vol = uniform_box(1, 1, 1, 0.4)
-#     body = Body(RKCRMaterial(), pos, vol)
-#     material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, Gc=1.0)
-
-#     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
-#     chunk = dh.chunks[1]
-#     (; defgrad, position, displacement, rotation, left_stretch, bond_stress) = chunk.storage
-
-#     # Apply both stretch and rotation
-#     stretch_factor = 1.001
-#     theta = π/60  # Small rotation angle
-
-#     for i in 1:8
-#         x, y = position[1,i], position[2,i]
-#         # Apply rotation + stretch
-#         x_new = (cos(theta) * x - sin(theta) * y) * stretch_factor
-#         y_new = (sin(theta) * x + cos(theta) * y)
-
-#         displacement[:,i] = [x_new - x, y_new - y, 0.0]
-#         position[:,i] += displacement[:,i]
-#     end
-
-#     # Calculate force density (which calculates stress)
-#     Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-
-#     # Check rotation matrix and left stretch for at least one bond
-#     bond_id = 1
-#     R = Peridynamics.get_tensor(rotation, bond_id)
-#     V = Peridynamics.get_tensor(left_stretch, bond_id)
-
-#     # The determinant of R should be close to 1
-#     @test abs(det(R) - 1.0) < 1e-10
-
-#     # R should be orthogonal (R * R' = I)
-#     @test R * transpose(R) ≈ I atol=1e-10
-
-#     # V should be symmetric
-#     @test V ≈ transpose(V) atol=1e-10
-
-#     # Check bond stress
-#     σ = Peridynamics.get_tensor(bond_stress, bond_id)
-#     @test σ[1,1] > 0  # Positive stress in x due to stretch
-# end
 
 @testitem "damage model integration with RKCMaterial" begin
     pos, vol = uniform_box(1, 1, 1, 0.4)
@@ -460,46 +275,3 @@ end
     end
 end
 
-# @testitem "Affected points RKCMaterial NewtonKrylov" begin
-#     position = [0.0 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0
-#                 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
-#                 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
-#     volume = [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
-#     body = Body(RKCMaterial(), position, volume)
-#     material!(body; horizon=1.1, rho=1, E=210e9, nu=0.25)
-#     ts = NewtonKrylov(steps=1)
-#     dh = Peridynamics.threads_data_handler(body, ts, 1)
-#     chunk = dh.chunks[1]
-#     (; storage, system) = chunk
-#     (; affected_points) = storage
-
-#     @test Peridynamics.get_affected_points(system, 1) == [1, 2]
-#     @test affected_points[1] == [1, 2, 3] # one layer of neighbors more
-
-#     @test Peridynamics.get_affected_points(system, 2) == [1, 2, 3]
-#     @test affected_points[2] == [1, 2, 3, 4]
-
-#     @test Peridynamics.get_affected_points(system, 3) == [2, 3, 4]
-#     @test affected_points[3] == [1, 2, 3, 4, 5]
-
-#     @test Peridynamics.get_affected_points(system, 4) == [3, 4, 5]
-#     @test affected_points[4] == [2, 3, 4, 5, 6]
-
-#     @test Peridynamics.get_affected_points(system, 5) == [4, 5, 6]
-#     @test affected_points[5] == [3, 4, 5, 6, 7]
-
-#     @test Peridynamics.get_affected_points(system, 6) == [5, 6, 7]
-#     @test affected_points[6] == [4, 5, 6, 7, 8]
-
-#     @test Peridynamics.get_affected_points(system, 7) == [6, 7, 8]
-#     @test affected_points[7] == [5, 6, 7, 8, 9]
-
-#     @test Peridynamics.get_affected_points(system, 8) == [7, 8, 9]
-#     @test affected_points[8] == [6, 7, 8, 9, 10]
-
-#     @test Peridynamics.get_affected_points(system, 9) == [8, 9, 10]
-#     @test affected_points[9] == [7, 8, 9, 10]
-
-#     @test Peridynamics.get_affected_points(system, 10) == [9, 10]
-#     @test affected_points[10] == [8, 9, 10]
-# end
