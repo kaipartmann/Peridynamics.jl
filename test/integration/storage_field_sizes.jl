@@ -705,6 +705,7 @@ end
     @test size(s.stress) == (9, n_loc_points)
     @test length(s.von_mises_stress) == n_loc_points
     @test length(s.bond_active) == n_bonds
+    @test size(s.bond_stress) == (9, maximum(system.n_neighbors))
 
     # Test with DynamicRelaxation
     solver = DynamicRelaxation(steps=1)
@@ -725,6 +726,7 @@ end
     @test size(s.stress) == (9, n_loc_points)
     @test length(s.von_mises_stress) == n_loc_points
     @test length(s.bond_active) == n_bonds
+    @test size(s.bond_stress) == (9, maximum(system.n_neighbors))
 
     # Test with NewtonKrylov
     solver = Peridynamics.NewtonKrylov(steps=1)
@@ -745,6 +747,7 @@ end
     @test size(s.stress) == (9, n_loc_points)
     @test length(s.von_mises_stress) == n_loc_points
     @test length(s.bond_active) == n_bonds
+    @test size(s.bond_stress) == (9, maximum(system.n_neighbors))
     @test length(s.residual) == n_loc_dof
     @test size(s.displacement_copy) == (3, n_loc_points)
     @test size(s.b_int_copy) == (3, n_points)
