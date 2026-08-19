@@ -238,15 +238,16 @@ function check_pos_and_vol(n_points::Int, position::AbstractMatrix, volume::Abst
 end
 
 """
-    pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
-    pre_submission_check(ms::AbstractMultibodySetup)
+    pre_submission_check(body::Body, time_solver; body_in_multibody_setup::Bool=false)
+    pre_submission_check(ms::AbstractMultibodySetup, time_solver)
 
 $(internal_api_warning())
 
 Check if necessary material parameters and conditions are defined when defining a
-[`Job`](@ref).
+[`Job`](@ref), and if every condition of the body can be applied by `time_solver`.
 """
-function pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
+function pre_submission_check(body::Body, time_solver::AbstractTimeSolver;
+                              body_in_multibody_setup::Bool=false)
     # the body should have material properties
     if isempty(body.point_params)
         msg = "no material parameters found!\n"
@@ -270,6 +271,32 @@ function pre_submission_check(body::Body; body_in_multibody_setup::Bool=false)
             msg *= "the simulation!\n"
             error(msg)
         end
+    end
+    check_conditions_applicable(body, time_solver)
+    return nothing
+end
+
+"""
+    check_conditions_applicable(body::Body, time_solver)
+
+$(internal_api_warning())
+
+Check that every condition of `body` is one that `time_solver` actually applies.
+
+Prescribed displacement conditions are applied by `apply_incr_boundary_conditions!`, which only
+the [`NewtonKrylov`](@ref) solver calls. With any other solver the simulation would run to
+completion with none of the prescribed displacement applied.
+"""
+function check_conditions_applicable(body::Body, time_solver::AbstractTimeSolver)
+    if !isempty(body.pos_single_dim_bcs) && !(time_solver isa NewtonKrylov)
+        msg = "conditions of this body cannot be applied by the specified time solver!\n"
+        msg *= "The body has $(length(body.pos_single_dim_bcs)) prescribed displacement "
+        msg *= "condition(s) defined with\n`displacement_bc!`. These are only applied by the "
+        msg *= "`NewtonKrylov` solver, but the job uses\na `$(nameof(typeof(time_solver)))` "
+        msg *= "solver, which would ignore them completely.\n"
+        msg *= "Use a `NewtonKrylov` solver, or specify the load with `velocity_bc!` or\n"
+        msg *= "`forcedensity_bc!` instead.\n"
+        throw(ArgumentError(msg))
     end
     return nothing
 end

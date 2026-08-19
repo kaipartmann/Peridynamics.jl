@@ -49,6 +49,7 @@ Peridynamics.set_failure_permissions!
 Peridynamics.has_fracture
 Peridynamics.check_pos_and_vol
 Peridynamics.pre_submission_check
+Peridynamics.check_conditions_applicable
 Peridynamics.get_paramsetup
 Peridynamics.get_params
 Peridynamics.check_if_sets_intersect
