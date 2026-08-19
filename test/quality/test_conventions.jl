@@ -134,7 +134,7 @@ end
 @testitem "conventions: per-commit simulations are the intended ones" tags=[:lint] setup=[Conventions] begin
     # The `:simulation` items that run on every commit. Adding a full simulation to CI means
     # editing this list, which is visible in review. Everything else with a time loop is
-    # `:skipci` (verification) or `:mpi` (extras job).
+    # `:skipci` (verification) or `:mpi` (mpi job).
     allowed = Set([
         "NewtonKrylov throw maxiter",
         "Study: with a MultibodySetup",

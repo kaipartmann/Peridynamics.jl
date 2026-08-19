@@ -140,10 +140,14 @@ end
 
 @testitem "symmetry: NewtonKrylov" tags=[:simulation] setup=[Fixtures, SymmetryCase] begin
     # the Newton-Krylov solve is compiled per material and is the expensive part; per commit
-    # the bond-based and the correspondence material run here, the others in the `extras` job
+    # the bond-based and the correspondence material run here, the ones with a system of their
+    # own in the `extras` job
     SymmetryCase.newton_krylov(filter(p -> first(p) in ("BB", "C"), Fixtures.CORE_MATERIALS))
 end
 
 @testitem "symmetry: NewtonKrylov, other materials" tags=[:simulation, :slow] setup=[Fixtures, SymmetryCase] begin
-    SymmetryCase.newton_krylov(filter(p -> !(first(p) in ("BB", "C")), Fixtures.MATERIALS))
+    # The solver itself is material-agnostic and the force densities are covered by the
+    # VelocityVerlet items, so only the materials with a system of their own run here: the
+    # bond-associated (BAC), the interaction (CKI) and the gradient-weight (RKC) system.
+    SymmetryCase.newton_krylov(filter(p -> first(p) in ("BAC", "CKI", "RKC-C1"), Fixtures.MATERIALS))
 end

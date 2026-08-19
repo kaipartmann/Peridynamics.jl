@@ -58,14 +58,6 @@ function relaxation_case(mat; kwargs...)
     return body, DynamicRelaxation(steps=200, damping_factor=0.05), 200
 end
 
-"A `NewtonKrylov` pull-apart, 5 load steps, exported at the end (2 files)."
-function newton_case(mat; kwargs...)
-    body = comparison_body(mat, 100.0; E=2.1e5, rho=8e-6, kwargs...)
-    forcedensity_bc!(p -> -1e3, body, :set_bottom, :y)
-    forcedensity_bc!(p -> 1e3, body, :set_top, :y)
-    return body, NewtonKrylov(steps=5, stepsize=1.0, maxiter=200, tol=1e-3), 5
-end
-
 """
 Name => (case builder, number of exported files, comparison tolerance). Every material that has
 an MPI-relevant code path of its own (corrections, gradient weights, bond-associated families)
@@ -74,9 +66,9 @@ is here. `nothing` as tolerance means the results must agree to `≈`.
 const COMPARISON_CASES = [
     "BB VelocityVerlet" => (() -> dynamic_case(BBMaterial()), 3, nothing),
     "BB DynamicRelaxation" => (() -> relaxation_case(BBMaterial()), 2, nothing),
-    # The Newton-Krylov comparison is loose on purpose, see
-    # https://github.com/kaipartmann/Peridynamics.jl/issues/187
-    "BB NewtonKrylov" => (() -> newton_case(BBMaterial()), 2, 0.03),
+    # No NewtonKrylov case: the solver runs on a single chunk under MPI as well, so there is
+    # no decomposition to compare (and the comparison would have to be loose, see
+    # https://github.com/kaipartmann/Peridynamics.jl/issues/187).
     "BB-ESC VelocityVerlet" => (() -> dynamic_case(BBMaterial{EnergySurfaceCorrection}()), 3,
                                 nothing),
     "OSB VelocityVerlet" => (() -> dynamic_case(OSBMaterial(); nu=0.25), 3, nothing),

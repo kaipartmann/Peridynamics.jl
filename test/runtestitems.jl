@@ -12,7 +12,7 @@
 #
 # TAGS used in this suite (see test/runtests.jl for what CI runs):
 #   simulation    the item runs a time solver; `tag:simulation` lists every simulation
-#   mpi           the item spawns `mpiexec`; runs in the `extras` CI job
+#   mpi           the item spawns `mpiexec`; runs in the `mpi` CI job
 #   perf          allocation and type-stability checks; `extras` CI job
 #   lint          Aqua and the suite convention guards; `extras` CI job
 #   slow          heavy but valuable items moved to the `extras` CI job
