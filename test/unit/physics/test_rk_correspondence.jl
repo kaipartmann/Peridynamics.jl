@@ -275,3 +275,9 @@ end
     end
 end
 
+
+@testitem "RKCMaterial: show" begin
+    @test contains(sprint(show, RKCMaterial()), "RKCMaterial")
+    @test contains(sprint(show, RKCMaterial(monomial=:RK1)), "RKCMaterial")
+    @test contains(sprint(show, MIME("text/plain"), RKCMaterial()), "RKCMaterial")
+end

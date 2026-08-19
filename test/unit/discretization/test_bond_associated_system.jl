@@ -223,3 +223,8 @@ end
     body = Body(BBMaterial(), pos, vol)
     @test_throws ArgumentError Peridynamics.check_bond_associated_system_compat(body.mat)
 end
+
+@testitem "bond-associated required parameters" begin
+    params = Peridynamics.required_point_parameters(BACMaterial)
+    @test :δ in params && :δb in params && :rho in params && :E in params
+end

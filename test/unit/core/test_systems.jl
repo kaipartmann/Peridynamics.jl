@@ -271,3 +271,17 @@ end
     @test Peridynamics.get_point(system, 30) == 10
     @test Peridynamics.get_dim(system, 30) == 3
 end
+
+@testitem "system interface: fallbacks and forwarding to the chunk handler" setup=[Fixtures] begin
+    struct NoSystemMaterial <: Peridynamics.AbstractMaterial end
+    @test_throws Peridynamics.InterfaceError Peridynamics.system_type(NoSystemMaterial())
+
+    c = Fixtures.chunk(Fixtures.line10(); n_chunks=2, chunk_id=1)
+    system, ch = c.system, c.system.chunk_handler
+    @test Peridynamics.get_halo_points(system) == Peridynamics.get_halo_points(ch)
+    a = reshape(collect(1.0:3 * Peridynamics.get_n_points(system)), 3, :)
+    @test Peridynamics.get_loc_view(a, system) == Peridynamics.get_loc_view(a, ch)
+    @test vec(collect(Peridynamics.each_dof(system, [1, 3]))) ==
+          vec(collect(Peridynamics.each_dof(3, [1, 3])))
+    @test vec(collect(Peridynamics.each_dof(system, [2]))) == [4, 5, 6]
+end

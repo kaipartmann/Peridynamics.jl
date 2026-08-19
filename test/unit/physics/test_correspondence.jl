@@ -98,3 +98,9 @@ end
     σvm = Peridynamics.export_field(Val(:von_mises_stress), mat, system, storage, paramsetup, 0.0)
     @test all(σvm .≈ 300.0)
 end
+
+@testitem "CMaterial: show" begin
+    @test contains(sprint(show, CMaterial()), "CMaterial")
+    @test contains(sprint(show, CMaterial(maxdmg=0.5)), "maxdmg=0.5")
+    @test contains(sprint(show, MIME("text/plain"), CMaterial()), "CMaterial")
+end

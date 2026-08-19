@@ -37,3 +37,8 @@ end
     argnames = Peridynamics.get_argument_names_of_function(func_method)
     @test argnames == Vector{Symbol}()
 end
+
+@testitem "check_kwargs" begin
+    @test Peridynamics.check_kwargs(Dict{Symbol,Any}(:a => 1), (:a, :b)) === nothing
+    @test_throws ArgumentError Peridynamics.check_kwargs(Dict{Symbol,Any}(:c => 1), (:a, :b))
+end

@@ -60,3 +60,21 @@ end
     # reset to the value as before
     Peridynamics.MPI_RUN[] = mpi_run_current_value
 end
+
+@testitem "show: single-body Job and JobOptions" setup=[Fixtures] begin
+    body = Fixtures.line10()
+    velocity_bc!(Fixtures.f_one, body, :all_points, :x)
+    job = Job(body, VelocityVerlet(steps=1); path=mktempdir(), freq=1, fields=(:damage,))
+    msg = sprint(show, job)
+    @test contains(msg, "10-point Job with") && contains(msg, "VelocityVerlet solver")
+    @test !contains(msg, "multibody")
+
+    (; options) = job
+    msg = sprint(show, options)
+    @test contains(msg, "export_allowed=true") && contains(msg, "freq=1")
+    msg = sprint(show, MIME("text/plain"), options)
+    @test startswith(msg, "Job options:")
+    @test contains(msg, "root") && contains(msg, "damage")
+    msg = sprint(show, MIME("text/plain"), options; context=:compact => true)
+    @test contains(msg, "export_allowed=true") && !contains(msg, "Job options:")
+end

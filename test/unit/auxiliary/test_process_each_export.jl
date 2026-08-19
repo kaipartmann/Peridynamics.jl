@@ -204,3 +204,9 @@ end
     @test basename.(vtk_files) == ["_1.pvtu", "timestep_02.pvtu",
                                    "abcd_timestep_000005.pvtu", "timestep_123.pvtu"]
 end
+
+@testitem "check_process_function: the processing function takes three arguments" begin
+    @test Peridynamics.check_process_function((r0, r, id) -> nothing) === nothing
+    @test_throws ArgumentError Peridynamics.check_process_function((r0, r) -> nothing)
+    @test_throws ArgumentError Peridynamics.check_process_function(r -> nothing)
+end

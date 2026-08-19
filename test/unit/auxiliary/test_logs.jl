@@ -513,3 +513,16 @@ end
     msg_brackets = Peridynamics.msg_fields_in_brackets(data)
     @test msg_brackets == "(" * msg_inline * ")"
 end
+
+@testitem "msg_path and msg_vec: a description wider than the line" begin
+    # nothing of the value fits on the first line: the value starts on the continuation line
+    descr = "d"^(Peridynamics.default_linewidth() - 2)
+    msg = Peridynamics.msg_path(descr, "/a/b/c")
+    @test startswith(msg, "  " * descr)
+    @test contains(msg, "/a/b/c")
+    @test count('\n', msg) == 2
+    msg = Peridynamics.msg_vec(descr, [1, 2, 3])
+    @test startswith(msg, "  " * descr)
+    @test contains(msg, "[1, 2, 3]")
+    @test count('\n', msg) == 2
+end

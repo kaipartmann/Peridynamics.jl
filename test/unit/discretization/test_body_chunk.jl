@@ -231,3 +231,20 @@ end
         end
     end
 end
+
+@testitem "BodyChunk: forwards the system and condition handler accessors" setup=[Fixtures] begin
+    body = Fixtures.line10()
+    velocity_bc!(Fixtures.f_one, body, :all_points, :x)
+    c = Fixtures.chunk(body; n_chunks=2, chunk_id=2)
+    system, condhandler = c.system, c.condhandler
+    for f in (Peridynamics.each_point_idx, Peridynamics.each_point_idx_pair,
+              Peridynamics.each_dof_idx, Peridynamics.each_loc_dof_idx, Peridynamics.each_dof,
+              Peridynamics.each_loc_dof, Peridynamics.each_dim, Peridynamics.get_n_loc_points,
+              Peridynamics.get_n_points, Peridynamics.get_n_dof, Peridynamics.get_n_loc_dof,
+              Peridynamics.get_n_dim)
+        @test collect(f(c)) == collect(f(system))
+    end
+    @test Peridynamics.free_dofs(c) == Peridynamics.free_dofs(condhandler)
+    @test Peridynamics.constrained_dofs(c) == Peridynamics.constrained_dofs(condhandler)
+    @test Peridynamics.initialize!(c) === nothing
+end

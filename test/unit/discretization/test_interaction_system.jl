@@ -228,3 +228,34 @@ end
     @test sum(system.n_two_nis) == length(system.two_nis)
     @test sum(system.n_three_nis) == length(system.three_nis)
 end
+
+@testitem "InteractionSystem: a precrack breaks the one-neighbor interactions" setup=[Fixtures] begin
+    body = Fixtures.cube(CKIMaterial(); n=4, m=2.015)
+    point_set!(p -> p[1] < 0, body, :left)
+    point_set!(p -> p[1] >= 0, body, :right)
+    precrack!(body, :left, :right)
+    c = Fixtures.chunk(body)
+    (; storage, system) = c
+    @test all(storage.one_ni_active)
+    Peridynamics.apply_precracks!(c, body)
+    left, right = body.point_sets[:left], body.point_sets[:right]
+    crossing = [(i in left) != (system.one_nis[bid].neighbor in left)
+                for i in Peridynamics.each_point_idx(system)
+                for bid in Peridynamics.each_one_ni_idx(system, i)]
+    @test any(crossing)
+    @test storage.one_ni_active == .!crossing
+    # the active counts are consistent with the flags, and the damage sees the precrack
+    n_active = [count(storage.one_ni_active[Peridynamics.each_one_ni_idx(system, i)])
+                for i in Peridynamics.each_point_idx(system)]
+    @test storage.n_active_one_nis == n_active
+    @test Peridynamics.one_ni_failure(storage, findfirst(crossing)) == false
+end
+
+@testitem "InteractionSystem: required parameters and log message" begin
+    params = Peridynamics.required_point_parameters(CKIMaterial)
+    @test :δ in params && :rho in params && :C1 in params && :C2 in params && :C3 in params
+    msg = Peridynamics.log_msg_interaction_system(11, 22, 33)
+    @test contains(msg, "one-neighbor-interactions") && contains(msg, "11")
+    @test contains(msg, "two-neighbor-interactions") && contains(msg, "22")
+    @test contains(msg, "three-neighbor-interactions") && contains(msg, "33")
+end

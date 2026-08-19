@@ -233,3 +233,17 @@ end
     @test contains(msg, "Young's modulus")
     @test contains(msg, "1")
 end
+
+@testitem "show point parameters" setup=[Fixtures] begin
+    body = Fixtures.tetra4(OSBMaterial(); horizon=2.0, rho=1.0, E=1.0, nu=0.25)
+    params = body.point_params[1]
+    name = string(nameof(typeof(params)))
+    msg = sprint(show, params)
+    @test contains(msg, name * ": ") && !contains(msg, "\n")
+    @test contains(msg, "δ=2.0") && contains(msg, "E=1.0") && contains(msg, "nu=0.25")
+    msg = sprint(show, MIME("text/plain"), params)
+    @test contains(msg, name * ":\n")
+    @test contains(msg, "δ") && contains(msg, "rho") && contains(msg, "bc")
+    msg = sprint(show, MIME("text/plain"), params; context=:compact => true)
+    @test contains(msg, name * ": ") && !contains(msg, "\n")
+end

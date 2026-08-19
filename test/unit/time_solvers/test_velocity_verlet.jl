@@ -248,3 +248,11 @@ end
         end
     end
 end
+
+@testitem "VelocityVerlet: required storage fields" begin
+    fields = Peridynamics.req_point_data_fields_timesolver(VelocityVerlet)
+    @test :position in fields && :velocity_half in fields && :acceleration in fields
+    @test :b_int in fields && :b_ext in fields
+    @test Peridynamics.req_bond_data_fields_timesolver(VelocityVerlet) == ()
+    @test Peridynamics.req_data_fields_timesolver(VelocityVerlet) == ()
+end

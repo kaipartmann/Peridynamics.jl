@@ -188,3 +188,26 @@ end
     empty = @test_logs (:warn, r"skipping processing") process_each_job((job, setup) -> NamedTuple(), study, NamedTuple())
     @test empty == [NamedTuple(), NamedTuple(), NamedTuple()]
 end
+
+@testitem "update_sim_success_from_log!: a job without a status line counts as not done" setup=[Fixtures] begin
+    setups = [(; E=1.0, n_steps=1), (; E=2.0, n_steps=1), (; E=3.0, n_steps=1)]
+    study = Study(Fixtures.tiny_job, setups; root=joinpath(mktempdir(), "study"))
+    mkpath(study.root)
+    # an interrupted run: job 1 was started but never got a status, job 2 failed, job 3 was
+    # never started
+    open(study.logfile, "w") do io
+        write(io, "SIMULATION STUDY LOGFILE\n\n")
+        write(io, "Simulation `$(study.jobpaths[1])`:\n")
+        write(io, "Simulation `$(study.jobpaths[2])`:\n")
+        write(io, "  status: failed ✗\n\n")
+    end
+    Peridynamics.update_sim_success_from_log!(study)
+    @test study.sim_success == [false, false, false]
+    # the last record of a job wins
+    open(study.logfile, "a") do io
+        write(io, "Simulation `$(study.jobpaths[1])`:\n")
+        write(io, "  status: completed ✓ (0.00 seconds)\n\n")
+    end
+    Peridynamics.update_sim_success_from_log!(study)
+    @test study.sim_success == [true, false, false]
+end

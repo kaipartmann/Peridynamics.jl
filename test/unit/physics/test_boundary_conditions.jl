@@ -146,3 +146,14 @@ end
     @test chunk.storage.velocity_half ≈ [0.0 0.0; 1.0 2.0; 3.0 4.0]
     @test chunk.storage.b_ext ≈ [0.0 6.0; 0.0 0.0; 0.0 0.0]
 end
+
+@testitem "displacement_bc!: show of the condition and of the body" setup=[Fixtures] begin
+    body = Fixtures.tetra4()
+    displacement_bc!(Fixtures.f_p, body, :all_points, :x)
+    bc = only(body.pos_single_dim_bcs)
+    msg = sprint(show, bc)
+    @test startswith(msg, "Pos. BC on displacement: ")
+    @test contains(msg, "point_set=all_points") && contains(msg, "dim=1")
+    msg = sprint(show, MIME("text/plain"), body)
+    @test contains(msg, "Pos. BC on displacement")
+end

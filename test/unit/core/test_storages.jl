@@ -420,3 +420,62 @@ end
 
     @test_throws InterfaceError Peridynamics.point_data_field(storage, Val(:bond_active))
 end
+
+@testitem "@storage: invalid field and header declarations are rejected" begin
+    import Peridynamics: get_storage_structdef, get_storage_header
+
+    # annotated fields without a type
+    for annotation in (Symbol("@pointfield"), Symbol("@htlfield"), Symbol("@lthfield"))
+        expr = Expr(:struct, false, :(MyStorage <: Peridynamics.AbstractStorage),
+                    Expr(:block, Expr(:macrocall, annotation, LineNumberNode(1), :position)))
+        @test_throws ArgumentError get_storage_structdef(expr)
+    end
+    # an expression that is neither a typed field nor an annotated one
+    expr = Expr(:struct, false, :(MyStorage <: Peridynamics.AbstractStorage),
+                Expr(:block, :(position = 1)))
+    @test_throws ArgumentError get_storage_structdef(expr)
+
+    # headers that are not a struct name, with or without parameters and supertype
+    expr = Expr(:struct, false, :(Peridynamics.MyStorage <: Peridynamics.AbstractStorage),
+                Expr(:block))
+    @test_throws ArgumentError get_storage_header(expr)
+    expr = Expr(:struct, false, :(MyStorage()), Expr(:block))
+    @test_throws ArgumentError get_storage_header(expr)
+end
+
+@testitem "typecheck_storage: fallbacks and missing fields" begin
+    import Peridynamics: typecheck_storage, typecheck_is_storage, typecheck_storage_fields
+    struct NotAStorage end
+
+    @test_throws ArgumentError typecheck_storage(BBMaterial, NotAStorage)
+    @test_throws ArgumentError typecheck_storage(BBMaterial, NotAStorage())
+    @test_throws ArgumentError typecheck_is_storage(NotAStorage)
+    @test_throws ArgumentError typecheck_is_storage(NotAStorage())
+    @test typecheck_is_storage(Peridynamics.BBStorage) === nothing
+
+    @test typecheck_storage_fields(Peridynamics.BBStorage, (:position, :b_int)) === nothing
+    @test_throws ArgumentError typecheck_storage_fields(Peridynamics.BBStorage,
+                                                        (:position, :not_a_field))
+end
+
+@testitem "storage interface: halo field fallbacks and local point data" setup=[Fixtures] begin
+    struct BareStorage <: Peridynamics.AbstractStorage end
+    @test_throws Peridynamics.InterfaceError Peridynamics.loc_to_halo_fields(BareStorage())
+    @test_throws Peridynamics.InterfaceError Peridynamics.halo_to_loc_fields(BareStorage())
+    @test Peridynamics.is_halo_field(BareStorage(), Val(:position)) == false
+
+    # a halo field holds the halo points as well and its local part is a view on the local
+    # points; a field without halo exchange holds only the local points and is returned as is
+    body = Fixtures.line10()
+    c = Fixtures.chunk(body; n_chunks=2, chunk_id=1)
+    n_loc = Peridynamics.get_n_loc_points(c.system)
+    n_all = Peridynamics.get_n_points(c.system)
+    @test n_all > n_loc
+    @test Peridynamics.is_halo_field(c.storage, Val(:position))
+    @test size(c.storage.position) == (3, n_all)
+    loc_position = Peridynamics.get_loc_point_data(c.storage, c.system, :position)
+    @test loc_position isa SubArray && size(loc_position) == (3, n_loc)
+    @test !Peridynamics.is_halo_field(c.storage, Val(:velocity))
+    @test Peridynamics.get_loc_point_data(c.storage, c.system, :velocity) === c.storage.velocity
+    @test size(c.storage.velocity) == (3, n_loc)
+end

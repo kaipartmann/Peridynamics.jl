@@ -464,3 +464,21 @@ end
     o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
     @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
 end
+
+@testitem "custom_field: exportable fields that are not stored as is" begin
+    for S in (Peridynamics.CStorage, Peridynamics.CRStorage, Peridynamics.RKCStorage,
+              Peridynamics.RKCRStorage)
+        @test Peridynamics.custom_field(S, :hydrostatic_stress) == true
+        @test Peridynamics.custom_field(S, :not_a_field) == false
+    end
+    @test Peridynamics.custom_field(Peridynamics.BBStorage, :hydrostatic_stress) == false
+end
+
+@testitem "_extract_export_fields: unconvertible specifications are rejected" begin
+    @test Peridynamics._extract_export_fields(:damage) == [:damage]
+    @test Peridynamics._extract_export_fields((:damage, :velocity)) == [:damage, :velocity]
+    fields = Peridynamics._extract_export_fields(view([:damage, :velocity], 1:2))
+    @test fields isa Vector{Symbol} && fields == [:damage, :velocity]
+    @test_throws ArgumentError Peridynamics._extract_export_fields(1.5)
+    @test_throws ArgumentError Peridynamics._extract_export_fields(["damage"])
+end

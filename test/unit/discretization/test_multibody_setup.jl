@@ -83,3 +83,28 @@ end
     @test contains(msg, "OSBMaterial")
     @test contains(msg, "with name `b`")
 end
+
+@testitem "MultibodySetup: body lookup and show with contacts" setup=[Fixtures] begin
+    b1 = Body(BBMaterial(), Fixtures.line_position(4), ones(4))
+    material!(b1, horizon=1.5, E=1, rho=1, Gc=1)
+    b2 = Body(BBMaterial(), Fixtures.line_position(4) .+ [10.0, 0.0, 0.0], ones(4))
+    material!(b2, horizon=1.5, E=1, rho=1, Gc=1)
+    ms = MultibodySetup(:a => b1, :b => b2)
+
+    @test Peridynamics.get_body(ms, :b) === b2
+    @test Peridynamics.get_body(ms, 2) === b2
+    @test Peridynamics.get_body_name(ms, 1) == "a"
+    @test collect(Peridynamics.each_body_idx(ms)) == [1, 2]
+    @test collect(Peridynamics.each_body_name(ms)) == [:a, :b]
+    @test collect(Peridynamics.each_body(ms)) == [b1, b2]
+    @test Peridynamics.check_if_bodyname_is_defined(ms, :a) === nothing
+    @test_throws ArgumentError Peridynamics.check_if_bodyname_is_defined(ms, :nope)
+
+    msg = sprint(show, MIME("text/plain"), ms)
+    @test !contains(msg, "short range force contact")
+    contact!(ms, :a, :b; radius=1.0) # one contact per direction
+    msg = sprint(show, MIME("text/plain"), ms)
+    @test contains(msg, "2 short range force contact(s)")
+
+    @test_throws ErrorException Peridynamics.PointDecomposition(ms, 2)
+end

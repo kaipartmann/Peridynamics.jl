@@ -31,3 +31,16 @@ end
                           :density_matrix)
     @test Peridynamics.required_fields_timesolvers() === req_fields_solvers
 end
+
+@testitem "time solver interface: registry and logging fallbacks" begin
+    struct UnloggedTimeSolver <: Peridynamics.AbstractTimeSolver end
+    struct UnhandledDataHandler <: Peridynamics.AbstractDataHandler end
+    @test VelocityVerlet in Peridynamics.registered_solvers()
+    @test DynamicRelaxation in Peridynamics.registered_solvers()
+    # NewtonKrylov is deliberately not registered, so that user-defined storages need not
+    # support it (see the comment at the end of `src/time_solvers/newton_krylov.jl`)
+    @test !(NewtonKrylov in Peridynamics.registered_solvers())
+    options = Peridynamics.JobOptions(false, "", "", "", 0, Symbol[], "")
+    @test Peridynamics.log_timesolver(options, UnloggedTimeSolver()) === nothing
+    @test_throws MethodError Peridynamics.calc_stable_timestep(UnhandledDataHandler(), 0.7)
+end

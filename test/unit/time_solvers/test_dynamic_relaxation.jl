@@ -109,3 +109,29 @@ end
     # Check that the density matrix is updated correctly
     @test dh_mpi.chunk.storage.position[1, 2] ≈ 1.05
 end
+
+@testitem "DynamicRelaxation: required storage fields" begin
+    fields = Peridynamics.req_point_data_fields_timesolver(DynamicRelaxation)
+    @test :velocity_half_old in fields && :b_int_old in fields && :density_matrix in fields
+    @test Peridynamics.req_bond_data_fields_timesolver(DynamicRelaxation) == ()
+    @test Peridynamics.req_data_fields_timesolver(DynamicRelaxation) == ()
+end
+
+@testitem "calc_damping: the damping coefficient is clamped" setup=[Fixtures] begin
+    # cn = 2 sqrt(cn1 / cn2) with cn1 = -Σ u² Δb_int / (Δt ρ v_half_old), cn2 = Σ u²; a state
+    # with a huge negative force increment gives cn > 2, which is clamped to 1.9
+    body = Fixtures.line10()
+    velocity_bc!(Fixtures.f_one, body, :all_points, :x)
+    dh = Fixtures.handler(body, DynamicRelaxation(steps=1))
+    chunk = dh.chunks[1]
+    (; displacement, velocity_half, velocity_half_old, b_int, b_int_old) = chunk.storage
+    displacement .= 1.0
+    velocity_half .= 1.0
+    velocity_half_old .= 1.0
+    b_int_old .= 0.0
+    b_int .= -1e6
+    @test Peridynamics.calc_damping(chunk, 1.0) == 1.9
+    # a zero displacement field has no damping
+    displacement .= 0.0
+    @test Peridynamics.calc_damping(chunk, 1.0) == 0.0
+end

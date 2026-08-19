@@ -524,3 +524,21 @@ end
         end
     end
 end
+
+@testitem "init_stress_rotation!: a singular deformation gradient resets the rotation" setup=[Fixtures] begin
+    using Peridynamics.StaticArrays
+    body = Fixtures.tetra4(CRMaterial(model=LinearElastic()))
+    c = Fixtures.chunk(body)
+    (; storage) = c
+    F = @SMatrix [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
+    Ḟ = @SMatrix [0.1 0.0 0.0; 0.0 0.1 0.0; 0.0 0.0 0.1]
+    D = Peridynamics.init_stress_rotation!(storage, F, Ḟ, 0.1, 1)
+    @test D ≈ Ḟ
+    @test Peridynamics.get_tensor(storage.rotation, 1) ≈ F
+    # F⁻¹ contains NaN for a singular F: the rotation and the stretch are zeroed, D is zero
+    F = @SMatrix [1.0 0.0 0.0; 1.0 0.0 0.0; 1.0 0.0 0.0]
+    D = Peridynamics.init_stress_rotation!(storage, F, Ḟ, 0.1, 1)
+    @test iszero(D)
+    @test iszero(Peridynamics.get_tensor(storage.rotation, 1))
+    @test iszero(Peridynamics.get_tensor(storage.left_stretch, 1))
+end

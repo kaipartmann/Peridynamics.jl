@@ -60,9 +60,12 @@ end
     @test result[:random_field_data] == random_field_data
 end
 
-@testitem "wrong file type" setup=[Fixtures] begin
-    rng = Fixtures.rng()
+@testitem "wrong file type" begin
+    # a file that does not exist, and one that exists but has neither a vtu nor a pvtu extension
     @test_throws ArgumentError read_vtk("something.wrong")
+    file = joinpath(mktempdir(), "something.wrong")
+    touch(file)
+    @test_throws ArgumentError read_vtk(file)
 end
 
 @testitem "corrupt file raw encoding" setup=[Fixtures] begin
@@ -223,4 +226,23 @@ end
 
     @test typeof(result) == Dict{Symbol,VecOrMat{Float64}}
     @test result[:position] == position
+end
+
+@testitem "DataArray: only appended arrays of known types are supported" begin
+    using Peridynamics.VtkReader: DataArray, LightXML
+    xml = LightXML.new_element("Foo")
+    @test_throws ArgumentError DataArray(xml)
+    xml = LightXML.new_element("DataArray")
+    for (k, v) in ("type" => "Float64", "Name" => "x", "NumberOfComponents" => "1",
+                   "offset" => "0", "format" => "ascii")
+        LightXML.set_attribute(xml, k, v)
+    end
+    @test_throws ArgumentError DataArray(xml)
+    LightXML.set_attribute(xml, "format", "appended")
+    LightXML.set_attribute(xml, "type", "Float32")
+    @test_throws ArgumentError DataArray(xml)
+    LightXML.set_attribute(xml, "type", "Float64")
+    da = DataArray(xml)
+    @test da.name == :x && da.offset == 0
+    @test Peridynamics.VtkReader.element_type(da) == Float64
 end
