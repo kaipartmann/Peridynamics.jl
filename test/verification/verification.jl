@@ -208,11 +208,11 @@
     end
 end
 
-@testitem "wave speed" setup=[Verif] begin
+@testitem "wave speed" tags=[:verification, :skipci] setup=[Verif] begin
     # A pulse in a slender bar travels at `c₀ = sqrt(E / rho)`, which needs nothing but the
-    # velocity and works for every material. Coarse enough to run on every commit, so `TOL` is
-    # one loose bound for all materials; the convergence item shows the rest is discretization
-    # error.
+    # velocity and works for every material. The grid is coarse, so `TOL` is one loose bound for
+    # all materials instead of a table of measured errors; the convergence item shows the rest is
+    # discretization error.
     TOL = 0.25
     c₀ = sqrt(210e9 / 7850.0)
     for (name, mat) in MATERIALS
@@ -222,9 +222,10 @@ end
     end
 end
 
-@testitem "wave speed convergence" tags=[:skipci] setup=[Verif] begin
+@testitem "wave speed convergence" tags=[:verification, :skipci] setup=[Verif] begin
     # Refining has to move the wave speed towards `c₀`, which is stronger than any single
-    # tolerance. `:skipci` because the finest grid takes minutes for the RK materials.
+    # tolerance. The finest grid alone takes minutes for the RK materials, which makes this and
+    # the crack tip convergence item the two long ones of the file.
     #
     # An order needs the discretization error to dominate. Materials already at the noise floor
     # on the coarsest grid cancelled their own error there and get slightly worse when refined,
@@ -246,7 +247,7 @@ end
     end
 end
 
-@testitem "crack tip speed" setup=[Verif] begin
+@testitem "crack tip speed" tags=[:verification, :skipci] setup=[Verif] begin
     # A crack runs at a well defined fraction of `c_R` and cannot exceed it. Unlike the amount of
     # damage that is a physical bound, which is what makes this a verification case, so the upper
     # bound is `c_R` itself and not the tighter value the measurements would allow.
@@ -267,10 +268,10 @@ end
     end
 end
 
-@testitem "crack tip speed convergence" tags=[:skipci] setup=[Verif] begin
+@testitem "crack tip speed convergence" tags=[:verification, :skipci] setup=[Verif] begin
     # The speed has to be a property of the material and not of the grid, so refining the plate
-    # must not move it much. `:skipci` because the finer plate takes a minute and a half for the
-    # RK materials.
+    # must not move it much. The finer plate alone takes a minute and a half for the RK
+    # materials.
     #
     # Coarsening instead is no option: at `npxy = 30` the crack of the bond-based materials
     # crosses the whole gauge window inside one export interval, so nothing is sampled in it.
@@ -284,7 +285,7 @@ end
     end
 end
 
-@testitem "zero-energy mode resistance" setup=[Verif] begin
+@testitem "zero-energy mode resistance" tags=[:verification, :skipci] setup=[Verif] begin
     # Every correspondence-class material has to answer the checkerboard with a restoring force
     # of the order of the bulk stiffness, through a stabilization term, a bond-associated
     # quadrature or a reproducing kernel alike. See `checkerboard_resistance` for the
@@ -310,7 +311,7 @@ end
     end
 end
 
-@testitem "zero-energy mode stabilization" setup=[Verif] begin
+@testitem "zero-energy mode stabilization" tags=[:verification, :skipci] setup=[Verif] begin
     # Sharper form of the item above for the materials with a `zem` knob: a formulation against
     # itself instead of against a threshold. The strain energy density cannot do this, it comes
     # from the deformation gradient alone and is the same with the stabilization off.
@@ -321,7 +322,7 @@ end
     end
 end
 
-@testitem "torsional vibration" setup=[Verif] begin
+@testitem "torsional vibration" tags=[:verification, :skipci] setup=[Verif] begin
     # A clamped rod released from the velocity field of its first torsional mode swings at
     # `torsional_frequency`. The free end turns by about 70 degrees, so this is the large rotation
     # case: a formulation that is not objective takes part of that rotation for deformation and
@@ -344,7 +345,7 @@ end
     end
 end
 
-@testitem "decomposition invariance" setup=[Verif] begin
+@testitem "decomposition invariance" tags=[:verification, :skipci] setup=[Verif] begin
     # Results must not depend on how the body is cut into chunks. Every chunk builds its own
     # system from local points and a halo, which is where indices that are local in one place and
     # global in another hide from a single-chunk run. `mode_i` and not a uniform body, so the
