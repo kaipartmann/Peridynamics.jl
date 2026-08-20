@@ -122,16 +122,54 @@ end
     # with a huge negative force increment gives cn > 2, which is clamped to 1.9
     body = Fixtures.line10()
     velocity_bc!(Fixtures.f_one, body, :all_points, :x)
-    dh = Fixtures.handler(body, DynamicRelaxation(steps=1))
+    solver = DynamicRelaxation(steps=1)
+    dh = Fixtures.handler(body, solver)
+    Peridynamics.init_density_matrix!(dh, solver) # solve! does this before the time loop
     chunk = dh.chunks[1]
     (; displacement, velocity_half, velocity_half_old, b_int, b_int_old) = chunk.storage
+    @test all(>(0), chunk.storage.density_matrix)
     displacement .= 1.0
     velocity_half .= 1.0
     velocity_half_old .= 1.0
     b_int_old .= 0.0
     b_int .= -1e6
     @test Peridynamics.calc_damping(chunk, 1.0) == 1.9
+    # a positive force increment damps with the Rayleigh quotient itself
+    b_int .= -1e-6
+    cn1 = sum(1e-6 / dm for dm in chunk.storage.density_matrix) # all 30 dofs contribute
+    @test Peridynamics.calc_damping(chunk, 1.0) ≈ 2 * sqrt(cn1 / 30)
     # a zero displacement field has no damping
     displacement .= 0.0
     @test Peridynamics.calc_damping(chunk, 1.0) == 0.0
+end
+
+@testitem "calc_damping: one global coefficient, independent of the decomposition" setup=[Fixtures] begin
+    # the damping is a Rayleigh quotient over all dofs of the body; the chunked reduction and
+    # the MPI Allgather path must reproduce the single-chunk value bitwise
+    function damped_handler(n_chunks)
+        body = Fixtures.line10()
+        velocity_bc!(Fixtures.f_one, body, :all_points, :x)
+        solver = DynamicRelaxation(steps=1)
+        dh = Fixtures.handler(body, solver; n_chunks)
+        Peridynamics.init_density_matrix!(dh, solver)
+        for chunk in dh.chunks
+            (; position, displacement, velocity_half, velocity_half_old,
+               b_int, b_int_old) = chunk.storage
+            n_loc = Peridynamics.get_n_loc_points(chunk.system)
+            for (i, gi) in enumerate(chunk.system.chunk_handler.loc_points)
+                displacement[:, i] .= 1e-3 * gi
+                velocity_half[:, i] .= 0.1 * gi
+                velocity_half_old[:, i] .= 0.1 * gi
+                b_int[:, i] .= -1e2 * gi
+                b_int_old[:, i] .= -1e2 * gi + 10.0
+            end
+        end
+        return dh
+    end
+    cn_serial = Peridynamics.calc_damping(damped_handler(1).chunks[1], 1.0)
+    @test 0 < cn_serial < 2
+    for n_chunks in (2, 3, 5)
+        cn = Peridynamics.calc_damping(damped_handler(n_chunks).chunks, 1.0)
+        @test cn === cn_serial
+    end
 end
