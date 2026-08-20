@@ -1,0 +1,46 @@
+@testitem "time solver interface" begin  # lint-ok: asserts that the solve! fallback throws
+    struct MyCustomDataHandler <: Peridynamics.AbstractDataHandler end
+    struct MyCustomTimeSolver <: Peridynamics.AbstractTimeSolver end
+    struct MyCustomSystem <: Peridynamics.AbstractSystem end
+    dh = MyCustomDataHandler()
+    solver = MyCustomTimeSolver()
+    system = MyCustomSystem()
+
+    @test_throws MethodError Peridynamics.init_time_solver!(solver, dh)
+
+    @test_throws ErrorException Peridynamics.solve!(dh, solver, Dict())
+
+    @test_throws Peridynamics.InterfaceError begin
+        Peridynamics.req_point_data_fields_timesolver(Peridynamics.AbstractTimeSolver)
+    end
+
+    @test_throws Peridynamics.InterfaceError begin
+        Peridynamics.req_bond_data_fields_timesolver(Peridynamics.AbstractTimeSolver)
+    end
+
+    @test_throws Peridynamics.InterfaceError begin
+        Peridynamics.req_data_fields_timesolver(Peridynamics.AbstractTimeSolver)
+    end
+
+    @test isnothing(Peridynamics.init_field_solver(solver, system, Val(:myrandomfield)))
+end
+
+@testitem "required fields all timesolvers" begin
+    req_fields_solvers = (:position, :displacement, :velocity, :velocity_half,
+                          :acceleration, :b_int, :b_ext, :velocity_half_old, :b_int_old,
+                          :density_matrix)
+    @test Peridynamics.required_fields_timesolvers() === req_fields_solvers
+end
+
+@testitem "time solver interface: registry and logging fallbacks" begin
+    struct UnloggedTimeSolver <: Peridynamics.AbstractTimeSolver end
+    struct UnhandledDataHandler <: Peridynamics.AbstractDataHandler end
+    @test VelocityVerlet in Peridynamics.registered_solvers()
+    @test DynamicRelaxation in Peridynamics.registered_solvers()
+    # NewtonKrylov is deliberately not registered, so that user-defined storages need not
+    # support it (see the comment at the end of `src/time_solvers/newton_krylov.jl`)
+    @test !(NewtonKrylov in Peridynamics.registered_solvers())
+    options = Peridynamics.JobOptions(false, "", "", "", 0, Symbol[], "")
+    @test Peridynamics.log_timesolver(options, UnloggedTimeSolver()) === nothing
+    @test_throws MethodError Peridynamics.calc_stable_timestep(UnhandledDataHandler(), 0.7)
+end

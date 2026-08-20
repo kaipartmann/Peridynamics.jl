@@ -10,13 +10,25 @@
 #   file:<path>       test item is defined in this file (OR-ed across file selectors)
 #   tag:<tag>         test item carries this tag (AND-ed)
 #
+# TAGS used in this suite (see test/runtests.jl for what CI runs):
+#   simulation    the item runs a time solver; `tag:simulation` lists every simulation
+#   mpi           the item spawns `mpiexec`; runs in the `mpi` CI job
+#   perf          allocation and type-stability checks; `extras` CI job
+#   lint          Aqua and the suite convention guards; `extras` CI job
+#   slow          heavy but valuable items moved to the `extras` CI job
+#   verification  physics checked against closed forms or convergence rates; never in CI
+#   skipci        never runs in CI
+#
 # EXAMPLES:
-#   Run all:  julia -t 6 test/runtestitems.jl
-#   By name:  julia -t 6 test/runtestitems.jl BBMaterial dynamic
-#   By file:  julia -t 6 test/runtestitems.jl file:test/core/test_halo_exchange.jl
-#   By tag:   julia -t 6 test/runtestitems.jl tag:mpi
-#   Combined: julia -t 6 test/runtestitems.jl BBMaterial file:test/core/test_halo_exchange.jl tag:mpi
-#   Preview:  julia -t 6 test/runtestitems.jl --list tag:mpi
+#   Run all:       julia -t 6 test/runtestitems.jl
+#   By name:       julia -t 6 test/runtestitems.jl BBMaterial dynamic
+#   By file:       julia -t 6 test/runtestitems.jl file:test/unit/core/test_halo_exchange.jl
+#   By tag:        julia -t 6 test/runtestitems.jl tag:mpi
+#   Simulations:   julia -t 6 test/runtestitems.jl tag:simulation
+#   Verification:  julia -t 8 test/runtestitems.jl tag:verification        # ~1 h
+#                  julia -t 8 test/runtestitems.jl tag:verification wave   # only the wave items
+#   Combined:      julia -t 6 test/runtestitems.jl BBMaterial file:test/unit/core/test_halo_exchange.jl tag:mpi
+#   Preview:       julia -t 6 test/runtestitems.jl --list tag:mpi
 #
 # Selectors that match nothing are an error, so a typo cannot look like a green run.
 #
@@ -41,12 +53,8 @@ import Pkg
 const REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
 const DEPOT_SEP = Sys.iswindows() ? ';' : ':'
 
-"""
-    is_writable(dir)
-
-Check whether `dir` exists (or can be created) and accepts writes, without leaving
-anything behind. Used to detect read-only depots in sandboxed environments.
-"""
+# whether `dir` exists (or can be created) and accepts writes, without leaving anything
+# behind; detects read-only depots in sandboxed environments
 function is_writable(dir::AbstractString)
     probe = joinpath(dir, ".runtestitems-write-probe-$(getpid())")
     try
@@ -59,13 +67,9 @@ function is_writable(dir::AbstractString)
     end
 end
 
-"""
-    setup_depot!()
-
-Make sure `DEPOT_PATH[1]` is writable, because that is where Julia stores precompilation
-caches. If the default depot is read-only, prepend a writable scratch depot and keep the
-read-only depot as a read fallback for already installed packages and artifacts.
-"""
+# make sure `DEPOT_PATH[1]` is writable (Julia stores precompilation caches there); if the
+# default depot is read-only, prepend a writable scratch depot and keep the read-only depot
+# as a read fallback for already installed packages and artifacts
 function setup_depot!()
     forced = get(ENV, "PERIDYNAMICS_TEST_DEPOT", "")
     if isempty(forced) && !isempty(DEPOT_PATH) && is_writable(first(DEPOT_PATH))
@@ -100,11 +104,7 @@ function setup_depot!()
     return nothing
 end
 
-"""
-    parse_selectors(args)
-
-Split the command line into name, file and tag selectors, plus the `--list` flag.
-"""
+# split the command line into name, file and tag selectors, plus the `--list` flag
 function parse_selectors(args)
     list_only = false
     names = String[]
@@ -130,12 +130,8 @@ function parse_selectors(args)
     return (; list_only, names, files, tags)
 end
 
-"""
-    resolve_test_file(file)
-
-Turn a file selector into an absolute path, accepting paths relative to the current
-directory as well as relative to the repository root.
-"""
+# turn a file selector into an absolute path, accepting paths relative to the current
+# directory as well as relative to the repository root
 function resolve_test_file(file::AbstractString)
     path = normpath(abspath(file))
     isfile(path) && return path
@@ -145,12 +141,8 @@ function resolve_test_file(file::AbstractString)
           "    $(path)\n    $(alternative)")
 end
 
-"""
-    matches(ti, selectors)
-
-Check a test item (a named tuple with `name`, `filename` and `tags`) against all
-selectors. Name and tag selectors are AND-ed, file selectors are OR-ed.
-"""
+# check a test item (a named tuple with `name`, `filename` and `tags`) against all
+# selectors; name and tag selectors are AND-ed, file selectors are OR-ed
 function matches(ti, selectors)
     name = lowercase(ti.name)
     all(contains(name, filter) for filter in selectors.names) || return false
@@ -180,12 +172,8 @@ using TestItemRunner
 const SELECTORS = parse_selectors(ARGS)
 const N_MATCHED = Ref(0)
 
-"""
-    select(ti)
-
-Filter callback for TestItemRunner, called exactly once per discovered test item. It
-counts the matches and, in `--list` mode, prints them instead of running them.
-"""
+# filter callback for TestItemRunner, called exactly once per discovered test item; counts
+# the matches and, in `--list` mode, prints them instead of running them
 function select(ti)
     matches(ti, SELECTORS) || return false
     N_MATCHED[] += 1

@@ -368,3 +368,16 @@ end
         end
     end
 end
+
+@testitem "uniform tension accuracy" tags=[:verification, :skipci, :simulation] setup=[UniformTension] begin
+    # The converged solutions of the bars of `test/simulation/test_analytic_solutions.jl`: the
+    # correspondence material reaches the exact elongation within 2 % with both solvers, the
+    # bond-based material with surface correction within 10 % at Δx = 1/40. The per-commit
+    # items only assert a loose band on shorter runs.
+    @test UniformTension.elongation_error(UniformTension.relaxation_bar(1 / 30),
+                                          DynamicRelaxation(steps=2000), 2000) < 0.02
+    @test UniformTension.elongation_error(UniformTension.newton_bar(1 / 30),
+                                          NewtonKrylov(steps=5, tol=1e-3, maxiter=50), 5) < 0.02
+    @test UniformTension.elongation_error(UniformTension.databc_bar(1 / 40),
+                                          DynamicRelaxation(steps=2000), 2000) < 0.1
+end

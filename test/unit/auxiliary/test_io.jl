@@ -1,0 +1,484 @@
+@testitem "JobOptions" begin
+    function tests_body_specific(body::Body, solver)
+        default_fields_body = [field for field in Peridynamics.default_export_fields()]
+        body_name = string(Peridynamics.get_name(body))
+        vtk_root = joinpath("rootpath", "vtk")
+        vtk_filebase = joinpath(vtk_root,
+                                isempty(body_name) ? "timestep" : body_name * "_timestep")
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :freq => 10)
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == default_fields_body
+        @test jo.vtk_filebase == vtk_filebase
+
+        o = Dict{Symbol,Any}(:path => "rootpath")
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == default_fields_body
+        @test jo.vtk_filebase == vtk_filebase
+
+        o = Dict{Symbol,Any}(:freq => 10)
+        msg = "if `freq` is specified, the keyword `path` is also needed!\n"
+        @test_throws ArgumentError(msg) begin
+            Peridynamics.get_job_options(body, solver, o)
+        end
+
+        o = Dict{Symbol,Any}()
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == false
+        @test jo.root == ""
+        @test jo.vtk == ""
+        @test jo.logfile == ""
+        @test jo.freq == 0
+        @test jo.fields == Vector{Symbol}()
+        @test jo.vtk_filebase == ""
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :freq => -10)
+        msg = "`freq` should be larger than zero!\n"
+        @test_throws ArgumentError(msg) begin
+            Peridynamics.get_job_options(body, solver, o)
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext))
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == [:displacement, :b_ext]
+        @test jo.vtk_filebase == vtk_filebase
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => :damage)
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == [:damage]
+        @test jo.vtk_filebase == vtk_filebase
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => [:b_ext])
+        jo = Peridynamics.get_job_options(body, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == [:b_ext]
+        @test jo.vtk_filebase == vtk_filebase
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext, :abcd))
+        @test_throws ArgumentError begin
+            Peridynamics.get_job_options(body, solver, o)
+        end
+
+        return nothing
+    end
+
+    function tests_multibody_specific(ms::MultibodySetup, solver)
+        default_fields_body = [field for field in Peridynamics.default_export_fields()]
+        default_fields_multibody = Dict{Symbol,Vector{Symbol}}()
+        vtk_filebase = Dict{Symbol,String}()
+        vtk_root = joinpath("rootpath", "vtk")
+        for body_name in Peridynamics.each_body_name(ms)
+            default_fields_multibody[body_name] = default_fields_body
+            vtk_filebase[body_name] = joinpath(vtk_root, string(body_name) * "_timestep")
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :freq => 10)
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == default_fields_multibody
+        @test jo.vtk_filebase == vtk_filebase
+
+        o = Dict{Symbol,Any}(:path => "rootpath")
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        @test jo.fields == default_fields_multibody
+        @test jo.vtk_filebase == vtk_filebase
+
+        o = Dict{Symbol,Any}(:freq => 10)
+        msg = "if `freq` is specified, the keyword `path` is also needed!\n"
+        @test_throws ArgumentError(msg) begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        o = Dict{Symbol,Any}()
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == false
+        @test jo.root == ""
+        @test jo.vtk == ""
+        @test jo.logfile == ""
+        @test jo.freq == 0
+        @test jo.fields == Dict{Symbol,Vector{Symbol}}()
+        @test jo.vtk_filebase == Dict{Symbol,String}()
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :freq => -10)
+        msg = "`freq` should be larger than zero!\n"
+        @test_throws ArgumentError(msg) begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext))
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        fields = [:displacement, :b_ext]
+        fields_spec = Dict{Symbol,Vector{Symbol}}()
+        for body_name in Peridynamics.each_body_name(ms)
+            fields_spec[body_name] = fields
+        end
+        @test jo.fields == fields_spec
+        @test jo.vtk_filebase == vtk_filebase
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => :damage)
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        fields = [:damage]
+        fields_spec = Dict{Symbol,Vector{Symbol}}()
+        for body_name in Peridynamics.each_body_name(ms)
+            fields_spec[body_name] = fields
+        end
+        @test jo.fields == fields_spec
+        @test jo.vtk_filebase == vtk_filebase
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => [:b_int])
+        jo = Peridynamics.get_job_options(ms, solver, o)
+        @test jo.export_allowed == true
+        @test jo.root == "rootpath"
+        @test jo.vtk == joinpath("rootpath", "vtk")
+        @test jo.logfile == joinpath("rootpath", "logfile.log")
+        @test jo.freq == 10
+        fields = [:b_int]
+        fields_spec = Dict{Symbol,Vector{Symbol}}()
+        for body_name in Peridynamics.each_body_name(ms)
+            fields_spec[body_name] = fields
+        end
+        @test jo.fields == fields_spec
+        @test jo.vtk_filebase == vtk_filebase
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :b_ext, :abcd))
+        @test_throws ArgumentError begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => ":displacement")
+        @test_throws ArgumentError begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (":displacement", ":damage"))
+        @test_throws ArgumentError begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => [":displacement", ":damage"])
+        @test_throws ArgumentError begin
+            Peridynamics.get_job_options(ms, solver, o)
+        end
+
+        return nothing
+    end
+
+    # setup
+    position = zeros(3, 10)
+    position[1, :] .= 0.0:9.0
+    bbb = Body(BBMaterial(), position, ones(10))
+    bosb = Body(OSBMaterial(), position, ones(10))
+    bcc = Body(CMaterial(), position, ones(10))
+    ms = MultibodySetup(:a => bbb, :b => bosb, :c => bcc)
+    vv = VelocityVerlet(steps=1)
+    dr = DynamicRelaxation(steps=1)
+
+    # the full battery once: nothing in `get_job_options` except the export field check
+    # depends on the material or the solver
+    tests_body_specific(bbb, vv)
+    # the export field check per storage type and solver
+    for body in (bbb, bosb, bcc), solver in (vv, dr)
+        jo = Peridynamics.get_job_options(body, solver, Dict{Symbol,Any}(:path => "rootpath"))
+        @test jo.fields == [field for field in Peridynamics.default_export_fields()]
+        o = Dict{Symbol,Any}(:path => "rootpath", :fields => (:displacement, :abcd))
+        @test_throws ArgumentError Peridynamics.get_job_options(body, solver, o)
+    end
+
+    tests_multibody_specific(ms, vv)
+
+    default_fields_body = [field for field in Peridynamics.default_export_fields()]
+    default_fields_multibody = Dict(:a => default_fields_body, :b => default_fields_body,
+                                    :c => default_fields_body)
+
+    o = Dict{Symbol,Any}(:path => "rootpath", :fields => Dict(:a => :damage))
+    jo = Peridynamics.get_job_options(ms, vv, o)
+    @test jo.export_allowed == true
+    @test jo.root == "rootpath"
+    @test jo.vtk == joinpath("rootpath", "vtk")
+    @test jo.logfile == joinpath("rootpath", "logfile.log")
+    @test jo.freq == 10
+    @test jo.fields == Dict(:a => [:damage], :b => default_fields_body,
+               :c => default_fields_body)
+
+    o = Dict{Symbol,Any}(:path => "rootpath", :fields => Dict(:b => ("test", :damage)))
+    @test_throws ArgumentError begin
+        Peridynamics.get_job_options(ms, vv, o)
+    end
+end
+
+@testitem "export_results Body" begin
+    temp_root = mktempdir()
+
+    pos, vol = uniform_box(1, 1, 1, 0.5)
+    body = Body(BBMaterial(), pos, vol)
+    material!(body, horizon=1.5, E=1, rho=1, Gc=1)
+    vv = VelocityVerlet(steps=1)
+    dh = Peridynamics.threads_data_handler(body, vv, 1)
+    chunk = dh.chunks[1]
+
+    o = Dict{Symbol,Any}(:path => temp_root, :freq => 1)
+    options = Peridynamics.get_job_options(body, vv, o)
+
+    u_rand = reshape(0.1:0.1:2.4, 3, 8) # any data, read back below
+    chunk.storage.displacement .= u_rand
+
+    Peridynamics.export_reference_results(dh, options)
+    n = 1
+    t = 0.0001
+    chunk_id = 1
+    n_chunks = 1
+    Peridynamics.export_results(dh, options, chunk_id, n, t)
+
+    pvtu_file_ref = joinpath(temp_root, "vtk", "timestep_0.pvtu")
+    @test isfile(pvtu_file_ref)
+    pvtu_file_n = joinpath(temp_root, "vtk", "timestep_1.pvtu")
+    @test isfile(pvtu_file_n)
+
+    r0 = read_vtk(pvtu_file_ref)
+    @test r0[:position] ≈ pos
+    @test r0[:displacement] ≈ u_rand
+    @test r0[:damage] == zeros(8)
+    @test r0[:time] == [0.0]
+
+    r = read_vtk(pvtu_file_n)
+    @test r[:position] ≈ pos
+    @test r[:displacement] ≈ u_rand
+    @test r[:damage] == zeros(8)
+    @test r[:time] == [t]
+end
+
+@testitem "export_results MultibodySetup" begin
+    temp_root = mktempdir()
+
+    pos_a, vol_a = uniform_box(1, 1, 1, 0.5)
+    body_a = Body(BBMaterial(), pos_a, vol_a)
+    material!(body_a, horizon=1.5, E=1, rho=1, Gc=1)
+
+    pos_b, vol_b = uniform_box(1, 1, 1, 0.5, center=(0, 0, 1.5))
+    body_b = Body(BBMaterial(), pos_b, vol_b)
+    material!(body_b, horizon=1.5, E=1, rho=1, Gc=1)
+
+    ms = MultibodySetup(:a => body_a, :b => body_b)
+
+    vv = VelocityVerlet(steps=1)
+
+    dh = Peridynamics.threads_data_handler(ms, vv, 1)
+    dh_a = dh.body_dhs[1]
+    chunk_a = dh_a.chunks[1]
+    @test chunk_a.body_name === :a
+    dh_b = dh.body_dhs[2]
+    chunk_b = dh_b.chunks[1]
+    @test chunk_b.body_name === :b
+
+    o = Dict{Symbol,Any}(:path => temp_root, :freq => 1)
+    options = Peridynamics.get_job_options(ms, vv, o)
+
+    u_rand_a = reshape(0.1:0.1:2.4, 3, 8)
+    u_rand_b = reshape(3.1:0.1:5.4, 3, 8)
+    chunk_a.storage.displacement .= u_rand_a
+    chunk_b.storage.displacement .= u_rand_b
+
+    Peridynamics.export_reference_results(dh, options)
+    n = 1
+    t = 0.0001
+    chunk_id = 1
+    n_chunks = 1
+    Peridynamics.export_results(dh_a, options, chunk_id, n, t)
+    Peridynamics.export_results(dh_b, options, chunk_id, n, t)
+
+    pvtu_file_a_ref = joinpath(temp_root, "vtk", "a_timestep_0.pvtu")
+    @test isfile(pvtu_file_a_ref)
+    pvtu_file_a_n = joinpath(temp_root, "vtk", "a_timestep_1.pvtu")
+    @test isfile(pvtu_file_a_n)
+    pvtu_file_b_ref = joinpath(temp_root, "vtk", "b_timestep_0.pvtu")
+    @test isfile(pvtu_file_b_ref)
+    pvtu_file_b_n = joinpath(temp_root, "vtk", "b_timestep_1.pvtu")
+    @test isfile(pvtu_file_b_n)
+
+    r_a = read_vtk(pvtu_file_a_ref)
+    @test r_a[:position] ≈ pos_a
+    @test r_a[:displacement] ≈ u_rand_a
+    @test r_a[:damage] == zeros(8)
+    @test r_a[:time] == [0.0]
+
+    r_b = read_vtk(pvtu_file_b_ref)
+    @test r_b[:position] ≈ pos_b
+    @test r_b[:displacement] ≈ u_rand_b
+    @test r_b[:damage] == zeros(8)
+    @test r_b[:time] == [0.0]
+
+    r_a = read_vtk(pvtu_file_a_n)
+    @test r_a[:position] ≈ pos_a
+    @test r_a[:displacement] ≈ u_rand_a
+    @test r_a[:damage] == zeros(8)
+    @test r_a[:time] == [t]
+
+    r_b = read_vtk(pvtu_file_b_n)
+    @test r_b[:position] ≈ pos_b
+    @test r_b[:displacement] ≈ u_rand_b
+    @test r_b[:damage] == zeros(8)
+    @test r_b[:time] == [t]
+end
+
+@testitem "get_export_fields" begin
+    pos, vol = uniform_box(1, 1, 1, 0.5)
+    ts = VelocityVerlet(steps=1)
+
+    # BBMaterial
+    body = Body(BBMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :strain_energy_density)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## OSBMaterial
+    body = Body(OSBMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :strain_energy_density)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## DHBBMaterial
+    body = Body(DHBBMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :strain_energy_density)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## GBBMaterial
+    body = Body(GBBMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :strain_energy_density)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## CMaterial
+    body = Body(CMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :cauchy_stress,
+                 :von_mises_stress, :hydrostatic_stress, :strain_energy_density)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## CRMaterial
+    body = Body(CRMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :cauchy_stress,
+                 :von_mises_stress, :hydrostatic_stress, :strain_energy_density, :defgrad,
+                 :left_stretch, :rotation)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## RKCMaterial
+    body = Body(RKCMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :cauchy_stress,
+                 :von_mises_stress, :hydrostatic_stress, :strain_energy_density, :defgrad,
+                 :weighted_volume)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## RKCMaterial
+    body = Body(RKCRMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds, :cauchy_stress,
+                 :von_mises_stress, :hydrostatic_stress, :strain_energy_density, :defgrad,
+                 :defgrad_dot, :weighted_volume)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+
+    ## BACMaterial
+    body = Body(BACMaterial(), pos, vol)
+    fields_in = (:position, :displacement, :velocity, :velocity_half, :acceleration,
+                 :b_int, :b_ext, :damage, :n_active_bonds)
+    o = Dict{Symbol,Any}(:fields => fields_in)
+    fields = Peridynamics.get_export_fields(body, ts, o)
+    @test fields == [f for f in fields_in]
+    o = Dict{Symbol,Any}(:fields => (fields_in..., :a_non_existing_field))
+    @test_throws ArgumentError Peridynamics.get_export_fields(body, ts, o)
+end
+
+@testitem "custom_field: exportable fields that are not stored as is" begin
+    for S in (Peridynamics.CStorage, Peridynamics.CRStorage, Peridynamics.RKCStorage,
+              Peridynamics.RKCRStorage)
+        @test Peridynamics.custom_field(S, :hydrostatic_stress) == true
+        @test Peridynamics.custom_field(S, :not_a_field) == false
+    end
+    @test Peridynamics.custom_field(Peridynamics.BBStorage, :hydrostatic_stress) == false
+end
+
+@testitem "_extract_export_fields: unconvertible specifications are rejected" begin
+    @test Peridynamics._extract_export_fields(:damage) == [:damage]
+    @test Peridynamics._extract_export_fields((:damage, :velocity)) == [:damage, :velocity]
+    fields = Peridynamics._extract_export_fields(view([:damage, :velocity], 1:2))
+    @test fields isa Vector{Symbol} && fields == [:damage, :velocity]
+    @test_throws ArgumentError Peridynamics._extract_export_fields(1.5)
+    @test_throws ArgumentError Peridynamics._extract_export_fields(["damage"])
+end

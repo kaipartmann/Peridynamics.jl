@@ -22,9 +22,11 @@ Manifest.toml
 /benchmark/baselines/
 /benchmark/hpc/results/
 
-# local debugging
+# local debugging and development files
 /scripts/
 /paper/
+/dev/
+/plans/
 
 # OS generated files
 *.DS_Store

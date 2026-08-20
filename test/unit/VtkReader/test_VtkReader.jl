@@ -1,0 +1,248 @@
+
+
+@testitem "read complete results" setup=[Fixtures] begin
+    rng = Fixtures.rng()
+    using Peridynamics.WriteVTK
+
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_1")
+    name = bname * ".vtu"
+    n_points = 10
+    position = rand(rng, 3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    damage = rand(rng, n_points)
+    displacement = rand(rng, 3, n_points)
+    integer_test = rand(rng, 1:100, n_points)
+    time = rand(rng, ) * 1000
+    vtk_grid(bname, position, cells) do vtk
+        vtk["Damage", VTKPointData()] = damage
+        vtk["Displacement", VTKPointData()] = displacement
+        vtk["integer_test", VTKPointData()] = integer_test
+        vtk["Time", VTKFieldData()] = time
+    end
+    result = read_vtk(name)
+
+    @test typeof(result) == Dict{Symbol, VecOrMat{<:Real}}
+    @test result[:position] == position
+    @test result[:Time] == [time]
+    @test result[:Damage] == damage
+    @test result[:Displacement] == displacement
+end
+
+#-- read incomplete results
+@testitem "read incomplete results" setup=[Fixtures] begin
+    rng = Fixtures.rng()
+    using Peridynamics.WriteVTK
+
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_2")
+    name = bname * ".vtu"
+    n_points = 10
+    position = rand(rng, 3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    damage = rand(rng, n_points)
+    time = rand(rng, ) * 1000
+    random_point_data = rand(rng, n_points)
+    random_field_data =  [1e-5, 1.0, 5]
+    vtk_grid(bname, position, cells) do vtk
+        vtk["time", VTKFieldData()] = time
+        vtk["damage", VTKPointData()] = damage
+        vtk["random_point_data", VTKPointData()] = random_point_data
+        vtk["random_field_data", VTKFieldData()] = random_field_data
+    end
+    result = read_vtk(name)
+
+    @test typeof(result) == Dict{Symbol, VecOrMat{Float64}}
+    @test result[:position] == position
+    @test result[:time] == [time]
+    @test result[:damage] == damage
+    @test result[:random_point_data] == random_point_data
+    @test result[:random_field_data] == random_field_data
+end
+
+@testitem "wrong file type" begin
+    # a file that does not exist, and one that exists but has neither a vtu nor a pvtu extension
+    @test_throws ArgumentError read_vtk("something.wrong")
+    file = joinpath(mktempdir(), "something.wrong")
+    touch(file)
+    @test_throws ArgumentError read_vtk(file)
+end
+
+@testitem "corrupt file raw encoding" setup=[Fixtures] begin
+    rng = Fixtures.rng()
+    using Peridynamics.WriteVTK
+
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_3")
+    name = bname * ".vtu"
+    n_points = 10
+    position = rand(rng, 3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    damage = rand(rng, n_points)
+    time = rand(rng, ) * 1000
+    random_point_data = rand(rng, n_points)
+    random_field_data =  [1e-5, 1.0, 5]
+    vtk_grid(bname, position, cells) do vtk
+        vtk["Time", VTKFieldData()] = time
+        vtk["Damage", VTKPointData()] = damage
+        vtk["RandomPointData", VTKPointData()] = random_point_data
+        vtk["RandomFieldData", VTKFieldData()] = random_field_data
+    end
+    file_raw = read(name, String)
+    file_raw_new = replace(file_raw,"<AppendedData encoding=\"raw\">" => "<>",)
+    open(name, "w") do io
+        write(io, file_raw_new)
+    end
+
+    @test_throws ErrorException read_vtk(name)
+end
+
+@testitem "corrupt file offset marker" setup=[Fixtures] begin
+    rng = Fixtures.rng()
+    using Peridynamics.WriteVTK
+
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_4")
+    name = bname * ".vtu"
+    n_points = 10
+    position = rand(rng, 3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    damage = rand(rng, n_points)
+    time = rand(rng, ) * 1000
+    random_point_data = rand(rng, n_points)
+    random_field_data =  [1e-5, 1.0, 5]
+    vtk_grid(bname, position, cells) do vtk
+        vtk["Time", VTKFieldData()] = time
+        vtk["Damage", VTKPointData()] = damage
+        vtk["RandomPointData", VTKPointData()] = random_point_data
+        vtk["RandomFieldData", VTKFieldData()] = random_field_data
+    end
+    file_raw = read(name, String)
+    file_raw_new = replace(file_raw, "_" => "")
+    open(name, "w") do io
+        write(io, file_raw_new)
+    end
+
+    @test_throws ErrorException read_vtk(name)
+end
+
+#-- corrupt file </AppendedData>
+@testitem "corrupt file appended data" setup=[Fixtures] begin
+    rng = Fixtures.rng()
+    using Peridynamics.WriteVTK
+
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_5")
+    name = bname * ".vtu"
+    n_points = 10
+    position = rand(rng, 3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    damage = rand(rng, n_points)
+    time = rand(rng, ) * 1000
+    random_point_data = rand(rng, n_points)
+    random_field_data =  [1e-5, 1.0, 5]
+    vtk_grid(bname, position, cells) do vtk
+        vtk["Time", VTKFieldData()] = time
+        vtk["Damage", VTKPointData()] = damage
+        vtk["RandomPointData", VTKPointData()] = random_point_data
+        vtk["RandomFieldData", VTKFieldData()] = random_field_data
+    end
+    file_raw = read(name, String)
+    file_raw_new = replace(file_raw, "\n  </AppendedData>" => "<AppendedData>")
+    open(name, "w") do io
+        write(io, file_raw_new)
+    end
+
+    @test_throws ErrorException read_vtk(name)
+end
+
+@testitem "read pvtu file" setup=[Fixtures] begin
+    rng = Fixtures.rng()
+    using Peridynamics.WriteVTK
+
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test")
+    name = bname * ".pvtu"
+    n_points = 10
+    n_parts = 3
+    position = [rand(rng, 3, n_points) for _ in 1:n_parts]
+    cells = [Peridynamics.get_cells(n_points) for _ in 1:n_parts]
+    damage = [rand(rng, n_points) for _ in 1:n_parts]
+    displacement = [rand(rng, 3, n_points) for _ in 1:n_parts]
+    integer_test = [rand(rng, 1:100, n_points) for _ in 1:n_parts]
+    time = rand(rng, ) * 1000
+    for i in 1:n_parts
+        pvtk_grid(bname, position[i], cells[i]; part=i, nparts=n_parts) do vtk
+            vtk["damage", VTKPointData()] = damage[i]
+            vtk["displacement", VTKPointData()] = displacement[i]
+            vtk["integer_test", VTKPointData()] = integer_test[i]
+            vtk["time", VTKFieldData()] = time
+        end
+    end
+
+    result = read_vtk(name)
+
+    @test result[:position] ≈ reduce(hcat, position)
+    @test result[:damage] ≈ reduce(vcat, damage)
+    @test result[:displacement] ≈ reduce(hcat, displacement)
+    @test result[:integer_test] ≈ reduce(vcat, integer_test)
+    @test result[:time] ≈ [time]
+end
+
+@testitem "read pvtu files with nothing exported" setup=[Fixtures] begin
+    rng = Fixtures.rng()
+    using Peridynamics.WriteVTK
+
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test")
+    name = bname * ".pvtu"
+    n_points = 10
+    n_parts = 3
+    position = [rand(rng, 3, n_points) for _ in 1:n_parts]
+    cells = [Peridynamics.get_cells(n_points) for _ in 1:n_parts]
+    for i in 1:n_parts
+        pvtk_grid(bname, position[i], cells[i]; part=i, nparts=n_parts) do vtk
+        end
+    end
+
+    result = read_vtk(name)
+
+    @test result[:position] ≈ reduce(hcat, position)
+end
+
+@testitem "read vtu files with nothing exported" setup=[Fixtures] begin
+    rng = Fixtures.rng()
+    using Peridynamics.WriteVTK
+
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_6")
+    name = bname * ".vtu"
+    n_points = 10
+    position = rand(rng, 3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    vtk_grid(bname, position, cells) do vtk
+    end
+    result = read_vtk(name)
+
+    @test typeof(result) == Dict{Symbol,VecOrMat{Float64}}
+    @test result[:position] == position
+end
+
+@testitem "DataArray: only appended arrays of known types are supported" begin
+    using Peridynamics.VtkReader: DataArray, LightXML
+    xml = LightXML.new_element("Foo")
+    @test_throws ArgumentError DataArray(xml)
+    xml = LightXML.new_element("DataArray")
+    for (k, v) in ("type" => "Float64", "Name" => "x", "NumberOfComponents" => "1",
+                   "offset" => "0", "format" => "ascii")
+        LightXML.set_attribute(xml, k, v)
+    end
+    @test_throws ArgumentError DataArray(xml)
+    LightXML.set_attribute(xml, "format", "appended")
+    LightXML.set_attribute(xml, "type", "Float32")
+    @test_throws ArgumentError DataArray(xml)
+    LightXML.set_attribute(xml, "type", "Float64")
+    da = DataArray(xml)
+    @test da.name == :x && da.offset == 0
+    @test Peridynamics.VtkReader.element_type(da) == Float64
+end
