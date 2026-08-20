@@ -18,20 +18,25 @@ jobs:
   #   extras: the `:perf`, `:lint` and `:slow` items
   # The selection is made in `test/runtests.jl` via `PERIDYNAMICS_TESTS`.
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    name: Unit tests - Julia ${{ matrix.version_label }} - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         version:
-          - '1.10'
-          - '1.11'
-          - '1.12'
+          - 'min'
+          - '1'
         os:
           - ubuntu-latest
         arch:
           - x64
+        # version_label only prettifies the job name, it has no effect on the build
+        include:
+          - version: 'min'
+            version_label: 'min (oldest supported)'
+          - version: '1'
+            version_label: '1 (latest stable)'
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
@@ -55,7 +60,7 @@ jobs:
       JULIA_NUM_THREADS: 2
       PERIDYNAMICS_TESTS: default
   mpi:
-    name: MPI - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    name: MPI - Julia ${{ matrix.version_label }} - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     # a hung MPI rank must not keep the job alive for the 6 h default
     timeout-minutes: 40
@@ -63,13 +68,18 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.10'
-          - '1.11'
-          - '1.12'
+          - 'min'
+          - '1'
         os:
           - ubuntu-latest
         arch:
           - x64
+        # version_label only prettifies the job name, it has no effect on the build
+        include:
+          - version: 'min'
+            version_label: 'min (oldest supported)'
+          - version: '1'
+            version_label: '1 (latest stable)'
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
@@ -90,20 +100,25 @@ jobs:
       JULIA_NUM_THREADS: 2
       PERIDYNAMICS_TESTS: mpi
   extras:
-    name: Extras (perf, lint, slow) - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    name: Extras - Julia ${{ matrix.version_label }} - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         version:
-          - '1.10'
-          - '1.11'
-          - '1.12'
+          - 'min'
+          - '1'
         os:
           - ubuntu-latest
         arch:
           - x64
+        # version_label only prettifies the job name, it has no effect on the build
+        include:
+          - version: 'min'
+            version_label: 'min (oldest supported)'
+          - version: '1'
+            version_label: '1 (latest stable)'
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
