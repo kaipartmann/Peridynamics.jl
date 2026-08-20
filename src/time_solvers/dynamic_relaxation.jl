@@ -197,9 +197,9 @@ function relaxation_timestep!(dh::AbstractThreadsBodyDataHandler,
         update_disp_and_pos!(chunk, Δt)
     end
     calc_force_density!(dh, t, Δt)
+    cn = n == 1 ? 0.0 : calc_damping(dh.chunks, Δt)
     @threads :static for chunk_id in eachindex(dh.chunks)
         chunk = dh.chunks[chunk_id]
-        cn = calc_damping(chunk, Δt)
         if n == 1
             relaxation_first_step!(chunk, Δt)
         else
@@ -220,7 +220,7 @@ function relaxation_timestep!(dh::AbstractMPIBodyDataHandler,
     @timeit_debug TO "relaxation_step!" if n == 1
         relaxation_first_step!(chunk, Δt)
     else
-        cn = calc_damping(chunk, Δt)
+        cn = calc_damping(dh, Δt)
         relaxation_step!(chunk, Δt, cn)
     end
     @timeit_debug TO "export_results" export_results(dh, options, n, t)
@@ -243,9 +243,9 @@ function relaxation_timestep!(dh::AbstractThreadsMultibodyDataHandler,
     calc_contact_force_densities!(dh)
     for body_idx in each_body_idx(dh)
         body_dh = get_body_dh(dh, body_idx)
+        cn = n == 1 ? 0.0 : calc_damping(body_dh.chunks, Δt)
         @threads :static for chunk_id in eachindex(body_dh.chunks)
             chunk = body_dh.chunks[chunk_id]
-            cn = calc_damping(chunk, Δt)
             if n == 1
                 relaxation_first_step!(chunk, Δt)
             else
@@ -257,19 +257,50 @@ function relaxation_timestep!(dh::AbstractThreadsMultibodyDataHandler,
     return nothing
 end
 
-function calc_damping(chunk::AbstractBodyChunk, Δt::Float64)
+# Partial sums of the damping Rayleigh quotient with their summation compensations
+struct DampingTerms{T}
+    cn1::T
+    cn1_c::T
+    cn2::T
+    cn2_c::T
+end
+
+# The error-free transformation of `a + b`: the rounded sum and the exact rounding error
+@inline function two_sum(a, b)
+    s = a + b
+    v = s - a
+    e = (a - (s - v)) + (b - v)
+    return s, e
+end
+
+function damping_terms(chunk::AbstractBodyChunk, Δt)
     (; displacement, velocity_half, velocity_half_old,
        b_int, b_int_old, density_matrix) = chunk.storage
-    cn1 = 0.0
-    cn2 = 0.0
+    cn1, cn1_c = 0.0, 0.0
+    cn2, cn2_c = 0.0, 0.0
     for dof in each_loc_dof(chunk)
         if velocity_half[dof] != 0.0
             Δb_int = b_int[dof] - b_int_old[dof]
             temp = Δt * density_matrix[dof] * velocity_half_old[dof]
-            cn1 -= displacement[dof]^2 * Δb_int / temp
+            cn1, e = two_sum(cn1, -displacement[dof]^2 * Δb_int / temp)
+            cn1_c += e
         end
-        cn2 += displacement[dof]^2
+        cn2, e = two_sum(cn2, displacement[dof]^2)
+        cn2_c += e
     end
+    return DampingTerms(cn1, cn1_c, cn2, cn2_c)
+end
+
+# Combine two partial sums, keeping the compensations exact
+@inline function combine(a::DampingTerms, b::DampingTerms)
+    cn1, e1 = two_sum(a.cn1, b.cn1)
+    cn2, e2 = two_sum(a.cn2, b.cn2)
+    return DampingTerms(cn1, a.cn1_c + b.cn1_c + e1, cn2, a.cn2_c + b.cn2_c + e2)
+end
+
+finish_damping(t::DampingTerms) = finish_damping(t.cn1 + t.cn1_c, t.cn2 + t.cn2_c)
+
+function finish_damping(cn1, cn2)
     if cn2 != 0.0
         if cn1 / cn2 > 0.0
             cn = 2.0 * sqrt(cn1 / cn2)
@@ -285,7 +316,25 @@ function calc_damping(chunk::AbstractBodyChunk, Δt::Float64)
     return cn
 end
 
-function relaxation_first_step!(chunk::AbstractBodyChunk, Δt::Float64)
+function calc_damping(chunk::AbstractBodyChunk, Δt)
+    return finish_damping(damping_terms(chunk, Δt))
+end
+
+function calc_damping(chunks::AbstractVector{<:AbstractBodyChunk}, Δt)
+    terms = Vector{DampingTerms{Float64}}(undef, length(chunks)) # concrete: an abstract eltype boxes every store
+    @threads :static for chunk_id in eachindex(chunks)
+        terms[chunk_id] = damping_terms(chunks[chunk_id], Δt)
+    end
+    return finish_damping(reduce(combine, terms))
+end
+
+function calc_damping(dh::AbstractMPIBodyDataHandler, Δt)
+    loc_terms = damping_terms(dh.chunk, Δt)
+    all_terms = MPI.Allgather(loc_terms, mpi_comm()) # in rank order on every rank
+    return finish_damping(reduce(combine, all_terms))
+end
+
+function relaxation_first_step!(chunk::AbstractBodyChunk, Δt)
     (; velocity_half, b_int, b_ext, density_matrix) = chunk.storage
     for dof in each_loc_dof(chunk)
         velocity_half[dof] = 0.5 * Δt * (b_int[dof] + b_ext[dof]) / density_matrix[dof]
@@ -294,7 +343,7 @@ function relaxation_first_step!(chunk::AbstractBodyChunk, Δt::Float64)
     return nothing
 end
 
-function relaxation_step!(chunk::AbstractBodyChunk, Δt::Float64, cn::Float64)
+function relaxation_step!(chunk::AbstractBodyChunk, Δt, cn)
     (; velocity_half, b_int, b_ext, density_matrix) = chunk.storage
     for dof in each_loc_dof(chunk)
         a = (b_int[dof] + b_ext[dof]) / density_matrix[dof]
