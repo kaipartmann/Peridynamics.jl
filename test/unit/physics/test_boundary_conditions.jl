@@ -7,7 +7,7 @@
 
 @testmodule ConditionCase begin
     using Peridynamics
-    "A two-point body with the sets `:a` (both points) and `:b` (the second point)."
+    # a two-point body with the sets `:a` (both points) and `:b` (the second point)
     function two_points()
         body = Body(BBMaterial(), [0.0 1.0; 0.0 0.0; 0.0 0.0], [1.0, 1.0])
         material!(body, horizon=1.5, rho=1, E=210e9, Gc=1.0)

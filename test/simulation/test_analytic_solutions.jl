@@ -7,21 +7,17 @@
 @testmodule UniformTension begin
     using Peridynamics
 
-    "Length and cross section of the bar, the pulling force and the Young's modulus."
+    # length and cross section of the bar, the pulling force and the Young's modulus
     const l, w, h = 1.0, 0.1, 0.1
     const F = 2e6
     const E = 200e9
 
-    "The exact elongation of the bar: `F l / (E A)`."
+    # the exact elongation of the bar: `F l / (E A)`
     analytic_elongation() = F / (E * w * h) * l
 
-    """
-        bar(mat, Δx; kwargs...)
-
-    The bar of `mat` with spacing `Δx`, three extra layers on the left for the fixed end, the
-    point sets `:left` (fixed) and `:right` (loaded), and the force density that distributes `F`
-    over the right layer. `kwargs` are passed to `material!`.
-    """
+    # the bar of `mat` with spacing `Δx`, three extra layers on the left for the fixed end, the
+    # point sets `:left` (fixed) and `:right` (loaded), and the force density that distributes `F`
+    # over the right layer. `kwargs` are passed to `material!`
     function bar(mat, Δx; kwargs...)
         pos, vol = uniform_box(l + 3Δx, w, h, Δx; center=(-1.5Δx, 0, 0))
         body = Body(mat, pos, vol)
@@ -32,7 +28,7 @@
         return body, b_right
     end
 
-    "Run `body` with `solver`, export the last step, and return the mean x-displacement of `:right`."
+    # run `body` with `solver`, export the last step, and return the mean x-displacement of `:right`
     function elongation(body, solver, steps)
         path = mktempdir()
         job = Job(body, solver; freq=steps, path, fields=(:displacement,))
@@ -42,13 +38,13 @@
         return sum(results[:displacement][1, right]) / length(right)
     end
 
-    "Relative error of the elongation of `body` solved with `solver`."
+    # relative error of the elongation of `body` solved with `solver`
     function elongation_error(body, solver, steps)
         Δl = analytic_elongation()
         return abs(elongation(body, solver, steps) - Δl) / Δl
     end
 
-    "The bar with velocity conditions fixing the left end: for the dynamic relaxation."
+    # the bar with velocity conditions fixing the left end: for the dynamic relaxation
     function relaxation_bar(Δx)
         body, b_right = bar(CMaterial(), Δx; epsilon_c=1.0)
         for dim in (:x, :y, :z)
@@ -58,7 +54,7 @@
         return body
     end
 
-    "The bar with displacement conditions fixing the left end: for the Newton-Krylov solver."
+    # the bar with displacement conditions fixing the left end: for the Newton-Krylov solver
     function newton_bar(Δx)
         body, b_right = bar(CMaterial(zem=ZEMSilling(Cs=0.5)), Δx)
         for dim in (:x, :y, :z)
@@ -68,7 +64,7 @@
         return body
     end
 
-    "The bar with data boundary conditions (one value per point) for both ends."
+    # the bar with data boundary conditions (one value per point) for both ends
     function databc_bar(Δx)
         body, b_right = bar(BBMaterial{EnergySurfaceCorrection}(), Δx; epsilon_c=1.0)
         # one row per dimension, one column per point; only the points of the set are read

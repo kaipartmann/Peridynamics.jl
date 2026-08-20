@@ -13,7 +13,7 @@
     const TEST_ROOT = normpath(@__DIR__, "..")
     const SRC_ROOT = normpath(@__DIR__, "..", "..", "src")
 
-    "Every `.jl` file below `test/`, relative to `test/`."
+    # every `.jl` file below `test/`, relative to `test/`
     function test_files()
         files = String[]
         for (root, _, names) in walkdir(TEST_ROOT), name in names
@@ -23,10 +23,8 @@
         return sort!(files)
     end
 
-    """
-    One record per `@testitem`: `file`, `name`, `line`, `tags`, the set of identifiers and
-    macro names used in its body, and the `lint-ok` comment of its header line, if any.
-    """
+    # one record per `@testitem`: `file`, `name`, `line`, `tags`, the set of identifiers and
+    # macro names used in its body, and the `lint-ok` comment of its header line, if any
     struct Item
         file::String
         name::String
@@ -88,10 +86,10 @@
         return nothing
     end
 
-    "All items of the suite."
+    # all items of the suite
     all_items() = reduce(vcat, (items(f) for f in test_files()); init=Item[])
 
-    "A readable location for failure messages."
+    # a readable location for failure messages
     location(it::Item) = "$(it.file):$(it.line) \"$(it.name)\""
 
     # Functions that start a time loop. An item using any of them is a `:simulation`.
@@ -108,7 +106,7 @@
         :randn => "use a deterministic fixture or the seeded `rng = Fixtures.rng()`",
     ]
 
-    "The unit test directories, `test/unit/<dir>`, which mirror `src/<dir>` one-to-one."
+    # the unit test directories, `test/unit/<dir>`, which mirror `src/<dir>` one-to-one
     const UNIT_ROOT = joinpath(TEST_ROOT, "unit")
     unit_dirs() = [d for d in readdir(UNIT_ROOT) if isdir(joinpath(UNIT_ROOT, d))]
 end

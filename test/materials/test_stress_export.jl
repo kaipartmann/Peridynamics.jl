@@ -6,7 +6,7 @@
     using Peridynamics, Test
     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
 
-    "The exported field `field` of `body` after the homogeneous deformation `F`."
+    # the exported field `field` of `body` after the homogeneous deformation `F`
     function export_field(body, F, field)
         ts = VelocityVerlet(steps=1)
         dh = Peridynamics.threads_data_handler(body, ts, 1)
@@ -25,7 +25,7 @@
         return Peridynamics.export_field(Val(field), mat, system, storage, paramsetup, 0.0)
     end
 
-    "Mean of the `3×3` tensors stored column-wise in the `9×n` matrix `qty`."
+    # mean of the `3×3` tensors stored column-wise in the `9×n` matrix `qty`
     function mean_tensor(qty)
         s = zero(SMatrix{3,3,eltype(qty),9})
         for i in axes(qty, 2)
@@ -36,14 +36,10 @@
 
     const OFF_DIAGONAL = ((1, 2), (2, 3), (3, 1), (2, 1), (3, 2), (1, 3))
 
-    """
-        check(body; rtol)
-
-    Check the stress exports of `body` under a homogeneous isotropic extension, a pure shear and
-    three uniaxial extensions against the small strain continuum with the point parameters of
-    `body`. `rtol` is the relative tolerance on the normal and hydrostatic stresses; the
-    Neo-Hooke models deviate from the linear closed forms by their nonlinearity.
-    """
+    # check the stress exports of `body` under a homogeneous isotropic extension, a pure shear
+    # and three uniaxial extensions against the small strain continuum with the point parameters
+    # of `body`; `rtol` is the relative tolerance on the normal and hydrostatic stresses (the
+    # Neo-Hooke models deviate from the linear closed forms by their nonlinearity)
     function check(body; rtol=1e-3)
         p = body.point_params[1]
         λ = 1.001 # uniform extension

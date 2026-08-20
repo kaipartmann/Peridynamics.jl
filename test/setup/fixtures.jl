@@ -30,8 +30,8 @@ end
 """
     line10(mat=BBMaterial(); horizon=1.5, kwargs...)
 
-Ten unit-volume points on the x-axis at `0, 1, …, 9`. A deterministic stand-in for the random
-ten-point bodies that the `Study`, `Job` and chunk tests used to build.
+Ten unit-volume points on the x-axis at `0, 1, …, 9`. The deterministic default body of the
+`Study`, `Job` and chunk tests.
 """
 function line10(mat=BBMaterial(); horizon=1.5, rho=1.0, E=1.0, nu=0.25, kwargs...)
     body = Body(mat, line_position(10), ones(10))

@@ -16,13 +16,13 @@
         :damage => (1, :loc),
     )
 
-    "Fields the bond systems share, beyond `COMMON_FIELDS`."
+    # fields the bond systems share, beyond `COMMON_FIELDS`
     const BOND_SYSTEM_FIELDS = Dict(
         :n_active_bonds => (1, :loc),
         :bond_active => (1, :bonds),
     )
 
-    "Per solver: the fields it needs and how, and the fields of the others it leaves empty."
+    # per solver: the fields it needs and how, and the fields of the others it leaves empty
     const SOLVER_FIELDS = Dict(
         VelocityVerlet => Dict(
             :velocity => (3, :loc), :velocity_half => (3, :loc), :acceleration => (3, :loc),
@@ -57,7 +57,7 @@
     velocity_half_spec(mat, solver) = SOLVER_FIELDS[typeof(solver)][:velocity_half]
     velocity_half_spec(::Union{CRMaterial,RKCRMaterial}, ::Union{VelocityVerlet,DynamicRelaxation}) = (3, :all)
 
-    "What each material adds to the common fields."
+    # what each material adds to the common fields
     const MATERIAL_FIELDS = [
         BBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds)),
         DHBBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds)),
@@ -88,7 +88,7 @@
                               :one_ni_active => (1, :bonds)),
     ]
 
-    "The expected size of a field with shape `spec`, given the `counts` of the system."
+    # the expected size of a field with shape `spec`, given the `counts` of the system
     function expected_size(spec, counts)
         spec[2] isa Symbol || return spec # a fixed size, e.g. a stiffness tensor
         d = spec[1]
@@ -96,7 +96,7 @@
         return d == 1 ? (n,) : (d, n)
     end
 
-    "Number of points, local points, bonds, local dof and max. neighbors of `system`."
+    # number of points, local points, bonds, local dof and max. neighbors of `system`
     function counts(system::Peridynamics.AbstractBondSystem)
         return Dict(:all => Peridynamics.get_n_points(system),
                     :loc => Peridynamics.get_n_loc_points(system),
@@ -111,7 +111,7 @@
                     :dof => Peridynamics.get_n_loc_dof(system))
     end
 
-    "The first of two chunks of a ten-point line body of `mat`, with its storage and system."
+    # the first of two chunks of a ten-point line body of `mat`, with its storage and system
     function first_chunk(mat, solver)
         position = zeros(3, 10)
         position[1, :] .= 0.0:9.0
@@ -122,7 +122,7 @@
         return Peridynamics.BodyChunk(body, solver, pd, 1, ps)
     end
 
-    "Check every field of the storage of `mat` with `solver` against the table."
+    # check every field of the storage of `mat` with `solver` against the table
     function check(mat, solver)
         chunk = first_chunk(mat, solver)
         (; storage, system) = chunk

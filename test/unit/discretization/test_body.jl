@@ -4,24 +4,22 @@
 
 @testmodule BodyCase begin
     using Peridynamics
-    "A body of `n` points on a line with unit volumes; no material yet."
+    # a body of `n` points on a line with unit volumes; no material yet
     function line(mat=BBMaterial(), n=4)
         position = zeros(3, n)
         position[1, :] .= 0:(n - 1)
         return Body(mat, position, ones(n))
     end
-    "The 4-point tetrahedron with unit volumes; no material yet."
+    # the 4-point tetrahedron with unit volumes; no material yet
     function tetra()
         position = [0.0 1.0 0.0 0.0
                     0.0 0.0 1.0 0.0
                     0.0 0.0 0.0 1.0]
         return Body(BBMaterial(), position, [1.0, 1.0, 1.0, 1.0])
     end
-    """
-    The 8-point body of the `log_msg_body` items: two parameter sets, two initial and two
-    boundary conditions, a pre-crack, points without failure and a name. `matkwargs` are the
-    `material!` keywords the material needs beyond `horizon`, `rho`, `E` and `Gc`.
-    """
+    # the 8-point body of the `log_msg_body` items: two parameter sets, two initial and two
+    # boundary conditions, a pre-crack, points without failure and a name; `matkwargs` are the
+    # `material!` keywords the material needs beyond `horizon`, `rho`, `E` and `Gc`
     function logged_body(mat; matkwargs...)
         position, volume = uniform_box(1, 1, 1, 0.5)
         body = Body(mat, position, volume)
@@ -199,8 +197,8 @@ end
 end
 
 @testitem "displacement bc with a solver that cannot apply it" begin
-    # `displacement_bc!` adds a `PosSingleDimBC`, which only the `NewtonKrylov` solver applies.
-    # With any other solver it used to be silently ignored.
+    # `displacement_bc!` adds a `PosSingleDimBC`, which only the `NewtonKrylov` solver applies;
+    # any other solver must reject the job instead of silently ignoring the condition
     pos, vol = uniform_box(1, 1, 1, 0.25)
     make_body() = begin
         body = Body(BBMaterial(), pos, vol)

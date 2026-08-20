@@ -8,24 +8,16 @@
 
     mean(x) = sum(x) / length(x)
 
-    """
-        interior_ids(body, system)
-
-    Indices of the points of the unit cube that are further than one horizon from every surface.
-
-    A point near a surface has an incomplete family and therefore an effective stiffness below
-    the bulk value. That surface effect is a property of the formulation and not an error, but
-    it is an order of magnitude larger than the lattice error it hides, so a tolerance over all
-    points says nothing about the calibration of the bond constants. This needs a body resolved
-    well enough to have an interior at all.
-    """
+    # indices of the points of the unit cube further than one horizon from every surface;
+    # points near a surface have incomplete families and a stiffness below the bulk value, so
+    # only the interior error reflects the calibration of the bond constants
     function interior_ids(body, system)
         δ = body.point_params[1].δ
         X = system.position
         return [i for i in axes(X, 2) if all(abs(X[d, i]) < 0.5 - δ for d in 1:3)]
     end
 
-    "The unit cube of `mat` with spacing `Δx`, `material!` called with `kwargs`."
+    # the unit cube of `mat` with spacing `Δx`, `material!` called with `kwargs`
     function cube(mat, Δx; kwargs...)
         pos, vol = uniform_box(1, 1, 1, Δx)
         body = Body(mat, pos, vol)
@@ -33,17 +25,10 @@
         return body
     end
 
-    """
-        check(body, F_a, Ψ_a, tols; interior_tols=nothing)
-
-    Check the exported strain energy density of `body` under the deformation gradient `F_a`
-    against the closed form `Ψ_a`.
-
-    `tols` is the two-sided band on the relative error over *all* points and is dominated by the
-    surface effect. `interior_tols`, if given, is the band on the interior points alone, where
-    the error is a deterministic constant of the material and of the horizon-to-spacing ratio
-    and can therefore be asserted tightly.
-    """
+    # check the exported strain energy density of `body` under `F_a` against the closed form
+    # `Ψ_a`; `tols` is the two-sided band on the relative error over *all* points (dominated by
+    # the surface effect), `interior_tols` the band on the interior points alone, where the
+    # error is a deterministic constant and can be asserted tightly
     function check(body, F_a, Ψ_a, tols; interior_tols=nothing, atol0=eps())
         ts = VelocityVerlet(steps=1)
         dh = Peridynamics.threads_data_handler(body, ts, 1)

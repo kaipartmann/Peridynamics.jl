@@ -30,10 +30,7 @@
     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
     using ForwardDiff
 
-    """
-    Helper function to set up a material model with specified parameters.
-    Returns storage and params for testing.
-    """
+    # a CStorage and its point parameters for `model`, ready for stress/energy evaluations
     function setup_material(model; E=210e9, nu=0.3, rho=7850)
         pos, vol = uniform_box(1.0, 1.0, 1.0, 0.5)
         mat = CMaterial(; model)
@@ -47,10 +44,7 @@
         return storage, params
     end
 
-    """
-    Compute P = ∂Ψ/∂F using automatic differentiation.
-    This is the thermodynamically consistent stress.
-    """
+    # P = ∂Ψ/∂F via ForwardDiff: the thermodynamically consistent stress
     function compute_pk1_from_energy(model, storage, params, F)
         Ψ = let model=model, storage=storage, params=params, F=F
             F -> Peridynamics.strain_energy_density(model, storage, params, F)
@@ -69,13 +63,7 @@
 
     # ---- analytical solutions (for verification) ----
 
-    """
-    Analytical solution for pure shear in small strain limit.
-    For F = [1, γ, 0; 0, 1, 0; 0, 0, 1],
-    E = [γ²/2, γ/2, 0; γ/2, 0, 0; 0, 0, 0]
-    S = λ*tr(E)*I + 2μ*E
-    P = F * S
-    """
+    # P for pure shear F = [1 γ 0; 0 1 0; 0 0 1]: S = λ tr(E) I + 2μE, P = F S
     function analytical_pure_shear_small_strain(λ, μ, γ)
         # Exact Green-Lagrange strain for F = [1, γ, 0; 0, 1, 0; 0, 0, 1]
         # E = 0.5*(F'F - I) = [0, γ/2, 0; γ/2, γ²/2, 0; 0, 0, 0]
@@ -96,10 +84,7 @@
         return F * S
     end
 
-    """
-    Analytical solution for uniaxial stretch in small strain limit.
-    For F = diag(1+ε, 1, 1), E ≈ diag(ε + ε²/2, -νε, -νε) for small ε
-    """
+    # P for uniaxial stretch F = diag(1+ε, 1, 1): E = diag(ε + ε²/2, 0, 0), P = F S
     function analytical_uniaxial_small_strain(λ, μ, ε)
         # E = 0.5*(F'F - I) for F = diag(1+ε, 1, 1)
         # E ≈ diag(ε + ε²/2, 0, 0)
@@ -116,14 +101,7 @@
         return F * S
     end
 
-    """
-    Analytical strain energy for pure shear in small strain limit.
-    For E = [0, γ/2, 0; γ/2, γ²/2, 0; 0, 0, 0]:
-    Ψ = (λ/2)*tr(E)² + μ*tr(E*E)
-      = (λ/2)*(γ²/2)² + μ*(2*(γ/2)² + (γ²/2)²)
-      = λ*γ⁴/8 + μ*(γ²/2 + γ⁴/4)
-    For small γ, dominant term is μ*γ²/2
-    """
+    # Ψ for pure shear: E = [0 γ/2 0; γ/2 γ²/2 0; 0 0 0], Ψ = (λ/2) tr(E)² + μ tr(E²)
     function analytical_energy_pure_shear(λ, μ, γ)
         E11 = 0.0
         E12 = 0.5 * γ
@@ -134,10 +112,7 @@
         return 0.5 * λ * tr_E^2 + μ * tr_E_sq
     end
 
-    """
-    Analytical strain energy for uniaxial tension in small strain limit.
-    For small ε: Ψ ≈ (λ/2)*ε² + μ*ε²
-    """
+    # Ψ for uniaxial tension: E = diag(ε + ε²/2, 0, 0), Ψ = (λ/2) tr(E)² + μ tr(E²)
     function analytical_energy_uniaxial(λ, μ, ε)
         # E ≈ diag(ε + ε²/2, 0, 0)
         E11 = ε + 0.5*ε^2
@@ -145,11 +120,7 @@
         return 0.5 * λ * tr_E^2 + μ * E11^2
     end
 
-    """
-    Analytical strain energy for volumetric deformation.
-    For F = λ*I, E = ((λ²-1)/2)*I, tr(E) = 3(λ²-1)/2
-    Ψ = (λ/2)*tr(E)² + μ*tr(E²) = (λ/2)*(3(λ²-1)/2)² + μ*3((λ²-1)/2)²
-    """
+    # Ψ for volumetric F = s I: E = ((s²-1)/2) I, Ψ = (λ/2) tr(E)² + μ tr(E²)
     function analytical_energy_volumetric(λ, μ, stretch)
         tr_E = 3 * (stretch^2 - 1) / 2
         E_mag_sq = 3 * ((stretch^2 - 1) / 2)^2

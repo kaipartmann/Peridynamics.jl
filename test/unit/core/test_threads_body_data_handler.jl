@@ -31,6 +31,4 @@
     show(IOContext(io, :compact=>false), MIME("text/plain"), dh)
     msg = String(take!(io))
     @test contains(msg, "DataHandler()")
-
-    #TODO
 end

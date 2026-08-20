@@ -37,4 +37,6 @@ Enforced by `quality/test_conventions.jl` where possible:
 - assert derived values; a literal constant needs a comment saying where it comes from;
 - no `include`, no printing, no unseeded `rand` inside items (use `Fixtures.rng()`);
   expected warnings are asserted with `@test_logs`; `submit` is called with `quiet=true`;
+- docstrings only on the shared fixtures in `setup/` (they show on hover at the call sites);
+  helpers local to one test file get a short `#` comment instead;
 - `:simulation` items are sized for the code path, accuracy claims live in `verification/`.

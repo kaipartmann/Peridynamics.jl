@@ -16,7 +16,7 @@ const RANK = Peridynamics.mpi_rank()
 @assert Peridynamics.mpi_run()
 @assert Peridynamics.mpi_nranks() == 2
 
-"The 4-point body of the halo exchange checks: every point sees every other point."
+# the 4-point body of the halo exchange checks: every point sees every other point
 function tetra4()
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0

@@ -3,7 +3,7 @@
 @testmodule CorrespondenceCase begin
     using Peridynamics, Test
 
-    "The origin, the three unit vectors and an isolated point at (2,2,2), unit volumes."
+    # the origin, the three unit vectors and an isolated point at (2,2,2), unit volumes
     function tetra_with_isolated_point(mat; kwargs...)
         ref_position = [0.0 1.0 0.0 0.0 2.0
                         0.0 0.0 1.0 0.0 2.0
@@ -14,11 +14,9 @@
         return body
     end
 
-    """
-    The force density of `body` after point 2 was moved by `Δx` in x within one step `Δt` at
-    time `t` (with the velocities the move implies, which the rotated formulations need for the
-    velocity gradient; `Δt = 0` leaves them zero).
-    """
+    # the force density of `body` after point 2 was moved by `Δx` in x within one step `Δt` at
+    # time `t` (with the velocities the move implies, which the rotated formulations need for the
+    # velocity gradient; `Δt = 0` leaves them zero)
     function force_after_shift(body; Δx=0.0015, t=0.0, Δt=0.0)
         dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
         chunk = dh.chunks[1]

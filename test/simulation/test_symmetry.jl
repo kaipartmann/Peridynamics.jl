@@ -6,7 +6,7 @@
 @testmodule SymmetryCase begin
     using Peridynamics, Test
 
-    "A cube of width 1 whose points are mirror images of each other in x, y and z."
+    # a cube of width 1 whose points are mirror images of each other in x, y and z
     function symmetric_cube(mat, Δx)
         grid⁺ = Δx/2:Δx:0.5
         grid = [-reverse(grid⁺); grid⁺]
@@ -19,7 +19,7 @@
         return body
     end
 
-    "`material!` with the parameters every symmetry run uses, including the CKI interaction set."
+    # `material!` with the parameters every symmetry run uses, including the CKI interaction set
     function symmetric_material!(body, mat, Δx)
         horizon = horizon_ratio(mat) * Δx
         if mat isa CKIMaterial
@@ -36,11 +36,9 @@
     horizon_ratio(::Peridynamics.AbstractMaterial) = 3.015
     horizon_ratio(::Peridynamics.AbstractInteractionSystemMaterial) = 2.015
 
-    """
-    Run `body` with `solver`, exporting every `freq` steps, and check that the final positions
-    are mirror-symmetric and that every point has moved in every direction. `n_files` is the
-    expected number of exported time steps. Returns nothing; the assertions are made here.
-    """
+    # run `body` with `solver`, exporting every `freq` steps, and check that the final positions
+    # are mirror-symmetric and that every point has moved in every direction. `n_files` is the
+    # expected number of exported time steps. Returns nothing; the assertions are made here
     function check_symmetry(body, solver, freq, n_files)
         root = mktempdir()
         job = Job(body, solver; path=root, freq)
@@ -71,7 +69,7 @@
         return nothing
     end
 
-    "Every material in `materials` pulled apart with velocity conditions, 10 explicit steps."
+    # every material in `materials` pulled apart with velocity conditions, 10 explicit steps
     function velocity_verlet(materials)
         for (name, mat) in materials
             @testset "$name" begin
@@ -86,7 +84,7 @@
         return nothing
     end
 
-    "Every material in `materials` pulled apart with force density conditions, 10 relaxation steps."
+    # every material in `materials` pulled apart with force density conditions, 10 relaxation steps
     function dynamic_relaxation(materials)
         for (name, mat) in materials
             @testset "$name" begin
@@ -101,7 +99,7 @@
         return nothing
     end
 
-    "Every supported material in `materials` pulled apart quasi-statically, 2 load steps."
+    # every supported material in `materials` pulled apart quasi-statically, 2 load steps
     function newton_krylov(materials)
         solver = NewtonKrylov(steps=2, stepsize=1.0, maxiter=25, tol=1e-3)
         for (name, mat) in materials
