@@ -512,6 +512,16 @@ end
 
     msg_brackets = Peridynamics.msg_fields_in_brackets(data)
     @test msg_brackets == "(" * msg_inline * ")"
+
+    # an empty field tuple has to yield a closed bracket pair, see `Base.show` of the
+    # RKC-family materials, which call `msg_fields_in_brackets(mat, ())`
+    @test Peridynamics.msg_fields_in_brackets(data, ()) == "()"
+    @test Peridynamics.msg_fields_in_brackets(data, (:integer,)) == "(integer=42)"
+end
+
+@testitem "show: a material with an empty field tuple closes its bracket" begin
+    # `Base.show` of the RKC family passes an empty field tuple; the bracket has to close
+    @test endswith(sprint(show, RKCMaterial()), "()")
 end
 
 @testitem "msg_path and msg_vec: a description wider than the line" begin

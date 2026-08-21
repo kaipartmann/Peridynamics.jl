@@ -385,7 +385,50 @@ end
 
 ##########################################
 
-function sphere_shape_coords(particle_spacing, radius, center)
+"""
+    sphere_shape_coords(ΔX0, radius, center)
+
+$(internal_api_warning())
+
+Coordinates of points filling a disk or a ball of a given `radius` in concentric layers of
+spacing `ΔX0`, without the edges a cut cubic grid would leave on the surface. This is the
+primitive [`round_sphere`](@ref) and [`round_cylinder`](@ref) are built from.
+
+Whether a disk or a ball is generated follows from `center`: a two-dimensional `center` gives
+a disk in the plane, a three-dimensional one gives a ball.
+
+Unlike the point generators above, this returns coordinates only and no volumes, because the
+volume of a point depends on the shape being filled. For a solid of revolution with radius
+`r(x)`, stack one disk per cross section and give each of the `n` points of that cross section
+the volume `π * r(x)^2 * ΔX0 / n`.
+
+# Arguments
+- `ΔX0::Real`: Spacing of the points, and the thickness of one layer.
+- `radius::Real`: Radius of the disk or ball.
+- `center::StaticVector`: Center coordinates, added to all point coordinates. Its length
+    decides the dimension: `SVector{2}` for a disk, `SVector{3}` for a ball.
+
+# Returns
+- `coords::Matrix{Float64}`: A `length(center)×n_points` matrix with the point coordinates.
+
+# Examples
+
+```julia-repl
+julia> using Peridynamics.StaticArrays
+
+julia> coords = Peridynamics.sphere_shape_coords(1.0, 2.0, SVector{2}(0.0, 0.0));
+
+julia> size(coords)
+(2, 12)
+
+julia> round.(coords[:, 1:4], digits=4)
+2×4 Matrix{Float64}:
+ 0.5  -0.25   -0.25   1.5
+ 0.0   0.433  -0.433  0.0
+```
+"""
+function sphere_shape_coords(ΔX0, radius, center)
+    particle_spacing = ΔX0
     # Each layer has thickness `particle_spacing`
     n_layers = round(Int, radius / particle_spacing)
 

@@ -475,12 +475,11 @@ function _msg_fields_in_brackets(fields, values)
         field, value = fields[i], values[i]
         msg *= msg_qty(field, value; linewidth=0, indentation=0, separator="=",
                        delimiter="", newline=false)
-        if i == n_fields
-            msg *= ")"
-        else
+        if i != n_fields
             msg *= ", "
         end
     end
+    msg *= ")"
     return msg
 end
 

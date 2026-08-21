@@ -105,8 +105,8 @@ function check_export_fields(::Type{S}, fields::Vector{Symbol}) where {S}
         if !in(f, allowed_fields) && !custom_field(S, f)
             msg = "unknown point data field `:$(f)` specified for export!\n"
             msg *= "If you intend to export a custom field, please define a method:"
-            msg *= "\n   `custom_field(::Type{MyStorage}, ::Val{:$(f)}) = true`\n"
-            msg *= "Otherwise, see here all available point data fields of $S:\n"
+            msg *= "\n   `Peridynamics.custom_field(::Type{<:$(nameof(S))}, ::Val{:$(f)}) = true`\n"
+            msg *= "Otherwise, see here all available point data fields of $(nameof(S)):\n"
             for allowed_name in allowed_fields
                 msg *= "  - $allowed_name\n"
             end
@@ -116,9 +116,27 @@ function check_export_fields(::Type{S}, fields::Vector{Symbol}) where {S}
     return nothing
 end
 
+"""
+    custom_field(::Type{<:MyStorage}, ::Val{field})
+
+$(extension_api_note())
+
+Return `true` for every field name that a storage exports but that is not one of its own
+field names, e.g. a quantity that [`export_field`](@ref) derives on the fly. Without this,
+naming the field in `Job(...; fields=(...,))` is rejected as a typo.
+
+Defaults to `false`, so a field that *is* a field of the storage needs nothing.
+
+# Example
+
+```julia
+Peridynamics.custom_field(::Type{<:MyStorage}, ::Val{:von_mises_stress}) = true
+```
+
+See also [`export_field`](@ref).
+"""
 custom_field(S::Type{<:AbstractStorage}, field::Symbol) = custom_field(S, Val(field))
-# this function can be specialized to indicate custom fields
-# if this is not done, the export_field function will error out!
+
 custom_field(::Type{<:AbstractStorage}, ::Val{field}) where {field} = false
 
 function get_vtk_filebase(body::AbstractBody, root::AbstractString)
@@ -174,7 +192,38 @@ function export_fields!(vtk, chunk, fields_spec::Dict{Symbol,Vector{Symbol}}, t)
     return nothing
 end
 
-# this function can be specialized for each field, even custom export fields can be written!
+"""
+    export_field(::Val{field}, mat, system, storage, paramsetup, t)
+
+$(extension_api_note())
+
+Return the point data that is written to the VTK file for `field`. The default returns the
+local points of the storage field of that name, so a field of the storage is exported without
+any further work.
+
+Specialize it to derive a quantity that is not a storage field, or to reduce a bond field to
+a point field. A derived name also has to be announced with [`custom_field`](@ref).
+
+The returned array must have one column per *local* point, i.e. `get_n_loc_points(system)`
+of them; halo entries are owned by another chunk and must not be exported twice.
+
+# Example
+
+```julia
+Peridynamics.custom_field(::Type{<:MyStorage}, ::Val{:bond_damage_avg}) = true
+
+function Peridynamics.export_field(::Val{:bond_damage_avg}, mat, system, storage::MyStorage,
+                                   paramsetup, t)
+    n = Peridynamics.get_n_loc_points(system)
+    out = zeros(n)
+    for i in 1:n
+        bond_ids = Peridynamics.each_bond_idx(system, i)
+        out[i] = sum(@view storage.bond_damage[bond_ids]) / length(bond_ids)
+    end
+    return out
+end
+```
+"""
 function export_field(::Val{field}, mat, system, storage, paramsetup, t) where {field}
     return get_loc_point_data(storage, system, field)
 end

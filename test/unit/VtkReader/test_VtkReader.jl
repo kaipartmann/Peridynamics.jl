@@ -29,6 +29,27 @@
     @test result[:Displacement] == displacement
 end
 
+@testitem "read_vtk: UInt8 point data" setup=[Fixtures] begin
+    rng = Fixtures.rng()
+    using Peridynamics.WriteVTK
+
+    root = mktempdir()
+    bname = joinpath(root, "vtk_test_uint8")
+    name = bname * ".vtu"
+    n_points = 10
+    position = rand(rng, 3, n_points)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (j,)) for j in 1:n_points]
+    uint8_data = rand(rng, UInt8, n_points)
+    vtk_grid(bname, position, cells) do vtk
+        vtk["uint8_data", VTKPointData()] = uint8_data
+    end
+    result = read_vtk(name)
+
+    @test typeof(result) == Dict{Symbol, VecOrMat{<:Real}}
+    @test result[:position] == position
+    @test result[:uint8_data] == uint8_data
+end
+
 #-- read incomplete results
 @testitem "read incomplete results" setup=[Fixtures] begin
     rng = Fixtures.rng()
