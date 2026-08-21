@@ -221,7 +221,28 @@ end
     @test_throws ArgumentError(msg) Peridynamics.init_time_solver!(nr, dh)
 end
 
-@testitem "init_field_solver NewtonKrylov" begin
+@testitem "init_field_solver: NewtonKrylov claims its fields with markers" begin
+    import Peridynamics: FullField, EmptyField, HaloPoints, init_field_solver
+    nr = NewtonKrylov(steps=10, stepsize=0.1)
+    vv = VelocityVerlet(steps=10)
+    struct NKMarkerSystem <: Peridynamics.AbstractSystem end
+    system = NKMarkerSystem()
+
+    # the internal force density is assembled over the halo as well
+    for f in (:b_int, :b_ext, :b_int_copy)
+        @test init_field_solver(nr, system, Val(f)) === FullField(HaloPoints())
+    end
+    # the working fields of the solver, empty for every other solver
+    for f in (:displacement_copy, :residual, :temp_force, :Δu, :v_temp, :Jv_temp)
+        @test init_field_solver(nr, system, Val(f)) === FullField()
+        @test init_field_solver(vv, system, Val(f)) === EmptyField()
+    end
+    # the fields every solver needs are left to the storage declaration
+    @test isnothing(init_field_solver(nr, system, Val(:position)))
+    @test isnothing(init_field_solver(nr, system, Val(:displacement)))
+end
+
+@testitem "NewtonKrylov: the storage fields have the extent the solver needs" begin
     position = [0.0 1.0 0.0 0.0
                 0.0 0.0 1.0 0.0
                 0.0 0.0 0.0 1.0]
@@ -231,90 +252,30 @@ end
 
     nr = NewtonKrylov(steps=10, stepsize=0.1)
     dh = Peridynamics.threads_data_handler(body, nr, 1)
-    chunk = dh.chunks[1]
-    system = chunk.system
-    storage = chunk.storage
+    (; system, storage) = dh.chunks[1]
+    n_loc = Peridynamics.get_n_loc_points(system)
+    n_all = Peridynamics.get_n_points(system)
+    n_dof = Peridynamics.get_n_loc_dof(system)
 
-    # Test position field initialization
-    pos_field = Peridynamics.init_field_solver(nr, system, Val(:position))
-    @test pos_field == position
+    @test storage.position == position
+    @test storage.displacement == zeros(3, n_loc)
+    @test storage.displacement_copy == zeros(3, n_loc)
+    for f in (:b_int, :b_ext, :b_int_copy)
+        @test getfield(storage, f) == zeros(3, n_all)
+    end
+    for f in (:residual, :temp_force, :Δu, :v_temp, :Jv_temp)
+        @test getfield(storage, f) == zeros(n_dof)
+    end
 
-    # Test displacement field initialization
-    disp_field = Peridynamics.init_field_solver(nr, system, Val(:displacement))
-    @test disp_field == zeros(3, Peridynamics.get_n_loc_points(system))
-
-    # Test b_int field initialization
-    b_int_field = Peridynamics.init_field_solver(nr, system, Val(:b_int))
-    @test b_int_field == zeros(3, Peridynamics.get_n_points(system))
-
-    # Test b_ext field initialization
-    b_ext_field = Peridynamics.init_field_solver(nr, system, Val(:b_ext))
-    @test b_ext_field == zeros(3, Peridynamics.get_n_points(system))
-
-    # Test displacement_copy field initialization
-    disp_copy_field = Peridynamics.init_field_solver(nr, system, Val(:displacement_copy))
-    @test disp_copy_field == zeros(3, Peridynamics.get_n_loc_points(system))
-
-    # Test b_int_copy field initialization
-    b_int_copy_field = Peridynamics.init_field_solver(nr, system, Val(:b_int_copy))
-    @test b_int_copy_field == zeros(3, Peridynamics.get_n_points(system))
-
-    # Test residual field initialization
-    n_dof = Peridynamics.get_n_dof(system)
-    residual_field = Peridynamics.init_field_solver(nr, system, Val(:residual))
-    @test residual_field == zeros(n_dof)
-
-    # Test temp_force_a field initialization
-    temp_a_field = Peridynamics.init_field_solver(nr, system, Val(:temp_force))
-    @test temp_a_field == zeros(n_dof)
-
-    # Test Δu field initialization
-    du_field = Peridynamics.init_field_solver(nr, system, Val(:Δu))
-    @test du_field == zeros(n_dof)
-
-    # Test v_temp field initialization (JFNK temporary buffer)
-    v_temp_field = Peridynamics.init_field_solver(nr, system, Val(:v_temp))
-    @test v_temp_field == zeros(n_dof)
-
-    # Test Jv_temp field initialization (JFNK temporary buffer)
-    Jv_temp_field = Peridynamics.init_field_solver(nr, system, Val(:Jv_temp))
-    @test Jv_temp_field == zeros(n_dof)
-end
-
-@testitem "init_field_solver non-NewtonKrylov returns empty arrays" begin
-    position = [0.0 1.0; 0.0 0.0; 0.0 0.0]
-    volume = [1.0, 1.0]
-    body = Body(BBMaterial(), position, volume)
-    material!(body, horizon=2, rho=1, E=1)
+    # the Velocity-Verlet storage of the same body leaves the solver fields empty
     vv = VelocityVerlet(steps=10)
-
-    dh = Peridynamics.threads_data_handler(body, vv, 1)
-    chunk = dh.chunks[1]
-    system = chunk.system
-
-    # Test that non-NR solver returns empty arrays for NR-specific fields
-    disp_copy = Peridynamics.init_field_solver(vv, system, Val(:displacement_copy))
-    @test size(disp_copy) == (0, 0)
-
-    b_int_copy = Peridynamics.init_field_solver(vv, system, Val(:b_int_copy))
-    @test size(b_int_copy) == (0, 0)
-
-    residual = Peridynamics.init_field_solver(vv, system, Val(:residual))
-    @test length(residual) == 0
-
-    temp_a = Peridynamics.init_field_solver(vv, system, Val(:temp_force))
-    @test length(temp_a) == 0
-
-    du = Peridynamics.init_field_solver(vv, system, Val(:Δu))
-    @test length(du) == 0
-
-    v_temp = Peridynamics.init_field_solver(vv, system, Val(:v_temp))
-    @test length(v_temp) == 0
-
-    Jv_temp = Peridynamics.init_field_solver(vv, system, Val(:Jv_temp))
-    @test length(Jv_temp) == 0
+    storage_vv = Peridynamics.threads_data_handler(body, vv, 1).chunks[1].storage
+    @test size(storage_vv.displacement_copy) == (0, 0)
+    @test size(storage_vv.b_int_copy) == (0, 0)
+    for f in (:residual, :temp_force, :Δu, :v_temp, :Jv_temp)
+        @test size(getfield(storage_vv, f)) == (0,)
+    end
 end
-
 @testitem "req_point_data_fields_timesolver NewtonKrylov" begin
     fields = Peridynamics.req_point_data_fields_timesolver(NewtonKrylov)
     @test :displacement_copy in fields

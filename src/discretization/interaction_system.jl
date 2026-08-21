@@ -542,6 +542,22 @@ function required_point_parameters(::Type{<:AbstractInteractionSystemMaterial})
     return (:δ, :rho, elasticity_parameters()..., :C1, :C2, :C3)
 end
 
+"""
+    InteractionFracFields
+
+$(extension_api_note())
+
+The storage fields of the fracture bookkeeping of an interaction system, see
+[`@storage_fields`](@ref). All of them are allocated by `init_field_system`.
+
+$(block_table(InteractionFracFields))
+"""
+@storage_fields InteractionFracFields begin
+    damage::PointScalar
+    n_active_one_nis::PointScalar{Int}
+    one_ni_active::Vector{Bool}
+end
+
 function get_required_point_parameters(mat::AbstractInteractionSystemMaterial,
                                        p::Dict{Symbol,Any})
     params = (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)

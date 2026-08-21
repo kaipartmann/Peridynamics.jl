@@ -130,7 +130,7 @@ function velocity_verlet_check(vv::VelocityVerlet)
 end
 
 function calc_stable_timestep(dh::AbstractDataHandler, safety_factor::Float64)
-    throw(MethodError(calc_stable_timestep, dh, safety_factor))
+    throw(MethodError(calc_stable_timestep, (dh, safety_factor)))
 end
 
 function calc_stable_timestep(dh::ThreadsBodyDataHandler, safety_factor::Float64)
@@ -294,41 +294,23 @@ end
     return nothing
 end
 
-function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:position})
-    return copy(system.position)
+#=
+Only the fields that this solver owns need a method: `position`, `displacement`, `b_int`
+and `b_ext` are needed by every solver, so their declaration in the storage already answers.
+The fields below are needed by this solver and by no other, so every other solver gets them
+as empty arrays.
+=#
+init_field_solver(::VelocityVerlet, ::AbstractSystem, ::Val{:velocity}) = FullField()
+init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:velocity}) = EmptyField()
+
+init_field_solver(::VelocityVerlet, ::AbstractSystem, ::Val{:velocity_half}) = FullField()
+function init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:velocity_half})
+    return EmptyField()
 end
 
-function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:displacement})
-    return zeros(3, get_n_loc_points(system))
-end
-
-function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:velocity})
-    return zeros(3, get_n_loc_points(system))
-end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:velocity})
-    return Array{Float64,2}(undef, 0, 0)
-end
-
-function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:velocity_half})
-    return zeros(3, get_n_loc_points(system))
-end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:velocity_half})
-    return Array{Float64,2}(undef, 0, 0)
-end
-
-function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:acceleration})
-    return zeros(3, get_n_loc_points(system))
-end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:acceleration})
-    return Array{Float64,2}(undef, 0, 0)
-end
-
-function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:b_int})
-    return zeros(3, get_n_loc_points(system))
-end
-
-function init_field_solver(::VelocityVerlet, system::AbstractSystem, ::Val{:b_ext})
-    return zeros(3, get_n_loc_points(system))
+init_field_solver(::VelocityVerlet, ::AbstractSystem, ::Val{:acceleration}) = FullField()
+function init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:acceleration})
+    return EmptyField()
 end
 
 function req_point_data_fields_timesolver(::Type{<:VelocityVerlet})
@@ -344,6 +326,29 @@ end
 
 function req_data_fields_timesolver(::Type{<:VelocityVerlet})
     return ()
+end
+
+"""
+    VelocityVerletFields
+
+$(extension_api_note())
+
+The storage fields required by the [`VelocityVerlet`](@ref) time solver, see
+[`@storage_fields`](@ref). A material family that accumulates into halo points overrides
+`b_int` with `@htl b_int::PointVector`.
+
+$(block_table(VelocityVerletFields))
+"""
+@storage_fields VelocityVerletFields begin
+    # pinned to `Float64` for every float type of the simulation: bond vectors are
+    # position differences and a smaller float type loses them over a large domain
+    @lth position::PointVector{Float64}
+    displacement::PointVector
+    velocity::PointVector
+    velocity_half::PointVector
+    acceleration::PointVector
+    b_int::PointVector
+    b_ext::PointVector
 end
 
 function log_timesolver(options::AbstractJobOptions, vv::VelocityVerlet)

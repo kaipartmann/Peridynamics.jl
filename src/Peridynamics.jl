@@ -8,6 +8,14 @@ end
 
 import LibGit2, Dates
 
+# `block_table` returns markdown, which is rendered when a block is shown, so that the table
+# is aligned in a terminal and is a real table in the documentation
+import Markdown
+
+# `@storage` extends `Adapt.adapt_structure` for every storage it generates, so that a whole
+# storage can be moved to another array backend with `Adapt.adapt`
+import Adapt
+
 # Material models
 export BBMaterial, DHBBMaterial, GBBMaterial, OSBMaterial, CMaterial, CRMaterial,
        BACMaterial, CKIMaterial, RKCMaterial, RKCRMaterial
@@ -75,6 +83,9 @@ abstract type AbstractMPIBodyDataHandler{Sys,M,P,S} <: AbstractMPIDataHandler en
 abstract type AbstractMPIMultibodyDataHandler <: AbstractMPIDataHandler end
 abstract type AbstractCorrection end
 abstract type AbstractStorage end
+abstract type AbstractStorageFields end
+abstract type AbstractFieldShape{T} end
+abstract type AbstractSolverField end
 abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 abstract type AbstractBondBasedMaterial{CM} <: AbstractBondSystemMaterial{CM} end
@@ -96,6 +107,11 @@ include("auxiliary/errors.jl")
 include("auxiliary/static_arrays.jl")
 include("auxiliary/nans.jl")
 include("auxiliary/autoinfiltrate.jl")
+
+# included early so that field blocks can be declared next to the system, solver or
+# material family whose contract they express
+include("core/storage_fields.jl")
+include("auxiliary/block_tables.jl")
 
 include("physics/boundary_conditions.jl")
 include("physics/initial_conditions.jl")

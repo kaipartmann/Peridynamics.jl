@@ -138,32 +138,9 @@ end
 @params CKIMaterial CKIPointParameters
 
 @storage CKIMaterial struct CKIStorage <: AbstractStorage
-    @lthfield position::Matrix{Float64}
-    @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
-    @pointfield velocity_half_old::Matrix{Float64}
-    @pointfield acceleration::Matrix{Float64}
-    @pointfield b_int::Matrix{Float64}
-    @pointfield b_int_old::Matrix{Float64}
-    @pointfield b_ext::Matrix{Float64}
-    @pointfield density_matrix::Matrix{Float64}
-    @pointfield damage::Vector{Float64}
-    @pointfield n_active_one_nis::Vector{Int}
-    @pointfield strain_energy_density::Vector{Float64}
-    one_ni_active::Vector{Bool}
-    residual::Vector{Float64}
-    displacement_copy::Matrix{Float64}
-    b_int_copy::Matrix{Float64}
-    temp_force::Vector{Float64}
-    Δu::Vector{Float64}
-    v_temp::Vector{Float64}
-    Jv_temp::Vector{Float64}
-end
-
-function init_field(::CKIMaterial, ::AbstractTimeSolver, system::InteractionSystem,
-                    ::Val{:strain_energy_density})
-    return zeros(get_n_loc_points(system))
+    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
+    @inherit InteractionFracFields
+    strain_energy_density::PointScalar
 end
 
 function force_density_point!(storage::CKIStorage, system::InteractionSystem,

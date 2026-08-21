@@ -13,16 +13,20 @@
             @test Peridynamics.storage_type(mat) <: Peridynamics.AbstractStorage
             kwargs = Peridynamics.allowed_material_kwargs(mat)
             @test :horizon in kwargs && :rho in kwargs && :E in kwargs
+            # the type-level part of the contract is the fracture bookkeeping of the system,
+            # the rest is checked against the solver that is actually used
             required = Peridynamics.required_fields(M)
-            @test :position in required && :displacement in required && :b_int in required
+            @test :damage in required
             S = Peridynamics.storage_type(mat)
             @test Peridynamics.point_data_fields(S) ⊆ fieldnames(S)
             @test all(hasfield(S, f) for f in required)
+            @test all(hasfield(S, f) for f in (:position, :displacement, :b_int))
             # a storage for every solver the material supports, with consistent halo queries:
             # the fields exchanged between chunks are declared halo fields and are point data
             body = Fixtures.line10(mat)
             for solver in (VelocityVerlet(steps=1), DynamicRelaxation(steps=1), NewtonKrylov(steps=1))
                 Fixtures.supports(solver, mat) || continue
+                @test isnothing(Peridynamics.check_storage_contract(mat, solver))
                 (; storage) = Fixtures.chunk(body, solver)
                 @test storage isa S
                 lth = Peridynamics.loc_to_halo_fields(storage)

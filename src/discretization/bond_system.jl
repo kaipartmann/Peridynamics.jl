@@ -215,6 +215,27 @@ function find_halo_points(bonds::Vector{Bond}, loc_points::AbstractVector{Int})
     return halo_points
 end
 
+"""
+    each_bond_idx(system, i)
+
+$(extension_api_note())
+
+Return an iterator over the bond indices of point `i`. A bond index addresses every bond
+field of the storage, i.e. every field declared with a `Bond...` field shape, and
+`system.bonds[bond_id]` gives the bond itself with its `neighbor` and its `length`.
+
+# Example
+
+```julia
+for bond_id in Peridynamics.each_bond_idx(system, i)
+    bond = system.bonds[bond_id]
+    j, L = bond.neighbor, bond.length
+    storage.bond_active[bond_id] || continue
+end
+```
+
+See also [`each_point_idx`](@ref), [`get_n_bonds`](@ref).
+"""
 @inline each_bond_idx(system::AbstractBondSystem, i::Int) = system.bond_ids[i]
 
 function localize!(bonds::Vector{Bond}, localizer::Dict{Int,Int})
@@ -374,6 +395,22 @@ function required_point_parameters(::Type{<:AbstractBondSystemMaterial})
     return (:δ, :rho, elasticity_parameters()...)
 end
 
+"""
+    BondFracFields
+
+$(extension_api_note())
+
+The storage fields of the fracture bookkeeping of a bond system, see
+[`@storage_fields`](@ref). All of them are allocated by `init_field_system`.
+
+$(block_table(BondFracFields))
+"""
+@storage_fields BondFracFields begin
+    damage::PointScalar
+    n_active_bonds::PointScalar{Int}
+    bond_active::BondScalar{Bool}
+end
+
 function get_required_point_parameters(::AbstractBondSystemMaterial, p::Dict{Symbol,Any})
     return (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)
 end
@@ -382,6 +419,15 @@ function allowed_material_kwargs(::AbstractBondSystemMaterial)
     return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...)
 end
 
+"""
+    get_n_bonds(system)
+
+$(extension_api_note())
+
+Return the number of bonds of a chunk. Every storage field declared with a `Bond...` field
+shape has this many entries, and so does the state of a constitutive model that indexes per
+bond, see `@cm_storage`.
+"""
 @inline get_n_bonds(system::AbstractBondSystem) = length(system.bonds)
 
 function log_material(mat::M; indentation::Int=2) where {M<:AbstractBondSystemMaterial}

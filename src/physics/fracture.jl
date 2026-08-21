@@ -174,6 +174,21 @@ function has_fracture(::CriticalStretch, params::AbstractPointParameters)
     end
 end
 
+"""
+    get_dmgmodel(mat::AbstractMaterial)
+
+$(extension_api_note())
+
+Return the damage model of `mat`, or `nothing` if the material has no damage model.
+"""
+@inline function get_dmgmodel(mat::AbstractMaterial)
+    hasproperty(mat, :dmgmodel) || return nothing
+    return mat.dmgmodel
+end
+
+req_storage_fields(::AbstractMaterial, ::AbstractDamageModel) = ()
+req_storage_fields(::AbstractMaterial, ::Nothing) = ()
+
 function required_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
     fields = (req_point_data_fields_fracture(Material)...,
               req_bond_data_fields_fracture(Material)...,

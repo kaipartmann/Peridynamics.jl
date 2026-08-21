@@ -158,50 +158,19 @@ end
 @params BACMaterial BACPointParameters
 
 @storage BACMaterial struct BACStorage
-    @lthfield position::Matrix{Float64}
-    @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
-    @pointfield velocity_half_old::Matrix{Float64}
-    @pointfield acceleration::Matrix{Float64}
-    @htlfield b_int::Matrix{Float64}
-    @pointfield b_int_old::Matrix{Float64}
-    @pointfield b_ext::Matrix{Float64}
-    @pointfield density_matrix::Matrix{Float64}
-    @pointfield damage::Vector{Float64}
-    @pointfield n_active_bonds::Vector{Int}
-    @pointfield stress::Matrix{Float64}
-    @pointfield von_mises_stress::Vector{Float64}
-    bond_active::Vector{Bool}
+    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
+    @inherit BondFracFields
+    @htl b_int::PointVector
+    stress::PointTensor
+    von_mises_stress::PointScalar
+    # scratch space for a single point, see `init_field` below
     bond_stress::Matrix{Float64}
-    residual::Vector{Float64}
-    displacement_copy::Matrix{Float64}
-    b_int_copy::Matrix{Float64}
-    temp_force::Vector{Float64}
-    Δu::Vector{Float64}
-    v_temp::Vector{Float64}
-    Jv_temp::Vector{Float64}
-end
-
-function init_field(::BACMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
-                    ::Val{:b_int})
-    return zeros(3, get_n_points(system))
-end
-
-function init_field(::BACMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
-                    ::Val{:stress})
-    return zeros(9, get_n_loc_points(system))
 end
 
 # scratch space for a single point, filled and used up inside `force_density_point!`
 function init_field(::BACMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
                     ::Val{:bond_stress})
     return zeros(9, max(1, maximum(system.n_neighbors; init=0)))
-end
-
-function init_field(::BACMaterial, ::AbstractTimeSolver, system::BondAssociatedSystem,
-                    ::Val{:von_mises_stress})
-    return zeros(get_n_loc_points(system))
 end
 
 # First collect the stress of all bond-associated families in `bond_stress`, then turn it
