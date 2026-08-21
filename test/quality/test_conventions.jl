@@ -137,6 +137,7 @@ end
         "NewtonKrylov throw maxiter",
         "Study: with a MultibodySetup",
         "contact!: two bodies of two points, one explicit step",
+        "history-dependent model: the state is integrated by a simulation",
         "material interface: a custom material runs a simulation",
         "process_each_export - serial and threads",
         "process_each_job: results, failed jobs and processing errors",
