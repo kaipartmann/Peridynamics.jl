@@ -426,7 +426,7 @@ $(extension_api_note())
 
 Return the number of bonds of a chunk. Every storage field declared with a `Bond...` field
 shape has this many entries, and so does the state of a constitutive model that indexes per
-bond, see `@cm_storage`.
+bond, see [`@cm_storage`](@ref).
 """
 @inline get_n_bonds(system::AbstractBondSystem) = length(system.bonds)
 

@@ -565,11 +565,11 @@ end
 ```
 
 This is not a field shape: the field is not an array, it is whatever the constitutive model
-of the material declares with `@cm_storage`, and `nothing` for a model without
+of the material declares with [`@cm_storage`](@ref), and `nothing` for a model without
 state. The generated storage gets one extra type parameter `CMS` for it, which
 [`storage_type`](@ref) fills with
 `constitutive_storage_type(get_constitutive_model(mat), FT)`, so the storage stays concrete
-whichever model is used. The state is reached with `constitutive_state`.
+whichever model is used. The state is reached with [`constitutive_state`](@ref).
 
 A storage may declare at most one such field, and it cannot be annotated with
 [`@lth`](@ref) or [`@htl`](@ref), because the halo exchange does not descend into a nested

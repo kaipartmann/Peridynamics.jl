@@ -155,6 +155,23 @@ Peridynamics.get_n_bonds
 Peridynamics.get_dmgmodel
 ```
 
+## Constitutive models
+```@docs
+Peridynamics.@cm_storage
+Peridynamics.get_constitutive_model
+Peridynamics.first_piola_kirchhoff
+Peridynamics.strain_energy_density
+Peridynamics.constitutive_storage_type
+Peridynamics.get_cm_storage
+Peridynamics.init_constitutive_state
+Peridynamics.constitutive_state
+Peridynamics.has_constitutive_state
+Peridynamics.is_history_dependent
+Peridynamics.supports_history_dependence
+Peridynamics.check_constitutive_model
+Peridynamics.HistoryDependenceError
+```
+
 ## Macros
 ```@docs
 Peridynamics.@storage
