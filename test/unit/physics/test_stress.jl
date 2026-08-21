@@ -542,3 +542,112 @@ end
     @test iszero(Peridynamics.get_tensor(storage.rotation, 1))
     @test iszero(Peridynamics.get_tensor(storage.left_stretch, 1))
 end
+
+@testitem "sym_eigvals: closed-form eigenvalues of a symmetric tensor" begin
+    using Peridynamics.StaticArrays
+    using Peridynamics.LinearAlgebra
+
+    sym_eigvals = Peridynamics.sym_eigvals
+
+    # a diagonal tensor: the spectrum is the diagonal, and it comes back sorted descending
+    @test sym_eigvals(SMatrix{3,3,Float64,9}(Diagonal([1.0, 9.0, 4.0]))) ==
+          SVector{3,Float64}(9.0, 4.0, 1.0)
+    @test sym_eigvals(SMatrix{3,3,Float64,9}(Diagonal([1.0, 4.0, 1.0]))) ==
+          SVector{3,Float64}(4.0, 1.0, 1.0)
+
+    # repeated eigenvalues
+    @test sym_eigvals(2.5 * SMatrix{3,3,Float64,9}(I)) ≈ SVector{3,Float64}(2.5, 2.5, 2.5)
+
+    # a general symmetric tensor, against a full eigendecomposition
+    A = SMatrix{3,3,Float64,9}(4.0, 1.0, 0.7, 1.0, 3.0, -0.4, 0.7, -0.4, 2.0)
+    @test sym_eigvals(A) ≈ SVector{3,Float64}(reverse(eigvals(Symmetric(Matrix(A)))))
+
+    # the invariants are reproduced exactly enough
+    λ = sym_eigvals(A)
+    @test sum(λ) ≈ tr(A)
+    @test prod(λ) ≈ det(A)
+
+    # always sorted descending
+    @test issorted(sym_eigvals(A); rev=true)
+end
+
+@testitem "hencky_and_invstretch: logarithmic strain and inverse right stretch" begin
+    using Peridynamics.StaticArrays
+    using Peridynamics.LinearAlgebra
+
+    hencky = Peridynamics.hencky_and_invstretch
+    Id = SMatrix{3,3,Float64,9}(I)
+
+    # the reference, built from a full eigendecomposition of C
+    function reference(C)
+        E = eigen(Symmetric(Matrix(C)))
+        ε = zeros(3, 3)
+        Uinv = zeros(3, 3)
+        for k in 1:3
+            n = E.vectors[:, k]
+            ε .+= 0.5 * log(E.values[k]) .* (n * n')
+            Uinv .+= 1 / sqrt(E.values[k]) .* (n * n')
+        end
+        return SMatrix{3,3}(ε), SMatrix{3,3}(Uinv)
+    end
+
+    # no deformation
+    let (ε, Uinv) = hencky(Id)
+        @test ε ≈ zero(Id) atol=1e-14
+        @test Uinv ≈ Id
+    end
+
+    testcases = (
+        # a triple eigenvalue
+        1.44 * Id,
+        # uniaxial stretch: a double eigenvalue on the small pair
+        SMatrix{3,3,Float64,9}(Diagonal([1.4, 1.0, 1.0]))' *
+        SMatrix{3,3,Float64,9}(Diagonal([1.4, 1.0, 1.0])),
+        # equibiaxial: a double eigenvalue on the large pair
+        SMatrix{3,3,Float64,9}(Diagonal([1.3, 1.3, 1.0]))' *
+        SMatrix{3,3,Float64,9}(Diagonal([1.3, 1.3, 1.0])),
+        # an unsorted diagonal, which must not be mistaken for three distinct eigenvalues
+        SMatrix{3,3,Float64,9}(Diagonal([1.0, 4.0, 1.0])),
+        # three distinct eigenvalues, with shear
+        let F = SMatrix{3,3,Float64,9}(1.2, 0.1, 0.05, -0.07, 0.95, 0.02, 0.03, -0.04, 1.05)
+            F' * F
+        end,
+        # two eigenvalues that are close but not equal
+        SMatrix{3,3,Float64,9}(Diagonal([2.0, 1.0 + 1e-10, 1.0])),
+    )
+
+    for C in testcases
+        εc, Uinvc = hencky(C)
+        εref, Uref = reference(C)
+        @test εc ≈ εref atol=1e-9
+        @test Uinvc ≈ Uref atol=1e-9
+        # U⁻¹ is the inverse square root of C, whatever the multiplicity of its eigenvalues
+        @test Uinvc * C * Uinvc ≈ Id atol=1e-9
+        # both are symmetric, because they are isotropic functions of a symmetric tensor
+        @test εc ≈ εc' atol=1e-12
+        @test Uinvc ≈ Uinvc' atol=1e-12
+    end
+
+    # uniaxial stretch has the closed form ε₁₁ = ln λ
+    let λ = 1.4, (εu, _) = hencky(SMatrix{3,3,Float64,9}(Diagonal([λ^2, 1.0, 1.0])))
+        @test εu[1, 1] ≈ log(λ)
+        @test εu[2, 2] ≈ 0.0 atol=1e-14
+        @test εu[3, 3] ≈ 0.0 atol=1e-14
+    end
+
+    # an isochoric deformation has a traceless Hencky strain
+    let F = SMatrix{3,3,Float64,9}(Diagonal([2.0, 1 / sqrt(2), 1 / sqrt(2)]))
+        @test tr(first(hencky(F' * F))) ≈ 0.0 atol=1e-14
+    end
+
+    # the float type of the input is carried through
+    C32 = SMatrix{3,3,Float32,9}(Diagonal([1.44f0, 1.0f0, 0.81f0]))
+    ε32, U32 = hencky(C32)
+    @test eltype(ε32) === Float32
+    @test eltype(U32) === Float32
+
+    # nothing is allocated, which is what the closed form is for
+    C = SMatrix{3,3,Float64,9}(1.44, 0.1, 0.0, 0.1, 1.0, 0.0, 0.0, 0.0, 0.81)
+    hencky(C)
+    @test (@allocated hencky(C)) == 0
+end

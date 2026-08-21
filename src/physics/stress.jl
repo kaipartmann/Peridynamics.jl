@@ -1,3 +1,102 @@
+"""
+    sym_eigvals(A)
+
+$(extension_api_note())
+
+Return the three eigenvalues of the symmetric `SMatrix{3,3}` `A` in descending order, as an
+`SVector{3}`. They are computed in closed form (Smith, 1961) rather than by an
+eigendecomposition, so this allocates nothing and needs no eigenvectors.
+
+Only the upper triangle of `A` is read.
+
+See also [`hencky_and_invstretch`](@ref).
+"""
+@inline function sym_eigvals(A::StaticMatrix{3,3,T}) where {T}
+    p1 = A[1, 2]^2 + A[1, 3]^2 + A[2, 3]^2
+    if p1 < eps(T)
+        # a diagonal tensor: the diagonal is the spectrum, but it is not necessarily sorted
+        return sort_desc(A[1, 1], A[2, 2], A[3, 3])
+    end
+    q = tr(A) / 3
+    p2 = (A[1, 1] - q)^2 + (A[2, 2] - q)^2 + (A[3, 3] - q)^2 + 2 * p1
+    p = sqrt(p2 / 6)
+    B = (A - q * I) / p
+    r = clamp(det(B) / 2, -one(T), one(T))
+    φ = acos(r) / 3
+    λ1 = q + 2 * p * cos(φ)
+    λ3 = q + 2 * p * cos(φ + 2 * T(π) / 3)
+    λ2 = 3 * q - λ1 - λ3
+    return SVector{3,T}(λ1, λ2, λ3)
+end
+
+@inline function sort_desc(a::T, b::T, c::T) where {T}
+    a < b && ((a, b) = (b, a))
+    b < c && ((b, c) = (c, b))
+    a < b && ((a, b) = (b, a))
+    return SVector{3,T}(a, b, c)
+end
+
+"""
+    hencky_and_invstretch(C)
+
+$(extension_api_note())
+
+Return the material logarithmic (Hencky) strain ``\\boldsymbol{\\varepsilon} = \\ln
+\\boldsymbol{U} = \\frac{1}{2} \\ln \\boldsymbol{C}`` and the inverse right stretch
+``\\boldsymbol{U}^{-1} = \\boldsymbol{C}^{-1/2}`` of the right Cauchy-Green tensor
+``\\boldsymbol{C} = \\boldsymbol{F}^T \\boldsymbol{F}``, as a tuple of two `SMatrix{3,3}`.
+
+Both are isotropic functions of `C` and are evaluated in closed form, from the analytic
+eigenvalues of [`sym_eigvals`](@ref) and the spectral projectors built from them by Lagrange
+interpolation, so no eigenvectors are computed and nothing is allocated. Repeated eigenvalues
+are handled by the reduced interpolation they call for.
+
+This is the pair a finite-strain constitutive model needs to work in logarithmic strain
+space: ``\\boldsymbol{\\varepsilon}`` and the rotated Kirchhoff stress
+``\\hat{\\boldsymbol{\\tau}}`` are work conjugate, and the pull-back to the first
+Piola-Kirchhoff stress is ``\\boldsymbol{P} = \\boldsymbol{F} \\, \\boldsymbol{U}^{-1}
+\\hat{\\boldsymbol{\\tau}} \\, \\boldsymbol{U}^{-1}``.
+
+# Example
+
+```julia
+ε, Uinv = Peridynamics.hencky_and_invstretch(F' * F)
+τ = params.λ * tr(ε) * I + 2 * params.μ * ε
+P = F * (Uinv * τ * Uinv)
+```
+"""
+function hencky_and_invstretch(C::StaticMatrix{3,3,T}) where {T}
+    c = sym_eigvals(C)
+    c1, c2, c3 = max(c[1], eps(T)), max(c[2], eps(T)), max(c[3], eps(T))
+    Id = SMatrix{3,3,T,9}(I)
+
+    # eigenvalues closer than this are treated as repeated, because the Lagrange
+    # interpolation below cancels catastrophically when they are not separated
+    tol = sqrt(eps(T)) * max(c1, one(T))
+    c12_equal = c1 - c2 < tol
+    c23_equal = c2 - c3 < tol
+
+    if c12_equal && c23_equal # spherical: one eigenvalue of multiplicity three
+        return log(c1) / 2 * Id, 1 / sqrt(c1) * Id
+    elseif c12_equal # c1 = c2 ≠ c3, so one projector is enough
+        P3 = (C - c1 * Id) / (c3 - c1)
+        return log(c3) / 2 * P3 + log(c1) / 2 * (Id - P3),
+               1 / sqrt(c3) * P3 + 1 / sqrt(c1) * (Id - P3)
+    elseif c23_equal # c1 ≠ c2 = c3
+        P1 = (C - c2 * Id) / (c1 - c2)
+        return log(c1) / 2 * P1 + log(c2) / 2 * (Id - P1),
+               1 / sqrt(c1) * P1 + 1 / sqrt(c2) * (Id - P1)
+    end
+
+    # three distinct eigenvalues: the spectral projectors, built without eigenvectors
+    P1 = ((C - c2 * Id) * (C - c3 * Id)) / ((c1 - c2) * (c1 - c3))
+    P2 = ((C - c1 * Id) * (C - c3 * Id)) / ((c2 - c1) * (c2 - c3))
+    P3 = Id - P1 - P2
+    ε = log(c1) / 2 * P1 + log(c2) / 2 * P2 + log(c3) / 2 * P3
+    Uinv = 1 / sqrt(c1) * P1 + 1 / sqrt(c2) * P2 + 1 / sqrt(c3) * P3
+    return ε, Uinv
+end
+
 function von_mises_stress(σ)
     σx, σy, σz = σ[1], σ[5], σ[9]
     τxy, τxz, τyz = σ[4], σ[7], σ[8]

@@ -62,6 +62,24 @@ Peridynamics.invreg
 Peridynamics.update_sim_success_from_log!
 ```
 
+## Extension helpers
+```@docs
+Peridynamics.get_vector
+Peridynamics.get_vector_diff
+Peridynamics.update_vector!
+Peridynamics.update_add_vector!
+Peridynamics.get_tensor
+Peridynamics.update_tensor!
+Peridynamics.get_sym_tensor
+Peridynamics.update_sym_tensor!
+Peridynamics.sym_eigvals
+Peridynamics.hencky_and_invstretch
+Peridynamics.surface_correction_factor
+Peridynamics.custom_field
+Peridynamics.export_field
+Peridynamics.sphere_shape_coords
+```
+
 ## Macros
 ```@docs
 Peridynamics.@storage

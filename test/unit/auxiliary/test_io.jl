@@ -482,3 +482,16 @@ end
     @test_throws ArgumentError Peridynamics._extract_export_fields(1.5)
     @test_throws ArgumentError Peridynamics._extract_export_fields(["damage"])
 end
+
+@testitem "check_export_fields: the message names the storage and the custom_field method" begin
+    err = try
+        Peridynamics.check_export_fields(Peridynamics.BBStorage, [:abcd])
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test contains(err.msg, "unknown point data field `:abcd`")
+    @test contains(err.msg, "Peridynamics.custom_field(::Type{<:BBStorage}, ::Val{:abcd}) = true")
+    @test contains(err.msg, "point data fields of BBStorage:")
+    @test contains(err.msg, "  - displacement\n")
+end

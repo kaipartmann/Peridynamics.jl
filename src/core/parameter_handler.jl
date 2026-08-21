@@ -67,7 +67,7 @@ end
     get_params(params::AbstractPointParameters, ::Int)
     get_params(chunk::BodyChunk, point_id::Int)
 
-$(internal_api_warning())
+$(extension_api_note())
 
 Return parameters of a specific point with index `point_id` of a `Body` with parameters
 `params` or parameter handler `paramhandler` or of the body `chunk`.
