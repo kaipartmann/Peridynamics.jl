@@ -168,80 +168,39 @@ end
 
 @params RKCMaterial StandardPointParameters
 
+"""
+    RKCFields
+
+$(extension_api_note())
+
+The storage fields of the reproducing kernel correspondence family, see
+[`@storage_fields`](@ref). They are exactly the fields declared by
+`req_storage_fields(::AbstractRKCMaterial)`.
+
+$(block_table(RKCFields))
+"""
+@storage_fields RKCFields begin
+    update_gradients::PointScalar{Bool} = true
+    @lth defgrad::PointTensor
+    @lth weighted_volume::PointScalar
+    gradient_weight::BondVector
+    bond_first_piola_kirchhoff::BondTensor
+end
+
 @storage RKCMaterial struct RKCStorage
-    @lthfield position::Matrix{Float64}
-    @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
-    @pointfield velocity_half_old::Matrix{Float64}
-    @pointfield acceleration::Matrix{Float64}
-    @htlfield b_int::Matrix{Float64}
-    @pointfield b_int_old::Matrix{Float64}
-    @pointfield b_ext::Matrix{Float64}
-    @pointfield density_matrix::Matrix{Float64}
-    @pointfield damage::Vector{Float64}
-    @pointfield n_active_bonds::Vector{Int}
-    @pointfield update_gradients::Vector{Bool}
-    @pointfield cauchy_stress::Matrix{Float64}
-    @pointfield von_mises_stress::Vector{Float64}
-    @pointfield strain_energy_density::Vector{Float64}
-    @lthfield defgrad::Matrix{Float64}
-    @lthfield weighted_volume::Vector{Float64}
-    bond_active::Vector{Bool}
-    gradient_weight::Matrix{Float64}
-    bond_first_piola_kirchhoff::Matrix{Float64}
-    residual::Vector{Float64}
-    displacement_copy::Matrix{Float64}
-    b_int_copy::Matrix{Float64}
-    temp_force::Vector{Float64}
-    Δu::Vector{Float64}
-    v_temp::Vector{Float64}
-    Jv_temp::Vector{Float64}
+    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
+    @inherit BondFracFields RKCFields
+    @htl b_int::PointVector
+    cauchy_stress::PointTensor
+    von_mises_stress::PointScalar
+    strain_energy_density::PointScalar
 end
 
-function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:b_int})
-    return zeros(3, get_n_points(system))
-end
-
-function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:update_gradients})
-    return ones(Bool, get_n_loc_points(system))
-end
-
-function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:cauchy_stress})
-    return zeros(9, get_n_loc_points(system))
-end
-
-function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:von_mises_stress})
-    return zeros(get_n_loc_points(system))
-end
-
-function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:strain_energy_density})
-    return zeros(get_n_loc_points(system))
-end
-
-function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:defgrad})
-    return zeros(9, get_n_points(system))
-end
-
-function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:weighted_volume})
-    return zeros(get_n_points(system))
-end
-
-function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:gradient_weight})
-    return zeros(3, get_n_bonds(system))
-end
-
-function init_field(::AbstractRKCMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:bond_first_piola_kirchhoff})
-    return zeros(9, get_n_bonds(system))
+# Fields that the inherited code of the RKC family reads from the storage. Every material
+# of this family needs them, independent of the damage model and the time solver.
+function req_storage_fields(::AbstractRKCMaterial)
+    return (:defgrad, :weighted_volume, :gradient_weight, :bond_first_piola_kirchhoff,
+            :update_gradients)
 end
 
 function initialize!(chunk::BodyChunk{<:BondSystem,<:AbstractRKCMaterial})
@@ -621,7 +580,7 @@ function export_field(::Val{:hydrostatic_stress}, mat::AbstractRKCMaterial,
     end
     return storage.von_mises_stress
 end
-custom_field(::Type{RKCStorage}, ::Val{:hydrostatic_stress}) = true
+custom_field(::Type{<:RKCStorage}, ::Val{:hydrostatic_stress}) = true
 
 # calculate the strain energy density from the deformation gradient just when exporting
 function export_field(::Val{:strain_energy_density}, mat::AbstractRKCMaterial,

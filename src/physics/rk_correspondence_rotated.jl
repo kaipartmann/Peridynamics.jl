@@ -47,60 +47,17 @@ end
 @params RKCRMaterial StandardPointParameters
 
 @storage RKCRMaterial struct RKCRStorage
-    @lthfield position::Matrix{Float64}
-    @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
-    @lthfield velocity_half::Matrix{Float64}
-    @pointfield velocity_half_old::Matrix{Float64}
-    @pointfield acceleration::Matrix{Float64}
-    @htlfield b_int::Matrix{Float64}
-    @pointfield b_int_old::Matrix{Float64}
-    @pointfield b_ext::Matrix{Float64}
-    @pointfield density_matrix::Matrix{Float64}
-    @pointfield damage::Vector{Float64}
-    @pointfield n_active_bonds::Vector{Int}
-    @pointfield update_gradients::Vector{Bool}
-    @pointfield cauchy_stress::Matrix{Float64}
-    @pointfield von_mises_stress::Vector{Float64}
-    @pointfield strain_energy_density::Vector{Float64}
-    @lthfield defgrad::Matrix{Float64}
-    @lthfield defgrad_dot::Matrix{Float64}
-    @lthfield weighted_volume::Vector{Float64}
-    bond_active::Vector{Bool}
-    gradient_weight::Matrix{Float64}
-    bond_first_piola_kirchhoff::Matrix{Float64}
-    left_stretch::Matrix{Float64}
-    rotation::Matrix{Float64}
-    bond_unrot_cauchy_stress::Matrix{Float64}
-end
-
-function init_field(::RKCRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:velocity_half})
-    return zeros(3, get_n_points(system))
-end
-
-function init_field(::RKCRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:defgrad_dot})
-    return zeros(9, get_n_points(system))
-end
-
-function init_field(::RKCRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:left_stretch})
-    V = zeros(9, get_n_bonds(system))
-    V[[1, 5, 9], :] .= 1.0
-    return V
-end
-
-function init_field(::RKCRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:rotation})
-    R = zeros(9, get_n_bonds(system))
-    R[[1, 5, 9], :] .= 1.0
-    return R
-end
-
-function init_field(::RKCRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:bond_unrot_cauchy_stress})
-    return zeros(9, get_n_bonds(system))
+    @inherit VelocityVerletFields DynamicRelaxationFields
+    @inherit BondFracFields RKCFields
+    @lth velocity_half::PointVector
+    @htl b_int::PointVector
+    cauchy_stress::PointTensor
+    von_mises_stress::PointScalar
+    strain_energy_density::PointScalar
+    @lth defgrad_dot::PointTensor
+    left_stretch::BondTensor = I
+    rotation::BondTensor = I
+    bond_unrot_cauchy_stress::BondTensor
 end
 
 rkc_lth_after_fields(::RKCRMaterial) = (:defgrad, :defgrad_dot, :weighted_volume)
@@ -176,4 +133,4 @@ function calc_first_piola_kirchhoff!(storage::RKCRStorage, mat::RKCRMaterial,
 end
 
 # This has to be done here, otherwise the type RKCRStorage is not known
-custom_field(::Type{RKCRStorage}, ::Val{:hydrostatic_stress}) = true
+custom_field(::Type{<:RKCRStorage}, ::Val{:hydrostatic_stress}) = true

@@ -361,62 +361,30 @@ function relaxation_updates!(s::AbstractStorage, dof::Int)
     return nothing
 end
 
-function init_field_solver(::DynamicRelaxation, system::AbstractSystem, ::Val{:position})
-    return copy(system.position)
-end
+#=
+The fields this solver shares with `VelocityVerlet` are claimed again here, because the
+`AbstractTimeSolver` methods next to them hand these fields out as empty arrays.
+=#
+init_field_solver(::DynamicRelaxation, ::AbstractSystem, ::Val{:velocity}) = FullField()
+init_field_solver(::DynamicRelaxation, ::AbstractSystem, ::Val{:velocity_half}) = FullField()
+init_field_solver(::DynamicRelaxation, ::AbstractSystem, ::Val{:acceleration}) = FullField()
 
-function init_field_solver(::DynamicRelaxation, system::AbstractSystem,
-                           ::Val{:displacement})
-    return zeros(3, get_n_loc_points(system))
+function init_field_solver(::DynamicRelaxation, ::AbstractSystem, ::Val{:velocity_half_old})
+    return FullField()
 end
-
-function init_field_solver(::DynamicRelaxation, system::AbstractSystem, ::Val{:velocity})
-    return zeros(3, get_n_loc_points(system))
-end
-
-function init_field_solver(::DynamicRelaxation, system::AbstractSystem,
-                           ::Val{:velocity_half})
-    return zeros(3, get_n_loc_points(system))
-end
-
-function init_field_solver(::DynamicRelaxation, system::AbstractSystem,
-                           ::Val{:velocity_half_old})
-    return zeros(3, get_n_loc_points(system))
-end
-
 function init_field_solver(::AbstractTimeSolver, ::AbstractSystem,
                            ::Val{:velocity_half_old})
-    return Array{Float64,2}(undef, 0, 0)
+    return EmptyField()
 end
 
-function init_field_solver(::DynamicRelaxation, system::AbstractSystem,
-                           ::Val{:acceleration})
-    return zeros(3, get_n_loc_points(system))
-end
+init_field_solver(::DynamicRelaxation, ::AbstractSystem, ::Val{:b_int_old}) = FullField()
+init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:b_int_old}) = EmptyField()
 
-function init_field_solver(::DynamicRelaxation, system::AbstractSystem, ::Val{:b_int})
-    return zeros(3, get_n_loc_points(system))
+function init_field_solver(::DynamicRelaxation, ::AbstractSystem, ::Val{:density_matrix})
+    return FullField()
 end
-
-function init_field_solver(::DynamicRelaxation, system::AbstractSystem, ::Val{:b_int_old})
-    return zeros(3, get_n_loc_points(system))
-end
-
-function init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:b_int_old})
-    return Array{Float64,2}(undef, 0, 0)
-end
-
-function init_field_solver(::DynamicRelaxation, system::AbstractSystem, ::Val{:b_ext})
-    return zeros(3, get_n_loc_points(system))
-end
-
-function init_field_solver(::DynamicRelaxation, system::AbstractSystem,
-                           ::Val{:density_matrix})
-    return zeros(3, get_n_loc_points(system))
-end
-
 function init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:density_matrix})
-    return Array{Float64,2}(undef, 0, 0)
+    return EmptyField()
 end
 
 function req_point_data_fields_timesolver(::Type{<:DynamicRelaxation})
@@ -431,6 +399,31 @@ end
 
 function req_data_fields_timesolver(::Type{<:DynamicRelaxation})
     return ()
+end
+
+"""
+    DynamicRelaxationFields
+
+$(extension_api_note())
+
+The storage fields required by the [`DynamicRelaxation`](@ref) time solver, see
+[`@storage_fields`](@ref). The fields it shares with [`VelocityVerletFields`](@ref) are
+declared identically, so a storage can inherit both blocks.
+
+$(block_table(DynamicRelaxationFields))
+"""
+@storage_fields DynamicRelaxationFields begin
+    # pinned to `Float64` for every float type of the simulation: bond vectors are
+    # position differences and a smaller float type loses them over a large domain
+    @lth position::PointVector{Float64}
+    displacement::PointVector
+    velocity::PointVector
+    velocity_half::PointVector
+    velocity_half_old::PointVector
+    b_int::PointVector
+    b_int_old::PointVector
+    b_ext::PointVector
+    density_matrix::PointVector
 end
 
 function log_timesolver(options::AbstractJobOptions, dr::DynamicRelaxation)

@@ -56,6 +56,9 @@ makedocs(;
         edit_link = "main",
         assets = [joinpath("assets", "custom.css")],
         collapselevel = 1,
+        # the API reference pages are lists of docstrings and are inevitably large; exempt
+        # exactly these rather than raising the threshold for the prose pages
+        size_threshold_ignore = ["private_api_reference.md", "public_api_reference.md"],
     ),
     draft = LIVE_MODE,
     pages = [

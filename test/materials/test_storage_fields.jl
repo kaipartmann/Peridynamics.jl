@@ -1,5 +1,5 @@
 # The storage of every material has the fields every time solver needs, allocated with the right
-# sizes: point fields for the local points, halo fields (`@lthfield`/`@htlfield`) for all points
+# sizes: point fields for the local points, halo fields (`@lth`/`@htl`) for all points
 # of the chunk including its halo, bond fields for the bonds, and the fields of the other solvers
 # empty. The expectations are a table: the fields all bond-system storages share, plus what each
 # material adds. Adding a material means adding one line to `MATERIAL_FIELDS`.
@@ -47,12 +47,12 @@
         ),
     )
 
-    # The internal force density is a point field unless the material declares it `@htlfield`,
+    # The internal force density is a point field unless the material declares it `@htl`,
     # and the Newton-Krylov solver always allocates it for all points.
     b_int_spec(mat, solver) = (3, :all)
     b_int_spec(::Union{BBMaterial,GBBMaterial,CKIMaterial}, ::Union{VelocityVerlet,DynamicRelaxation}) = (3, :loc)
 
-    # `velocity_half` is `@lthfield` for the rotated formulations, which need the velocities of
+    # `velocity_half` is `@lth` for the rotated formulations, which need the velocities of
     # the halo for the velocity gradient.
     velocity_half_spec(mat, solver) = SOLVER_FIELDS[typeof(solver)][:velocity_half]
     velocity_half_spec(::Union{CRMaterial,RKCRMaterial}, ::Union{VelocityVerlet,DynamicRelaxation}) = (3, :all)

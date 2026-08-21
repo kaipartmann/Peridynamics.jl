@@ -783,77 +783,48 @@ function newton_export_results(dh::MPIBodyDataHandler, options::JobOptions, n, t
 end
 
 # Required interface functions
-function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:position})
-    return copy(system.position)
-end
-
-function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:displacement})
-    return zeros(3, get_n_loc_points(system))
-end
-
-function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:b_int})
-    return zeros(3, get_n_points(system))
-end
-
-function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:b_ext})
-    return zeros(3, get_n_points(system))
-end
+# Newton-Krylov specific fields
+# GMRES temporary buffers for Jacobian-free Newton-Krylov
+#=
+This solver assembles the internal force density over the halo as well, so it overrules the
+extent of `b_int`, `b_ext` and `b_int_copy`: they get one entry per local *and* halo point
+although they are declared without a halo annotation. A material family that annotates
+`b_int` with `@htl` declares the same extent itself and is unaffected.
+=#
+init_field_solver(::NewtonKrylov, ::AbstractSystem, ::Val{:b_int}) = FullField(HaloPoints())
+init_field_solver(::NewtonKrylov, ::AbstractSystem, ::Val{:b_ext}) = FullField(HaloPoints())
 
 # Newton-Krylov specific fields
-function init_field_solver(::NewtonKrylov, system::AbstractSystem,
+function init_field_solver(::NewtonKrylov, ::AbstractSystem, ::Val{:displacement_copy})
+    return FullField()
+end
+function init_field_solver(::AbstractTimeSolver, ::AbstractSystem,
                            ::Val{:displacement_copy})
-    return zeros(3, get_n_loc_points(system))
-end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
-                           ::Val{:displacement_copy})
-    return Array{Float64,2}(undef, 0, 0)
+    return EmptyField()
 end
 
-function init_field_solver(::NewtonKrylov, system::AbstractSystem,
-                           ::Val{:b_int_copy})
-    return zeros(3, get_n_points(system))
+function init_field_solver(::NewtonKrylov, ::AbstractSystem, ::Val{:b_int_copy})
+    return FullField(HaloPoints())
 end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
-                           ::Val{:b_int_copy})
-    return Array{Float64,2}(undef, 0, 0)
+function init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:b_int_copy})
+    return EmptyField()
 end
 
-function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:residual})
-    return zeros(get_n_loc_dof(system))
-end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:residual})
-    return Vector{Float64}()
-end
+init_field_solver(::NewtonKrylov, ::AbstractSystem, ::Val{:residual}) = FullField()
+init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:residual}) = EmptyField()
 
-function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:temp_force})
-    return zeros(get_n_loc_dof(system))
-end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem,
-                           ::Val{:temp_force})
-    return Array{Float64,1}(undef, 0)
-end
+init_field_solver(::NewtonKrylov, ::AbstractSystem, ::Val{:temp_force}) = FullField()
+init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:temp_force}) = EmptyField()
 
-function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:Δu})
-    return zeros(get_n_loc_dof(system))
-end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:Δu})
-    return Array{Float64,1}(undef, 0)
-end
+init_field_solver(::NewtonKrylov, ::AbstractSystem, ::Val{:Δu}) = FullField()
+init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:Δu}) = EmptyField()
 
 # GMRES temporary buffers for Jacobian-free Newton-Krylov
-function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:v_temp})
-    return zeros(get_n_loc_dof(system))
-end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:v_temp})
-    return Vector{Float64}()
-end
+init_field_solver(::NewtonKrylov, ::AbstractSystem, ::Val{:v_temp}) = FullField()
+init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:v_temp}) = EmptyField()
 
-function init_field_solver(::NewtonKrylov, system::AbstractSystem, ::Val{:Jv_temp})
-    return zeros(get_n_loc_dof(system))
-end
-function init_field_solver(::AbstractTimeSolver, system::AbstractSystem, ::Val{:Jv_temp})
-    return Vector{Float64}()
-end
+init_field_solver(::NewtonKrylov, ::AbstractSystem, ::Val{:Jv_temp}) = FullField()
+init_field_solver(::AbstractTimeSolver, ::AbstractSystem, ::Val{:Jv_temp}) = EmptyField()
 
 function req_point_data_fields_timesolver(::Type{<:NewtonKrylov})
     # Jacobian-free Newton-Krylov method: no jacobian, temp_force_b, or affected_points
@@ -869,6 +840,34 @@ end
 
 function req_data_fields_timesolver(::Type{<:NewtonKrylov})
     return ()
+end
+
+"""
+    NewtonKrylovFields
+
+$(extension_api_note())
+
+The storage fields required by the [`NewtonKrylov`](@ref) time solver, see
+[`@storage_fields`](@ref). The working fields of the solver have one entry per degree of
+freedom and are declared with [`DofVector`](@ref); every other solver gets them as empty
+arrays.
+
+$(block_table(NewtonKrylovFields))
+"""
+@storage_fields NewtonKrylovFields begin
+    # pinned to `Float64` for every float type of the simulation: bond vectors are
+    # position differences and a smaller float type loses them over a large domain
+    @lth position::PointVector{Float64}
+    displacement::PointVector
+    b_int::PointVector
+    b_ext::PointVector
+    residual::DofVector
+    displacement_copy::PointVector
+    b_int_copy::PointVector
+    temp_force::DofVector
+    Δu::DofVector
+    v_temp::DofVector
+    Jv_temp::DofVector
 end
 
 function log_timesolver(options::AbstractJobOptions, nr::NewtonKrylov)

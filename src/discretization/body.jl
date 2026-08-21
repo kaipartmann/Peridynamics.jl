@@ -309,7 +309,9 @@ end
     return getfield(b.point_params[b.params_map[i]], key)
 end
 
-@inline storage_type(b::AbstractBody) = storage_type(b.mat)
+@inline storage_type(b::AbstractBody) = storage_type(b.mat, float_type(b))
+
+@inline float_type(::AbstractBody) = default_float_type()
 
 function log_msg_body(body::AbstractBody)
     msg = "BODY"

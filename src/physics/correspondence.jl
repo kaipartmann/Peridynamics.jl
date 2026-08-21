@@ -171,54 +171,13 @@ end
 @params CMaterial CPointParameters
 
 @storage CMaterial struct CStorage
-    @lthfield position::Matrix{Float64}
-    @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
-    @pointfield velocity_half_old::Matrix{Float64}
-    @pointfield acceleration::Matrix{Float64}
-    @htlfield b_int::Matrix{Float64}
-    @pointfield b_int_old::Matrix{Float64}
-    @pointfield b_ext::Matrix{Float64}
-    @pointfield density_matrix::Matrix{Float64}
-    @pointfield damage::Vector{Float64}
-    @pointfield n_active_bonds::Vector{Int}
-    @pointfield defgrad::Matrix{Float64}
-    @pointfield cauchy_stress::Matrix{Float64}
-    @pointfield von_mises_stress::Vector{Float64}
-    @pointfield strain_energy_density::Vector{Float64}
-    bond_active::Vector{Bool}
-    residual::Vector{Float64}
-    displacement_copy::Matrix{Float64}
-    b_int_copy::Matrix{Float64}
-    temp_force::Vector{Float64}
-    Δu::Vector{Float64}
-    v_temp::Vector{Float64}
-    Jv_temp::Vector{Float64}
-end
-
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
-    return zeros(3, get_n_points(system))
-end
-
-function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
-                    system::BondSystem, ::Val{:defgrad})
-    return zeros(9, get_n_loc_points(system))
-end
-
-function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
-                    system::BondSystem, ::Val{:cauchy_stress})
-    return zeros(9, get_n_loc_points(system))
-end
-
-function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
-                    system::BondSystem, ::Val{:von_mises_stress})
-    return zeros(get_n_loc_points(system))
-end
-
-function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
-                    system::BondSystem, ::Val{:strain_energy_density})
-    return zeros(get_n_loc_points(system))
+    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
+    @inherit BondFracFields
+    @htl b_int::PointVector
+    defgrad::PointTensor
+    cauchy_stress::PointTensor
+    von_mises_stress::PointScalar
+    strain_energy_density::PointScalar
 end
 
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
@@ -359,7 +318,7 @@ function export_field(::Val{:hydrostatic_stress}, ::CMaterial,
     end
     return storage.von_mises_stress
 end
-custom_field(::Type{CStorage}, ::Val{:hydrostatic_stress}) = true
+custom_field(::Type{<:CStorage}, ::Val{:hydrostatic_stress}) = true
 
 # calculate the strain energy density from the deformation gradient just when exporting
 function export_field(::Val{:strain_energy_density}, mat::CMaterial, system::BondSystem,

@@ -1,48 +1,169 @@
-@testitem "required_fields" begin
-    rf_abstractmat = (:position, :displacement, :velocity, :velocity_half, :acceleration,
-                      :b_int, :b_ext, :velocity_half_old, :b_int_old, :density_matrix)
-    @test Peridynamics.required_fields(Peridynamics.AbstractMaterial) === rf_abstractmat
+# The storage contract and the `@storage` macro of `src/core/storages.jl`. The field
+# declaration framework (shapes, blocks, allocation) is tested in `test_storage_fields.jl`.
 
-    rf_bb = (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
-             :b_ext, :velocity_half_old, :b_int_old, :density_matrix, :damage,
-             :n_active_bonds, :bond_active)
+@testitem "required_fields: the type-level part of the storage contract" begin
+    # only the solver-independent, type-level part of the contract is checked by `@storage`
+    @test Peridynamics.required_fields(Peridynamics.AbstractMaterial) === ()
+
+    rf_bb = (:damage, :n_active_bonds, :bond_active)
     @test Peridynamics.required_fields(BBMaterial) === rf_bb
 
-    rf_cki = (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
-              :b_ext, :velocity_half_old, :b_int_old, :density_matrix, :damage,
-              :n_active_one_nis, :one_ni_active)
+    rf_cki = (:damage, :n_active_one_nis, :one_ni_active)
     @test Peridynamics.required_fields(CKIMaterial) === rf_cki
 end
 
-@testitem "get_storage_header" begin
+@testitem "req_storage_fields: material, damage model and time solver" begin
+    # materials without a declared contract
+    @test Peridynamics.req_storage_fields(BBMaterial()) === ()
+    @test Peridynamics.req_storage_fields(CKIMaterial()) === ()
+
+    # the RKC family declares the fields its inherited code reads
+    rf_rkc = (:defgrad, :weighted_volume, :gradient_weight, :bond_first_piola_kirchhoff,
+              :update_gradients)
+    @test Peridynamics.req_storage_fields(RKCMaterial()) === rf_rkc
+    @test Peridynamics.req_storage_fields(RKCRMaterial()) === rf_rkc
+
+    # damage models are dispatched together with the material, and a material without a
+    # damage model must not error
+    @test Peridynamics.req_storage_fields(BBMaterial(), CriticalStretch()) === ()
+    @test Peridynamics.req_storage_fields(BBMaterial(), nothing) === ()
+
+    # time solvers are dispatched on the instance that is actually used
+    @test Peridynamics.req_storage_fields(VelocityVerlet(steps=1)) ===
+          Peridynamics.required_fields_timesolver(VelocityVerlet)
+    @test in(:residual, Peridynamics.req_storage_fields(NewtonKrylov(steps=1)))
+
+    # a solver that does not declare its fields cannot be checked and contributes nothing
+    struct SilentSolver <: Peridynamics.AbstractTimeSolver end
+    @test Peridynamics.req_storage_fields(SilentSolver()) === ()
+end
+
+@testitem "check_storage_contract: the contract is checked when a Job is created" begin
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, StandardPointParameters,
+                         StorageContractError, check_storage_contract
+
+    function testbody(mat)
+        pos, vol = uniform_box(1, 1, 1, 0.5)
+        body = Body(mat, pos, vol)
+        material!(body; horizon=1.5, rho=1, E=1, nu=0.25, Gc=1.0)
+        velocity_bc!(t -> 0.0, body, :all_points, 1)
+        return body
+    end
+    vv = VelocityVerlet(steps=1)
+    nk = NewtonKrylov(steps=1)
+
+    # all default combinations of the package fulfill the contract
+    for mat in (BBMaterial(), OSBMaterial(), CKIMaterial(), CMaterial(), CRMaterial(),
+                RKCMaterial(), RKCRMaterial(), BACMaterial())
+        @test isnothing(check_storage_contract(mat, vv))
+        @test Job(testbody(mat), vv) isa Job
+    end
+    @test isnothing(check_storage_contract(RKCMaterial(), nk))
+
+    # `RKCRStorage` does not carry the fields of the `NewtonKrylov` solver
+    @test_throws StorageContractError check_storage_contract(RKCRMaterial(), nk)
+    @test_throws StorageContractError Job(testbody(RKCRMaterial()), nk)
+
+    # a material may ask for a field its storage does not have
+    struct ContractMat <: AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::CriticalStretch
+    end
+    ContractMat() = ContractMat(CriticalStretch())
+    Peridynamics.@params ContractMat StandardPointParameters
+    Peridynamics.@storage ContractMat struct ContractStorage
+        @inherit VelocityVerletFields BondFracFields
+    end
+    function Peridynamics.force_density_point!(::ContractStorage, system, ::ContractMat,
+                                               params, t, Δt, i)
+        return nothing
+    end
+    Peridynamics.req_storage_fields(::ContractMat) = (:my_field,)
+    @test_throws StorageContractError check_storage_contract(ContractMat(), vv)
+    @test_throws StorageContractError Job(testbody(ContractMat()), vv)
+
+    # every body of a multibody setup is checked
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+    b_ok = testbody(RKCMaterial())
+    b_bad = testbody(ContractMat())
+    @test Job(MultibodySetup(:a => testbody(BBMaterial()), :b => b_ok), vv) isa Job
+    @test_throws StorageContractError begin
+        Job(MultibodySetup(:a => testbody(BBMaterial()), :b => b_bad), vv)
+    end
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+
+    # the error names every missing field and the reason why it is required
+    err = try
+        check_storage_contract(RKCRMaterial(), nk)
+    catch e
+        e
+    end
+    @test err isa StorageContractError
+    @test err.storage <: Peridynamics.RKCRStorage
+    @test :residual in first.(err.missing_fields)
+    msg = sprint(showerror, err)
+    @test contains(msg, "RKCRStorage")
+    @test contains(msg, "residual")
+    @test contains(msg, "required by the time solver `NewtonKrylov`")
+
+    err = try
+        check_storage_contract(ContractMat(), vv)
+    catch e
+        e
+    end
+    @test err isa StorageContractError
+    @test first.(err.missing_fields) == [:my_field]
+    @test contains(sprint(showerror, err), "required by the material `ContractMat`")
+end
+
+@testitem "get_storage_header: name and supertype of a storage definition" begin
     import Peridynamics: get_storage_header
 
     # Test case 1: Simple struct declaration
     expr1 = :(struct MyStorage end)
-    header1, type1 = get_storage_header(expr1)
-    @test header1 == Expr(:(<:), :MyStorage, :(Peridynamics.AbstractStorage))
+    type1, supertype1 = get_storage_header(expr1)
     @test type1 == :MyStorage
+    @test supertype1 == :(Peridynamics.AbstractStorage)
 
     # Test case 2: Struct declaration with a subtype
     expr2 = :(struct MyStorage <: Peridynamics.AbstractStorage end)
-    header2, type2 = get_storage_header(expr2)
-    @test header2 == Expr(:(<:), :MyStorage, :(Peridynamics.AbstractStorage))
+    type2, supertype2 = get_storage_header(expr2)
     @test type2 == :MyStorage
+    @test supertype2 == :(Peridynamics.AbstractStorage)
 
-    # Test case 3: Parametric struct declaration with a subtype
+    # Test case 3: the type parameters are derived from the field declarations, so a storage
+    # must not declare its own
     expr3 = :(struct MyStorage{A,B,C} <: Peridynamics.AbstractStorage end)
-    header3, type3 = get_storage_header(expr3)
-    @test header3 == Expr(:(<:), :(MyStorage{A,B,C}), :(Peridynamics.AbstractStorage))
-    @test type3 == :MyStorage
+    err3 = try
+        get_storage_header(expr3)
+    catch e
+        e
+    end
+    @test err3 isa ArgumentError
+    @test contains(err3.msg, "cannot declare its own type parameters")
 
     # Test case 4: Parametric struct declaration without a subtype
     expr4 = :(struct MyStorage{A,B,C} end)
-    header4, type4 = get_storage_header(expr4)
-    @test header4 == Expr(:(<:), :(MyStorage{A,B,C}), :(Peridynamics.AbstractStorage))
-    @test type4 == :MyStorage
+    err4 = try
+        get_storage_header(expr4)
+    catch e
+        e
+    end
+    @test err4 isa ArgumentError
+    @test contains(err4.msg, "cannot declare its own type parameters")
+
+    # Test case 5: anything else is still rejected as an unsupported header
+    expr5 = :(struct (a + b) end)
+    err5 = try
+        get_storage_header(expr5)
+    catch e
+        e
+    end
+    @test err5 isa ArgumentError
+    @test contains(err5.msg, "not supported")
 end
 
-@testitem "macrochecks @storage macro" begin
+@testitem "@storage: the macro input checks" begin
 
     input = :(Peridynamics.BBStorage)
     @test isnothing(Peridynamics.macrocheck_input_storage_type(input))
@@ -96,7 +217,7 @@ end
     @test_throws ArgumentError Peridynamics.macrocheck_input_field(input)
 end
 
-@testitem "@storage: storage declaration" begin
+@testitem "@storage: generated methods and the checks at macro expansion" begin
     import Peridynamics: @storage, AbstractBondSystemMaterial, NoCorrection,
                          AbstractInteractionSystemMaterial, InterfaceError,
                          AbstractTimeSolver, AbstractSystem
@@ -111,142 +232,25 @@ end
     struct StorageWrong1 <: Peridynamics.AbstractStorage end
     @test_throws InterfaceError Peridynamics.point_data_fields(StorageWrong1)
 
+    # the fields of the system are checked when the macro is expanded: `n_active_bonds` and
+    # `n_active_one_nis` are missing
     @test_throws ErrorException @storage Mat1 struct StorageMissing1
-        @lthfield position::Matrix{Float64}
-        # @pointfield displacement::Matrix{Float64}
-        @pointfield velocity::Matrix{Float64}
-        @pointfield velocity_half::Matrix{Float64}
-        @pointfield velocity_half_old::Matrix{Float64}
-        @pointfield acceleration::Matrix{Float64}
-        @pointfield b_int::Matrix{Float64}
-        @pointfield b_int_old::Matrix{Float64}
-        @pointfield b_ext::Matrix{Float64}
-        @pointfield density_matrix::Matrix{Float64}
-        @pointfield damage::Vector{Float64}
-        bond_active::Vector{Bool}
-        @pointfield n_active_bonds::Vector{Int}
+        @inherit VelocityVerletFields
+        damage::PointScalar
+        bond_active::BondScalar{Bool}
     end
 
-    @test_throws ErrorException @storage Mat1 struct StorageMissing2
-        @lthfield position::Matrix{Float64}
-        @pointfield displacement::Matrix{Float64}
-        @pointfield velocity::Matrix{Float64}
-        @pointfield velocity_half::Matrix{Float64}
-        @pointfield velocity_half_old::Matrix{Float64}
-        @pointfield acceleration::Matrix{Float64}
-        @pointfield b_int::Matrix{Float64}
-        @pointfield b_int_old::Matrix{Float64}
-        @pointfield b_ext::Matrix{Float64}
-        @pointfield density_matrix::Matrix{Float64}
-        @pointfield damage::Vector{Float64}
-        bond_active::Vector{Bool}
-        # @pointfield n_active_bonds::Vector{Int}
-    end
-
-    @test_throws ErrorException @storage Mat2 struct StorageMissing3
-        @lthfield position::Matrix{Float64}
-        @pointfield displacement::Matrix{Float64}
-        @pointfield velocity::Matrix{Float64}
-        @pointfield velocity_half::Matrix{Float64}
-        @pointfield velocity_half_old::Matrix{Float64}
-        @pointfield acceleration::Matrix{Float64}
-        @pointfield b_int::Matrix{Float64}
-        @pointfield b_int_old::Matrix{Float64}
-        @pointfield b_ext::Matrix{Float64}
-        @pointfield density_matrix::Matrix{Float64}
-        @pointfield damage::Vector{Float64}
+    @test_throws ErrorException @storage Mat2 struct StorageMissing2
+        @inherit VelocityVerletFields
+        damage::PointScalar
         one_ni_active::Vector{Bool}
-        # @pointfield n_active_one_nis::Vector{Int}
     end
 
+    # an untyped field is rejected when the macro is expanded
     try
         eval(quote
             @storage Mat1 struct StorageUntyped1
-                @lthfield position
-                @pointfield displacement::Matrix{Float64}
-                @pointfield velocity::Matrix{Float64}
-                @pointfield velocity_half::Matrix{Float64}
-                @pointfield velocity_half_old::Matrix{Float64}
-                @pointfield acceleration::Matrix{Float64}
-                @pointfield b_int::Matrix{Float64}
-                @pointfield b_int_old::Matrix{Float64}
-                @pointfield b_ext::Matrix{Float64}
-                @pointfield density_matrix::Matrix{Float64}
-                @pointfield damage::Vector{Float64}
-                bond_active::Vector{Bool}
-                @pointfield n_active_bonds::Vector{Int}
-                @pointfield mycustomfield
-            end
-        end)
-        @test false
-    catch e
-        @test isa(e, LoadError)
-    end
-
-    try
-        eval(quote
-            @storage Mat1 struct StorageUntyped1
-                @lthfield position
-                @pointfield displacement::Matrix{Float64}
-                @pointfield velocity::Matrix{Float64}
-                @pointfield velocity_half::Matrix{Float64}
-                @pointfield velocity_half_old::Matrix{Float64}
-                @pointfield acceleration::Matrix{Float64}
-                @pointfield b_int::Matrix{Float64}
-                @pointfield b_int_old::Matrix{Float64}
-                @pointfield b_ext::Matrix{Float64}
-                @pointfield density_matrix::Matrix{Float64}
-                @pointfield damage::Vector{Float64}
-                bond_active::Vector{Bool}
-                @pointfield n_active_bonds::Vector{Int}
-                @lthfield mycustomfield
-            end
-        end)
-        @test false
-    catch e
-        @test isa(e, LoadError)
-    end
-
-    try
-        eval(quote
-            @storage Mat1 struct StorageUntyped1
-                @lthfield position
-                @pointfield displacement::Matrix{Float64}
-                @pointfield velocity::Matrix{Float64}
-                @pointfield velocity_half::Matrix{Float64}
-                @pointfield velocity_half_old::Matrix{Float64}
-                @pointfield acceleration::Matrix{Float64}
-                @pointfield b_int::Matrix{Float64}
-                @pointfield b_int_old::Matrix{Float64}
-                @pointfield b_ext::Matrix{Float64}
-                @pointfield density_matrix::Matrix{Float64}
-                @pointfield damage::Vector{Float64}
-                bond_active::Vector{Bool}
-                @pointfield n_active_bonds::Vector{Int}
-                @htlfield mycustomfield
-            end
-        end)
-        @test false
-    catch e
-        @test isa(e, LoadError)
-    end
-
-    try
-        eval(quote
-            @storage Mat1 struct StorageUntyped1
-                @lthfield position
-                @pointfield displacement::Matrix{Float64}
-                @pointfield velocity::Matrix{Float64}
-                @pointfield velocity_half::Matrix{Float64}
-                @pointfield velocity_half_old::Matrix{Float64}
-                @pointfield acceleration::Matrix{Float64}
-                @pointfield b_int::Matrix{Float64}
-                @pointfield b_int_old::Matrix{Float64}
-                @pointfield b_ext::Matrix{Float64}
-                @pointfield density_matrix::Matrix{Float64}
-                @pointfield damage::Vector{Float64}
-                bond_active::Vector{Bool}
-                @pointfield n_active_bonds::Vector{Int}
+                @inherit VelocityVerletFields BondFracFields
                 mycustomfield
             end
         end)
@@ -255,68 +259,34 @@ end
         @test isa(e, LoadError)
     end
 
+    # a storage for one solver ...
     @storage Mat1 VelocityVerlet struct Storage1 <: Peridynamics.AbstractStorage
-        @lthfield position::Matrix{Float64}
-        @pointfield displacement::Matrix{Float64}
-        @pointfield velocity::Matrix{Float64}
-        @pointfield velocity_half::Matrix{Float64}
-        @pointfield velocity_half_old::Matrix{Float64}
-        @pointfield acceleration::Matrix{Float64}
-        @pointfield b_int::Matrix{Float64}
-        @pointfield b_int_old::Matrix{Float64}
-        @pointfield b_ext::Matrix{Float64}
-        @pointfield density_matrix::Matrix{Float64}
-        @pointfield damage::Vector{Float64}
-        bond_active::Vector{Bool}
-        @pointfield n_active_bonds::Vector{Int}
-        @pointfield mycustomfield::Vector{Float64}
+        @inherit VelocityVerletFields BondFracFields
+        mycustomfield::PointScalar
     end
 
     @test hasmethod(Peridynamics.storage_type, Tuple{Mat1})
     @test hasmethod(Storage1, Tuple{Mat1,VelocityVerlet,Peridynamics.AbstractSystem})
-    mat, vv = Mat1(), VelocityVerlet(steps=1)
-    @test Peridynamics.storage_type(mat) == Storage1
+    @test Peridynamics.storage_type(Mat1()) <: Storage1
 
     @test hasmethod(Peridynamics.loc_to_halo_fields, Tuple{Storage1})
     @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:position}})
-    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:displacement}})
-
     @test hasmethod(Peridynamics.halo_to_loc_fields, Tuple{Storage1})
-    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:b_int}})
-    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage1,Val{:b_ext}})
+    @test Peridynamics.point_data_fields(Peridynamics.storage_type(Mat1())) ==
+          (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
+           :b_ext, :damage, :n_active_bonds, :mycustomfield)
 
+    # ... and a storage for every solver
     @storage Mat1 struct Storage2 <: Peridynamics.AbstractStorage
-        @lthfield position::Matrix{Float64}
-        @pointfield displacement::Matrix{Float64}
-        @pointfield velocity::Matrix{Float64}
-        @pointfield velocity_half::Matrix{Float64}
-        @pointfield velocity_half_old::Matrix{Float64}
-        @pointfield acceleration::Matrix{Float64}
-        @pointfield b_int::Matrix{Float64}
-        @pointfield b_int_old::Matrix{Float64}
-        @pointfield b_ext::Matrix{Float64}
-        @pointfield density_matrix::Matrix{Float64}
-        @pointfield damage::Vector{Float64}
-        bond_active::Vector{Bool}
-        @pointfield n_active_bonds::Vector{Int}
-        @pointfield mycustomfield::Vector{Float64}
+        @inherit VelocityVerletFields BondFracFields
+        mycustomfield::PointScalar
     end
 
-    @test hasmethod(Peridynamics.storage_type, Tuple{Mat1})
     @test hasmethod(Storage2, Tuple{Mat1,AbstractTimeSolver,AbstractSystem})
-    mat, vv = Mat1(), VelocityVerlet(steps=1)
-    @test Peridynamics.storage_type(mat) == Storage2
-
-    @test hasmethod(Peridynamics.loc_to_halo_fields, Tuple{Storage2})
-    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage2,Val{:position}})
-    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage2,Val{:displacement}})
-
-    @test hasmethod(Peridynamics.halo_to_loc_fields, Tuple{Storage2})
-    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage2,Val{:b_int}})
-    @test hasmethod(Peridynamics.is_halo_field, Tuple{Storage2,Val{:b_ext}})
+    @test Peridynamics.storage_type(Mat1()) <: Storage2
 end
 
-@testitem "@storage: custom materials and halo fields" begin
+@testitem "@storage: a custom material with a container-typed field and @halo_fields" begin
     import Peridynamics: AbstractBondSystemMaterial, NoCorrection,
                          AbstractInteractionSystemMaterial, InterfaceError,
                          AbstractPointParameters, AbstractDamageModel
@@ -361,28 +331,18 @@ end
     @test_throws InterfaceError Peridynamics.storage_type(mat)
     @test_throws InterfaceError Peridynamics.get_storage(mat, solver, system)
 
+    # `myfld` is declared with a container type, so it needs an `init_field` method and is
+    # not point data
     Peridynamics.@storage Mat3 struct Storage3
-        @lthfield position::Matrix{Float64}
-        @pointfield displacement::Matrix{Float64}
-        @pointfield velocity::Matrix{Float64}
-        @pointfield velocity_half::Matrix{Float64}
-        @pointfield velocity_half_old::Matrix{Float64}
-        @pointfield acceleration::Matrix{Float64}
-        @pointfield b_int::Matrix{Float64}
-        @pointfield b_int_old::Matrix{Float64}
-        @pointfield b_ext::Matrix{Float64}
-        @pointfield density_matrix::Matrix{Float64}
-        @pointfield damage::Vector{Float64}
-        bond_active::Vector{Bool}
-        @pointfield n_active_bonds::Vector{Int}
-        @pointfield myfld::Matrix{Float64}
+        @inherit VelocityVerletFields DynamicRelaxationFields BondFracFields
+        myfld::Matrix{Float64}
     end
 
-    @test Peridynamics.storage_type(mat) == Storage3
+    @test Peridynamics.storage_type(mat) <: Storage3
 
-    pointfields = (:position, :displacement, :velocity, :velocity_half, :velocity_half_old,
-                   :acceleration, :b_int, :b_int_old, :b_ext, :density_matrix, :damage,
-                   :n_active_bonds, :myfld)
+    pointfields = (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
+                   :b_ext, :velocity_half_old, :b_int_old, :density_matrix, :damage,
+                   :n_active_bonds)
     @test Peridynamics.point_data_fields(Storage3) === pointfields
 
     @test_throws InterfaceError Peridynamics.init_field(mat, solver, system, Val(:myfld))
@@ -401,46 +361,21 @@ end
     @test Peridynamics.get_halo_to_loc_fields(storage) == ()
 
     @test Peridynamics.is_halo_field(storage, Val(:position)) == true
-    @test Peridynamics.is_halo_field(storage, Val(:displacement)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:velocity)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:velocity_half)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:velocity_half_old)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:acceleration)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:b_int)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:b_int_old)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:b_ext)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:density_matrix)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:damage)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:n_active_bonds)) == false
-    @test Peridynamics.is_halo_field(storage, Val(:myfld)) == false
+    for field in (:displacement, :velocity, :velocity_half, :velocity_half_old,
+                  :acceleration, :b_int, :b_int_old, :b_ext, :density_matrix, :damage,
+                  :n_active_bonds, :myfld)
+        @test Peridynamics.is_halo_field(storage, Val(field)) == false
+    end
+
+    # the fields of the other solver are empty arrays of the right type
+    @test size(storage.velocity_half_old) == (0, 0)
+    @test storage.velocity_half_old isa Matrix{Float64}
 
     Peridynamics.@halo_fields Storage3 :myfld
 
     @test Peridynamics.is_halo_field(storage, Val(:myfld)) == true
 
     @test_throws InterfaceError Peridynamics.point_data_field(storage, Val(:bond_active))
-end
-
-@testitem "@storage: invalid field and header declarations are rejected" begin
-    import Peridynamics: get_storage_structdef, get_storage_header
-
-    # annotated fields without a type
-    for annotation in (Symbol("@pointfield"), Symbol("@htlfield"), Symbol("@lthfield"))
-        expr = Expr(:struct, false, :(MyStorage <: Peridynamics.AbstractStorage),
-                    Expr(:block, Expr(:macrocall, annotation, LineNumberNode(1), :position)))
-        @test_throws ArgumentError get_storage_structdef(expr)
-    end
-    # an expression that is neither a typed field nor an annotated one
-    expr = Expr(:struct, false, :(MyStorage <: Peridynamics.AbstractStorage),
-                Expr(:block, :(position = 1)))
-    @test_throws ArgumentError get_storage_structdef(expr)
-
-    # headers that are not a struct name, with or without parameters and supertype
-    expr = Expr(:struct, false, :(Peridynamics.MyStorage <: Peridynamics.AbstractStorage),
-                Expr(:block))
-    @test_throws ArgumentError get_storage_header(expr)
-    expr = Expr(:struct, false, :(MyStorage()), Expr(:block))
-    @test_throws ArgumentError get_storage_header(expr)
 end
 
 @testitem "typecheck_storage: fallbacks and missing fields" begin

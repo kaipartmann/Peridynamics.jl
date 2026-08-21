@@ -43,55 +43,18 @@ end
 @params CRMaterial CPointParameters
 
 @storage CRMaterial struct CRStorage
-    @lthfield position::Matrix{Float64}
-    @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
-    @lthfield velocity_half::Matrix{Float64}
-    @pointfield velocity_half_old::Matrix{Float64}
-    @pointfield acceleration::Matrix{Float64}
-    @htlfield b_int::Matrix{Float64}
-    @pointfield b_int_old::Matrix{Float64}
-    @pointfield b_ext::Matrix{Float64}
-    @pointfield density_matrix::Matrix{Float64}
-    @pointfield damage::Vector{Float64}
-    @pointfield n_active_bonds::Vector{Int}
-    @pointfield unrotated_stress::Matrix{Float64}
-    @pointfield defgrad::Matrix{Float64}
-    @pointfield cauchy_stress::Matrix{Float64}
-    @pointfield von_mises_stress::Vector{Float64}
-    @pointfield strain_energy_density::Vector{Float64}
-    @pointfield left_stretch::Matrix{Float64}
-    @pointfield rotation::Matrix{Float64}
-    bond_active::Vector{Bool}
+    @inherit VelocityVerletFields DynamicRelaxationFields
+    @inherit BondFracFields
+    @lth velocity_half::PointVector
+    @htl b_int::PointVector
+    unrotated_stress::PointTensor
+    defgrad::PointTensor
+    cauchy_stress::PointTensor
+    von_mises_stress::PointScalar
+    strain_energy_density::PointScalar
+    left_stretch::PointTensor = I
+    rotation::PointTensor = I
     zem_stiffness_rotated::MArray{NTuple{4,3},Float64,4,81}
-end
-
-function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:velocity_half})
-    return zeros(3, get_n_points(system))
-end
-
-function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
-    return zeros(3, get_n_points(system))
-end
-
-function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:unrotated_stress})
-    return zeros(9, get_n_loc_points(system))
-end
-
-function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:left_stretch})
-    V = zeros(9, get_n_loc_points(system))
-    V[[1, 5, 9], :] .= 1.0
-    return V
-end
-
-function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:rotation})
-    R = zeros(9, get_n_loc_points(system))
-    R[[1, 5, 9], :] .= 1.0
-    return R
 end
 
 function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
@@ -188,7 +151,7 @@ function export_field(::Val{:hydrostatic_stress}, ::CRMaterial,
     end
     return storage.von_mises_stress
 end
-custom_field(::Type{CRStorage}, ::Val{:hydrostatic_stress}) = true
+custom_field(::Type{<:CRStorage}, ::Val{:hydrostatic_stress}) = true
 
 # calculate the strain energy density from the deformation gradient just when exporting
 function export_field(::Val{:strain_energy_density}, mat::CRMaterial, system::BondSystem,

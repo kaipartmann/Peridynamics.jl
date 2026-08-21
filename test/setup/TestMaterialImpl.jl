@@ -1,6 +1,7 @@
 # A minimal custom material that implements only the documented material interface: a material
 # struct, a point parameter struct registered with `@params`, a storage registered with
-# `@storage`, one `init_field` override and `force_density_point!`. It is the fixture for the
+# `@storage` (inheriting the field blocks of the solvers and the system, with `b_int`
+# accumulated into the halo) and `force_density_point!`. It is the fixture for the
 # interface conformance tests in `test/materials/test_material_interface.jl`.
 #
 # This is a `@testmodule` of its own (and not part of `Fixtures`) because it defines types and
@@ -41,24 +42,8 @@
     Peridynamics.@params TestMaterial TestPointParameters
 
     Peridynamics.@storage TestMaterial struct TestStorage <: Peridynamics.AbstractStorage
-        @lthfield position::Matrix{Float64}
-        @pointfield displacement::Matrix{Float64}
-        @pointfield velocity::Matrix{Float64}
-        @pointfield velocity_half::Matrix{Float64}
-        @pointfield velocity_half_old::Matrix{Float64}
-        @pointfield acceleration::Matrix{Float64}
-        @htlfield b_int::Matrix{Float64}
-        @pointfield b_int_old::Matrix{Float64}
-        @pointfield b_ext::Matrix{Float64}
-        @pointfield density_matrix::Matrix{Float64}
-        @pointfield damage::Vector{Float64}
-        bond_active::Vector{Bool}
-        @pointfield n_active_bonds::Vector{Int}
-    end
-
-    function Peridynamics.init_field(::TestMaterial, ::Peridynamics.VelocityVerlet,
-                                     system::Peridynamics.BondSystem, ::Val{:b_int})
-        return zeros(3, Peridynamics.get_n_points(system))
+        @inherit VelocityVerletFields DynamicRelaxationFields BondFracFields
+        @htl b_int::PointVector
     end
 
     function Peridynamics.force_density_point!(storage::TestStorage,

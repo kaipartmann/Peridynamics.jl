@@ -13,3 +13,26 @@ end
     msg_correct *= "  time:    2.0\n  step:    2\n"
     @test sprint(showerror, ne1) == msg_correct
 end
+
+@testitem "InterfaceError: an optional hint is printed after the method" begin
+    ie = Peridynamics.InterfaceError(Float64, "foo", "define `foo(::Float64)`")
+    msg = sprint(showerror, ie)
+    @test contains(msg, "type:    Float64")
+    @test contains(msg, "method:  foo")
+    @test endswith(strip(msg), "define `foo(::Float64)`")
+    @test isempty(Peridynamics.InterfaceError(Float64, "foo").hint)
+end
+
+@testitem "StorageContractError: names every missing field and the reason" begin
+    S = Peridynamics.storage_type(BBMaterial())
+    missing_fields = [:residual => "the time solver `NewtonKrylov`",
+                      :my_field => "the material `BBMaterial`"]
+    err = Peridynamics.StorageContractError(S, typeof(BBMaterial()), NewtonKrylov, missing_fields)
+    msg = sprint(showerror, err)
+    @test contains(msg, "storage type does not contain all required fields!")
+    @test contains(msg, "BBStorage")
+    @test contains(msg, "residual   required by the time solver `NewtonKrylov`")
+    @test contains(msg, "my_field   required by the material `BBMaterial`")
+    @test contains(msg, "Peridynamics.@storage")
+end
+
