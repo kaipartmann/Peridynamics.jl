@@ -976,8 +976,8 @@ function storage_contract(mat::AbstractMaterial, solver::AbstractTimeSolver)
             (req_storage_fields(solver), "the time solver `$(nameof(S))`"))
 end
 
+# also `:Nothing` for a material without a damage model
 @inline _name_of(x) = nameof(typeof(x))
-@inline _name_of(::Nothing) = :Nothing
 
 """
     check_storage_contract(spatial_setup, solver::AbstractTimeSolver)
