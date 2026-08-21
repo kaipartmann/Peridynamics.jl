@@ -635,3 +635,177 @@ end
     @test adapted.bond_active isa WrappedArray{Bool,1}
     @test adapted.position == chunk.storage.position
 end
+
+@testitem "field shapes: unpinned PointField/BondField and shapes of higher dimension" begin
+    import Peridynamics: PointField, BondField, SimFloat, AbstractFieldShape, container_type,
+                         field_n_dims, StorageTypeParam, storage_param_bound,
+                         storage_param_default, storage_param_prefix, storage_param_suffix
+
+    # a `PointField{N}` or `BondField{N}` without an element type follows the simulation
+    @test PointField{4}() === PointField{4,SimFloat}()
+    @test BondField{2}() === BondField{2,SimFloat}()
+    @test Peridynamics.field_shape(PointField{4}) === PointField{4,SimFloat}()
+
+    # a shape of a third party can have more than two dimensions; the container, the bound
+    # and the default of its type parameter follow the number of dimensions
+    struct CubeShape{T} <: AbstractFieldShape{T} end
+    Peridynamics.field_n_dims(::CubeShape) = 3
+    @test container_type(CubeShape{Float64}()) === Array{Float64,3}
+    @test container_type(CubeShape{SimFloat}()) === Array{Float64,3}
+    @test container_type(CubeShape{Float32}(), :FT) == :(Base.Array{FT,3})
+    param = StorageTypeParam(:A3_FT, SimFloat, 3)
+    @test storage_param_bound(param) == Expr(:curly, AbstractArray, :FT, 3)
+    @test storage_param_default(param) == Expr(:curly, Array, :FT, 3)
+    @test storage_param_prefix(1) == "V"
+    @test storage_param_prefix(2) == "M"
+    @test storage_param_prefix(3) == "A3"
+
+    # the suffix of a parameter name abbreviates the common element types
+    @test storage_param_suffix(SimFloat) == "FT"
+    @test storage_param_suffix(Float64) == "F64"
+    @test storage_param_suffix(Float32) == "F32"
+    @test storage_param_suffix(Float16) == "F16"
+    @test storage_param_suffix(Int64) == "Int"
+    @test storage_param_suffix(Bool) == "Bool"
+    @test storage_param_suffix(Vector) == "E" # a `UnionAll` has no name to abbreviate
+end
+
+@testitem "get_field_decls: qualified annotations, unknown expressions, nested states" begin
+    import Peridynamics: PointScalar, ConstitutiveState, DamageState, get_field_decls,
+                         get_macro_name, is_cm_state_decl, is_dmg_state_decl,
+                         is_nested_state_decl, is_point_decl
+
+    # the annotations are recognized by name, so they work qualified as well
+    block = quote
+        Peridynamics.@lth a::PointScalar
+        @htl b::PointScalar
+    end
+    decls = get_field_decls(block.args, @__MODULE__)
+    @test [d.annotation for d in decls] == [:lth, :htl]
+    @test get_macro_name(GlobalRef(Peridynamics, Symbol("@lth"))) === Symbol("@lth")
+    @test get_macro_name(Expr(:., :Peridynamics, QuoteNode(Symbol("@htl")))) === Symbol("@htl")
+    @test isnothing(get_macro_name(:(f(x))))
+    @test isnothing(get_macro_name(1))
+
+    # an unknown macro or any other expression is not a field declaration
+    block = quote
+        @unknown_annotation a::PointScalar
+    end
+    @test_throws ArgumentError get_field_decls(block.args, @__MODULE__)
+    block = quote
+        f(x)
+    end
+    @test_throws ArgumentError get_field_decls(block.args, @__MODULE__)
+
+    # `@inherit` needs a storage or a field block, not any resolvable name
+    block = quote
+        @inherit sin
+    end
+    err = try
+        get_field_decls(block.args, @__MODULE__)
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test contains(err.msg, "is not a type")
+
+    # the nested-state markers are neither arrays nor point data
+    block = quote
+        cm_state::ConstitutiveState
+        dmg_state::DamageState
+        a::PointScalar
+    end
+    decls = get_field_decls(block.args, @__MODULE__)
+    @test is_cm_state_decl(decls[1]) && !is_dmg_state_decl(decls[1])
+    @test is_dmg_state_decl(decls[2]) && !is_cm_state_decl(decls[2])
+    @test [is_nested_state_decl(d) for d in decls] == [true, true, false]
+    @test [is_point_decl(d) for d in decls] == [false, false, true]
+end
+
+@testitem "@storage_fields: the macro input checks" begin
+    @test_throws LoadError @eval Peridynamics.@storage_fields 1 begin
+        a::PointScalar
+    end
+    @test_throws LoadError @eval Peridynamics.@storage_fields NotABlock 1
+    @test_throws LoadError @eval Peridynamics.@storage_fields NotABlock a::PointScalar
+end
+
+@testitem "derive_storage_type_params: nested states and parameter name collisions" begin
+    import Peridynamics: PointScalar, ConstitutiveState, DamageState, SimFloat,
+                         derive_storage_type_params, get_field_decls, storage_header_expr
+
+    # the nested states contribute the trailing parameters `CMS` and `DMS`, in that order
+    block = quote
+        a::PointScalar
+        cm_state::ConstitutiveState
+        dmg_state::DamageState
+    end
+    decls = get_field_decls(block.args, @__MODULE__)
+    (; params, field_params, uses_sim_float, cm_state_field,
+       dmg_state_field) = derive_storage_type_params(decls)
+    @test [p.name for p in params] == [:V_FT]
+    @test cm_state_field === :cm_state
+    @test dmg_state_field === :dmg_state
+    @test field_params[:cm_state] === :CMS
+    @test field_params[:dmg_state] === :DMS
+    header = storage_header_expr(:MyStorage, :AbstractStorage, params, uses_sim_float,
+                                 cm_state_field, dmg_state_field)
+    @test header.head === :(<:) && header.args[2] === :AbstractStorage
+    @test header.args[1].args[1] === :MyStorage
+    @test header.args[1].args[2] == Expr(:(<:), :FT, Real)
+    @test header.args[1].args[end - 1:end] == [:CMS, :DMS]
+
+    # each state at most once ...
+    for (T, what) in ((ConstitutiveState, "constitutive model"), (DamageState, "damage model"))
+        block = quote
+            a::$(T)
+            b::$(T)
+        end
+        decls = get_field_decls(block.args, @__MODULE__)
+        err = try
+            derive_storage_type_params(decls)
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        @test contains(err.msg, "only one $(what)")
+        @test contains(err.msg, "`a` and `b`")
+
+        # ... and never with a halo annotation
+        block = quote
+            @lth a::$(T)
+        end
+        decls = get_field_decls(block.args, @__MODULE__)
+        err = try
+            derive_storage_type_params(decls)
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        @test contains(err.msg, "cannot be annotated with `@lth`")
+        @test contains(err.msg, what)
+    end
+
+    # pinned non-default float types get their own abbreviation
+    block = quote
+        a::PointScalar{Float32}
+        b::PointScalar{Float16}
+        c::PointScalar{Int}
+    end
+    decls = get_field_decls(block.args, @__MODULE__)
+    (; params, uses_sim_float) = derive_storage_type_params(decls)
+    @test !uses_sim_float
+    @test [p.name for p in params] == [:V_F32, :V_F16, :V_Int]
+
+    # element types without a name share the suffix `E` and are numbered
+    block = quote
+        a::Vector{Vector}
+        b::Vector{Matrix}
+        c::Vector{Dict}
+        d::Vector{Vector}
+    end
+    decls = get_field_decls(block.args, @__MODULE__)
+    (; params, field_params) = derive_storage_type_params(decls)
+    @test [p.name for p in params] == [:V_E, :V_E_2, :V_E_3]
+    @test field_params[:d] === :V_E
+end
