@@ -782,6 +782,14 @@ function newton_export_results(dh::MPIBodyDataHandler, options::JobOptions, n, t
     return nothing
 end
 
+#=
+This solver evaluates the force density several times per time step, for the Jacobian-vector
+products of the GMRES iteration and for the line search, so a constitutive model that
+integrates a history would integrate it several times per step. See
+`check_constitutive_model`.
+=#
+supports_history_dependence(::NewtonKrylov) = false
+
 # Required interface functions
 # Newton-Krylov specific fields
 # GMRES temporary buffers for Jacobian-free Newton-Krylov

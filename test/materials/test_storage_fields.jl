@@ -9,7 +9,8 @@
 
     # A shape spec is a tuple of (d, count): d rows and `count` columns, where `count` is
     # `:all` (points incl. halo), `:loc` (local points), `:bonds`, `:dof` (local dof),
-    # `:neighbors` (max. neighbors of a point); `(d,)` with d === 0 is empty. Vectors use d = 1.
+    # `:neighbors` (max. neighbors of a point); `(d,)` with d === 0 is empty, `(:state,)` is
+    # the nested state of a constitutive model without state. Vectors use d = 1.
     const COMMON_FIELDS = Dict(
         :position => (3, :all),
         :displacement => (3, :loc),
@@ -65,7 +66,8 @@
                               :weighted_volume => (1, :loc)),
         OSBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds)),
         CMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :loc),
-                            :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc)),
+                            :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc),
+                            :cm_state => (:state,)),
         CRMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :loc),
                              :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc),
                              :unrotated_stress => (9, :loc), :left_stretch => (9, :loc),
@@ -74,7 +76,8 @@
                               :weighted_volume => (1, :all), :update_gradients => (1, :loc),
                               :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc),
                               :gradient_weight => (3, :bonds),
-                              :bond_first_piola_kirchhoff => (9, :bonds)),
+                              :bond_first_piola_kirchhoff => (9, :bonds),
+                              :cm_state => (:state,)),
         RKCRMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :all),
                                :defgrad_dot => (9, :all), :weighted_volume => (1, :all),
                                :update_gradients => (1, :loc), :cauchy_stress => (9, :loc),
@@ -83,7 +86,7 @@
                                :left_stretch => (9, :bonds), :rotation => (9, :bonds),
                                :bond_unrot_cauchy_stress => (9, :bonds)),
         BACMaterial() => Dict(:stress => (9, :loc), :von_mises_stress => (1, :loc),
-                              :bond_stress => (9, :neighbors)),
+                              :bond_stress => (9, :neighbors), :cm_state => (:state,)),
         CKIMaterial() => Dict(:strain_energy_density => (1, :loc), :n_active_one_nis => (1, :loc),
                               :one_ni_active => (1, :bonds)),
     ]
@@ -145,7 +148,10 @@
         for (field, spec) in expected
             hasfield(typeof(storage), field) || continue
             value = getfield(storage, field)
-            if spec[1] == 0
+            if spec[1] === :state
+                # the nested state of a stateless constitutive model is `nothing`
+                @test isnothing(value) || (field, typeof(value)) === nothing
+            elseif spec[1] == 0
                 @test isempty(value) || (field, size(value)) === nothing
             else
                 @test size(value) == expected_size(spec, n) || (field, size(value)) === nothing

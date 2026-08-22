@@ -137,6 +137,10 @@ function log_material_property(::Val{:constitutive_model}, mat; indentation)
     return msg_qty("constitutive model", mat.constitutive_model; indentation)
 end
 
+@inline function get_constitutive_model(mat::AbstractCorrespondenceMaterial)
+    return mat.constitutive_model
+end
+
 function log_material_property(::Val{:zem}, mat; indentation)
     return msg_qty("zero-energy mode stabilization", mat.zem; indentation)
 end
@@ -178,6 +182,7 @@ end
     cauchy_stress::PointTensor
     von_mises_stress::PointScalar
     strain_energy_density::PointScalar
+    cm_state::ConstitutiveState
 end
 
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
@@ -216,7 +221,7 @@ end
 function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
                                      params::CPointParameters, defgrad_res, Δt, i)
     (; F, Kinv) = defgrad_res
-    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F, i, Δt)
     PKinv = P * Kinv
     σ = cauchy_stress(P, F)
     update_tensor!(storage.cauchy_stress, i, σ)
@@ -327,7 +332,8 @@ function export_field(::Val{:strain_energy_density}, mat::CMaterial, system::Bon
     for i in each_point_idx(system)
         params = get_params(paramsetup, i)
         F = get_tensor(storage.defgrad, i)
-        storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F)
+        storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F,
+                                                                 i)
     end
     return storage.strain_energy_density
 end

@@ -84,6 +84,49 @@ function Base.showerror(io::IO, e::StorageContractError)
 end
 
 """
+    HistoryDependenceError
+
+$(extension_api_note())
+
+A type for a customized error that is thrown when a history-dependent constitutive model is
+combined with a time solver, a material or a storage that cannot integrate its history
+correctly. See [`check_constitutive_model`](@ref).
+
+# Fields
+
+- `model::DataType`: Constitutive model that integrates a history.
+- `material::DataType`: Material type the model belongs to.
+- `solver::DataType`: Time solver of the job.
+- `reason::String`: Why the combination cannot work.
+- `fix::String`: How to fix it.
+"""
+struct HistoryDependenceError <: Exception
+    model::DataType
+    material::DataType
+    solver::DataType
+    reason::String
+    fix::String
+    function HistoryDependenceError(_model::T, material::DataType, solver::DataType,
+                                    reason, fix) where {T}
+        model = isa(_model, DataType) ? _model : T
+        return new(model, material, solver, string(reason), string(fix))
+    end
+end
+
+function Base.showerror(io::IO, e::HistoryDependenceError)
+    print(io, "history-dependent constitutive model cannot be used here!")
+    print(io, "\n  model:     ")
+    printstyled(io, string(nameof(e.model)); bold=true, color=:red)
+    print(io, "\n  material:  ")
+    printstyled(io, string(nameof(e.material)); bold=true, color=:red)
+    print(io, "\n  solver:    ")
+    printstyled(io, string(nameof(e.solver)); bold=true, color=:red)
+    println(io, "\n\n  ", e.reason, ".")
+    println(io, "\n  ", e.fix)
+    return nothing
+end
+
+"""
     NaNError
 
 $(internal_api_warning())
