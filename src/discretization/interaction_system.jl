@@ -384,8 +384,8 @@ function update_volume_three_nis!(system, volume_hood)
     return nothing
 end
 
-function break_bonds!(storage::AbstractStorage, system::InteractionSystem,
-                      set_a::Vector{Int}, set_b::Vector{Int})
+function failure_by_sets!(storage, system::InteractionSystem, ::AbstractDamageModel, set_a,
+                          set_b)
     storage.n_active_one_nis .= 0
     for point_id in each_point_idx(system)
         for bond_id in each_one_ni_idx(system, point_id)
@@ -609,8 +609,7 @@ end
 
 function log_material_property(::Val{:dmgmodel}, mat::AbstractInteractionSystemMaterial;
                                indentation::Int=2)
-    msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)
-    return msg
+    return log_dmgmodel(mat.dmgmodel; indentation)
 end
 
 function log_param_property(::Val{:C1}, param; indentation)

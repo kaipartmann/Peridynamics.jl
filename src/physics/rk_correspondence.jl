@@ -190,6 +190,7 @@ end
 @storage RKCMaterial struct RKCStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit BondFracFields RKCFields
+    dmg_state::DamageState
     @htl b_int::PointVector
     cauchy_stress::PointTensor
     von_mises_stress::PointScalar

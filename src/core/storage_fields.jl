@@ -599,11 +599,11 @@ end
 ```
 
 This is the damage-model twin of [`ConstitutiveState`](@ref): the field is not an array, it
-is whatever the damage model of the material declares with `@dmg_storage`, and
+is whatever the damage model of the material declares with [`@dmg_storage`](@ref), and
 `nothing` for a model without state. The generated storage gets one extra type parameter
 `DMS` for it, which [`storage_type`](@ref) fills with
 `damage_storage_type(get_dmgmodel(mat), FT)`, so the storage stays concrete whichever damage
-model is used. The state is reached with `damage_state`.
+model is used. The state is reached with [`damage_state`](@ref).
 
 A material that declares this field supports **every** damage model, stateful or not,
 without knowing any of them: a model that needs per-bond variables brings them itself

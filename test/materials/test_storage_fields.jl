@@ -9,7 +9,9 @@
 
     # A shape spec is a tuple of (d, count): d rows and `count` columns, where `count` is
     # `:all` (points incl. halo), `:loc` (local points), `:bonds`, `:dof` (local dof),
-    # `:neighbors` (max. neighbors of a point); `(d,)` with d === 0 is empty. Vectors use d = 1.
+    # `:neighbors` (max. neighbors of a point); `(d,)` with d === 0 is empty, `(:state,)` is
+    # the nested state of a constitutive or damage model that carries no state. Vectors use
+    # d = 1.
     const COMMON_FIELDS = Dict(
         :position => (3, :all),
         :displacement => (3, :loc),
@@ -72,6 +74,7 @@
                              :rotation => (9, :loc), :zem_stiffness_rotated => (3, 3, 3, 3)),
         RKCMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :all),
                               :weighted_volume => (1, :all), :update_gradients => (1, :loc),
+                              :dmg_state => (:state,),
                               :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc),
                               :gradient_weight => (3, :bonds),
                               :bond_first_piola_kirchhoff => (9, :bonds)),
@@ -145,7 +148,10 @@
         for (field, spec) in expected
             hasfield(typeof(storage), field) || continue
             value = getfield(storage, field)
-            if spec[1] == 0
+            if spec[1] === :state
+                # the nested state of a stateless model is `nothing`
+                @test isnothing(value) || (field, typeof(value)) === nothing
+            elseif spec[1] == 0
                 @test isempty(value) || (field, size(value)) === nothing
             else
                 @test size(value) == expected_size(spec, n) || (field, size(value)) === nothing
