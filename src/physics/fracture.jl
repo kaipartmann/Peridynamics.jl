@@ -97,7 +97,7 @@ end
 
 
 """
-    get_frac_params(dmgmodel, δ, K; Gc=nothing, epsilon_c=nothing, kwargs...)
+    get_frac_params(dmgmodel, δ, K; kwargs...)
 
 $(extension_api_note())
 
@@ -105,10 +105,22 @@ Read or calculate the fracture parameters of a damage model from the fracture ke
 [`material!`](@ref). This function has to be defined when creating a new damage model.
 Otherwise, a default method returns an empty named tuple `(; )`.
 
-A keyword the user did not specify is `nothing`, which is how a damage model decides which
-of the fracture keywords it accepts and how it converts them into each other. Every fracture
-keyword is passed, so a method should end in `kwargs...` to stay valid when a keyword is
-added.
+Every fracture keyword of `material!` is passed to this function, and a keyword the user
+did not specify arrives as `nothing` — that is how a damage model decides which keywords
+it accepts and how it converts them into each other. A method declares **only the keywords
+its model reads** and collects everything else in `kwargs...`, so a model that has no
+notion of a critical strain never has to mention `epsilon_c`:
+
+```julia
+function Peridynamics.get_frac_params(::MyDamage, δ, K; Gc=nothing, kwargs...)
+    isnothing(Gc) && return (; Gc=0.0, εc=0.0)
+    return (; Gc, εc=sqrt(5.0 * Gc / (9.0 * K * δ)))
+end
+```
+
+The fracture keywords `material!` accepts are currently fixed to `Gc` and `epsilon_c`; a
+damage model cannot register its own keywords yet, and a keyword its method does not read
+is ignored.
 
 # Arguments
 - `dmgmodel::AbstractDamageModel`: The damage model
@@ -116,17 +128,8 @@ added.
 - `K::Float64`: Bulk modulus
 
 # Keywords
-- `Gc`: Critical energy release rate
-- `epsilon_c`: Critical strain
-
-# Example
-```julia
-function Peridynamics.get_frac_params(::MyDamage, δ, K; Gc=nothing, epsilon_c=nothing,
-                                      kwargs...)
-    isnothing(Gc) && return (; Gc=0.0, εc=0.0)
-    return (; Gc, εc=sqrt(5.0 * Gc / (9.0 * K * δ)))
-end
-```
+- `Gc`: Critical energy release rate, or `nothing` if not specified
+- `epsilon_c`: Critical strain, or `nothing` if not specified
 """
 function get_frac_params end
 
@@ -272,13 +275,13 @@ req_storage_fields(::AbstractMaterial, ::Nothing) = ()
 # --------------------------------------------------------------------------------------
 # state of a damage model
 #
-# The damage-model twin of the constitutive-model state (`cm_state::ConstitutiveState`):
-# a damage model brings the per-bond variables it needs instead of every material having
-# to allocate them for it. Note what is deliberately *absent*: nothing here marks a model
-# as history dependent. A damage model integrates its state in `calc_failure!`, which runs
-# exactly once per step under every solver that supports fracture, so a stateful damage
-# model stays compatible with solvers that evaluate the force density several times per
-# step.
+# The twin of the constitutive-model state in `core/constitutive_models.jl`: a damage
+# model brings the per-bond variables it needs instead of every material having to
+# allocate them for it. Note what is deliberately *absent*: nothing here touches
+# `is_history_dependent`. A damage model integrates its state in `calc_failure!`, which
+# runs exactly once per step under every solver that supports fracture, so a stateful
+# damage model stays usable under solvers that declare
+# `supports_history_dependence(solver) == false`.
 # --------------------------------------------------------------------------------------
 
 """

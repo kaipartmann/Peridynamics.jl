@@ -740,8 +740,9 @@ $(extension_api_note())
 
 Declare the state a damage model carries per bond or per point, e.g. the accumulated
 ductile damage of a Johnson-Cook model or the number of load cycles a bond has survived.
-The body accepts the same field declarations as [`@storage`](@ref), so the state is
-allocated, sized, moved to another array backend and inherited from exactly like a storage.
+This is [`@cm_storage`](@ref) for a damage model instead of a constitutive model: the body
+accepts the same field declarations, so the state is allocated, sized, moved to another
+array backend and inherited from exactly like a storage.
 
 The generated state is reached inside [`calc_failure!`](@ref), [`calc_damage!`](@ref),
 [`kinematic_weight`](@ref) and [`safe_degradation`](@ref) with [`damage_state`](@ref), and a
@@ -760,10 +761,11 @@ them, because a model that needs per-bond variables brings them itself.
     by an [`export_field`](@ref) method.
 
 !!! note "A damage state does not make a model history dependent"
-    A damage model integrates its state once per force evaluation, in
-    [`calc_failure!`](@ref), which every solver that supports fracture calls exactly once
-    per step, so a stateful damage model stays compatible with solvers that evaluate the
-    force density several times per step.
+    Unlike [`@cm_storage`](@ref), this macro does **not** touch
+    [`is_history_dependent`](@ref). A damage model integrates its state once per force
+    evaluation, in [`calc_failure!`](@ref), which every solver that supports fracture
+    calls exactly once per step, so a stateful damage model stays compatible with solvers
+    that evaluate the force density several times per step.
 
 # Example
 
@@ -791,7 +793,7 @@ function __dmg_storage(dmgmodel, state, mod::Module)
     local _uses_sim_float = _state_data.uses_sim_float
     check_dmg_storage_decls(_decls)
 
-    local _alloc_calls = [state_alloc_field_call(_decl) for _decl in _decls]
+    local _alloc_calls = [cm_alloc_field_call(_decl) for _decl in _decls]
 
     local _constructor = quote
         function $(esc(_state_type))(dmgmodel::$(esc(dmgmodel)),
@@ -877,51 +879,6 @@ function typecheck_damage_model(dmgmodel)
 end
 
 check_dmg_storage_decls(decls) = check_nested_state_decls(:dmg, decls)
-
-# the state of a constitutive model and of a damage model accept exactly the same field
-# declarations, so they reject the same three things, with the wording of whichever state
-# is being declared
-function check_nested_state_decls(kind::Symbol, decls)
-    what = kind === :cm ? "constitutive" : "damage"
-    model = nested_state_model(kind)
-    macroname = kind === :cm ? "@cm_storage" : "@dmg_storage"
-    for decl in decls
-        if is_halo_decl(decl)
-            msg = "the $(what) state field `$(decl.name)` is annotated with "
-            msg *= "`@$(decl.annotation)`, which `$(macroname)` does not support!\n"
-            msg *= "  The state of a $(model) is chunk-local, so it is never exchanged "
-            msg *= "between chunks. Bond state and point-local state need no exchange. A "
-            msg *= "quantity that has to be exchanged belongs into the storage of the "
-            msg *= "material.\n"
-            throw(ArgumentError(msg))
-        end
-        if is_nested_state_decl(decl)
-            marker = nested_state_marker(is_cm_state_decl(decl) ? :cm : :dmg)
-            msg = "the $(what) state field `$(decl.name)` is declared with `$(marker)`, "
-            msg *= "but a $(model) cannot carry the state of another model!\n"
-            throw(ArgumentError(msg))
-        end
-        if isnothing(decl.shape)
-            msg = "the $(what) state field `$(decl.name)` is declared with the container "
-            msg *= "type `$(decl.type)` instead of a field shape!\n"
-            msg *= "  A $(model) has no `init_field` hook, because it does not know the "
-            msg *= "material its state belongs to, so every field of a `$(macroname)` "
-            msg *= "definition needs a field shape, e.g.\n"
-            msg *= "        $(decl.name)::BondScalar\n"
-            throw(ArgumentError(msg))
-        end
-    end
-    return nothing
-end
-
-# a nested state has no `init_field` hook, so every field is allocated straight from its
-# declared shape and optional initial value
-function state_alloc_field_call(decl::StorageFieldDecl)
-    args = Any[:(Peridynamics.alloc_field), decl.shape, :system,
-               :(Peridynamics.LocalPoints())]
-    isnothing(decl.init) || push!(args, decl.init)
-    return Expr(:call, args...)
-end
 
 function get_storage_structdef(storage_expr, mod::Module,
                                default_supertype=:(Peridynamics.AbstractStorage))
