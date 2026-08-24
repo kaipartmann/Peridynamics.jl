@@ -127,7 +127,8 @@ function calc_first_piola_kirchhoff!(storage::RKCRStorage, mat::RKCRMaterial,
     σₙ₊₁ = σ + 2 * params.G * Δεᵈᵉᵛ + params.K * Δθ * I
     update_tensor!(storage.bond_unrot_cauchy_stress, bond_id, σₙ₊₁)
     T = rotate_stress(storage, σₙ₊₁, bond_id)
-    P = first_piola_kirchhoff(T, F)
+    # the accumulated stress stays undegraded, the bond transmits the degraded stress
+    P = bond_integrity(mat.dmgmodel, storage, bond_id) * first_piola_kirchhoff(T, F)
     update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
     return P
 end

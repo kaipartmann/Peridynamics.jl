@@ -346,7 +346,7 @@ The default is the fraction of broken bonds, `1 - n_active_bonds[i] / n_neighbor
 is what a model that deletes bonds wants. A model that degrades a bond continuously instead
 of deleting it defines its own method, so that a partially damaged bond is counted with its
 degree of damage rather than as intact; see [`kinematic_weight`](@ref) and
-[`safe_degradation`](@ref).
+[`bond_integrity`](@ref).
 
 # Arguments
 

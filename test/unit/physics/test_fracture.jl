@@ -42,10 +42,9 @@ end
 end
 
 @testitem "damage model hooks: the defaults of a model that deletes bonds" begin
-    import Peridynamics: kinematic_weight, safe_degradation, degrade_bond_stress, log_dmgmodel,
+    import Peridynamics: kinematic_weight, bond_integrity, log_dmgmodel,
                          damage_storage_type, get_dmg_storage, init_damage_state, damage_state,
                          has_damage_state, storage_type, req_storage_fields
-    using Peridynamics.StaticArrays
 
     pos, vol = uniform_box(1, 1, 1, 0.5)
     body = Body(BBMaterial(), pos, vol)
@@ -54,11 +53,9 @@ end
     (; storage, system) = dh.chunks[1]
     dmg = CriticalStretch()
 
-    # no degradation: the weight is one and the stress passes through unchanged
+    # no softening: a model that deletes bonds has fully intact bonds and full trust
     @test kinematic_weight(dmg, storage, 1) === 1.0
-    @test safe_degradation(dmg, storage, 1) === 1.0
-    P = SMatrix{3,3,Float64,9}(1:9)
-    @test degrade_bond_stress(dmg, storage, 1, P) === P
+    @test bond_integrity(dmg, storage, 1) === 1.0
 
     # no state: the storage carries `nothing` and the contract asks for nothing
     @test damage_storage_type(dmg) === Nothing
@@ -239,6 +236,148 @@ end
         @inherit Peridynamics.VelocityVerletFields
         @htl a::DamageState
     end
+end
+
+@testitem "bond integrity and kinematic weight: the wiring into the RKC force path" setup=[FatigueModel] begin
+    import Peridynamics: bond_integrity, kinematic_weight, get_params, each_point_idx
+
+    # a stateless damage model with constant softening factors, so every wired-in factor
+    # shows up as an exact scaling relative to the unsoftened reference
+    struct ConstSoftening <: Peridynamics.AbstractDamageModel
+        wkin::Float64
+        g::Float64
+    end
+    function Peridynamics.get_frac_params(::ConstSoftening, δ, K; kwargs...)
+        return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
+    end
+    function Peridynamics.has_fracture(::ConstSoftening, params)
+        return Peridynamics.has_fracture(CriticalStretch(), params)
+    end
+    function Peridynamics.calc_failure!(storage, system, mat, ::ConstSoftening, paramsetup,
+                                        i)
+        for bond_id in Peridynamics.each_bond_idx(system, i)
+            storage.n_active_bonds[i] += storage.bond_active[bond_id]
+        end
+        return nothing
+    end
+    @inline function Peridynamics.kinematic_weight(dmg::ConstSoftening,
+                                                   ::Peridynamics.AbstractStorage, bond_id)
+        return dmg.wkin
+    end
+    @inline function Peridynamics.bond_integrity(dmg::ConstSoftening,
+                                                 ::Peridynamics.AbstractStorage, bond_id)
+        return dmg.g
+    end
+
+    function force_calc(dmgmodel)
+        body = stretched_body(RKCMaterial(; dmgmodel, monomial=:RK1))
+        dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+        chunk = dh.chunks[1]
+        chunk.storage.position[1, :] .*= 1.01 # uniaxial stretch, so P and Ψ are nonzero
+        Peridynamics.calc_weights_and_defgrad!(chunk, 0.0, 1e-7)
+        Peridynamics.calc_force_density!(chunk, 0.0, 1e-7)
+        for i in each_point_idx(chunk.system)
+            params = get_params(chunk.paramsetup, i)
+            Peridynamics.strain_energy_density_point!(chunk.storage, chunk.system,
+                                                      chunk.mat, params, i)
+        end
+        return chunk.storage
+    end
+
+    ref = force_calc(ConstSoftening(1.0, 1.0))
+
+    # a uniform kinematic weight scales the weighted volume, but cancels in the
+    # least-squares fit: the gradient weights and the deformation gradient are invariant
+    weighted = force_calc(ConstSoftening(0.5, 1.0))
+    @test weighted.weighted_volume ≈ 0.5 .* ref.weighted_volume
+    @test weighted.gradient_weight ≈ ref.gradient_weight
+    @test weighted.defgrad ≈ ref.defgrad
+
+    # the integrity scales the stress of every bond and with it everything linear in it:
+    # the internal force density and the strain energy density
+    softened = force_calc(ConstSoftening(1.0, 0.25))
+    @test softened.weighted_volume ≈ ref.weighted_volume
+    @test softened.bond_first_piola_kirchhoff ≈ 0.25 .* ref.bond_first_piola_kirchhoff
+    @test softened.b_int ≈ 0.25 .* ref.b_int
+    @test softened.strain_energy_density ≈ 0.25 .* ref.strain_energy_density
+end
+
+@testitem "softening support: ignored hooks fail at Job creation" begin
+    import Peridynamics: supports_bond_integrity, supports_kinematic_weight,
+                         check_damage_model, SofteningSupportError
+
+    # two models that each define one softening hook, but nothing else special
+    struct SofteningNotSupported <: Peridynamics.AbstractDamageModel end
+    struct WeightNotSupported <: Peridynamics.AbstractDamageModel end
+    for D in (SofteningNotSupported, WeightNotSupported)
+        @eval begin
+            function Peridynamics.get_frac_params(::$D, δ, K; kwargs...)
+                return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
+            end
+            function Peridynamics.has_fracture(::$D, params)
+                return Peridynamics.has_fracture(CriticalStretch(), params)
+            end
+        end
+    end
+    @inline function Peridynamics.bond_integrity(::SofteningNotSupported,
+                                                 ::Peridynamics.AbstractStorage, bond_id)
+        return 0.5
+    end
+    @inline function Peridynamics.kinematic_weight(::WeightNotSupported,
+                                                   ::Peridynamics.AbstractStorage, bond_id)
+        return 0.5
+    end
+
+    # the RKC family declares support for both hooks, every other material answers false
+    @test !supports_bond_integrity(BBMaterial())
+    @test !supports_kinematic_weight(BBMaterial())
+    @test !supports_bond_integrity(CMaterial())
+    @test supports_bond_integrity(RKCMaterial())
+    @test supports_kinematic_weight(RKCMaterial())
+    @test supports_bond_integrity(RKCRMaterial())
+    @test supports_kinematic_weight(RKCRMaterial())
+
+    function body_with(mat; kwargs...)
+        pos, vol = uniform_box(1, 1, 1, 0.5)
+        body = Body(mat, pos, vol)
+        material!(body; horizon=1.5, rho=1, E=1, kwargs...)
+        velocity_bc!(t -> 0.1, body, :all_points, :x)
+        return body
+    end
+
+    # a material that ignores a defined hook fails at Job creation and names everything
+    err = try
+        Job(body_with(BBMaterial(; dmgmodel=SofteningNotSupported()); Gc=1.0),
+            VelocityVerlet(steps=1))
+    catch e
+        e
+    end
+    @test err isa SofteningSupportError
+    msg = sprint(showerror, err)
+    @test contains(msg, "bond_integrity")
+    @test contains(msg, "BBMaterial")
+    @test contains(msg, "SofteningNotSupported")
+    @test contains(msg, "supports_bond_integrity")
+
+    # the kinematic weight alone triggers the check as well
+    err = try
+        Job(body_with(BBMaterial(; dmgmodel=WeightNotSupported()); Gc=1.0),
+            VelocityVerlet(steps=1))
+    catch e
+        e
+    end
+    @test err isa SofteningSupportError
+    @test contains(sprint(showerror, err), "kinematic_weight")
+
+    # the RKC family honors the hooks, so the same models pass
+    job = Job(body_with(RKCMaterial(; dmgmodel=SofteningNotSupported()); nu=0.25,
+                        epsilon_c=0.01), VelocityVerlet(steps=1))
+    @test job isa Job
+    @test isnothing(check_damage_model(RKCMaterial(; dmgmodel=WeightNotSupported())))
+
+    # a model without hook methods passes with every material
+    @test Job(body_with(BBMaterial(); Gc=1.0), VelocityVerlet(steps=1)) isa Job
+    @test isnothing(check_damage_model(BBMaterial()))
 end
 
 @testitem "stateful damage model: a simulation with a model that brings its own state" tags=[:simulation] setup=[FatigueModel] begin

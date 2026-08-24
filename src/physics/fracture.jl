@@ -333,7 +333,7 @@ $(extension_api_note())
 Return the state of the damage model that is carried by a storage, i.e. the field declared
 with `dmg_state::DamageState`, or `nothing` for a storage that does not declare one. This is
 how [`calc_failure!`](@ref), [`calc_damage!`](@ref), [`kinematic_weight`](@ref) and
-[`safe_degradation`](@ref) reach the per-bond variables of a stateful damage model.
+[`bond_integrity`](@ref) reach the per-bond variables of a stateful damage model.
 """
 function damage_state end
 
@@ -371,99 +371,199 @@ function req_data_fields_fracture(::Type{Material}) where {Material<:AbstractMat
 end
 
 # --------------------------------------------------------------------------------------
-# continuous degradation
+# bond integrity and kinematic weight
 #
-# A damage model that softens a bond instead of deleting it enters the kinematics with
-# `kinematic_weight` and the force with `degrade_bond_stress`; `safe_degradation` is the
-# scalar factor both are built from. The defaults below are what every model that deletes
-# bonds wants, and they cost nothing: the weight is the constant one and the stress passes
-# through by dispatch.
+# Damage acts on a bond in two conceptually different ways, so a damage model that softens
+# bonds instead of deleting them answers two different questions. `bond_integrity` is
+# constitutive: which fraction of its load does the bond still carry? `kinematic_weight`
+# is kinematic: how much can the motion of the neighbor still be trusted when the
+# deformation gradient is reconstructed? Both default to the constant one by dispatch,
+# which is what every model that deletes bonds wants and costs nothing after inlining.
 # --------------------------------------------------------------------------------------
+
+"""
+    bond_integrity(dmgmodel, storage, bond_id)
+
+$(extension_api_note())
+
+Return the integrity of bond `bond_id`: the fraction in `[0, 1]` of its undamaged
+load-carrying capacity that the bond retains. An intact bond has integrity `1`, a bond
+that stores and transmits nothing has integrity `0`. This is the continuity `1 - d` of
+classical damage mechanics, evaluated per bond: the free energy of a damaged bond is its
+undamaged free energy scaled by the integrity, and since the stress follows from the free
+energy, the stress the bond transmits is scaled with it.
+
+The default is `1.0` for every damage model. A model that deletes bonds knows only intact
+bonds, because a failed bond is excluded through `bond_active` before the integrity is
+ever asked, so the default costs nothing. A model that softens bonds defines a method
+that reads its own state, see [`@dmg_storage`](@ref) and [`damage_state`](@ref), e.g.
+
+```julia
+@inline function Peridynamics.bond_integrity(::MyDamage,
+                                             storage::Peridynamics.AbstractStorage,
+                                             bond_id)
+    @inbounds d = Peridynamics.damage_state(storage).bond_damage[bond_id]
+    return (1 - d)^2
+end
+```
+
+The integrity is honored by the materials that evaluate their constitutive model per
+bond, i.e. [`RKCMaterial`](@ref) and [`RKCRMaterial`](@ref): the stress and the strain
+energy density of every bond are scaled by it. One scalar per bond is the isotropic
+damage of classical damage mechanics; a model that degrades anisotropically, e.g. only
+the tensile part of the stress, instead specializes the stress computation of the
+material family for its damage model type. Combining a model that defines this method
+with a material that ignores it fails once when the [`Job`](@ref) is created, see
+[`supports_bond_integrity`](@ref).
+
+See also [`kinematic_weight`](@ref), [`supports_bond_integrity`](@ref),
+[`calc_failure!`](@ref), [`@dmg_storage`](@ref).
+"""
+function bond_integrity end
+
+# `bond_id` stays untyped so that a model's own method, which the docstring example
+# leaves untyped as well, is strictly more specific instead of ambiguous
+@inline bond_integrity(::AbstractDamageModel, ::AbstractStorage, bond_id) = 1.0
 
 """
     kinematic_weight(dmgmodel, storage, bond_id)
 
 $(extension_api_note())
 
-Return the factor in `[0, 1]` by which bond `bond_id` takes part in the kinematics of a
-correspondence material, i.e. in the moment matrix and the gradient weights. It is the
-*kinematic* counterpart of [`safe_degradation`](@ref): that one scales what a bond carries,
-this one scales what it contributes to the deformation gradient.
+Return the weight in `[0, 1]` with which bond `bond_id` enters the reconstruction of the
+deformation gradient, i.e. the moment matrix and the gradient weights of
+[`RKCMaterial`](@ref) and [`RKCRMaterial`](@ref).
 
-The default is `1.0` for every damage model, i.e. a bond is either fully present or, once
-it has failed, absent. A model that softens a bond instead defines a method reading its own
-state, see [`@dmg_storage`](@ref) and [`damage_state`](@ref).
+The reconstruction is a weighted least-squares fit over the family, and every bond
+contributes the motion of its neighbor as data. The kinematic weight states how much of
+that data survives the damage of the bond: while a crack forms between two points, the
+neighbor turns into a point on the other side of a discontinuity, and a deformation
+gradient fitted through the jump produces spurious deformation and stress. Taking the
+weight back smoothly keeps the moment matrix a continuous function of the damage, where
+deleting the bond is a jump — which is what keeps fragmentation stable.
 
-See also [`safe_degradation`](@ref), [`degrade_bond_stress`](@ref), [`calc_failure!`](@ref).
+The kinematic weight is deliberately not the [`bond_integrity`](@ref): the integrity
+states how much load a bond carries, the kinematic weight whether its neighbor still
+moves with the point. A softened bond can remain perfectly valid data. The default is
+therefore `1.0` for every damage model — a failed bond is excluded from the fit through
+`bond_active`, so a model that deletes bonds needs nothing else. Combining a model that
+defines this method with a material that ignores it fails once when the [`Job`](@ref) is
+created, see [`supports_kinematic_weight`](@ref).
+
+!!! note
+    The gradient weights are cached and recomputed only for points whose damage grew, see
+    [`calc_damage!`](@ref). A damage model whose kinematic weights evolve continuously
+    has to set `storage.update_gradients[i] = true` for the affected points in its own
+    [`calc_damage!`](@ref) method.
+
+See also [`bond_integrity`](@ref), [`supports_kinematic_weight`](@ref),
+[`calc_failure!`](@ref), [`@dmg_storage`](@ref).
 """
 function kinematic_weight end
 
-@inline kinematic_weight(::AbstractDamageModel, ::AbstractStorage, ::Integer) = 1.0
+@inline kinematic_weight(::AbstractDamageModel, ::AbstractStorage, bond_id) = 1.0
 
 """
-    safe_degradation(dmgmodel, storage, bond_id)
+    supports_bond_integrity(mat)
 
 $(extension_api_note())
 
-Return the factor in `[0, 1]` by which the stress carried by bond `bond_id` is degraded. It
-is the *static* counterpart of [`kinematic_weight`](@ref): that one scales what a bond
-contributes to the moment matrix and the gradient weights, this one scales what it carries.
-
-The default is `1.0` for every damage model, i.e. no degradation, which is what a model that
-deletes bonds outright wants. A model that softens a bond instead defines a method reading
-its own state, e.g.
+Return whether the force path of a material scales the stress and the strain energy
+density of every bond with its [`bond_integrity`](@ref). Defaults to `false`;
+[`RKCMaterial`](@ref) and [`RKCRMaterial`](@ref) declare `true`. A custom material that
+applies the integrity in its own force routines declares it the same way:
 
 ```julia
-@inline function Peridynamics.safe_degradation(::MyDamage,
-                                               storage::Peridynamics.AbstractStorage,
-                                               bond_id)
-    @inbounds d = Peridynamics.damage_state(storage).bond_damage[bond_id]
-    return (1 - d)^2
-end
+Peridynamics.supports_bond_integrity(::MyMaterial) = true
 ```
 
-Degrading a bond continuously rather than deleting it keeps the moment matrix of a
-correspondence material a continuous function of the deformation, which is what makes
-fragmentation stable; a deleted bond is a jump.
+The declaration is checked once when a [`Job`](@ref) is created, see
+[`check_damage_model`](@ref): a damage model that defines [`bond_integrity`](@ref)
+combined with a material that ignores it fails there instead of silently not softening.
 
-See also [`kinematic_weight`](@ref), [`calc_failure!`](@ref), [`@dmg_storage`](@ref).
+See also [`supports_kinematic_weight`](@ref), [`bond_integrity`](@ref).
 """
-function safe_degradation end
+function supports_bond_integrity end
 
-@inline function safe_degradation(::AbstractDamageModel, ::AbstractStorage, bond_id)
-    return 1.0
-end
+supports_bond_integrity(::AbstractMaterial) = false
 
 """
-    degrade_bond_stress(dmgmodel, storage, bond_id, P)
+    supports_kinematic_weight(mat)
 
 $(extension_api_note())
 
-Return the first Piola-Kirchhoff stress that bond `bond_id` actually carries, given the
-undegraded stress `P` its constitutive model produced. This is where a damage model that
-softens a bond instead of deleting it enters the **force**, next to
-[`kinematic_weight`](@ref), which is where it enters the **kinematics**.
-
-The default returns `P` unchanged. Note that it does so by dispatch and not by multiplying
-with `1.0`: a material whose damage model does not degrade must compile to exactly the code
-it did before, and a floating-point multiplication by one is not something the compiler is
-allowed to remove.
-
-A model that degrades opts in with one line, reusing its own [`safe_degradation`](@ref):
+Return whether a material weights the bonds with their [`kinematic_weight`](@ref) when it
+reconstructs the deformation gradient. Defaults to `false`; [`RKCMaterial`](@ref) and
+[`RKCRMaterial`](@ref) declare `true`. A custom material that applies the weight in its
+own gradient reconstruction declares it the same way:
 
 ```julia
-@inline function Peridynamics.degrade_bond_stress(dmg::MyDamage,
-                                                  storage::Peridynamics.AbstractStorage,
-                                                  bond_id, P)
-    return Peridynamics.safe_degradation(dmg, storage, bond_id) * P
-end
+Peridynamics.supports_kinematic_weight(::MyMaterial) = true
 ```
 
-See also [`safe_degradation`](@ref), [`kinematic_weight`](@ref), [`@dmg_storage`](@ref).
-"""
-function degrade_bond_stress end
+The declaration is checked once when a [`Job`](@ref) is created, see
+[`check_damage_model`](@ref): a damage model that defines [`kinematic_weight`](@ref)
+combined with a material that ignores it fails there instead of silently not softening.
 
-@inline degrade_bond_stress(::AbstractDamageModel, ::AbstractStorage, bond_id, P) = P
+See also [`supports_bond_integrity`](@ref), [`kinematic_weight`](@ref).
+"""
+function supports_kinematic_weight end
+
+supports_kinematic_weight(::AbstractMaterial) = false
+
+# whether the damage model brings its own method for a softening hook: the method that
+# dispatch would pick for this model and storage is then not the default above
+function overrides_softening_hook(hook, dmgmodel, ::Type{Storage}) where {Storage}
+    default = which(hook, Tuple{AbstractDamageModel,AbstractStorage,Int})
+    return which(hook, Tuple{typeof(dmgmodel),Storage,Int}) !== default
+end
+
+"""
+    check_damage_model(spatial_setup)
+
+$(internal_api_warning())
+
+Check that a damage model that defines [`bond_integrity`](@ref) or
+[`kinematic_weight`](@ref) is combined with a material whose force path calls the hooks,
+see [`supports_bond_integrity`](@ref) and [`supports_kinematic_weight`](@ref). Throws a
+[`SofteningSupportError`](@ref) that names the ignored hooks and how to fix the setup.
+
+This check is done once when a [`Job`](@ref) is created, next to
+[`check_constitutive_model`](@ref).
+"""
+function check_damage_model(mat::AbstractMaterial)
+    dmgmodel = get_dmgmodel(mat)
+    isnothing(dmgmodel) && return nothing
+    Storage = storage_type(mat)
+    ignored = String[]
+    if !supports_bond_integrity(mat) &&
+       overrides_softening_hook(bond_integrity, dmgmodel, Storage)
+        push!(ignored, "bond_integrity")
+    end
+    if !supports_kinematic_weight(mat) &&
+       overrides_softening_hook(kinematic_weight, dmgmodel, Storage)
+        push!(ignored, "kinematic_weight")
+    end
+    isempty(ignored) && return nothing
+    M, D = typeof(mat), typeof(dmgmodel)
+    reason = "the force path of the material `$(nameof(M))` never calls "
+    reason *= join(("`$(hook)`" for hook in ignored), " and ")
+    reason *= ", so the softening that the damage model defines would be silently ignored"
+    fix = "Use a material that supports the softening hooks, e.g. `RKCMaterial` or "
+    fix *= "`RKCRMaterial`. A custom material that calls the hooks in its own force path "
+    fix *= "declares that with `Peridynamics.supports_bond_integrity(::MyMaterial) = "
+    fix *= "true` and `Peridynamics.supports_kinematic_weight(::MyMaterial) = true`."
+    throw(SofteningSupportError(D, M, reason, fix))
+end
+
+check_damage_model(body::AbstractBody) = check_damage_model(body.mat)
+
+function check_damage_model(ms::AbstractMultibodySetup)
+    for body in each_body(ms)
+        check_damage_model(body)
+    end
+    return nothing
+end
 
 # --------------------------------------------------------------------------------------
 # logging

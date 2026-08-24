@@ -745,7 +745,7 @@ accepts the same field declarations, so the state is allocated, sized, moved to 
 array backend and inherited from exactly like a storage.
 
 The generated state is reached inside [`calc_failure!`](@ref), [`calc_damage!`](@ref),
-[`kinematic_weight`](@ref) and [`safe_degradation`](@ref) with [`damage_state`](@ref), and a
+[`kinematic_weight`](@ref) and [`bond_integrity`](@ref) with [`damage_state`](@ref), and a
 material carries it by declaring `dmg_state::DamageState`, see [`DamageState`](@ref). A
 material that declares that field then supports every damage model without knowing any of
 them, because a model that needs per-bond variables brings them itself.

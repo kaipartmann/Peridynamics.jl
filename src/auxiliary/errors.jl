@@ -127,6 +127,44 @@ function Base.showerror(io::IO, e::HistoryDependenceError)
 end
 
 """
+    SofteningSupportError
+
+$(internal_api_warning())
+
+A type for a customized error that is thrown when a damage model defines
+[`bond_integrity`](@ref) or [`kinematic_weight`](@ref), but is combined with a material
+whose force path never calls the hooks, so the softening would be silently ignored.
+
+# Fields
+- `dmgmodel::DataType`: Damage model type that defines the ignored hooks.
+- `material::DataType`: Material type that ignores them.
+- `reason::String`: Why the combination cannot work.
+- `fix::String`: How to fix it.
+"""
+struct SofteningSupportError <: Exception
+    dmgmodel::DataType
+    material::DataType
+    reason::String
+    fix::String
+    function SofteningSupportError(_dmgmodel::T, material::DataType, reason,
+                                   fix) where {T}
+        dmgmodel = isa(_dmgmodel, DataType) ? _dmgmodel : T
+        return new(dmgmodel, material, string(reason), string(fix))
+    end
+end
+
+function Base.showerror(io::IO, e::SofteningSupportError)
+    print(io, "softening damage model cannot be used here!")
+    print(io, "\n  model:     ")
+    printstyled(io, string(nameof(e.dmgmodel)); bold=true, color=:red)
+    print(io, "\n  material:  ")
+    printstyled(io, string(nameof(e.material)); bold=true, color=:red)
+    println(io, "\n\n  ", e.reason, ".")
+    println(io, "\n  ", e.fix)
+    return nothing
+end
+
+"""
     NaNError
 
 $(internal_api_warning())
