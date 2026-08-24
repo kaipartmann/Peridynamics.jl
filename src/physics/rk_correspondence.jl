@@ -134,6 +134,12 @@ end
 
 @inline get_constitutive_model(mat::AbstractRKCMaterial) = mat.constitutive_model
 
+# the RKC family scales the stress and energy of every bond with its integrity and weights
+# the reconstruction of the deformation gradient, see `calc_first_piola_kirchhoff!`,
+# `strain_energy_density_point!` and `rkc_weights!`
+supports_bond_integrity(::AbstractRKCMaterial) = true
+supports_kinematic_weight(::AbstractRKCMaterial) = true
+
 function RKCMaterial(; kernel::Function=const_one_kernel,
                      model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(),
@@ -192,6 +198,7 @@ end
 @storage RKCMaterial struct RKCStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit BondFracFields RKCFields
+    dmg_state::DamageState
     @htl b_int::PointVector
     cauchy_stress::PointTensor
     von_mises_stress::PointScalar
@@ -303,7 +310,7 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
                       mat::AbstractRKCMaterial, params::AbstractPointParameters, t, Δt, i)
     (; bonds, volume) = system
     (; bond_active, gradient_weight, weighted_volume, update_gradients) = storage
-    (; monomial, lambda, beta) = mat
+    (; monomial, lambda, beta, dmgmodel) = mat
     (; δ) = params
 
     # get dimenion of the monomial vector and the gradient extraction matrix
@@ -318,7 +325,8 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Q = get_monomial_vector(monomial, ΔXij ./ δ) # normalize by δ
-        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        wkin = kinematic_weight(dmgmodel, storage, bond_id)
+        ωij = kernel(system, bond_id) * bond_active[bond_id] * wkin
         temp = ωij * volume[j]
         M += temp * (Q * Q')
         wi += temp
@@ -334,7 +342,8 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Q = get_monomial_vector(monomial, ΔXij ./ δ) # normalize by δ
-        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        wkin = kinematic_weight(dmgmodel, storage, bond_id)
+        ωij = kernel(system, bond_id) * bond_active[bond_id] * wkin
         temp = ωij / δ * volume[j] # note the division by δ here, due to normalization of Q
         MinvQ = Minv * Q
         Φ = temp * (Q∇ᵀ * MinvQ)
@@ -509,7 +518,8 @@ end
 
 function calc_first_piola_kirchhoff!(storage::RKCStorage, mat::RKCMaterial,
                                      params::StandardPointParameters, F, bond_id, Δt)
-    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F, bond_id, Δt)
+    P₀ = first_piola_kirchhoff(mat.constitutive_model, storage, params, F, bond_id, Δt)
+    P = bond_integrity(mat.dmgmodel, storage, bond_id) * P₀
     update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
     return P
 end
@@ -614,9 +624,10 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
             Fj = get_tensor(defgrad, j)
             Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
             Ψij = strain_energy_density(model, storage, params, Fij, bond_id)
+            gij = bond_integrity(mat.dmgmodel, storage, bond_id)
             ϕ = 1 / wi
             ω̃ij = kernel(system, bond_id) * ϕ * volume[j]
-            Ψi += ω̃ij * Ψij
+            Ψi += ω̃ij * gij * Ψij
         end
     end
     storage.strain_energy_density[i] = Ψi

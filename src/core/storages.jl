@@ -733,6 +733,153 @@ function alloc_solver_field_call(decl::StorageFieldDecl)
     return Expr(:call, args...)
 end
 
+"""
+    @dmg_storage dmgmodel state
+
+$(extension_api_note())
+
+Declare the state a damage model carries per bond or per point, e.g. the accumulated
+ductile damage of a Johnson-Cook model or the number of load cycles a bond has survived.
+This is [`@cm_storage`](@ref) for a damage model instead of a constitutive model: the body
+accepts the same field declarations, so the state is allocated, sized, moved to another
+array backend and inherited from exactly like a storage.
+
+The generated state is reached inside [`calc_failure!`](@ref), [`calc_damage!`](@ref),
+[`kinematic_weight`](@ref) and [`bond_integrity`](@ref) with [`damage_state`](@ref), and a
+material carries it by declaring `dmg_state::DamageState`, see [`DamageState`](@ref). A
+material that declares that field then supports every damage model without knowing any of
+them, because a model that needs per-bond variables brings them itself.
+
+# Differences to `@storage`
+
+- Every field has to be declared with a **field shape**. A damage model has no `init_field`
+    hook, because it does not know the material its state belongs to.
+- The halo annotations [`@lth`](@ref) and [`@htl`](@ref) are **not allowed**. The state of a
+    damage model is chunk-local, which is what bond state and point-local state are.
+- The state is **not point data**, so it is not exported to VTK files. A quantity that
+    should be exported belongs into the storage of the material, or is reduced to point data
+    by an [`export_field`](@ref) method.
+
+!!! note "A damage state does not make a model history dependent"
+    Unlike [`@cm_storage`](@ref), this macro does **not** touch
+    [`is_history_dependent`](@ref). A damage model integrates its state once per force
+    evaluation, in [`calc_failure!`](@ref), which every solver that supports fracture
+    calls exactly once per step, so a stateful damage model stays compatible with solvers
+    that evaluate the force density several times per step.
+
+# Example
+
+```julia
+struct MyDamage <: Peridynamics.AbstractDamageModel end
+
+Peridynamics.@dmg_storage MyDamage struct MyDamageState
+    bond_damage::BondScalar
+end
+```
+"""
+macro dmg_storage(dmgmodel, state)
+    macrocheck_input_material(dmgmodel)
+    macrocheck_input_storage_struct(state)
+    return __dmg_storage(dmgmodel, state, __module__)
+end
+
+function __dmg_storage(dmgmodel, state, mod::Module)
+    local _state_data = get_storage_structdef(state, mod,
+                                              :(Peridynamics.AbstractDamageState))
+    local _state_struct = _state_data.storage_struct
+    local _state_type = _state_data.storage_type
+    local _decls = _state_data.decls
+    local _params = _state_data.params
+    local _uses_sim_float = _state_data.uses_sim_float
+    check_dmg_storage_decls(_decls)
+
+    local _alloc_calls = [cm_alloc_field_call(_decl) for _decl in _decls]
+
+    local _constructor = quote
+        function $(esc(_state_type))(dmgmodel::$(esc(dmgmodel)),
+                                     solver::Peridynamics.AbstractTimeSolver,
+                                     system::Peridynamics.AbstractSystem)
+            return $(esc(_state_type))($(_alloc_calls...))
+        end
+    end
+
+    local _storage_type_function = dmg_storage_type_function(dmgmodel, _state_type, _params,
+                                                             _uses_sim_float)
+
+    local _get_dmg_storage = quote
+        function Peridynamics.get_dmg_storage(dmgmodel::$(esc(dmgmodel)),
+                                              solver::Peridynamics.AbstractTimeSolver,
+                                              system::Peridynamics.AbstractSystem)
+            return $(esc(_state_type))(dmgmodel, solver, system)
+        end
+    end
+
+    local _adapt_args = [
+        :(Adapt.adapt(to, Base.getfield(s, $(QuoteNode(_decl.name))))) for _decl in _decls
+    ]
+    local _adapt_structure = if isempty(_params)
+        Expr(:block)
+    else
+        quote
+            function Adapt.adapt_structure(to, s::$(esc(_state_type)))
+                return $(esc(_state_type))($(_adapt_args...))
+            end
+        end
+    end
+
+    local _storage_fields_expr = quote
+        function Peridynamics.storage_fields_expr(::Base.Type{<:$(esc(_state_type))})
+            return $(QuoteNode(_decls))
+        end
+    end
+
+    local _checks = quote
+        Peridynamics.typecheck_damage_model($(esc(dmgmodel)))
+    end
+
+    return Expr(:block, _state_struct, _constructor, _storage_type_function,
+                _get_dmg_storage, _adapt_structure, _storage_fields_expr, _checks)
+end
+
+function dmg_storage_type_function(dmgmodel, state_type, params, uses_sim_float)
+    instantiation = if isempty(params)
+        esc(state_type)
+    else
+        args = Any[esc(state_type)]
+        uses_sim_float && push!(args, FLOAT_TYPE_PARAM)
+        append!(args, storage_param_default(param) for param in params)
+        Expr(:curly, args...)
+    end
+    uses_sim_float || return quote
+        function Peridynamics.damage_storage_type(::$(esc(dmgmodel)),
+                                                  ::Base.Type=Peridynamics.default_float_type())
+            return $(instantiation)
+        end
+    end
+    return quote
+        function Peridynamics.damage_storage_type(::$(esc(dmgmodel)),
+                                                  ::Base.Type{$(FLOAT_TYPE_PARAM)}=Peridynamics.default_float_type()) where {$(FLOAT_TYPE_PARAM)}
+            return $(instantiation)
+        end
+    end
+end
+
+function typecheck_damage_model(::Type{Model}) where {Model}
+    if !(Model <: AbstractDamageModel)
+        msg = "$(Model) is not a valid damage model type!\n"
+        msg *= "  A damage model has to be a subtype of "
+        msg *= "`Peridynamics.AbstractDamageModel`.\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
+end
+
+function typecheck_damage_model(dmgmodel)
+    return throw(ArgumentError("$(dmgmodel) is not a valid damage model type!\n"))
+end
+
+check_dmg_storage_decls(decls) = check_nested_state_decls(:dmg, decls)
+
 function get_storage_structdef(storage_expr, mod::Module,
                                default_supertype=:(Peridynamics.AbstractStorage))
     storage_type, supertype = get_storage_header(storage_expr, default_supertype)

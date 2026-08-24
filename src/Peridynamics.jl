@@ -97,6 +97,7 @@ abstract type AbstractConstitutiveState end
 abstract type AbstractZEMStabilization <: AbstractCorrection end
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
 abstract type AbstractDamageModel end
+abstract type AbstractDamageState end
 
 include("auxiliary/function_arguments.jl")
 include("auxiliary/docs.jl")

@@ -80,6 +80,27 @@ Peridynamics.export_field
 Peridynamics.sphere_shape_coords
 ```
 
+## Damage models
+```@docs
+Peridynamics.@dmg_storage
+Peridynamics.calc_failure!
+Peridynamics.calc_damage!
+Peridynamics.failure_by_sets!
+Peridynamics.damage_storage_type
+Peridynamics.get_dmg_storage
+Peridynamics.init_damage_state
+Peridynamics.damage_state
+Peridynamics.has_damage_state
+Peridynamics.bond_integrity
+Peridynamics.kinematic_weight
+Peridynamics.supports_bond_integrity
+Peridynamics.supports_kinematic_weight
+Peridynamics.check_damage_model
+Peridynamics.SofteningSupportError
+Peridynamics.log_dmgmodel
+Peridynamics.kernel
+```
+
 ## Storage framework
 ```@docs
 Peridynamics.force_density_point!

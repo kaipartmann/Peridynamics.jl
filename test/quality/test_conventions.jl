@@ -141,6 +141,7 @@ end
         "material interface: a custom material runs a simulation",
         "process_each_export - serial and threads",
         "process_each_job: results, failed jobs and processing errors",
+        "stateful damage model: a simulation with a model that brings its own state",
         "submit threads error handling",
         "submit!: all jobs succeed",
         "submit!: failing jobs are recorded and the others still run",

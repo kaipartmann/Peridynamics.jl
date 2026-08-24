@@ -95,8 +95,7 @@ function log_material_property(::Val{:kernel}, mat::BACMaterial; indentation::In
 end
 
 function log_material_property(::Val{:dmgmodel}, mat::BACMaterial; indentation::Int)
-    msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)
-    return msg
+    return log_dmgmodel(mat.dmgmodel; indentation)
 end
 
 function log_material_property(::Val{:constitutive_model}, mat::BACMaterial;

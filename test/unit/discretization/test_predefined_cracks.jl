@@ -320,3 +320,51 @@ end
     @test ch.localizer[3] == 1
     @test ch.localizer[4] == 2
 end
+
+@testitem "precrack!: failure_by_sets! dispatches on the damage model" begin
+    using Peridynamics: damage_state, failure_by_sets!, each_bond_idx
+
+    position = [0.0 1.0 0.0 0.0
+                0.0 0.0 1.0 0.0
+                0.0 0.0 0.0 1.0]
+    volume = [1.1, 1.2, 1.3, 1.4]
+    function chunk_with_precrack(mat)
+        body = Body(mat, position, volume)
+        material!(body, horizon=2, rho=1, E=210e9, nu=0.25, Gc=1)
+        point_set!(body, :a, 1:2)
+        point_set!(body, :b, 3:4)
+        precrack!(body, :a, :b)
+        pd = Peridynamics.PointDecomposition(body, 2)
+        ps = Peridynamics.get_param_spec(body)
+        return first(Peridynamics.chop_body_threads(body, VelocityVerlet(steps=10), pd, ps))
+    end
+
+    # the default damage model tracks the crack with `bond_active` and carries no state
+    b1 = chunk_with_precrack(RKCMaterial())
+    @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
+    @test b1.storage.n_active_bonds == [1, 1]
+    @test isnothing(damage_state(b1.storage))
+    @test b1.storage.damage ≈ [2 / 3, 2 / 3]
+
+    # a damage model with a state of its own writes the crack into that state as well
+    struct MarkedDamage <: Peridynamics.AbstractDamageModel end
+    Peridynamics.@dmg_storage MarkedDamage struct MarkedState
+        bond_marked::BondScalar{Bool}
+    end
+    function Peridynamics.get_frac_params(::MarkedDamage, δ, K; kwargs...)
+        return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
+    end
+    function Peridynamics.has_fracture(::MarkedDamage, params)
+        return Peridynamics.has_fracture(CriticalStretch(), params)
+    end
+    function Peridynamics.failure_by_sets!(storage, system::Peridynamics.AbstractBondSystem,
+                                           ::MarkedDamage, set_a, set_b)
+        failure_by_sets!(storage, system, CriticalStretch(), set_a, set_b)
+        damage_state(storage).bond_marked .= .!storage.bond_active
+        return nothing
+    end
+    b1 = chunk_with_precrack(RKCMaterial(; dmgmodel=MarkedDamage()))
+    @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
+    @test damage_state(b1.storage).bond_marked == [0, 1, 1, 0, 1, 1]
+    @test b1.storage.damage ≈ [2 / 3, 2 / 3]
+end

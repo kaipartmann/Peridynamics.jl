@@ -51,6 +51,7 @@ struct Job{S<:AbstractSpatialSetup,T<:AbstractTimeSolver,O<:AbstractJobOptions}
         pre_submission_check(spatial_setup, time_solver)
         check_storage_contract(spatial_setup, time_solver)
         check_constitutive_model(spatial_setup, time_solver)
+        check_damage_model(spatial_setup)
         return new{S,T,O}(spatial_setup, time_solver, options)
     end
 end

@@ -56,7 +56,49 @@ function apply_precrack!(chunk::AbstractBodyChunk, body::AbstractBody,
     if isempty(set_a) || isempty(set_b)
         return nothing
     end
-    break_bonds!(chunk.storage, chunk.system, set_a, set_b)
+    failure_by_sets!(chunk.storage, chunk.system, chunk.mat.dmgmodel, set_a, set_b)
+    return nothing
+end
+
+"""
+    failure_by_sets!(storage, system, dmgmodel, set_a, set_b)
+
+$(internal_api_warning())
+
+Break every bond between a point of `set_a` and a point of `set_b`, which is how a
+predefined crack is applied to a body chunk, and keep the fracture bookkeeping of the
+storage in sync. The default marks the bonds inactive; a damage model that carries its own
+state, see [`@dmg_storage`](@ref), defines a method that also writes the crack into that
+state:
+
+```julia
+function Peridynamics.failure_by_sets!(storage, system::Peridynamics.AbstractBondSystem,
+                                       dmg::MyDamage, set_a, set_b)
+    Peridynamics.failure_by_sets!(storage, system, CriticalStretch(), set_a, set_b)
+    # ... mark the broken bonds in `Peridynamics.damage_state(storage)`
+    return nothing
+end
+```
+"""
+function failure_by_sets!(storage, system::AbstractBondSystem, ::AbstractDamageModel, set_a,
+                          set_b)
+    (; n_active_bonds, bond_active) = storage
+    (; bonds) = system
+    n_active_bonds .= 0
+    for i in each_point_idx(system)
+        for bond_id in each_bond_idx(system, i)
+            bond = bonds[bond_id]
+            neighbor_id = bond.neighbor
+            point_in_a = in(i, set_a)
+            point_in_b = in(i, set_b)
+            neigh_in_a = in(neighbor_id, set_a)
+            neigh_in_b = in(neighbor_id, set_b)
+            if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
+                bond_active[bond_id] = false
+            end
+            n_active_bonds[i] += bond_active[bond_id]
+        end
+    end
     return nothing
 end
 
