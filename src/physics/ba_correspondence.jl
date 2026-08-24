@@ -105,6 +105,8 @@ function log_material_property(::Val{:constitutive_model}, mat::BACMaterial;
     return msg
 end
 
+@inline get_constitutive_model(mat::BACMaterial) = mat.constitutive_model
+
 function log_material_property(::Val{:maxdmg}, mat::BACMaterial; indentation::Int)
     msg = msg_qty("maximum damage", mat.maxdmg; indentation)
     return msg
@@ -163,6 +165,7 @@ end
     @htl b_int::PointVector
     stress::PointTensor
     von_mises_stress::PointScalar
+    cm_state::ConstitutiveState
     # scratch space for a single point, see `init_field` below
     bond_stress::Matrix{Float64}
 end
@@ -274,7 +277,7 @@ function calc_first_piola_kirchhoff!(storage::BACStorage, mat::BACMaterial,
                                      params::BACPointParameters, defgrad_res, Δt, i,
                                      bond_idx)
     (; F, Kinv) = defgrad_res
-    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F, bond_idx, Δt)
     PKinv = P * Kinv
     return PKinv
 end

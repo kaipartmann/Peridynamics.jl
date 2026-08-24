@@ -539,6 +539,188 @@ function storage_type_function(material, storage_type, params, uses_sim_float,
     end
 end
 
+"""
+    @cm_storage model state
+
+$(extension_api_note())
+
+Declare the state a history-dependent constitutive model integrates over time, e.g. the
+plastic strain of a plasticity model. This is [`@storage`](@ref) for a constitutive model
+instead of a material: the body accepts the same field declarations, so the state is
+allocated, sized, moved to another array backend and inherited from exactly like a storage.
+
+The generated state is reached inside [`first_piola_kirchhoff`](@ref) with
+[`constitutive_state`](@ref), and a material carries it by declaring
+`cm_state::ConstitutiveState`, see [`ConstitutiveState`](@ref).
+
+# Differences to `@storage`
+
+- Every field has to be declared with a **field shape**. A constitutive model has no
+    `init_field` hook, because it does not know the material its state belongs to.
+- The halo annotations [`@lth`](@ref) and [`@htl`](@ref) are **not allowed**. The state of a
+    constitutive model is chunk-local, which is what bond state and point-local state are.
+- The state is **not point data**, so it is not exported to VTK files. A quantity that
+    should be exported belongs into the storage of the material.
+
+# Example
+
+```julia
+struct J2Plasticity <: Peridynamics.AbstractConstitutiveModel end
+
+Peridynamics.@cm_storage J2Plasticity struct J2PlasticityState
+    bond_plastic_strain::BondTensor
+    bond_eqps::BondScalar
+end
+```
+
+`J2Plasticity` is history-dependent by this declaration alone, see
+[`is_history_dependent`](@ref).
+"""
+macro cm_storage(model, state)
+    macrocheck_input_material(model)
+    macrocheck_input_storage_struct(state)
+    return __cm_storage(model, state, __module__)
+end
+
+function __cm_storage(model, state, mod::Module)
+    local _state_data = get_storage_structdef(state, mod,
+                                              :(Peridynamics.AbstractConstitutiveState))
+    local _state_struct = _state_data.storage_struct
+    local _state_type = _state_data.storage_type
+    local _decls = _state_data.decls
+    local _params = _state_data.params
+    local _uses_sim_float = _state_data.uses_sim_float
+    check_cm_storage_decls(_decls)
+
+    local _alloc_calls = [cm_alloc_field_call(_decl) for _decl in _decls]
+
+    local _constructor = quote
+        function $(esc(_state_type))(model::$(esc(model)),
+                                     solver::Peridynamics.AbstractTimeSolver,
+                                     system::Peridynamics.AbstractSystem)
+            return $(esc(_state_type))($(_alloc_calls...))
+        end
+    end
+
+    local _storage_type_function = cm_storage_type_function(model, _state_type, _params,
+                                                            _uses_sim_float)
+
+    local _get_cm_storage = quote
+        function Peridynamics.get_cm_storage(model::$(esc(model)),
+                                             solver::Peridynamics.AbstractTimeSolver,
+                                             system::Peridynamics.AbstractSystem)
+            return $(esc(_state_type))(model, solver, system)
+        end
+    end
+
+    local _adapt_args = [
+        :(Adapt.adapt(to, Base.getfield(s, $(QuoteNode(_decl.name))))) for _decl in _decls
+    ]
+    local _adapt_structure = if isempty(_params)
+        Expr(:block)
+    else
+        quote
+            function Adapt.adapt_structure(to, s::$(esc(_state_type)))
+                return $(esc(_state_type))($(_adapt_args...))
+            end
+        end
+    end
+
+    local _storage_fields_expr = quote
+        function Peridynamics.storage_fields_expr(::Base.Type{<:$(esc(_state_type))})
+            return $(QuoteNode(_decls))
+        end
+    end
+
+    local _checks = quote
+        Peridynamics.typecheck_constitutive_model($(esc(model)))
+    end
+
+    return Expr(:block, _state_struct, _constructor, _storage_type_function,
+                _get_cm_storage, _adapt_structure, _storage_fields_expr, _checks)
+end
+
+check_cm_storage_decls(decls) = check_nested_state_decls(:cm, decls)
+
+# `@cm_storage` and `@dmg_storage` accept exactly the same field declarations, so they
+# reject the same three things, with the wording of whichever state is being declared
+function check_nested_state_decls(kind::Symbol, decls)
+    what = kind === :cm ? "constitutive" : "damage"
+    model = nested_state_model(kind)
+    macroname = kind === :cm ? "@cm_storage" : "@dmg_storage"
+    for decl in decls
+        if is_halo_decl(decl)
+            msg = "the $(what) state field `$(decl.name)` is annotated with "
+            msg *= "`@$(decl.annotation)`, which `$(macroname)` does not support!\n"
+            msg *= "  The state of a $(model) is chunk-local, so it is never exchanged "
+            msg *= "between chunks. Bond state and point-local state need no exchange. A "
+            msg *= "quantity that has to be exchanged belongs into the storage of the "
+            msg *= "material.\n"
+            throw(ArgumentError(msg))
+        end
+        if is_nested_state_decl(decl)
+            marker = nested_state_marker(is_cm_state_decl(decl) ? :cm : :dmg)
+            msg = "the $(what) state field `$(decl.name)` is declared with `$(marker)`, "
+            msg *= "but a $(model) cannot carry the state of another model!\n"
+            throw(ArgumentError(msg))
+        end
+        if isnothing(decl.shape)
+            msg = "the $(what) state field `$(decl.name)` is declared with the container "
+            msg *= "type `$(decl.type)` instead of a field shape!\n"
+            msg *= "  A $(model) has no `init_field` hook, because it does not know the "
+            msg *= "material its state belongs to, so every field of a `$(macroname)` "
+            msg *= "definition needs a field shape, e.g.\n"
+            msg *= "        $(decl.name)::BondScalar\n"
+            throw(ArgumentError(msg))
+        end
+    end
+    return nothing
+end
+
+function cm_alloc_field_call(decl::StorageFieldDecl)
+    args = Any[:(Peridynamics.alloc_field), decl.shape, :system,
+               :(Peridynamics.LocalPoints())]
+    isnothing(decl.init) || push!(args, decl.init)
+    return Expr(:call, args...)
+end
+
+function cm_storage_type_function(model, state_type, params, uses_sim_float)
+    instantiation = if isempty(params)
+        esc(state_type)
+    else
+        args = Any[esc(state_type)]
+        uses_sim_float && push!(args, FLOAT_TYPE_PARAM)
+        append!(args, storage_param_default(param) for param in params)
+        Expr(:curly, args...)
+    end
+    uses_sim_float || return quote
+        function Peridynamics.constitutive_storage_type(::$(esc(model)),
+                                                        ::Base.Type=Peridynamics.default_float_type())
+            return $(instantiation)
+        end
+    end
+    return quote
+        function Peridynamics.constitutive_storage_type(::$(esc(model)),
+                                                        ::Base.Type{$(FLOAT_TYPE_PARAM)}=Peridynamics.default_float_type()) where {$(FLOAT_TYPE_PARAM)}
+            return $(instantiation)
+        end
+    end
+end
+
+function typecheck_constitutive_model(::Type{Model}) where {Model}
+    if !(Model <: AbstractConstitutiveModel)
+        msg = "$(Model) is not a valid constitutive model type!\n"
+        msg *= "  A constitutive model has to be a subtype of "
+        msg *= "`Peridynamics.AbstractConstitutiveModel`.\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
+end
+
+function typecheck_constitutive_model(model)
+    return throw(ArgumentError("$(model) is not a valid constitutive model type!\n"))
+end
+
 function init_field_storage_call(decl::StorageFieldDecl)
     args = Any[:(Peridynamics.alloc_field), decl.shape, :system, :extent]
     isnothing(decl.init) || push!(args, decl.init)

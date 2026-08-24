@@ -132,6 +132,8 @@ struct RKCMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
     end
 end
 
+@inline get_constitutive_model(mat::AbstractRKCMaterial) = mat.constitutive_model
+
 function RKCMaterial(; kernel::Function=const_one_kernel,
                      model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                      dmgmodel::AbstractDamageModel=CriticalStretch(),
@@ -194,6 +196,7 @@ end
     cauchy_stress::PointTensor
     von_mises_stress::PointScalar
     strain_energy_density::PointScalar
+    cm_state::ConstitutiveState
 end
 
 # Fields that the inherited code of the RKC family reads from the storage. Every material
@@ -468,7 +471,7 @@ function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSyst
             Δxij = get_vector_diff(storage.position, i, j)
             Fj = get_tensor(defgrad, j)
             Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
-            Pij = calc_first_piola_kirchhoff!(storage, mat, params, Fij, bond_id)
+            Pij = calc_first_piola_kirchhoff!(storage, mat, params, Fij, bond_id, Δt)
             Tempij = I - ΔXij * ΔXij' / (L * L)
             wj = weighted_volume[j]
             ϕ = 0.5 / wi + 0.5 / wj
@@ -505,8 +508,8 @@ function rkc_force_density!(storage::AbstractStorage, system::AbstractBondSystem
 end
 
 function calc_first_piola_kirchhoff!(storage::RKCStorage, mat::RKCMaterial,
-                                     params::StandardPointParameters, F, bond_id)
-    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+                                     params::StandardPointParameters, F, bond_id, Δt)
+    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F, bond_id, Δt)
     update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
     return P
 end
@@ -610,7 +613,7 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
             Δxij = get_vector_diff(storage.position, i, j)
             Fj = get_tensor(defgrad, j)
             Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
-            Ψij = strain_energy_density(model, storage, params, Fij)
+            Ψij = strain_energy_density(model, storage, params, Fij, bond_id)
             ϕ = 1 / wi
             ω̃ij = kernel(system, bond_id) * ϕ * volume[j]
             Ψi += ω̃ij * Ψij

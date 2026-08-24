@@ -160,7 +160,8 @@ function export_field(::Val{:strain_energy_density}, mat::CRMaterial, system::Bo
     for i in each_point_idx(system)
         params = get_params(paramsetup, i)
         F = get_tensor(storage.defgrad, i)
-        storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F)
+        storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F,
+                                                                 i)
     end
     return storage.strain_energy_density
 end

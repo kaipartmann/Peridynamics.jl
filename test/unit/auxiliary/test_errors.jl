@@ -36,3 +36,21 @@ end
     @test contains(msg, "Peridynamics.@storage")
 end
 
+@testitem "HistoryDependenceError: names model, material, solver, reason and fix" begin
+    struct HistoryModel <: Peridynamics.AbstractConstitutiveModel end
+    err = Peridynamics.HistoryDependenceError(HistoryModel(), typeof(RKCMaterial()), NewtonKrylov,
+                                              "the reason", "The fix.")
+    @test err.model === HistoryModel
+    msg = sprint(showerror, err)
+    @test contains(msg, "history-dependent constitutive model cannot be used here!")
+    @test contains(msg, "model:     HistoryModel")
+    @test contains(msg, "material:  RKCMaterial")
+    @test contains(msg, "solver:    NewtonKrylov")
+    @test contains(msg, "the reason.")
+    @test contains(msg, "The fix.")
+
+    # the model may also be given as a type
+    err = Peridynamics.HistoryDependenceError(HistoryModel, typeof(CMaterial()), VelocityVerlet,
+                                              "r", "f")
+    @test err.model === HistoryModel
+end

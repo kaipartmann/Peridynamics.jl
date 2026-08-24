@@ -93,7 +93,7 @@ abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMateri
 abstract type AbstractRKCMaterial{CM,C} <: AbstractBondSystemMaterial{C} end
 abstract type AbstractBondAssociatedSystemMaterial <: AbstractBondSystemMaterial{Nothing} end
 abstract type AbstractConstitutiveModel end
-abstract type AbstractStressIntegration end
+abstract type AbstractConstitutiveState end
 abstract type AbstractZEMStabilization <: AbstractCorrection end
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
 abstract type AbstractDamageModel end
@@ -112,6 +112,7 @@ include("auxiliary/autoinfiltrate.jl")
 # material family whose contract they express
 include("core/storage_fields.jl")
 include("auxiliary/block_tables.jl")
+include("core/constitutive_models.jl")
 
 include("physics/boundary_conditions.jl")
 include("physics/initial_conditions.jl")
