@@ -19,23 +19,30 @@
         n_substeps::Int = 1
     end
 
-    # the struct is parametric in the float type, and a pinned type stays what it is
+    # the struct is parametric in the float type and in the model parameter types of the
+    # two markers of `StandardParameters`, and a pinned type stays what it is
     @test PFParams1 isa UnionAll
-    @test fieldnames(PFParams1) == (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :Gc, :εc, :bc,
-                                    :sigma_y, :hardening, :n_substeps)
+    @test fieldnames(PFParams1) == (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :bc, :cm_params,
+                                    :dmg_params, :sigma_y, :hardening, :n_substeps)
     @test fieldtype(PFParams1{Float64}, :δ) === Float64
     @test fieldtype(PFParams1{Float32}, :δ) === Float32
     @test fieldtype(PFParams1{Float32}, :n_substeps) === Int
 
-    # `point_param_type` has to answer with a concrete type, `Body` is parameterized with it
-    @test point_param_type(PFMat1()) === PFParams1{Float64}
-    @test point_param_type(PFMat1(), Float32) === PFParams1{Float32}
+    # `point_param_type` has to answer with a concrete type, `Body` is parameterized with
+    # it; the marker parameters are answered by the models of the material instance
+    CSP = Peridynamics.CriticalStretchParameters
+    @test point_param_type(PFMat1()) === PFParams1{Float64,Nothing,CSP{Float64}}
+    @test point_param_type(PFMat1(), Float32) === PFParams1{Float32,Nothing,CSP{Float32}}
     @test isbitstype(point_param_type(PFMat1()))
 
-    # the allowed keywords follow from the declarations
+    # the allowed keywords follow from the declarations; the fracture keywords belong to
+    # the damage model now and arrive through `all_material_kwargs`
     @test allowed_material_kwargs(PFMat1()) == (:horizon, :rho, :E, :nu, :G, :K, :lambda,
-                                                :mu, :Gc, :epsilon_c, :sigma_y,
-                                                :hardening, :n_substeps)
+                                                :mu, :sigma_y, :hardening, :n_substeps)
+    @test Peridynamics.all_material_kwargs(PFMat1()) == (:horizon, :rho, :E, :nu, :G, :K,
+                                                         :lambda, :mu, :sigma_y,
+                                                         :hardening, :n_substeps, :Gc,
+                                                         :epsilon_c)
 
     p = Dict{Symbol,Any}(:horizon => 1.5, :rho => 8e-6, :E => 2.1e5, :nu => 0.25,
                          :Gc => 2.7, :sigma_y => 300.0)
@@ -255,12 +262,17 @@ end
         @test point_param_type(mat, Float32) !== P
     end
 
-    # every shipped point parameter type is generic in the float type
+    # every shipped point parameter type is generic in the float type and carries the
+    # marker for the damage model parameters; CKI has no constitutive-model concept
     for P in (StandardPointParameters, CPointParameters, BACPointParameters,
               CKIPointParameters)
         @test P isa UnionAll
-        @test isconcretetype(P{Float64})
+        @test Peridynamics.has_dmg_param_marker(P)
     end
+    for P in (StandardPointParameters, CPointParameters, BACPointParameters)
+        @test Peridynamics.has_cm_param_marker(P)
+    end
+    @test !Peridynamics.has_cm_param_marker(CKIPointParameters)
 end
 
 @testitem "material!: point parameters of every material" begin
@@ -307,4 +319,71 @@ end
     body = Body(BACMaterial(), pos, vol)
     material!(body; horizon=1.5, bond_horizon=2.0, rho=8e-6, E=2.1e5, nu=0.25, Gc=2.7)
     @test only(body.point_params).δb == 2.0
+end
+
+@testitem "@params: the marker fields of the model parameters" begin
+    using Peridynamics: param_fields_expr, is_cm_param_decl, is_dmg_param_decl, block_table
+
+    # a marker is one bare field of a block or a definition and registers no keyword
+    Peridynamics.@params_fields PFMarkerBlock begin
+        a = 1.0
+        cm_params::Peridynamics.ConstitutiveParameters
+        dmg_params::Peridynamics.DamageParameters
+    end
+    spec = param_fields_expr(PFMarkerBlock)
+    @test [d.name for d in spec.decls] == [:a, :cm_params, :dmg_params]
+    @test spec.kwargs == [:a]
+    @test is_cm_param_decl(spec.decls[2])
+    @test is_dmg_param_decl(spec.decls[3])
+
+    # the table says who owns the declarations behind the marker
+    table = block_table(PFMarkerBlock)
+    @test occursin("owned by the constitutive model", table)
+    @test occursin("owned by the damage model", table)
+
+    # one marker per kind, and nothing of the declaration language applies to a marker
+    @test_throws LoadError @eval Peridynamics.@params_fields PFMarkerTwice begin
+        one::Peridynamics.DamageParameters
+        two::Peridynamics.DamageParameters
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFMarkerDefault begin
+        dmg_params::Peridynamics.DamageParameters = 1.0
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFMarkerDerived begin
+        @derived dmg_params::Peridynamics.DamageParameters = 1.0
+    end
+end
+
+@testitem "getproperty: flat reads over the marker fields" begin
+    pos, vol = uniform_box(1.0, 1.0, 1.0, 0.5)
+    body = Body(BBMaterial(), pos, vol)
+    material!(body; horizon=1.5, rho=8e-6, E=2.1e5, Gc=2.7)
+    par = only(body.point_params)
+
+    # `Gc` physically lives in the parameters of the damage model
+    @test par.Gc == 2.7
+    @test par.Gc === Base.getfield(Base.getfield(par, :dmg_params), :Gc)
+    @test par.dmg_params isa Peridynamics.CriticalStretchParameters
+    @test par.cm_params === nothing
+    @test :Gc in propertynames(par)
+    @test hasproperty(par, :εc)
+    @test hasproperty(par, :dmg_params)
+    @test !hasproperty(par, :notaparameter)
+    @test_throws Exception par.notaparameter
+
+    # a parameter name that exists in the material and in a model is rejected when the
+    # material is set up
+    struct PFCollide <: Peridynamics.AbstractDamageModel end
+    Peridynamics.@dmg_params PFCollide struct PFCollideParameters
+        δ = 1.0
+    end
+    body2 = Body(BBMaterial(; dmgmodel=PFCollide()), pos, vol)
+    err = try
+        material!(body2; horizon=1.5, rho=8e-6, E=2.1e5)
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("δ", err.msg)
+    @test occursin("more than once", err.msg)
 end

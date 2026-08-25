@@ -9,7 +9,6 @@ body as part of the material.
 """
 struct CriticalStretch <: AbstractDamageModel end
 
-@inline fracture_kwargs() = (:Gc, :epsilon_c)
 
 """
     failure_permit!(body, set_name, fail_permit)
@@ -239,6 +238,10 @@ function has_fracture(mat::AbstractMaterial, params::AbstractPointParameters)
     return has_fracture(mat.dmgmodel, params)
 end
 
+# a damage model that declares no fracture parameters cannot say when a bond fails, so
+# failure stays prohibited unless the model defines its own method
+has_fracture(::AbstractDamageModel, params) = false
+
 function has_fracture(::CriticalStretch, params::AbstractPointParameters)
     if isapprox(params.Gc, 0; atol=eps()) || isapprox(params.εc, 0; atol=eps())
         return false
@@ -368,17 +371,37 @@ end
 
 $(extension_api_note())
 
-Parameter block of the critical energy release rate `Gc` and the critical stretch `εc`. The
-damage model decides which of the fracture keywords it reads and how it converts them into
-each other, so the block is resolved by [`get_frac_params`](@ref) and needs the horizon `δ`
-and the bulk modulus `K` of the parameters before it. See [`@params_fields`](@ref).
+Parameter block of the critical energy release rate `Gc` and the critical stretch `εc`,
+resolved by [`get_frac_params`](@ref) of the damage model, which decides which of the
+fracture keywords it reads and how it converts them into each other. The block belongs to
+the damage model, so it is inherited inside a [`@dmg_params`](@ref) declaration: this is
+how [`CriticalStretch`](@ref) declares its parameters, and a custom damage model that
+wants the standard fracture keywords inherits it the same way. It reads the horizon `δ`
+and the bulk modulus `K` of the material parameters declared above the
+`dmg_params::DamageParameters` marker. See [`@params_fields`](@ref).
 
 $(block_table(FractureParameters))
 """
 @params_fields FractureParameters begin
-    @derived (; Gc, εc) = get_frac_params(mat.dmgmodel, δ, K; Gc, epsilon_c)
+    @derived (; Gc, εc) = get_frac_params(model, δ, K; Gc, epsilon_c)
     @log "critical energy release rate" Gc
     @log "critical stretch" εc
+end
+
+"""
+    CriticalStretchParameters
+
+$(internal_api_warning())
+
+The point parameters of [`CriticalStretch`](@ref): the [`FractureParameters`](@ref) block,
+declared with [`@dmg_params`](@ref). They occupy the `dmg_params::DamageParameters` marker
+field of every material used with the standard damage model, and are read flat off the
+point parameters, e.g. `params.Gc`.
+
+$(block_table(CriticalStretchParameters))
+"""
+@dmg_params CriticalStretch struct CriticalStretchParameters
+    @inherit FractureParameters
 end
 
 # --------------------------------------------------------------------------------------

@@ -124,6 +124,19 @@ Peridynamics.BondHorizonParameters
 Peridynamics.InteractionParameters
 Peridynamics.BBElasticParameters
 Peridynamics.BBStandardParameters
+Peridynamics.@cm_params
+Peridynamics.@dmg_params
+Peridynamics.ConstitutiveParameters
+Peridynamics.DamageParameters
+Peridynamics.CriticalStretchParameters
+Peridynamics.constitutive_param_type
+Peridynamics.damage_param_type
+Peridynamics.get_cm_params
+Peridynamics.get_dmg_params
+Peridynamics.constitutive_param_kwargs
+Peridynamics.damage_param_kwargs
+Peridynamics.check_model_params
+Peridynamics.all_material_kwargs
 ```
 
 ## Storage framework

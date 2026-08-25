@@ -88,10 +88,119 @@ function param_fields_expr(::Type{T}) where {T}
     return throw(ArgumentError(msg))
 end
 
+"""
+    ConstitutiveParameters
+
+$(extension_api_note())
+
+Marker for one field of a [`@params`](@ref) definition or a [`@params_fields`](@ref) block,
+e.g. `cm_params::ConstitutiveParameters`. The field holds the parameters the constitutive
+model of the material declares with [`@cm_params`](@ref) — whatever model that is: the
+parameter type is resolved per model when the point parameter type is instantiated, and it
+is `Nothing` for a model that declares no parameters. A material whose point parameters
+carry this marker therefore supports every constitutive model, parameterized or not,
+without knowing any of them.
+
+See also [`DamageParameters`](@ref) and the storage-side analogue `ConstitutiveState`.
+"""
+struct ConstitutiveParameters end
+
+"""
+    DamageParameters
+
+$(extension_api_note())
+
+Marker for one field of a [`@params`](@ref) definition or a [`@params_fields`](@ref) block,
+e.g. `dmg_params::DamageParameters`. The field holds the parameters the damage model of the
+material declares with [`@dmg_params`](@ref), resolved per model exactly like
+[`ConstitutiveParameters`](@ref). The standard fracture parameters `Gc` and `εc` live here:
+they belong to [`CriticalStretch`](@ref), not to the material.
+"""
+struct DamageParameters end
+
+# the type parameters of the generated struct that hold the model parameter types; `CMP`
+# comes before `DMP`, mirroring `CMS`/`DMS` of the storage
+const CM_PARAM_TYPE_PARAM = :CMP
+const DMG_PARAM_TYPE_PARAM = :DMP
+
+@inline is_cm_param_decl(d::ParamFieldDecl) = d.type === ConstitutiveParameters
+@inline is_dmg_param_decl(d::ParamFieldDecl) = d.type === DamageParameters
+@inline is_model_param_decl(d::ParamFieldDecl) = is_cm_param_decl(d) || is_dmg_param_decl(d)
+
+"""
+    constitutive_param_type(model, FT)
+    damage_param_type(dmgmodel, FT)
+
+$(internal_api_warning())
+
+Return the point parameter type a model declares with [`@cm_params`](@ref) /
+[`@dmg_params`](@ref), instantiated with the float type `FT`, or `Nothing` for a model
+without parameters. This is how `point_param_type` resolves the marker fields of a
+[`@params`](@ref) definition.
+"""
+function constitutive_param_type end
+constitutive_param_type(model, ::Type) = Nothing
+damage_param_type(dmgmodel, ::Type) = Nothing
+
+@doc (@doc constitutive_param_type) damage_param_type
+
+"""
+    get_cm_params(model, FT, mat_params, p)
+    get_dmg_params(dmgmodel, FT, mat_params, p)
+
+$(internal_api_warning())
+
+Construct the model-owned parameters of one point parameter set, or `nothing` for a model
+without parameters. Called by the generated point parameter constructor at the position of
+the marker field, with `mat_params` the `NamedTuple` of every material parameter declared
+above the marker and `p` the keyword dictionary of `material!`. The methods are generated
+by [`@cm_params`](@ref) / [`@dmg_params`](@ref).
+"""
+function get_cm_params end
+get_cm_params(model, ::Type, mat_params::NamedTuple, p::Dict{Symbol,Any}) = nothing
+get_dmg_params(dmgmodel, ::Type, mat_params::NamedTuple, p::Dict{Symbol,Any}) = nothing
+
+@doc (@doc get_cm_params) get_dmg_params
+
+"""
+    constitutive_param_kwargs(model)
+    damage_param_kwargs(dmgmodel)
+
+$(internal_api_warning())
+
+The `material!` keywords the parameters of a model consume, `()` for a model without
+parameters. `material!` accepts the union of the material's own keywords and the keywords
+of its models, so a keyword is accepted exactly when something reads it.
+"""
+function constitutive_param_kwargs end
+constitutive_param_kwargs(model) = ()
+damage_param_kwargs(dmgmodel) = ()
+
+@doc (@doc constitutive_param_kwargs) damage_param_kwargs
+
+# converting nested model parameters to another float type; a model without parameters has
+# `nothing`, a non-generic parameter type converts to itself
+convert_nested_params(::Type, ::Nothing) = nothing
+
+function required_model_param(mat_params::NamedTuple, name::Symbol, model)
+    haskey(mat_params, name) && return mat_params[name]
+    msg = "the parameters of `$(nameof(typeof(model)))` read `$(name)`, which the point "
+    msg *= "parameters of the material do not provide!\n"
+    msg *= "  A model parameter block sees the material parameters declared above the "
+    msg *= "marker field\n"
+    msg *= "  (`cm_params::ConstitutiveParameters` / `dmg_params::DamageParameters`). "
+    msg *= "Move the marker\n"
+    msg *= "  below the declaration of `$(name)`, or use a material whose parameters "
+    msg *= "declare it.\n"
+    return throw(ArgumentError(msg))
+end
+
 @inline is_provided(d::ParamFieldDecl) = !isnothing(d.provider)
 @inline is_derived(d::ParamFieldDecl) = isnothing(d.provider) && d.kwarg === :none
 
 @inline function param_field_type(d::ParamFieldDecl)
+    is_cm_param_decl(d) && return CM_PARAM_TYPE_PARAM
+    is_dmg_param_decl(d) && return DMG_PARAM_TYPE_PARAM
     return d.type === SimFloat ? FLOAT_TYPE_PARAM : d.type
 end
 
@@ -312,6 +421,7 @@ function get_param_decls(block_args, mod::Module)
         end
     end
     check_param_order(decls, mod)
+    check_single_model_params(decls)
     return ParamFieldsSpec(decls, kwargs)
 end
 
@@ -361,6 +471,10 @@ end
 
 function parse_param_decl(expr, kwarg, derived, label, mod::Module, kwargs::Vector{Symbol})
     (; name, type, default) = parse_param_field(expr, mod)
+    if type === ConstitutiveParameters || type === DamageParameters
+        check_marker_decl(expr, type, kwarg, derived, label, default)
+        return ParamFieldDecl(name, type, :none, nothing, nothing, "", "")
+    end
     param_kwarg = derived ? :none : (isnothing(kwarg) ? name : kwarg)
     isnothing(default) && return ParamFieldDecl(name, type, param_kwarg, nothing, nothing,
                                                 "", label)
@@ -535,6 +649,46 @@ function annotation_msg(name, expr)
     return msg
 end
 
+#=
+A marker is one bare field, `cm_params::ConstitutiveParameters` or
+`dmg_params::DamageParameters`: the model owns the declarations behind it, so nothing of
+the declaration language applies to the field itself.
+=#
+function check_marker_decl(expr, type, kwarg, derived, label, default)
+    problem = if !isnothing(default)
+        "cannot have a default value"
+    elseif derived
+        "cannot be `@derived`"
+    elseif !isnothing(kwarg)
+        "cannot have a `@kwarg` keyword"
+    elseif !isempty(label)
+        "cannot carry a `@log` label"
+    else
+        nothing
+    end
+    isnothing(problem) && return nothing
+    msg = "the marker field `$(expr)` $(problem)!\n"
+    msg *= "  The $(marker_model_name(type)) owns the declarations behind the marker, so "
+    msg *= "the marker itself\n  declares nothing.\n"
+    return throw(ArgumentError(msg))
+end
+
+marker_model_name(::Type{ConstitutiveParameters}) = "constitutive model"
+marker_model_name(::Type{DamageParameters}) = "damage model"
+
+function check_single_model_params(decls::Vector{ParamFieldDecl})
+    for predicate in (is_cm_param_decl, is_dmg_param_decl)
+        found = filter(predicate, decls)
+        length(found) <= 1 && continue
+        names = join(("`" * string(d.name) * "`" for d in found), ", ")
+        model = marker_model_name(found[1].type)
+        msg = "point parameters can carry the parameters of the $(model) only once, "
+        msg *= "found $(names)!\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
+end
+
 function parse_param_field(expr, mod::Module)
     default = nothing
     decl = expr
@@ -693,10 +847,26 @@ escaped default and provider expressions of the definition see them, which is wh
 default read the parameters declared before it, and what lets a provider call read `mat` and
 the selected `material!` keywords.
 =#
-function param_constructor_body(spec::ParamFieldsSpec)
+function param_constructor_body(spec::ParamFieldsSpec, sim_float::Bool)
     body = Any[]
     provider, provider_var = nothing, nothing
+    names_above = Symbol[]
+    ft_expr = sim_float ? FLOAT_TYPE_PARAM : :(Peridynamics.default_float_type())
     for decl in spec.decls
+        if is_model_param_decl(decl)
+            # the model constructs its own parameters, so this is the parameter-side
+            # `init_constitutive_state`: it sees every material parameter declared above
+            # the marker as a `NamedTuple`, and the keyword dictionary of `material!`
+            getter = is_cm_param_decl(decl) ? :(Peridynamics.get_cm_params) :
+                     :(Peridynamics.get_dmg_params)
+            model = is_cm_param_decl(decl) ?
+                    :(Peridynamics.get_constitutive_model($(esc(:mat)))) :
+                    :(Peridynamics.get_dmgmodel($(esc(:mat))))
+            nt = Expr(:tuple, Expr(:parameters, (esc(n) for n in names_above)...))
+            value = Expr(:call, getter, model, ft_expr, nt, esc(:p))
+            push!(body, Expr(:(=), esc(decl.name), value))
+            continue
+        end
         if is_provided(decl)
             if isnothing(provider) || provider != decl.provider
                 provider = decl.provider
@@ -714,6 +884,7 @@ function param_constructor_body(spec::ParamFieldsSpec)
         end
         converted = :(Base.convert($(param_field_type(decl)), $(value)))
         push!(body, Expr(:(=), esc(decl.name), converted))
+        push!(names_above, decl.name)
     end
     return body
 end
@@ -734,7 +905,14 @@ end
 function log_material_parameters(param::P; indentation::Int=2) where {P}
     msg = ""
     for key in fieldnames(P)
-        msg *= log_param_property(Val(key), param; indentation)
+        value = Base.getfield(param, key)
+        if value isa Union{AbstractConstitutiveParameters,AbstractDamageParameters}
+            # a marker field: the model's parameters log themselves, with the labels the
+            # model declared
+            msg *= log_material_parameters(value; indentation)
+        else
+            msg *= log_param_property(Val(key), param; indentation)
+        end
     end
     return msg
 end
@@ -767,3 +945,422 @@ function param_log_methods(spec::ParamFieldsSpec, params_type)
         for decl in spec.decls if !isempty(decl.label)
     ]
 end
+
+# --------------------------------------------------------------------------------------
+# flat reads over the marker fields
+# --------------------------------------------------------------------------------------
+
+#=
+`params.Gc` reads like a field even though `Gc` lives in the parameters of the damage
+model: `getproperty` forwards a name that is not a field into the marker fields. The
+`@generated` function computes the exact `getfield` chain per (type, name), so a property
+literal compiles to a direct load and the forwarding costs nothing — asserted by the
+"parameter property forwarding" item of `test/perf/perf.jl`. Everything generated by the
+macros reads fields with `getfield`, so the forwarding cannot recurse.
+=#
+@inline function Base.getproperty(params::AbstractPointParameters, name::Symbol)
+    return get_param_property(params, Val(name))
+end
+
+@generated function get_param_property(params::P,
+                                       ::Val{S}) where {P<:AbstractPointParameters,S}
+    S in fieldnames(P) && return :(Base.getfield(params, $(QuoteNode(S))))
+    exprs, owners = Any[], Symbol[]
+    for field in fieldnames(P)
+        FT = fieldtype(P, field)
+        FT <: Union{AbstractConstitutiveParameters,AbstractDamageParameters} || continue
+        S in fieldnames(FT) || continue
+        push!(owners, field)
+        push!(exprs, :(Base.getfield(Base.getfield(params, $(QuoteNode(field))),
+                                     $(QuoteNode(S)))))
+    end
+    length(owners) == 1 && return exprs[1]
+    # not found anywhere: `getfield` throws the native no-field error of this Julia version
+    isempty(owners) && return :(Base.getfield(params, $(QuoteNode(S))))
+    return :(Peridynamics.ambiguous_param_property($(QuoteNode(S)), params,
+                                                   $(Tuple(owners))))
+end
+
+function ambiguous_param_property(name::Symbol, @nospecialize(params), owners)
+    msg = "the parameter `$(name)` exists in $(join(("`$(o)`" for o in owners), " and "))"
+    msg *= " of `$(nameof(typeof(params)))`!\n"
+    msg *= "  Read it from the model parameters directly, e.g. "
+    msg *= "`params.$(first(owners)).$(name)`.\n"
+    return throw(ArgumentError(msg))
+end
+
+function Base.propertynames(params::AbstractPointParameters, private::Bool=false)
+    return param_property_names(params)
+end
+
+# the fields plus everything the marker fields hold, which is what `getproperty` accepts
+@generated function param_property_names(params::P) where {P<:AbstractPointParameters}
+    names = Symbol[]
+    for field in fieldnames(P)
+        push!(names, field)
+        FT = fieldtype(P, field)
+        FT <: Union{AbstractConstitutiveParameters,AbstractDamageParameters} || continue
+        append!(names, fieldnames(FT))
+    end
+    return Tuple(names)
+end
+
+# the flat parameter names for display: the marker fields replaced by what they hold
+@generated function flat_param_property_names(params::P) where {P<:AbstractPointParameters}
+    names = Symbol[]
+    for field in fieldnames(P)
+        FT = fieldtype(P, field)
+        if FT <: Union{AbstractConstitutiveParameters,AbstractDamageParameters}
+            append!(names, fieldnames(FT))
+        elseif FT === Nothing
+            continue
+        else
+            push!(names, field)
+        end
+    end
+    return Tuple(names)
+end
+
+# --------------------------------------------------------------------------------------
+# struct and conversion code generation, shared by `@params` and the model macros
+# --------------------------------------------------------------------------------------
+
+#=
+The struct of a parameter definition: parametric in the float type when any declaration
+follows the simulation float, plus one unbounded type parameter per marker field, because a
+nested model parameter type is whatever the model declares — `Nothing` for a model without
+parameters. `CMP` comes before `DMP`.
+=#
+function params_struct_expr(params_expr, name, supertype, spec, sim_float)
+    fields = [Expr(:(::), d.name, param_field_type(d)) for d in spec.decls]
+    type_params = Any[]
+    sim_float && push!(type_params, Expr(:(<:), FLOAT_TYPE_PARAM, :(Base.Real)))
+    any(is_cm_param_decl, spec.decls) && push!(type_params, CM_PARAM_TYPE_PARAM)
+    any(is_dmg_param_decl, spec.decls) && push!(type_params, DMG_PARAM_TYPE_PARAM)
+    header = if isempty(type_params)
+        Expr(:(<:), name, supertype)
+    else
+        Expr(:(<:), Expr(:curly, name, type_params...), supertype)
+    end
+    struct_expr = Expr(:struct, params_expr.args[1], header, Expr(:block, fields...))
+    return quote
+        $(struct_expr)
+    end
+end
+
+# converting a whole set of point parameters to another float type is what a simulation in
+# `Float32` needs, and it is one method because every parameter converts on its own; a
+# marker field converts through the model parameter type it holds
+function params_convert_expr(name, spec, sim_float)
+    sim_float || return Expr(:block)
+    # with the fully implicit positional call the float type is inferred from the values,
+    # so every simulation-float field converts explicitly
+    getfields = [if is_model_param_decl(d)
+                     :(Peridynamics.convert_nested_params(FT_TO,
+                                                          Base.getfield(param,
+                                                                        $(QuoteNode(d.name)))))
+                 elseif d.type === SimFloat
+                     :(Base.convert(FT_TO, Base.getfield(param, $(QuoteNode(d.name)))))
+                 else
+                     :(Base.getfield(param, $(QuoteNode(d.name))))
+                 end
+                 for d in spec.decls]
+    instantiation = Expr(:curly, esc(name), :FT_TO)
+    # with markers the positional call is the fully implicit one, inferring the model types
+    positional = any(is_model_param_decl, spec.decls) ? esc(name) : instantiation
+    return quote
+        function $(instantiation)(param::$(esc(name))) where {FT_TO}
+            return $(positional)($(getfields...))
+        end
+    end
+end
+
+# whether a `@params` type carries a marker field, so that a setup-time check can name the
+# missing marker when a model brings parameters the material has no place for
+has_cm_param_marker(::Type) = false
+has_dmg_param_marker(::Type) = false
+
+function params_marker_exprs(name, spec)
+    exprs = Any[]
+    if any(is_cm_param_decl, spec.decls)
+        push!(exprs,
+              :(Peridynamics.has_cm_param_marker(::Base.Type{<:$(esc(name))}) = true))
+    end
+    if any(is_dmg_param_decl, spec.decls)
+        push!(exprs,
+              :(Peridynamics.has_dmg_param_marker(::Base.Type{<:$(esc(name))}) = true))
+    end
+    return exprs
+end
+
+# --------------------------------------------------------------------------------------
+# `@cm_params` and `@dmg_params` -- the parameters a model owns
+# --------------------------------------------------------------------------------------
+
+"""
+    @cm_params model struct ModelParameters ... end
+
+$(extension_api_note())
+
+Declare the point parameters a constitutive model owns, with the declaration language of
+[`@params_fields`](@ref). The macro generates the parameter struct (parametric in the float
+type, `isbits`), its constructor, the registration that resolves a
+`cm_params::ConstitutiveParameters` marker field of a material to this type, the
+`material!` keywords the declarations consume, and the simulation-log methods of the
+`@log` labels — so a model registers its own keywords without the material knowing them.
+
+```julia
+struct LinearHardening <: Peridynamics.AbstractConstitutiveModel end
+
+Peridynamics.@cm_params LinearHardening struct LinearHardeningParameters
+    @log "yield stress" sigma_y
+    @log "hardening modulus" H = 0.0
+end
+```
+
+Inside the block the model instance is available as `model` (the material `mat` is not),
+and a declaration can read every material parameter declared above the marker field, e.g.
+the horizon `δ` or the bulk modulus `K`. A material whose point parameters carry the marker
+`cm_params::ConstitutiveParameters` supports the model; its parameters are read flat, e.g.
+`params.sigma_y`, or through the marker field, e.g. `params.cm_params.sigma_y`.
+
+See also [`@dmg_params`](@ref), [`ConstitutiveParameters`](@ref), [`@params`](@ref).
+"""
+macro cm_params(model, params)
+    macrocheck_input_model(model)
+    macrocheck_input_model_params(params)
+    return __model_params(:cm, model, params, __module__)
+end
+
+"""
+    @dmg_params dmgmodel struct ModelParameters ... end
+
+$(extension_api_note())
+
+This is [`@cm_params`](@ref) for a damage model: the generated parameter type resolves the
+`dmg_params::DamageParameters` marker field of a material. The standard fracture
+parameters are declared this way — [`CriticalStretch`](@ref) owns `Gc` and `εc` through
+the [`FractureParameters`](@ref) block:
+
+```julia
+Peridynamics.@dmg_params CriticalStretch struct CriticalStretchParameters
+    @inherit FractureParameters
+end
+```
+
+A custom damage model that wants the standard fracture keywords inherits the same block;
+one that brings its own keywords declares them, and `material!` accepts them exactly when
+the body's damage model reads them.
+
+See also [`DamageParameters`](@ref), [`get_frac_params`](@ref), [`@params`](@ref).
+"""
+macro dmg_params(model, params)
+    macrocheck_input_model(model)
+    macrocheck_input_model_params(params)
+    return __model_params(:dmg, model, params, __module__)
+end
+
+function __model_params(kind::Symbol, model, params_expr, mod::Module)
+    local _name = params_expr.args[2]
+    local _spec = get_param_decls(params_expr.args[3].args, mod)
+    isempty(_spec.decls) && throw(ArgumentError(empty_model_params_msg(kind, _name)))
+    check_model_param_block(kind, _spec)
+    local _sim_float = params_use_sim_float(_spec)
+    local _supertype = kind === :cm ? :(Peridynamics.AbstractConstitutiveParameters) :
+                       :(Peridynamics.AbstractDamageParameters)
+    local _struct = params_struct_expr(params_expr, _name, _supertype, _spec, _sim_float)
+    local _convert = params_convert_expr(_name, _spec, _sim_float)
+    local _fields_expr = quote
+        function Peridynamics.param_fields_expr(::Base.Type{<:$(esc(_name))})
+            return $(QuoteNode(_spec))
+        end
+    end
+    local _logs = param_log_methods(_spec, _name)
+    local _constructor = model_params_constructor_expr(model, _name, _spec, _sim_float,
+                                                       mod)
+    local _interface = model_params_interface_exprs(kind, model, _name, _spec, _sim_float)
+    local _checks = quote
+        Peridynamics.typecheck_model_params($(QuoteNode(kind)), $(esc(model)))
+    end
+    local _doc = quote
+        Base.@__doc__ $(esc(_name))
+    end
+    return Expr(:block, _struct, _convert, _fields_expr, _logs..., _constructor,
+                _interface..., _checks, _doc)
+end
+
+#=
+The constructor mirrors the generated point parameter constructor: the model instance
+`model` takes the place of `mat`, and every referenced name that is neither declared in the
+block nor resolvable as a global is read from `mat_params`, the `NamedTuple` of the
+material parameters declared above the marker field.
+=#
+function model_params_constructor_expr(model, name, spec, sim_float, mod::Module)
+    body = param_constructor_body(spec, sim_float)
+    args = [esc(d.name) for d in spec.decls]
+    reads = material_level_reads(spec, mod)
+    destructures = [Expr(:(=), esc(n),
+                         :(Peridynamics.required_model_param($(esc(:mat_params)),
+                                                             $(QuoteNode(n)),
+                                                             $(esc(:model)))))
+                    for n in reads]
+    signature_args = (:($(esc(:model))::$(esc(model))),
+                      :($(esc(:mat_params))::Base.NamedTuple),
+                      :($(esc(:p))::Base.Dict{Base.Symbol,Base.Any}))
+    sim_float || return quote
+        function $(esc(name))($(signature_args...))
+            $(destructures...)
+            $(body...)
+            return $(esc(name))($(args...))
+        end
+    end
+    instantiation = Expr(:curly, esc(name), FLOAT_TYPE_PARAM)
+    default_instantiation = Expr(:curly, esc(name), :(Peridynamics.default_float_type()))
+    return quote
+        function $(instantiation)($(signature_args...)) where {$(FLOAT_TYPE_PARAM)<:Base.Real}
+            $(destructures...)
+            $(body...)
+            return $(instantiation)($(args...))
+        end
+        function $(esc(name))($(signature_args...))
+            return $(default_instantiation)($(esc(:model)), $(esc(:mat_params)),
+                                            $(esc(:p)))
+        end
+    end
+end
+
+function material_level_reads(spec::ParamFieldsSpec, mod::Module)
+    declared = Set{Symbol}(d.name for d in spec.decls)
+    reads = Symbol[]
+    for decl in spec.decls
+        for expr in (decl.default, decl.provider)
+            isnothing(expr) && continue
+            for n in referenced_names(expr)
+                (n === :model || n === :p) && continue
+                in(n, declared) && continue
+                isnothing(resolve_in_mod_or_peridynamics(mod, n)) || continue
+                in(n, reads) || push!(reads, n)
+            end
+        end
+    end
+    return reads
+end
+
+function model_params_interface_exprs(kind::Symbol, model, name, spec, sim_float)
+    type_fn = kind === :cm ? :(Peridynamics.constitutive_param_type) :
+              :(Peridynamics.damage_param_type)
+    get_fn = kind === :cm ? :(Peridynamics.get_cm_params) : :(Peridynamics.get_dmg_params)
+    kw_fn = kind === :cm ? :(Peridynamics.constitutive_param_kwargs) :
+            :(Peridynamics.damage_param_kwargs)
+    type_expr, get_expr, convert_expr = if sim_float
+        (quote
+             function $(type_fn)(::$(esc(model)),
+                                 ::Base.Type{FT}=Peridynamics.default_float_type()) where {FT}
+                 return $(Expr(:curly, esc(name), :FT))
+             end
+         end,
+         quote
+             function $(get_fn)(model::$(esc(model)), ::Base.Type{FT},
+                                mat_params::Base.NamedTuple,
+                                p::Base.Dict{Base.Symbol,Base.Any}) where {FT}
+                 return $(Expr(:curly, esc(name), :FT))(model, mat_params, p)
+             end
+         end,
+         quote
+             function Peridynamics.convert_nested_params(::Base.Type{FT_TO},
+                                                         mp::$(esc(name))) where {FT_TO}
+                 return $(Expr(:curly, esc(name), :FT_TO))(mp)
+             end
+         end)
+    else
+        (quote
+             function $(type_fn)(::$(esc(model)),
+                                 ::Base.Type=Peridynamics.default_float_type())
+                 return $(esc(name))
+             end
+         end,
+         quote
+             function $(get_fn)(model::$(esc(model)), ::Base.Type,
+                                mat_params::Base.NamedTuple,
+                                p::Base.Dict{Base.Symbol,Base.Any})
+                 return $(esc(name))(model, mat_params, p)
+             end
+         end,
+         quote
+             Peridynamics.convert_nested_params(::Base.Type, mp::$(esc(name))) = mp
+         end)
+    end
+    kw_expr = quote
+        $(kw_fn)(::$(esc(model))) = $(Expr(:tuple, (QuoteNode(k) for k in spec.kwargs)...))
+    end
+    return (type_expr, get_expr, convert_expr, kw_expr)
+end
+
+function check_model_param_block(kind::Symbol, spec::ParamFieldsSpec)
+    model = kind === :cm ? "constitutive model" : "damage model"
+    for decl in spec.decls
+        if is_model_param_decl(decl)
+            msg = "a $(model) parameter block cannot carry the marker field "
+            msg *= "`$(decl.name)`!\n"
+            msg *= "  The markers belong to the point parameters of a material; a model "
+            msg *= "cannot carry\n  the parameters of another model.\n"
+            throw(ArgumentError(msg))
+        end
+        for expr in (decl.default, decl.provider)
+            isnothing(expr) && continue
+            if in(:mat, referenced_names(expr))
+                msg = "the declaration of `$(decl.name)` reads `mat`, which is not "
+                msg *= "available in a $(model) parameter block!\n"
+                msg *= "  The model instance is available as `model`, and every material "
+                msg *= "parameter declared\n  above the marker field can be read by "
+                msg *= "name.\n"
+                throw(ArgumentError(msg))
+            end
+        end
+    end
+    return nothing
+end
+
+function typecheck_model_params(kind::Symbol, ::Type{Model}) where {Model}
+    expected = kind === :cm ? AbstractConstitutiveModel : AbstractDamageModel
+    Model <: expected && return nothing
+    macro_name = kind === :cm ? "@cm_params" : "@dmg_params"
+    msg = "`$(Model)` is not a subtype of `$(nameof(expected))`!\n"
+    msg *= "  `$(macro_name)` declares the parameters of a $(nameof(expected)).\n"
+    return throw(ArgumentError(msg))
+end
+
+function typecheck_model_params(kind::Symbol, model)
+    return throw(ArgumentError("`$(model)` is not a type!\n"))
+end
+
+function empty_model_params_msg(kind::Symbol, name)
+    macro_name = kind === :cm ? "@cm_params" : "@dmg_params"
+    msg = "`$(macro_name) ... struct $(name)` declares no parameters!\n"
+    msg *= "  A model without parameters simply does not use the macro.\n"
+    return msg
+end
+
+function macrocheck_input_model(model)
+    model isa Symbol && return nothing
+    if model isa Expr && model.head === :.
+        return nothing
+    end
+    msg = "argument `$(model)` is not a valid model type input!\n"
+    return throw(ArgumentError(msg))
+end
+
+function macrocheck_input_model_params(params_expr)
+    if !(params_expr isa Expr && params_expr.head === :struct)
+        msg = "expected a `struct` definition, got `$(params_expr)`!\n"
+        throw(ArgumentError(msg))
+    end
+    if !(params_expr.args[2] isa Symbol)
+        msg = "the struct of a model parameter definition takes no supertype and no type "
+        msg *= "parameters: `$(params_expr.args[2])`!\n"
+        msg *= "  The macro derives both from the declarations.\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
+end
+

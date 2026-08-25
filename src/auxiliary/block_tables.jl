@@ -59,6 +59,8 @@ turn.
 function block_spec(::Type{T}) where {T}
     T <: AbstractPointParameterFields && return param_fields_expr(T)
     T <: AbstractPointParameters && return param_fields_expr(T)
+    T <: AbstractConstitutiveParameters && return param_fields_expr(T)
+    T <: AbstractDamageParameters && return param_fields_expr(T)
     T <: AbstractStorageFields && return storage_fields_expr(T)
     T <: AbstractStorage && return storage_fields_expr(T)
     # the nested states declare their fields the same way a storage does, so they render
@@ -121,6 +123,8 @@ questions at once: which parameters a call supplies, and which `material!` keywo
 because those are the keyword arguments of the very call that is printed.
 =#
 function param_value_msg(decl::ParamFieldDecl)
+    is_cm_param_decl(decl) && return "owned by the constitutive model"
+    is_dmg_param_decl(decl) && return "owned by the damage model"
     is_provided(decl) && return "from `$(first(split(decl.source, "(")))`"
     isnothing(decl.default) && return "required"
     return "`= $(decl.source)`"

@@ -6,12 +6,12 @@
     material!(body; horizon=2, E=1, rho=1, Gc=1)
     @test Peridynamics.get_param_spec(body) isa Peridynamics.SingleParamChunk
     @test Peridynamics.parameter_setup_type(body, Peridynamics.SingleParamChunk()) ===
-          Peridynamics.StandardPointParameters{Float64}
+          Peridynamics.point_param_type(body.mat)
     point_set!(body, :a, 1:2)
     material!(body, :a; horizon=2, E=2, rho=2, Gc=2)
     @test Peridynamics.get_param_spec(body) isa Peridynamics.MultiParamChunk
     @test Peridynamics.parameter_setup_type(body, Peridynamics.MultiParamChunk()) ===
-          Peridynamics.ParameterHandler{Peridynamics.StandardPointParameters{Float64}}
+          Peridynamics.ParameterHandler{Peridynamics.point_param_type(body.mat)}
 end
 
 @testitem "ParameterHandler: maps the local points of a chunk to their parameters" setup=[Fixtures, BodyCase] begin

@@ -65,6 +65,7 @@ function material!(body::AbstractBody, set_name::Symbol; kwargs...)
     check_if_set_is_defined(body.point_sets, set_name)
 
     p = Dict{Symbol,Any}(kwargs)
+    check_model_params(body.mat)
     check_material_kwargs(body.mat, p)
 
     points = body.point_sets[set_name]
@@ -92,8 +93,44 @@ function _material!(b::AbstractBody, points::V, params::P) where {P,V}
 end
 
 function check_material_kwargs(mat::AbstractMaterial, p::Dict{Symbol,Any})
-    allowed_kwargs = allowed_material_kwargs(mat)
-    check_kwargs(p, allowed_kwargs)
+    check_kwargs(p, all_material_kwargs(mat))
+    return nothing
+end
+
+"""
+    all_material_kwargs(mat)
+
+$(internal_api_warning())
+
+Every keyword `material!` accepts for a material: the keywords its own parameter
+declarations consume, plus the keywords of its constitutive model and of its damage model.
+A keyword is accepted exactly when something reads it, and a keyword two of them declare is
+an error naming both owners.
+"""
+function all_material_kwargs(mat::AbstractMaterial)
+    material = allowed_material_kwargs(mat)
+    cm = constitutive_param_kwargs(get_constitutive_model(mat))
+    dmg = damage_param_kwargs(get_dmgmodel(mat))
+    check_kwarg_owners(mat, material, cm, dmg)
+    return (material..., cm..., dmg...)
+end
+
+function check_kwarg_owners(mat, material, cm, dmg)
+    owners = Dict{Symbol,Vector{String}}()
+    for (kwargs, owner) in ((material, "the material `$(nameof(typeof(mat)))`"),
+                            (cm, "the constitutive model"),
+                            (dmg, "the damage model"))
+        for kwarg in kwargs
+            push!(get!(Vector{String}, owners, kwarg), owner)
+        end
+    end
+    for (kwarg, names) in owners
+        length(names) > 1 || continue
+        msg = "the `material!` keyword `$(kwarg)` is declared more than once: by "
+        msg *= "$(join(names, " and "))!\n"
+        msg *= "  Rename the keyword with `@kwarg` in one of the declarations.\n"
+        throw(ArgumentError(msg))
+    end
     return nothing
 end
 
@@ -251,7 +288,9 @@ end
 
 function Base.show(io::IO, @nospecialize(params::AbstractPointParameters))
     print(io, nameof(typeof(params)), ": ")
-    print(io, msg_fields_inline(params, (:δ, :E, :nu, :rho, :Gc)))
+    props = Tuple(s for s in (:δ, :E, :nu, :rho, :Gc) if hasproperty(params, s))
+    values = Tuple(getproperty(params, s) for s in props)
+    print(io, _msg_fields_inline(props, values))
     return nothing
 end
 
@@ -261,7 +300,9 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, params)
     else
         println(io, nameof(typeof(params)), ":")
-        print(io, msg_fields(params))
+        props = flat_param_property_names(params)
+        values = Tuple(getproperty(params, s) for s in props)
+        print(io, _msg_fields(props, values))
     end
     return nothing
 end

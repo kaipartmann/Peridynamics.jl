@@ -588,8 +588,7 @@ function get_interaction_parameters(mat::AbstractInteractionSystemMaterial, para
 end
 
 function allowed_material_kwargs(::AbstractInteractionSystemMaterial)
-    kwargs = (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...,
-              :C1, :C2, :C3)
+    kwargs = (discretization_kwargs()..., elasticity_kwargs()..., :C1, :C2, :C3)
     return kwargs
 end
 

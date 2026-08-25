@@ -102,6 +102,12 @@ end
         bond_weight::BondScalar = 1.0
     end
 
+    # the model owns the standard fracture keywords: inheriting `FractureParameters`
+    # registers `Gc`/`epsilon_c` and resolves them through `get_frac_params` below
+    Peridynamics.@dmg_params FatigueDamage struct FatigueDamageParameters
+        @inherit FractureParameters
+    end
+
     function Peridynamics.get_frac_params(::FatigueDamage, δ, K; kwargs...)
         return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
     end
@@ -254,6 +260,9 @@ end
         wkin::Float64
         g::Float64
     end
+    Peridynamics.@dmg_params ConstSoftening struct ConstSofteningParameters
+        @inherit FractureParameters
+    end
     function Peridynamics.get_frac_params(::ConstSoftening, δ, K; kwargs...)
         return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
     end
@@ -326,6 +335,13 @@ end
             end
         end
     end
+    Peridynamics.@dmg_params SofteningNotSupported struct SofteningNotSupportedParameters
+        @inherit FractureParameters
+    end
+    Peridynamics.@dmg_params WeightNotSupported struct WeightNotSupportedParameters
+        @inherit FractureParameters
+    end
+
     @inline function Peridynamics.bond_integrity(::SofteningNotSupported,
                                                  ::Peridynamics.AbstractStorage, bond_id)
         return 0.5
@@ -407,4 +423,32 @@ end
     dh = submit(Job(body, DynamicRelaxation(steps=100)); quiet=true)
     @test all(dh.chunks[1].storage.bond_active)
     @test maximum(damage_state(dh.chunks[1].storage).bond_exceedances) >= 3
+end
+
+@testitem "CriticalStretch: Gc and εc live in the damage model parameters" begin
+    using Peridynamics: CriticalStretchParameters, damage_param_type, damage_param_kwargs,
+                        has_fracture
+
+    @test damage_param_type(CriticalStretch(), Float64) === CriticalStretchParameters{Float64}
+    @test damage_param_kwargs(CriticalStretch()) == (:Gc, :epsilon_c)
+    @test isbitstype(CriticalStretchParameters{Float64})
+
+    pos, vol = uniform_box(1.0, 1.0, 1.0, 0.5)
+    body = Body(BBMaterial(), pos, vol)
+    material!(body; horizon=1.5, rho=8e-6, E=2.1e5, Gc=2.7)
+    par = only(body.point_params)
+    @test par.dmg_params isa CriticalStretchParameters{Float64}
+    @test has_fracture(CriticalStretch(), par)
+    # failure permissions were granted through the flat reads of `Gc` and `εc`
+    @test all(body.fail_permit)
+
+    # without fracture keywords the parameters resolve to zero and failure stays prohibited
+    body0 = Body(BBMaterial(), pos, vol)
+    material!(body0; horizon=1.5, rho=8e-6, E=2.1e5)
+    @test only(body0.point_params).Gc == 0.0
+    @test !any(body0.fail_permit)
+
+    # a damage model without parameters prohibits failure by default
+    struct FPNoParamsDamage <: Peridynamics.AbstractDamageModel end
+    @test !has_fracture(FPNoParamsDamage(), par)
 end

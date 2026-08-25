@@ -444,7 +444,7 @@ function get_required_point_parameters(::AbstractBondSystemMaterial, p::Dict{Sym
 end
 
 function allowed_material_kwargs(::AbstractBondSystemMaterial)
-    return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...)
+    return (discretization_kwargs()..., elasticity_kwargs()...)
 end
 
 """

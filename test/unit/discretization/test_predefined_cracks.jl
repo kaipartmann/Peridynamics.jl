@@ -351,6 +351,9 @@ end
     Peridynamics.@dmg_storage MarkedDamage struct MarkedState
         bond_marked::BondScalar{Bool}
     end
+    Peridynamics.@dmg_params MarkedDamage struct MarkedDamageParameters
+        @inherit FractureParameters
+    end
     function Peridynamics.get_frac_params(::MarkedDamage, δ, K; kwargs...)
         return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
     end

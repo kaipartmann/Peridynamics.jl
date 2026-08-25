@@ -85,6 +85,8 @@ abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractStorageFields end
 abstract type AbstractPointParameterFields end
+abstract type AbstractConstitutiveParameters end
+abstract type AbstractDamageParameters end
 abstract type AbstractFieldShape{T} end
 abstract type AbstractSolverField end
 abstract type AbstractCondition end

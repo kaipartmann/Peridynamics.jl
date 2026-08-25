@@ -173,8 +173,7 @@ function get_bond_horizon(δ::Float64; bond_horizon=nothing)
 end
 
 function allowed_material_kwargs(::AbstractBondAssociatedSystemMaterial)
-    return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...,
-            :bond_horizon)
+    return (discretization_kwargs()..., elasticity_kwargs()..., :bond_horizon)
 end
 
 """

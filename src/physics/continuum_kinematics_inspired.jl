@@ -114,8 +114,8 @@ model.
 - `C3::Float64`: Material constant for three-neighbor interactions.
 """
 @params CKIMaterial struct CKIPointParameters
-    @inherit DiscretizationParameters ElasticParameters FractureParameters
-    @inherit InteractionParameters
+    @inherit DiscretizationParameters ElasticParameters InteractionParameters
+    dmg_params::DamageParameters
 end
 
 @storage CKIMaterial struct CKIStorage <: AbstractStorage

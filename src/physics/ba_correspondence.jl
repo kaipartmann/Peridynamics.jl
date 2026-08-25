@@ -135,9 +135,10 @@ correspondence formulation of Chen and Spencer.
 - `bc::Float64`: Bond constant.
 """
 @params BACMaterial struct BACPointParameters
-    @inherit DiscretizationParameters BondHorizonParameters
-    @inherit ElasticParameters FractureParameters
+    @inherit DiscretizationParameters BondHorizonParameters ElasticParameters
     @derived bc = 18 * K / (π * δ^4)
+    cm_params::ConstitutiveParameters
+    dmg_params::DamageParameters
 end
 
 @storage BACMaterial struct BACStorage
