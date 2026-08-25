@@ -206,7 +206,7 @@ end
                         j = ch.point_ids[system.bonds[bond_id].j]
                         push!(neighbors_of_loc, j)
                         # the bond length is the distance of the points of the body
-                        @test system.bonds[bond_id].length ≈ abs(position[1, i] - position[1, j])
+                        @test Peridynamics.get_bond(system, bond_id).L ≈ abs(position[1, i] - position[1, j])
                     end
                 end
                 @test Set(halo) == setdiff(neighbors_of_loc, ch.loc_points)
