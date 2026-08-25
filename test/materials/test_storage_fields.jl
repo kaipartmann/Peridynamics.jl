@@ -61,18 +61,19 @@
 
     # what each material adds to the common fields
     const MATERIAL_FIELDS = [
-        BBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds)),
-        DHBBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds)),
-        GBBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds),
+        BBMaterial() => Dict(:strain_energy_density => (1, :loc), :dmg_state => (:state,)),
+        DHBBMaterial() => Dict(:strain_energy_density => (1, :loc), :dmg_state => (:state,)),
+        GBBMaterial() => Dict(:strain_energy_density => (1, :loc), :dmg_state => (:state,),
                               :weighted_volume => (1, :loc)),
-        OSBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds)),
+        OSBMaterial() => Dict(:strain_energy_density => (1, :loc), :dmg_state => (:state,)),
         CMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :loc),
                             :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc),
-                            :cm_state => (:state,)),
+                            :cm_state => (:state,), :dmg_state => (:state,)),
         CRMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :loc),
                              :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc),
                              :unrotated_stress => (9, :loc), :left_stretch => (9, :loc),
-                             :rotation => (9, :loc), :zem_stiffness_rotated => (3, 3, 3, 3)),
+                             :rotation => (9, :loc), :zem_stiffness_rotated => (3, 3, 3, 3),
+                             :dmg_state => (:state,)),
         RKCMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :all),
                               :weighted_volume => (1, :all), :update_gradients => (1, :loc),
                               :dmg_state => (:state,),
@@ -86,11 +87,13 @@
                                :von_mises_stress => (1, :loc), :gradient_weight => (3, :bonds),
                                :bond_first_piola_kirchhoff => (9, :bonds),
                                :left_stretch => (9, :bonds), :rotation => (9, :bonds),
-                               :bond_unrot_cauchy_stress => (9, :bonds)),
+                               :bond_unrot_cauchy_stress => (9, :bonds),
+                               :dmg_state => (:state,)),
         BACMaterial() => Dict(:stress => (9, :loc), :von_mises_stress => (1, :loc),
-                              :bond_stress => (9, :neighbors), :cm_state => (:state,)),
+                              :bond_stress => (9, :neighbors), :cm_state => (:state,),
+                              :dmg_state => (:state,)),
         CKIMaterial() => Dict(:strain_energy_density => (1, :loc), :n_active_one_nis => (1, :loc),
-                              :one_ni_active => (1, :bonds)),
+                              :one_ni_active => (1, :bonds), :dmg_state => (:state,)),
     ]
 
     # the expected size of a field with shape `spec`, given the `counts` of the system

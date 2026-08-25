@@ -33,14 +33,13 @@
                                                system::Peridynamics.BondSystem, ::TestMaterial,
                                                params::TestPointParameters, t, Δt, i)
         for bond_id in Peridynamics.each_bond_idx(system, i)
-            bond = system.bonds[bond_id]
-            j, L = bond.neighbor, bond.length
+            (; j, L) = Peridynamics.get_bond(system, bond_id)
             Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
             l = Peridynamics.LinearAlgebra.norm(Δxij)
             ε = (l - L) / L
             b_int = storage.bond_active[bond_id] *
-                    Peridynamics.surface_correction_factor(system.correction, bond_id) *
-                    params.bc * ε / l * system.volume[j] .* Δxij
+                    Peridynamics.surface_correction_factor(system, bond_id) *
+                    params.bc * ε / l * Peridynamics.get_volume(system, j) .* Δxij
             Peridynamics.update_add_vector!(storage.b_int, i, b_int)
         end
         return nothing

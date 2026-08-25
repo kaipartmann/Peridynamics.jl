@@ -96,67 +96,85 @@ end
 
 
 """
-    get_frac_params(dmgmodel, δ, K; kwargs...)
+    critical_stretch(mat, δ, K, Gc)
 
 $(extension_api_note())
 
-Read or calculate the fracture parameters of a damage model from the fracture keywords of
-[`material!`](@ref). This function has to be defined when creating a new damage model.
-Otherwise, a default method returns an empty named tuple `(; )`.
-
-Every fracture keyword of `material!` is passed to this function, and a keyword the user
-did not specify arrives as `nothing`. That is how a damage model decides which keywords
-it accepts and how it converts them into each other. A method declares **only the keywords
-its model reads** and collects everything else in `kwargs...`, so a model that has no
-notion of a critical strain never has to mention `epsilon_c`:
+Return the critical stretch `εc` that belongs to the critical energy release rate `Gc` of a
+material with the horizon `δ` and the bulk modulus `K`. The default is the relation of the
+constant micro-modulus of bond-based peridynamics, `εc = sqrt(5 Gc / (9 K δ))`. The
+relation depends on the micro-modulus, so a material with another one defines this method
+and [`energy_release_rate`](@ref), and `material!(...; Gc)` converts correctly for it:
 
 ```julia
-function Peridynamics.get_frac_params(::MyDamage, δ, K; Gc=nothing, kwargs...)
+Peridynamics.critical_stretch(::MyMaterial, δ, K, Gc) = sqrt(2 * Gc / (3 * K * δ))
+Peridynamics.energy_release_rate(::MyMaterial, δ, K, εc) = 1.5 * K * δ * εc^2
+```
+
+See also [`get_frac_params`](@ref).
+"""
+critical_stretch(mat, δ, K, Gc) = sqrt(5.0 * Gc / (9.0 * K * δ))
+
+"""
+    energy_release_rate(mat, δ, K, εc)
+
+$(extension_api_note())
+
+Return the critical energy release rate `Gc` that belongs to the critical stretch `εc`, the
+inverse of [`critical_stretch`](@ref). The default is `Gc = 9/5 K δ εc^2`, the relation of
+the constant micro-modulus. A material that defines `critical_stretch` defines this method
+as well, so that `Gc` and `epsilon_c` stay consistent whichever one the user gives.
+"""
+energy_release_rate(mat, δ, K, εc) = 9.0 / 5.0 * K * δ * εc^2
+
+"""
+    get_frac_params(dmgmodel, mat, δ, K; kwargs...)
+
+$(extension_api_note())
+
+Return the fracture parameters `Gc` and `εc` of a damage model as a `NamedTuple`, resolved
+from the fracture keywords of [`material!`](@ref). This is the provider of the
+[`FractureParameters`](@ref) block, and the default serves every damage model that inherits
+the block: `Gc` and `epsilon_c` are converted into each other with
+[`critical_stretch`](@ref) and [`energy_release_rate`](@ref) of the material, giving both
+is an error, and giving neither switches fracture off with `Gc = εc = 0`.
+
+A damage model defines its own method only when it reads other keywords or converts them
+differently. Every fracture keyword arrives as a keyword argument, and one the user did not
+give arrives as `nothing`, which is how a method decides what it accepts:
+
+```julia
+function Peridynamics.get_frac_params(::MyDamage, mat, δ, K; Gc=nothing, kwargs...)
     isnothing(Gc) && return (; Gc=0.0, εc=0.0)
-    return (; Gc, εc=sqrt(5.0 * Gc / (9.0 * K * δ)))
+    return (; Gc, εc=Peridynamics.critical_stretch(mat, δ, K, Gc))
 end
 ```
 
-The keywords a method reads are the fracture keywords `material!` accepts for a body
-with that damage model, see [`@dmg_params`](@ref). A keyword the method does not read is
-ignored.
-
 # Arguments
-- `dmgmodel::AbstractDamageModel`: The damage model
-- `δ::Float64`: Horizon
-- `K::Float64`: Bulk modulus
+
+- `dmgmodel`: The damage model.
+- `mat`: The material, so that a conversion can depend on it.
+- `δ`: The horizon.
+- `K`: The bulk modulus.
 
 # Keywords
-- `Gc`: Critical energy release rate, or `nothing` if not specified
-- `epsilon_c`: Critical strain, or `nothing` if not specified
+
+- `Gc`: The critical energy release rate, or `nothing` if not given.
+- `epsilon_c`: The critical stretch, or `nothing` if not given.
 """
-function get_frac_params end
-
-function get_frac_params(::CriticalStretch, δ::Real, K::Real; Gc=nothing,
-                         epsilon_c=nothing, kwargs...)
-    local _Gc::Float64
-    local εc::Float64
-
-    if !isnothing(Gc) && isnothing(epsilon_c)
-        _Gc = float(Gc)
-        εc = sqrt(5.0 * _Gc / (9.0 * K * δ))
-    elseif isnothing(Gc) && !isnothing(epsilon_c)
-        εc = float(epsilon_c)
-        _Gc = 9.0 / 5.0 * K * δ * εc^2
-    elseif !isnothing(Gc) && !isnothing(epsilon_c)
+function get_frac_params(::AbstractDamageModel, mat, δ, K; Gc=nothing, epsilon_c=nothing,
+                         kwargs...)
+    if !isnothing(Gc) && !isnothing(epsilon_c)
         msg = "insufficient keywords for calculation of fracture parameters!\n"
         msg *= "Define either Gc or epsilon_c, not both!\n"
         throw(ArgumentError(msg))
-    else
-        _Gc = 0.0;
-        εc = 0.0;
+    elseif !isnothing(Gc)
+        return (; Gc=float(Gc), εc=float(critical_stretch(mat, δ, K, Gc)))
+    elseif !isnothing(epsilon_c)
+        return (; Gc=float(energy_release_rate(mat, δ, K, epsilon_c)),
+                εc=float(epsilon_c))
     end
-
-    return (; Gc=_Gc, εc)
-end
-
-function get_frac_params(::AbstractDamageModel, δ, K; kwargs...)
-    return (; )
+    return (; Gc=0.0, εc=0.0)
 end
 
 """
@@ -181,7 +199,7 @@ function set_failure_permissions!(body::AbstractBody, set_name::Symbol,
 end
 
 """
-    calc_failure!(storage, system, mat, dmgmodel, paramsetup, i)
+    calc_failure!(storage, system, mat, dmgmodel, paramsetup, t, Δt, i)
 
 $(extension_api_note())
 
@@ -189,10 +207,11 @@ Decide which bonds of point `i` have failed and update the fracture bookkeeping 
 storage accordingly. This is the one method a damage model has to define. It is called once
 per local point and per time step, right before [`force_density_point!`](@ref).
 
-A method sets `storage.bond_active[bond_id] = false` for every bond that fails and keeps
-`storage.n_active_bonds[i]` in sync, because that count is what `calc_damage!` turns into the
-damage of the point. A bond whose `bond.fail_permit` is `false` must never fail, which is how
-`no_failure!` and the pre-cracks are honored.
+A method sets `storage.bond_active[bond_id] = false` for every bond that fails and adds
+every bond that is still active to `storage.n_active_bonds[i]`, because that count is what
+[`calc_damage!`](@ref) turns into the damage of the point. A bond whose `fail_permit` is
+`false` must never fail, which is how [`no_failure!`](@ref) and the pre-cracks are honored.
+A model with a state of its own reaches it with [`damage_state`](@ref).
 
 # Arguments
 
@@ -201,19 +220,23 @@ damage of the point. A bond whose `bond.fail_permit` is `false` must never fail,
 - `mat`: The material.
 - `dmgmodel`: The damage model, i.e. what a new model dispatches on.
 - `paramsetup`: The parameters of the body chunk. Resolve them with [`get_params`](@ref).
+- `t::Real`: The current simulation time.
+- `Δt::Real`: The current time step.
 - `i::Int`: The index of the local point that is evaluated.
 
 # Example
 
-```julia
-struct MyDamage <: Peridynamics.AbstractDamageModel end
+The criterion of [`CriticalStretch`](@ref), which is what a model with another criterion
+replaces:
 
-function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup, i)
-    params = Peridynamics.get_params(paramsetup, i)
-    for bond_id in Peridynamics.each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        ε = ... # the stretch of the bond
-        if ε > params.εc && bond.fail_permit
+```julia
+function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup, t, Δt, i)
+    (; εc) = get_params(paramsetup, i)
+    for bond_id in each_bond_idx(system, i)
+        (; j, L, fail_permit) = get_bond(system, bond_id)
+        Δxij = get_vector_diff(storage.position, i, j)
+        ε = (norm(Δxij) - L) / L
+        if ε > εc && fail_permit
             storage.bond_active[bond_id] = false
         end
         storage.n_active_bonds[i] += storage.bond_active[bond_id]
@@ -222,33 +245,47 @@ function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup
 end
 ```
 
-See also [`get_frac_params`](@ref), [`has_fracture`](@ref), `AbstractDamageModel`.
+The tutorial on custom damage models builds a model with a state of its own on this.
 """
-function calc_failure! end
+function calc_failure!(storage, system, mat, dmgmodel::AbstractDamageModel, paramsetup, t, Δt,
+                       i)
+    name = nameof(typeof(dmgmodel))
+    hint = "Define the failure criterion of `$(name)`, e.g.\n"
+    hint *= "        function Peridynamics.calc_failure!(storage, system, mat, ::$(name), "
+    hint *= "paramsetup, t, Δt, i)\n"
+    hint *= "            ...\n"
+    hint *= "        end"
+    return throw(InterfaceError(dmgmodel, "calc_failure!", hint))
+end
 
 """
     has_fracture(mat, params)
+    has_fracture(dmgmodel, params)
 
-$(internal_api_warning())
+$(extension_api_note())
 
-Return `true` if at least one fracture parameter is set `!=0` in `params` and the system
-therefore is supposed to have failure allowed or return `false` if not.
+Return whether the point parameters `params` enable fracture, which decides whether the
+bonds of the points that [`material!`](@ref) assigns them to may fail. The default reads
+the standard fracture parameters: fracture is enabled when `params` carry `Gc` and `εc` and
+both are nonzero, which is the case for every damage model that inherits
+[`FractureParameters`](@ref) as soon as the user gives `Gc` or `epsilon_c`. A model whose
+own parameters are the fracture parameters answers for itself:
+
+```julia
+Peridynamics.has_fracture(::MyDamage, params) = true
+```
 """
 function has_fracture(mat::AbstractMaterial, params::AbstractPointParameters)
-    return has_fracture(mat.dmgmodel, params)
+    return has_fracture(get_dmgmodel(mat), params)
 end
 
-# a damage model that declares no fracture parameters cannot say when a bond fails, so
-# failure stays prohibited unless the model defines its own method
-has_fracture(::AbstractDamageModel, params) = false
-
-function has_fracture(::CriticalStretch, params::AbstractPointParameters)
-    if isapprox(params.Gc, 0; atol=eps()) || isapprox(params.εc, 0; atol=eps())
-        return false
-    else
-        return true
-    end
+function has_fracture(::AbstractDamageModel, params)
+    (hasproperty(params, :Gc) && hasproperty(params, :εc)) || return false
+    return !(isapprox(params.Gc, 0; atol=eps()) || isapprox(params.εc, 0; atol=eps()))
 end
+
+# a material without a damage model has nothing that could break a bond
+has_fracture(::Nothing, params) = false
 
 """
     get_dmgmodel(mat::AbstractMaterial)
@@ -376,14 +413,15 @@ resolved by [`get_frac_params`](@ref) of the damage model, which decides which o
 fracture keywords it reads and how it converts them into each other. The block belongs to
 the damage model, so it is inherited inside a [`@dmg_params`](@ref) declaration: this is
 how [`CriticalStretch`](@ref) declares its parameters, and a custom damage model that
-wants the standard fracture keywords inherits it the same way. It reads the horizon `δ`
-and the bulk modulus `K` of the material parameters declared above the
+wants the standard fracture keywords inherits it the same way. It reads the material
+`mat`, so that the conversion can depend on its micro-modulus, and the horizon `δ` and the
+bulk modulus `K` of the material parameters declared above the
 `dmg_params::DamageParameters` marker. See [`@params_fields`](@ref).
 
 $(block_table(FractureParameters))
 """
 @params_fields FractureParameters begin
-    @derived (; Gc, εc) = get_frac_params(model, δ, K; Gc, epsilon_c)
+    @derived (; Gc, εc) = get_frac_params(model, mat, δ, K; Gc, epsilon_c)
     @log "critical energy release rate" Gc
     @log "critical stretch" εc
 end

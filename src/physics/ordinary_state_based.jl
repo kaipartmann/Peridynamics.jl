@@ -114,7 +114,7 @@ $(extension_api_note())
 
 Storage of [`OSBMaterial`](@ref): the fields of the three time solvers and of the fracture
 bookkeeping, `b_int` exchanged halo to local, the strain energy density of every point and
-the current length of every bond.
+the state of the damage model.
 
 $(block_table(OSBStorage))
 """
@@ -123,29 +123,7 @@ $(block_table(OSBStorage))
     @inherit BondFracFields
     @htl b_int::PointVector
     strain_energy_density::PointScalar
-    bond_length::BondScalar
-end
-
-# Customized calc_failure to save the bond length for force density calculation
-function calc_failure!(storage::OSBStorage, system::BondSystem,
-                       ::OSBMaterial, ::CriticalStretch,
-                       paramsetup::AbstractParameterSetup, i)
-    (; εc) = get_params(paramsetup, i)
-    (; position, n_active_bonds, bond_active, bond_length) = storage
-    (; bonds) = system
-    for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
-        l = norm(Δxij)
-        bond_length[bond_id] = l # this is customized!
-        ε = (l - L) / L
-        if ε > εc && bond.fail_permit
-            bond_active[bond_id] = false
-        end
-        n_active_bonds[i] += bond_active[bond_id]
-    end
-    return nothing
+    dmg_state::DamageState
 end
 
 function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
@@ -153,15 +131,14 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
     wvol = calc_weighted_volume(storage, system, mat, params, i)
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, mat, params, wvol, i)
-    (; position, bond_active, b_int, bond_length) = storage
-    (; bonds, correction, volume) = system
+    (; position, bond_active, b_int) = storage
+    (; correction, volume) = system
     c1 = 15.0 * params.G / wvol
     c2 = dil * (3.0 * params.K / wvol - c1 / 3.0)
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        (; j, L) = get_bond(system, bond_id)
         Δxij = get_vector_diff(position, i, j)
-        l = bond_length[bond_id]
+        l = norm(Δxij)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
         β = surface_correction_factor(correction, bond_id)
         p = ωij * β * (c2 * L + c1 * (l - L)) / l .* Δxij
@@ -177,13 +154,12 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
     wvol = calc_weighted_volume(storage, system, mat, params_i, i)
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, mat, params_i, wvol, i)
-    (; position, bond_active, b_int, bond_length) = storage
-    (; bonds, correction, volume) = system
+    (; position, bond_active, b_int) = storage
+    (; correction, volume) = system
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        (; j, L) = get_bond(system, bond_id)
         Δxij = get_vector_diff(position, i, j)
-        l = bond_length[bond_id]
+        l = norm(Δxij)
         params_j = get_params(paramhandler, j)
         c1 = 15.0 * (params_i.G + params_j.G) / (2 * wvol)
         c2 = dil * (3.0 * (params_i.K + params_j.K) / (2 * wvol) - c1 / 3.0)
@@ -200,8 +176,7 @@ function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBM
                               params::OSBPointParameters, i)
     wvol = 0.0
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j = bond.neighbor
+        (; j) = get_bond(system, bond_id)
         ΔXij = get_vector_diff(system.position, i, j)
         ΔXij_sq = dot(ΔXij, ΔXij)
         ωij = kernel(system, bond_id) * storage.bond_active[bond_id]
@@ -216,9 +191,8 @@ function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMateri
     dil = 0.0
     c1 = 3.0 / wvol
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        l = storage.bond_length[bond_id]
+        (; j, L) = get_bond(system, bond_id)
+        l = norm(get_vector_diff(storage.position, i, j))
         ωij = kernel(system, bond_id) * storage.bond_active[bond_id]
         β = surface_correction_factor(system.correction, bond_id)
         dil += ωij * β * c1 * L * (l - L) * system.volume[j]
@@ -230,9 +204,8 @@ end
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       mat::OSBMaterial, paramsetup::AbstractParameterSetup,
                                       i)
-    (; bond_active, bond_length, strain_energy_density) = storage
-    (; bonds, correction, volume) = system
-    update_bond_lengths!(storage, system, mat, i)
+    (; position, bond_active, strain_energy_density) = storage
+    (; correction, volume) = system
     params_i = get_params(paramsetup, i)
     wvol = calc_weighted_volume(storage, system, mat, params_i, i)
     iszero(wvol) && return nothing
@@ -240,9 +213,8 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
     Ψvol = 0.5 * params_i.K * dil^2
     Ψdev = 0.0
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        l = bond_length[bond_id]
+        (; j, L) = get_bond(system, bond_id)
+        l = norm(get_vector_diff(position, i, j))
         e = l - L
         edev = e - 1/3 * dil * L
         ωij = kernel(system, bond_id) * bond_active[bond_id]
@@ -254,19 +226,6 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
     end
     Ψ = Ψvol + Ψdev
     strain_energy_density[i] = Ψ
-    return nothing
-end
-
-function update_bond_lengths!(storage::AbstractStorage, system::BondSystem,
-                              ::OSBMaterial, i)
-    (; position, bond_length) = storage
-    (; bonds) = system
-    for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
-        Δxij = get_vector_diff(position, i, j)
-        @inbounds bond_length[bond_id] = norm(Δxij)
-    end
     return nothing
 end
 

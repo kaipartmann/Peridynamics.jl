@@ -52,6 +52,8 @@ LIT_TUTORIALS_IN = [
     "tutorial_wave_interface.jl",
     "tutorial_brazilian_test.jl",
     "tutorial_custom_material.jl",
+    "tutorial_custom_damage_model.jl",
+    "tutorial_custom_constitutive_model.jl",
 ]
 LIT_TUTORIALS_IN .= joinpath.(@__DIR__, "src", "literate", LIT_TUTORIALS_IN)
 Literate.markdown.(LIT_TUTORIALS_IN, LIT_MD_OUT; credit=false)
@@ -159,6 +161,9 @@ makedocs(;
         # still catches something worth knowing.
         size_threshold_ignore = ["internals.md", "public_api_reference.md",
                                  "extension_api_reference.md"],
+        # the search index covers every internal docstring through `internals.md`, so it
+        # is larger than the default warn limit of 500 KiB; the hard limit stays at 1 MiB
+        search_size_threshold_warn = 768 * 2^10,
     ),
     draft = LIVE_MODE,
     pages = [
@@ -190,6 +195,8 @@ makedocs(;
         ],
         "Development" => [
             joinpath("generated", "tutorial_custom_material.md"),
+            joinpath("generated", "tutorial_custom_damage_model.md"),
+            joinpath("generated", "tutorial_custom_constitutive_model.md"),
             "dev_systems.md",
             "dev_materials.md",
             joinpath("generated", "inheritable_blocks.md"),

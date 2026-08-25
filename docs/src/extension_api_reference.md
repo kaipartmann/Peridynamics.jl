@@ -6,9 +6,11 @@ model or a set of point parameters of your own. They are not exported, so write 
 
 They are declared `public` in `src/public_api.jl` and are stable within a minor release. See
 [API stability](@ref) for what exactly that promises and which parts of the package are
-deliberately left out of it. The tutorial [Writing your own material](@ref
-tutorial_custom_material) shows most of them in use, and [Materials](@ref) is the manual of
-the declaration language.
+deliberately left out of it. The tutorials [Writing your own material](@ref
+tutorial_custom_material), [Writing your own damage model](@ref
+tutorial_custom_damage_model) and [Writing your own constitutive model](@ref
+tutorial_custom_constitutive_model) show them in use, and [Materials](@ref) is the manual
+of the declaration language.
 
 ```@meta
 CollapsedDocStrings = true
@@ -187,11 +189,14 @@ Peridynamics.AbstractTimeSolver
 ## Systems
 
 The discretization of a body chunk. A material dispatches on it to say which discretization
-it is written for.
+it is written for. The fields of a system are internal, a material reads it through the
+accessors under [Accessing a system and its parameters](@ref). A bond is an immutable
+record, so its fields are the API.
 
 ```@docs
 Peridynamics.BondSystem
 Peridynamics.InteractionSystem
+Peridynamics.Bond
 ```
 
 ## The material interface
@@ -219,8 +224,12 @@ Peridynamics.supports_history_dependence
 
 ## The damage model interface
 
-A damage model decides which bonds fail, and it may carry per-bond state of its own. A model
-that softens a bond instead of deleting it does so through
+A damage model decides which bonds fail, and it may carry per-bond state of its own. The
+relation between the critical energy release rate `Gc` and the critical stretch `εc`
+depends on the micro-modulus, so a material with a non-constant one defines
+[`critical_stretch`](@ref Peridynamics.critical_stretch) and
+[`energy_release_rate`](@ref Peridynamics.energy_release_rate). A model that softens a bond
+instead of deleting it does so through
 [`bond_integrity`](@ref Peridynamics.bond_integrity) for the load the bond still carries and
 [`kinematic_weight`](@ref Peridynamics.kinematic_weight) for what it contributes to the
 deformation gradient. A material says with
@@ -233,6 +242,8 @@ Peridynamics.calc_failure!
 Peridynamics.calc_damage!
 Peridynamics.get_dmgmodel
 Peridynamics.get_frac_params
+Peridynamics.critical_stretch
+Peridynamics.energy_release_rate
 Peridynamics.has_fracture
 Peridynamics.damage_state
 Peridynamics.damage_storage_type
@@ -244,10 +255,18 @@ Peridynamics.supports_kinematic_weight
 
 ## Accessing a system and its parameters
 
+What a force density or a failure criterion reads: the points and bonds of the chunk
+through the iterators, a bond and its neighbor through `get_bond` and `get_volume`, and
+the parameters of a point through `get_params`.
+
 ```@docs
 Peridynamics.get_params
 Peridynamics.each_point_idx
 Peridynamics.each_bond_idx
+Peridynamics.get_bond
+Peridynamics.get_volume
+Peridynamics.get_position
+Peridynamics.get_n_neighbors
 Peridynamics.get_n_points
 Peridynamics.get_n_loc_points
 Peridynamics.get_n_bonds

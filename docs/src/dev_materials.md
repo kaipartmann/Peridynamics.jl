@@ -1,9 +1,12 @@
 # Materials
 
 A material decides which peridynamic formulation a body is simulated with. This page is the
-manual of the declaration language a material is written in. The tutorial
-[Writing your own material](@ref tutorial_custom_material) walks through a complete example
-first, and [Extension API](@ref) lists every name used here.
+manual of the declaration language a material, a damage model and a constitutive model are
+written in. The complete, runnable examples are the three tutorials
+[Writing your own material](@ref tutorial_custom_material),
+[Writing your own damage model](@ref tutorial_custom_damage_model) and
+[Writing your own constitutive model](@ref tutorial_custom_constitutive_model), and
+[Extension API](@ref) lists every name used here.
 
 ## The materials of this package
 
@@ -31,7 +34,29 @@ A material needs four things:
    [`force_density_point!`](@ref Peridynamics.force_density_point!).
 
 Everything these need is part of the [Extension API](@ref), so it is written as
-`Peridynamics.<name>` or imported explicitly.
+`Peridynamics.<name>` or imported explicitly. Inside the force density a material reads
+the system through its accessors, with `(; j, L) = get_bond(system, bond_id)` as the idiom
+for a bond, and the storage through the fields of the blocks it inherited and its own
+fields:
+
+```julia
+function Peridynamics.force_density_point!(storage::MyStorage, system::BondSystem,
+                                           mat::MyMaterial, params, t, Δt, i)
+    for bond_id in each_bond_idx(system, i)
+        (; j, L) = get_bond(system, bond_id)
+        Δxij = get_vector_diff(storage.position, i, j)
+        l = norm(Δxij)
+        ε = (l - L) / L
+        ω = storage.bond_active[bond_id] * surface_correction_factor(system, bond_id)
+        b = ω * params.bc * ε * get_volume(system, j) / l .* Δxij
+        update_add_vector!(storage.b_int, i, b)
+    end
+    return nothing
+end
+```
+
+Which bonds are broken was decided right before by the damage model, so the force density
+multiplies `bond_active` in and never changes it.
 
 ### Two names that are not free
 
@@ -50,7 +75,10 @@ spelled exactly like this:
   an explicit solver is estimated from it. `@inherit StandardParameters` already derives it.
   A material that derives its own has to keep the name. If the bond stiffness is not
   constant over the family, declare `bc` as its largest value, so that the estimate stays
-  on the safe side.
+  on the safe side. Such a material also defines
+  [`critical_stretch`](@ref Peridynamics.critical_stretch) and
+  [`energy_release_rate`](@ref Peridynamics.energy_release_rate), because the relation
+  between `Gc` and `εc` depends on the micro-modulus.
 
 ## Declaring the point parameters
 
@@ -323,9 +351,13 @@ blocks:
 Peridynamics.@storage BBMaterial struct BBStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields BondFracFields
     strain_energy_density::PointScalar
-    bond_length::BondScalar
+    dmg_state::DamageState
 end
 ```
+
+The marker `dmg_state::DamageState` is the place for the state of the damage model, see
+below. Every storage of this package declares it, so every damage model runs on every
+material.
 
 Own field blocks are defined with [`@storage_fields`](@ref Peridynamics.@storage_fields):
 
@@ -360,40 +392,31 @@ the reason why it is required.
 The correspondence families ([`CMaterial`](@ref), [`RKCMaterial`](@ref),
 [`BACMaterial`](@ref)) do not fix the stress-strain relation. They take a **constitutive
 model** and ask it for the first Piola-Kirchhoff stress that belongs to a deformation
-gradient, so a new material behavior usually does not need a new material at all:
+gradient, so a new material behavior usually does not need a new material at all. A model
+is a subtype of [`AbstractConstitutiveModel`](@ref Peridynamics.AbstractConstitutiveModel)
+that defines [`first_piola_kirchhoff`](@ref Peridynamics.first_piola_kirchhoff):
 
 ```julia
 struct MyModel <: Peridynamics.AbstractConstitutiveModel end
 
 function Peridynamics.first_piola_kirchhoff(::MyModel, storage, params, F)
-    E = 0.5 .* (F' * F - I)
-    S = params.λ * tr(E) * I + 2 * params.μ * E
-    return F * S
+    return ...
 end
 ```
 
 `RKCMaterial(model=MyModel())` then works, and so does every other family, on threads and
-with MPI.
+with MPI. The tutorial [Writing your own constitutive model](@ref
+tutorial_custom_constitutive_model) writes a hyperelastic and a plastic model in full.
 
 ### Parameters of a model
 
 A model that needs parameters of its own declares them with
-[`@cm_params`](@ref Peridynamics.@cm_params), in the same language as `@params`:
-
-```julia
-struct J2Plasticity <: Peridynamics.AbstractConstitutiveModel end
-
-Peridynamics.@cm_params J2Plasticity struct J2PlasticityParameters
-    @log "yield stress" sigma_y
-    @log "hardening modulus" H = 0.0
-end
-```
-
-`material!` then accepts `sigma_y` and `H` for every material whose point parameters carry
-the marker `cm_params::ConstitutiveParameters`, which the correspondence families do. The
-parameters are read as `params.sigma_y` inside the stress update. A declaration may read
-every material parameter declared above the marker, e.g. the shear modulus `μ`, and the
-model instance is available as `model`.
+[`@cm_params`](@ref Peridynamics.@cm_params), in the same language as `@params`. They
+become keywords of `material!` for every material whose point parameters carry the marker
+`cm_params::ConstitutiveParameters`, which the correspondence families do, and they are
+read flat off the point parameters, e.g. `params.sigma_y`. A declaration may read every
+material parameter declared above the marker, e.g. the shear modulus `μ`, the model
+instance is available as `model` and the material as `mat`.
 
 ### History-dependent models
 
@@ -402,44 +425,35 @@ creep, declares that state with [`@cm_storage`](@ref Peridynamics.@cm_storage), 
 accepts the same field declarations as [`@storage`](@ref Peridynamics.@storage):
 
 ```julia
-Peridynamics.@cm_storage J2Plasticity struct J2PlasticityState
+Peridynamics.@cm_storage MyPlasticModel struct MyPlasticState
     bond_plastic_strain::BondSymTensor
     bond_eqps::BondScalar
 end
 ```
 
 The state is reached inside the stress update with
-[`constitutive_state`](@ref Peridynamics.constitutive_state), and the stress update takes
-two more arguments: the index of the evaluated quantity and the time step.
+[`constitutive_state`](@ref Peridynamics.constitutive_state), and the stress update then
+takes two more arguments, the index of the evaluated quantity and the time step:
 
 ```julia
-function Peridynamics.first_piola_kirchhoff(cm::J2Plasticity, storage, params, F, idx, Δt)
+function Peridynamics.first_piola_kirchhoff(::MyPlasticModel, storage, params, F, idx, Δt)
     state = Peridynamics.constitutive_state(storage)
-    εᵖ = Peridynamics.get_sym_tensor(state.bond_plastic_strain, idx)
-    # ... radial return ...
-    Peridynamics.update_sym_tensor!(state.bond_plastic_strain, idx, εᵖ_new)
-    return P
+    ...
 end
 ```
 
 A model that needs no state defines the four-argument form above, which is bridged to this
-one, so nothing that was written before has to change.
+one. What `idx` indexes follows from the material family, so the state is declared with the
+matching field shapes:
 
-What `idx` indexes follows from the material family:
-
-| material family | `idx` |
-|:---|:---|
-| [`CMaterial`](@ref) | point index |
-| [`RKCMaterial`](@ref), [`BACMaterial`](@ref) | bond index |
+| material family | `idx` | state shapes |
+|:---|:---|:---|
+| [`CMaterial`](@ref) | point index | `Point...` |
+| [`RKCMaterial`](@ref), [`BACMaterial`](@ref) | bond index | `Bond...` |
 
 The state has to be carried by the storage of the material, which the storages of the three
-families above already do with the declaration
-
-```julia
-cm_state::ConstitutiveState
-```
-
-It contributes one type parameter to the storage, which
+families above already do with the declaration `cm_state::ConstitutiveState`. It
+contributes one type parameter to the storage, which
 [`storage_type`](@ref Peridynamics.storage_type) fills with the state of the model that is
 actually used, so the storage stays concrete and a model without state costs a zero-size
 field. The state is chunk-local and is never exchanged between chunks, which is why the halo
@@ -463,38 +477,54 @@ that is outside of the time integration.
 
 ## Damage models
 
-A damage model decides how much of a bond is left. The one method it has to define is
-[`calc_failure!`](@ref Peridynamics.calc_failure!), which is called once per local point and
-per time step, right before the force density.
+A damage model decides when a bond fails. It is a subtype of
+[`AbstractDamageModel`](@ref Peridynamics.AbstractDamageModel), and the one method it has to
+define is [`calc_failure!`](@ref Peridynamics.calc_failure!), which is called once per local
+point and per time step, right before the force density, with the time and the time step:
+
+```julia
+function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup, t, Δt, i)
+    (; εc) = get_params(paramsetup, i)
+    for bond_id in each_bond_idx(system, i)
+        (; j, L, fail_permit) = get_bond(system, bond_id)
+        ...
+        storage.n_active_bonds[i] += storage.bond_active[bond_id]
+    end
+    return nothing
+end
+```
+
+A method deactivates the bonds that fail, counts the ones that are still active in
+`n_active_bonds`, and never breaks a bond whose `fail_permit` is `false`, because that is
+how [`no_failure!`](@ref) and the pre-cracks are honored. The tutorial
+[Writing your own damage model](@ref tutorial_custom_damage_model) writes a model with a
+delay in full.
 
 ### Fracture parameters
 
 A damage model owns its fracture parameters and declares them with
-[`@dmg_params`](@ref Peridynamics.@dmg_params). The
-[`FractureParameters`](@ref Peridynamics.FractureParameters) block is the standard set,
-`Gc` and `εc`, resolved by [`get_frac_params`](@ref Peridynamics.get_frac_params) of the
-model from the keywords `Gc` and `epsilon_c` of `material!`:
+[`@dmg_params`](@ref Peridynamics.@dmg_params). Inheriting the
+[`FractureParameters`](@ref Peridynamics.FractureParameters) block brings the standard pair
+`Gc` and `εc`, resolved from the keywords `Gc` and `epsilon_c` of `material!` by
+[`get_frac_params`](@ref Peridynamics.get_frac_params), and a model adds keywords of its
+own next to it:
 
 ```julia
-struct MyDamage <: Peridynamics.AbstractDamageModel end
-
 Peridynamics.@dmg_params MyDamage struct MyDamageParameters
     @inherit FractureParameters
-end
-
-function Peridynamics.get_frac_params(::MyDamage, δ, K; Gc=nothing, epsilon_c=nothing,
-                                      kwargs...)
-    # convert the keywords the user gave into `Gc` and `εc`
-    return (; Gc, εc)
+    @log "failure delay" @kwarg tau τ
 end
 ```
 
-A keyword the user did not give arrives as `nothing`, which is how the model decides which
-keywords it accepts and how it converts them into each other.
-[`has_fracture`](@ref Peridynamics.has_fracture) says whether fracture is enabled for a
-parameter set, which decides the failure permission of the points. A model whose own
-parameters are the fracture parameters declares them in the same block and returns `true`
-from `has_fracture`, and then `material!` needs no fracture keyword.
+Two things come for free with the block. The conversion between `Gc` and `εc` is the
+default of every damage model, and it asks the material through
+[`critical_stretch`](@ref Peridynamics.critical_stretch) and
+[`energy_release_rate`](@ref Peridynamics.energy_release_rate), because the relation depends
+on the micro-modulus. And [`has_fracture`](@ref Peridynamics.has_fracture), which decides
+whether the bonds of a point set may fail at all, reads `Gc` and `εc` by default, so leaving
+both keywords out switches fracture off as it does for `CriticalStretch`. A model that
+converts other keywords defines `get_frac_params`, a model whose own parameters are the
+fracture parameters defines `has_fracture`.
 
 A material carries the parameters of its damage model in the `dmg_params::DamageParameters`
 marker field, which `@inherit StandardParameters` includes.
@@ -512,15 +542,10 @@ end
 ```
 
 The state is reached with [`damage_state`](@ref Peridynamics.damage_state), and a material
-carries it by declaring one field:
-
-```julia
-dmg_state::DamageState
-```
-
-A material that declares that field supports **every** damage model, stateful or not,
-without knowing any of them. The model brings its own arrays instead of the material having
-to allocate them for it. A model without state answers `nothing`, and no arrays are
+carries it by declaring the field `dmg_state::DamageState`, which every storage of this
+package does. A material that declares that field supports **every** damage model, stateful
+or not, without knowing any of them. The model brings its own arrays instead of the material
+having to allocate them for it. A model without state answers `nothing`, and no arrays are
 allocated at all.
 
 Unlike a constitutive state, a damage state does not make anything history dependent. A

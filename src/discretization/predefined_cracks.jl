@@ -83,16 +83,14 @@ end
 function failure_by_sets!(storage, system::AbstractBondSystem, ::AbstractDamageModel, set_a,
                           set_b)
     (; n_active_bonds, bond_active) = storage
-    (; bonds) = system
     n_active_bonds .= 0
     for i in each_point_idx(system)
         for bond_id in each_bond_idx(system, i)
-            bond = bonds[bond_id]
-            neighbor_id = bond.neighbor
+            (; j) = get_bond(system, bond_id)
             point_in_a = in(i, set_a)
             point_in_b = in(i, set_b)
-            neigh_in_a = in(neighbor_id, set_a)
-            neigh_in_b = in(neighbor_id, set_b)
+            neigh_in_a = in(j, set_a)
+            neigh_in_b = in(j, set_b)
             if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
                 bond_active[bond_id] = false
             end

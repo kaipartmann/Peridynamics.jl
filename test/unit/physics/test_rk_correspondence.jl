@@ -431,7 +431,7 @@ end
     # a bond along x contributes only to ∂/∂x, the singular directions get no weight
     @test all(v -> v[2] == 0 && v[3] == 0, Φ)
     # the reproducing condition Σ Φ ⊗ ΔX = I holds in the resolved direction
-    ΔX = [Peridynamics.get_vector_diff(system.position, 1, system.bonds[b].neighbor)
+    ΔX = [Peridynamics.get_vector_diff(system.position, 1, system.bonds[b].j)
           for b in Peridynamics.each_bond_idx(system, 1)]
     @test sum(Φ[k][1] * ΔX[k][1] for k in eachindex(Φ)) ≈ 1
     # the deformation gradient of a uniform stretch in x is recovered without `NaN`

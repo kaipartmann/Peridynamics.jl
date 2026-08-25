@@ -19,26 +19,27 @@ function get_correction(::AbstractBondSystemMaterial{NoCorrection}, ::Int, ::Int
 end
 
 """
-    surface_correction_factor(correction, bond_id)
+    surface_correction_factor(system, bond_id)
 
 $(extension_api_note())
 
 Return the surface correction factor of bond `bond_id`, by which a material multiplies the
-force density of that bond. The correction of a body chunk is obtained with `get_correction`
-and depends on the `Correction` type parameter of the material, see
-`AbstractBondSystemMaterial`.
-
-`NoCorrection` returns `1`, so a material that supports corrections can always write the
-multiplication unconditionally and pays nothing when no correction is used.
+force density of that bond. Which correction is applied follows from the `Correction` type
+parameter of the material, see [`AbstractBondSystemMaterial`](@ref). With
+[`NoCorrection`](@ref) the factor is `1`, so a material can always write the
+multiplication and pays nothing when no correction is used.
 
 # Example
 
 ```julia
-correction = Peridynamics.get_correction(mat, i, j, bond_id)
-scfactor = Peridynamics.surface_correction_factor(correction, bond_id)
-b = scfactor * params.bc * ε / l .* Δxij
+ω = storage.bond_active[bond_id] * surface_correction_factor(system, bond_id)
+b = ω * params.bc * ε / l .* Δxij
 ```
 """
+@inline function surface_correction_factor(system::AbstractBondSystem, bond_id::Int)
+    return surface_correction_factor(system.correction, bond_id)
+end
+
 @inline function surface_correction_factor(::NoCorrection, ::Int)
     return 1
 end
@@ -128,15 +129,13 @@ end
 
 function get_averaged_lame_parameters(system::BondSystem, storage::AbstractStorage,
                                       paramsetup::AbstractParameterHandler, i)
-    (; bonds) = system
     (; bond_active) = storage
     lame = zero(SVector{2,Float64}) # lame[1] = λ, lame[2] = μ
     params_i = get_params(paramsetup, i)
     n_active_bonds = 0
     for bond_id in each_bond_idx(system, i)
         if bond_active[bond_id]
-            bond = bonds[bond_id]
-            j = bond.neighbor
+            (; j) = get_bond(system, bond_id)
             params_j = get_params(paramsetup, j)
             λ = (params_i.λ + params_j.λ) / 2
             μ = (params_i.μ + params_j.μ) / 2
@@ -164,8 +163,7 @@ function calc_scfactor!(chunk::AbstractBodyChunk)
     scfactor = system.correction.scfactor
     for i in each_point_idx(chunk)
         for bond_id in each_bond_idx(system, i)
-            bond = system.bonds[bond_id]
-            j, L = bond.neighbor, bond.length
+            (; j, L) = get_bond(system, bond_id)
             Δxijx = system.position[1, j] - system.position[1, i]
             Δxijy = system.position[2, j] - system.position[2, i]
             Δxijz = system.position[3, j] - system.position[3, i]

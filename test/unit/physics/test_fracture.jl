@@ -8,29 +8,63 @@
     @test Peridynamics.required_fields_fracture(CKIMaterial) === rff_interaction_system
 end
 
-@testitem "get_frac_params: the fracture keywords of CriticalStretch" begin
-    import Peridynamics: get_frac_params
+@testitem "get_frac_params: the default conversion of the fracture keywords" begin
+    import Peridynamics: get_frac_params, critical_stretch, energy_release_rate
+    mat, δ, K = BBMaterial(), 2.0, 3.0
 
     # `Gc` and `epsilon_c` are converted into each other, one of them is enough
-    frac = get_frac_params(CriticalStretch(), 2.0, 3.0; Gc=1.0)
+    frac = get_frac_params(CriticalStretch(), mat, δ, K; Gc=1.0)
     @test frac.Gc == 1.0
-    @test frac.εc ≈ sqrt(5.0 * 1.0 / (9.0 * 3.0 * 2.0))
-    frac = get_frac_params(CriticalStretch(), 2.0, 3.0; epsilon_c=0.1)
+    @test frac.εc ≈ sqrt(5.0 * 1.0 / (9.0 * K * δ))
+    frac = get_frac_params(CriticalStretch(), mat, δ, K; epsilon_c=0.1)
     @test frac.εc == 0.1
-    @test frac.Gc ≈ 9.0 / 5.0 * 3.0 * 2.0 * 0.1^2
+    @test frac.Gc ≈ 9.0 / 5.0 * K * δ * 0.1^2
     # both is an error, none means no fracture, unknown keywords are ignored
-    @test_throws ArgumentError get_frac_params(CriticalStretch(), 2.0, 3.0; Gc=1.0,
+    @test_throws ArgumentError get_frac_params(CriticalStretch(), mat, δ, K; Gc=1.0,
                                                epsilon_c=0.1)
-    @test get_frac_params(CriticalStretch(), 2.0, 3.0) == (; Gc=0.0, εc=0.0)
-    frac_gc = get_frac_params(CriticalStretch(), 2.0, 3.0; Gc=1.0)
-    @test get_frac_params(CriticalStretch(), 2.0, 3.0; Gc=1.0, some_other_keyword=1.0) == frac_gc
+    @test get_frac_params(CriticalStretch(), mat, δ, K) == (; Gc=0.0, εc=0.0)
+    frac_gc = get_frac_params(CriticalStretch(), mat, δ, K; Gc=1.0)
+    @test get_frac_params(CriticalStretch(), mat, δ, K; Gc=1.0, some_other_keyword=1.0) ==
+          frac_gc
     # a keyword that was not given arrives as `nothing`
-    @test get_frac_params(CriticalStretch(), 2.0, 3.0; Gc=1.0, epsilon_c=nothing) ==
-          get_frac_params(CriticalStretch(), 2.0, 3.0; Gc=1.0)
+    @test get_frac_params(CriticalStretch(), mat, δ, K; Gc=1.0, epsilon_c=nothing) == frac_gc
 
-    # a damage model without parameters answers with an empty named tuple
-    struct ParameterlessDamage <: Peridynamics.AbstractDamageModel end
-    @test get_frac_params(ParameterlessDamage(), 1.0, 1.0; Gc=1.0) == (;)
+    # the conversion is the default of every damage model, not a property of CriticalStretch
+    struct FPOtherDamage <: Peridynamics.AbstractDamageModel end
+    @test get_frac_params(FPOtherDamage(), mat, δ, K; Gc=1.0) == frac_gc
+
+    # the two hooks are what the default calls, and they invert each other
+    @test critical_stretch(mat, δ, K, 1.0) == frac_gc.εc
+    @test energy_release_rate(mat, δ, K, frac_gc.εc) ≈ 1.0
+end
+
+@testitem "critical_stretch: a material with another micro-modulus overrides the relation" begin
+    import Peridynamics: get_frac_params, critical_stretch, energy_release_rate
+    struct FPConicalMat{D} <: Peridynamics.AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::D
+    end
+    FPConicalMat() = FPConicalMat(CriticalStretch())
+    Peridynamics.@params FPConicalMat struct FPConicalParams
+        @inherit StandardParameters
+    end
+    Peridynamics.critical_stretch(::FPConicalMat, δ, K, Gc) = sqrt(2 * Gc / (3 * K * δ))
+    Peridynamics.energy_release_rate(::FPConicalMat, δ, K, εc) = 1.5 * K * δ * εc^2
+
+    δ, K, Gc = 0.00603, 46.6e9, 100.0
+    conical = get_frac_params(CriticalStretch(), FPConicalMat(), δ, K; Gc)
+    constant = get_frac_params(CriticalStretch(), BBMaterial(), δ, K; Gc)
+    @test conical.εc ≈ sqrt(2 * Gc / (3 * K * δ))
+    @test conical.εc / constant.εc ≈ sqrt(1.2)
+    back = get_frac_params(CriticalStretch(), FPConicalMat(), δ, K; epsilon_c=conical.εc)
+    @test back.Gc ≈ Gc
+
+    # `material!` routes the keywords through the hooks of the material
+    pos, vol = uniform_box(1.0, 1.0, 1.0, 0.5)
+    body = Body(FPConicalMat(), pos, vol)
+    material!(body; horizon=1.5, rho=8e-6, E=2.1e5, nu=0.25, Gc=2.7)
+    params = only(body.point_params)
+    @test params.εc ≈ sqrt(2 * 2.7 / (3 * params.K * params.δ))
+    @test all(body.fail_permit)
 end
 
 @testitem "FractureParameters: the block resolves Gc and εc through the damage model" begin
@@ -70,7 +104,9 @@ end
     @test isnothing(get_dmg_storage(dmg, VelocityVerlet(steps=1), system))
     @test isnothing(init_damage_state(BBMaterial(), VelocityVerlet(steps=1), system))
     @test isnothing(damage_state(storage))
-    @test !has_damage_state(storage_type(BBMaterial()))
+    # every storage of the package carries the marker, which holds `nothing` here
+    @test has_damage_state(storage_type(BBMaterial()))
+    @test fieldtype(storage_type(BBMaterial()), :dmg_state) === Nothing
     @test req_storage_fields(BBMaterial(), dmg) == ()
     @test req_storage_fields(BBMaterial(), nothing) == ()
 
@@ -86,7 +122,7 @@ end
 end
 
 @testsnippet FatigueModel begin
-    using Peridynamics: damage_state, get_params, each_bond_idx, get_vector_diff
+    using Peridynamics: damage_state, get_params, each_bond_idx, get_bond, get_vector_diff
     using Peridynamics.LinearAlgebra
 
     # A damage model with a state of its own: a bond fails only after its stretch exceeded
@@ -103,27 +139,19 @@ end
     end
 
     # the model owns the standard fracture keywords: inheriting `FractureParameters`
-    # registers `Gc`/`epsilon_c` and resolves them through `get_frac_params` below
+    # registers `Gc`/`epsilon_c`, and the default conversion and `has_fracture` serve it
     Peridynamics.@dmg_params FatigueDamage struct FatigueDamageParameters
         @inherit FractureParameters
     end
 
-    function Peridynamics.get_frac_params(::FatigueDamage, δ, K; kwargs...)
-        return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
-    end
-    function Peridynamics.has_fracture(::FatigueDamage, params)
-        return Peridynamics.has_fracture(CriticalStretch(), params)
-    end
-
     function Peridynamics.calc_failure!(storage, system, mat, dmg::FatigueDamage, paramsetup,
-                                        i)
+                                        t, Δt, i)
         (; εc) = get_params(paramsetup, i)
         (; bond_exceedances) = damage_state(storage)
         for bond_id in each_bond_idx(system, i)
-            bond = system.bonds[bond_id]
-            j, L = bond.neighbor, bond.length
+            (; j, L, fail_permit) = get_bond(system, bond_id)
             ε = (norm(get_vector_diff(storage.position, i, j)) - L) / L
-            if ε > εc && bond.fail_permit
+            if ε > εc && fail_permit
                 bond_exceedances[bond_id] += 1
                 if bond_exceedances[bond_id] >= dmg.n_cycles
                     storage.bond_active[bond_id] = false
@@ -203,7 +231,7 @@ end
     @test_throws ArgumentError Peridynamics.typecheck_damage_model(FatigueDamage())
 end
 
-@testitem "DamageState: a storage carries the state of its damage model" setup=[FatigueModel] begin
+@testitem "DamageState: a storage carries the state of its damage model" setup=[FatigueModel, TestMaterialImpl] begin
     using Peridynamics: storage_type, has_damage_state, damage_state, check_storage_contract,
                         req_storage_fields, StorageContractError
 
@@ -222,9 +250,12 @@ end
     @test req_storage_fields(RKCMaterial(), CriticalStretch()) == ()
     @test isnothing(check_storage_contract(RKCMaterial(; dmgmodel=FatigueDamage()),
                                            VelocityVerlet(steps=1)))
-    @test !has_damage_state(storage_type(BBMaterial()))
+    # a storage that does not declare the marker cannot carry the state, which the contract
+    # check reports once when the `Job` is created
+    @test !has_damage_state(storage_type(TestMaterialImpl.TestMaterial()))
     err = try
-        check_storage_contract(BBMaterial(; dmgmodel=FatigueDamage()), VelocityVerlet(steps=1))
+        check_storage_contract(TestMaterialImpl.TestMaterial(FatigueDamage()),
+                               VelocityVerlet(steps=1))
     catch e
         e
     end
@@ -263,14 +294,8 @@ end
     Peridynamics.@dmg_params ConstSoftening struct ConstSofteningParameters
         @inherit FractureParameters
     end
-    function Peridynamics.get_frac_params(::ConstSoftening, δ, K; kwargs...)
-        return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
-    end
-    function Peridynamics.has_fracture(::ConstSoftening, params)
-        return Peridynamics.has_fracture(CriticalStretch(), params)
-    end
     function Peridynamics.calc_failure!(storage, system, mat, ::ConstSoftening, paramsetup,
-                                        i)
+                                        t, Δt, i)
         for bond_id in Peridynamics.each_bond_idx(system, i)
             storage.n_active_bonds[i] += storage.bond_active[bond_id]
         end
@@ -348,16 +373,6 @@ end
     # two models that each define one softening hook, but nothing else special
     struct SofteningNotSupported <: Peridynamics.AbstractDamageModel end
     struct WeightNotSupported <: Peridynamics.AbstractDamageModel end
-    for D in (SofteningNotSupported, WeightNotSupported)
-        @eval begin
-            function Peridynamics.get_frac_params(::$D, δ, K; kwargs...)
-                return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
-            end
-            function Peridynamics.has_fracture(::$D, params)
-                return Peridynamics.has_fracture(CriticalStretch(), params)
-            end
-        end
-    end
     Peridynamics.@dmg_params SofteningNotSupported struct SofteningNotSupportedParameters
         @inherit FractureParameters
     end
@@ -471,7 +486,37 @@ end
     @test only(body0.point_params).Gc == 0.0
     @test !any(body0.fail_permit)
 
-    # a damage model without parameters prohibits failure by default
+    # the default `has_fracture` reads `Gc` and `εc` off whatever damage model owns them,
+    # and a model whose parameters do not carry them prohibits failure
     struct FPNoParamsDamage <: Peridynamics.AbstractDamageModel end
-    @test !has_fracture(FPNoParamsDamage(), par)
+    @test has_fracture(FPNoParamsDamage(), par)
+    Peridynamics.@dmg_params FPNoParamsDamage struct FPNoParamsParameters
+        n_max::Int = 3
+    end
+    body_np = Body(BBMaterial(; dmgmodel=FPNoParamsDamage()), pos, vol)
+    material!(body_np; horizon=1.5, rho=8e-6, E=2.1e5)
+    @test !has_fracture(FPNoParamsDamage(), only(body_np.point_params))
+    @test !any(body_np.fail_permit)
+end
+
+@testitem "calc_failure!: a damage model without a criterion names the missing method" begin
+    struct FPNoCriterion <: Peridynamics.AbstractDamageModel end
+    Peridynamics.@dmg_params FPNoCriterion struct FPNoCriterionParameters
+        @inherit FractureParameters
+    end
+    pos, vol = uniform_box(1.0, 1.0, 1.0, 0.5)
+    body = Body(BBMaterial(; dmgmodel=FPNoCriterion()), pos, vol)
+    material!(body; horizon=1.5, rho=8e-6, E=2.1e5, Gc=2.7)
+    chunk = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1).chunks[1]
+    err = try
+        Peridynamics.calc_failure!(chunk.storage, chunk.system, chunk.mat, FPNoCriterion(),
+                                   chunk.paramsetup, 0.0, 1e-6, 1)
+        nothing
+    catch e
+        e
+    end
+    @test err isa Peridynamics.InterfaceError
+    @test err.func == "calc_failure!"
+    @test contains(err.hint, "FPNoCriterion")
+    @test contains(err.hint, "t, Δt, i")
 end

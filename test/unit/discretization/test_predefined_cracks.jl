@@ -354,12 +354,6 @@ end
     Peridynamics.@dmg_params MarkedDamage struct MarkedDamageParameters
         @inherit FractureParameters
     end
-    function Peridynamics.get_frac_params(::MarkedDamage, δ, K; kwargs...)
-        return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
-    end
-    function Peridynamics.has_fracture(::MarkedDamage, params)
-        return Peridynamics.has_fracture(CriticalStretch(), params)
-    end
     function Peridynamics.failure_by_sets!(storage, system::Peridynamics.AbstractBondSystem,
                                            ::MarkedDamage, set_a, set_b)
         failure_by_sets!(storage, system, CriticalStretch(), set_a, set_b)

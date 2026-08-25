@@ -66,8 +66,8 @@ define.
 
 # A model without state
 
-A model that only needs the deformation gradient defines the four-argument form and ignores
-this one, which is bridged to it:
+A model that only needs the deformation gradient defines the four-argument form, which
+this one is bridged to:
 
 ```julia
 function Peridynamics.first_piola_kirchhoff(::MyModel, storage, params, F)
@@ -77,22 +77,19 @@ end
 
 # A model with state
 
+A model that integrates a history declares its state with [`@cm_storage`](@ref) and
+defines this form, reading and advancing the state through
+[`constitutive_state`](@ref):
+
 ```julia
-struct J2Plasticity <: Peridynamics.AbstractConstitutiveModel end
-
-Peridynamics.@cm_storage J2Plasticity struct J2PlasticityState
-    bond_plastic_strain::BondTensor
-    bond_eqps::BondScalar
-end
-
-function Peridynamics.first_piola_kirchhoff(cm::J2Plasticity, storage, params, F, idx, Δt)
+function Peridynamics.first_piola_kirchhoff(::MyPlasticModel, storage, params, F, idx, Δt)
     state = Peridynamics.constitutive_state(storage)
-    εᵖ = Peridynamics.get_tensor(state.bond_plastic_strain, idx)
-    # ... radial return ...
-    Peridynamics.update_tensor!(state.bond_plastic_strain, idx, εᵖ_new)
-    return P
+    εp = Peridynamics.get_sym_tensor(state.bond_plastic_strain, idx)
+    ...
 end
 ```
+
+The tutorial on custom constitutive models writes both kinds in full.
 """
 function first_piola_kirchhoff end
 

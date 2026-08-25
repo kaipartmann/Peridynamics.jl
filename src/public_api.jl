@@ -80,8 +80,8 @@ public AbstractStorage, AbstractPointParameters, AbstractParameterSetup
 public AbstractSystem, AbstractBondSystem, AbstractTimeSolver
 
 # The systems a material is dispatched on. Their fields are internal, use the accessors
-# below.
-public BondSystem, InteractionSystem
+# below. A bond is an immutable record, so its fields are the API.
+public BondSystem, InteractionSystem, Bond
 
 # The errors the interfaces throw. Catch them in tests, or throw them from your own
 # interface.
@@ -95,9 +95,11 @@ public get_constitutive_model, first_piola_kirchhoff, strain_energy_density
 public constitutive_state, constitutive_storage_type
 public is_history_dependent, supports_history_dependence
 
-# The damage model interface.
+# The damage model interface. The relation between `Gc` and `εc` depends on the
+# micro-modulus, so a material with a non-constant one defines the two hooks.
 public get_dmgmodel, get_frac_params, has_fracture, calc_failure!, calc_damage!
 public damage_state, damage_storage_type
+public critical_stretch, energy_release_rate
 # A damage model may soften a bond instead of deleting it. `bond_integrity` scales the load
 # a bond still carries, `kinematic_weight` scales what it contributes to the deformation
 # gradient. Both default to one. A material says whether its force path honors them.
@@ -105,7 +107,8 @@ public bond_integrity, kinematic_weight
 public supports_bond_integrity, supports_kinematic_weight
 
 # Accessing a system, its points and its bonds from inside a force density calculation.
-public get_params, each_point_idx, each_bond_idx
+public get_params, each_point_idx, each_bond_idx, get_bond
+public get_volume, get_position, get_n_neighbors
 public get_n_points, get_n_loc_points, get_n_bonds
 public kernel, surface_correction_factor, float_type
 

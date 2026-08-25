@@ -272,3 +272,27 @@ function run_mpi_script(script::AbstractString, args...; nranks::Int=2, expect_s
     end
     return ok == expect_success
 end
+
+"""
+    whole_body(dh, field)
+
+A point field of a finished threads simulation for the whole body, assembled from the local
+entries of every chunk in the point order of the body. With several threads `dh.chunks[1]`
+holds one chunk only, so this is what a check on the body as a whole reads.
+"""
+function whole_body(dh, field::Symbol)
+    n = sum(Peridynamics.get_n_loc_points(c.system) for c in dh.chunks)
+    c1 = first(dh.chunks)
+    sample = Peridynamics.get_loc_point_data(c1.storage, c1.system, field)
+    out = sample isa AbstractMatrix ? zeros(size(sample, 1), n) : zeros(n)
+    for c in dh.chunks
+        ids = Peridynamics.get_loc_points(c.system)
+        data = Peridynamics.get_loc_point_data(c.storage, c.system, field)
+        if data isa AbstractMatrix
+            out[:, ids] .= data
+        else
+            out[ids] .= data
+        end
+    end
+    return out
+end

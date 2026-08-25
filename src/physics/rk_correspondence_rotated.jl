@@ -64,19 +64,18 @@ $(block_table(RKCRStorage))
     left_stretch::BondTensor = I
     rotation::BondTensor = I
     bond_unrot_cauchy_stress::BondTensor
+    dmg_state::DamageState
 end
 
 rkc_lth_after_fields(::RKCRMaterial) = (:defgrad, :defgrad_dot, :weighted_volume)
 
 function rkc_defgrad!(storage::RKCRStorage, system::AbstractBondSystem, mat::RKCRMaterial,
                       params::RKCPointParameters, t, Δt, i)
-    (; bonds) = system
     (; defgrad, defgrad_dot, gradient_weight) = storage
     F = SMatrix{3,3,Float64,9}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     Ḟ = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
+        (; j) = get_bond(system, bond_id)
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
         Δuij = Δxij - ΔXij
@@ -93,7 +92,7 @@ end
 
 function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
                               mat::RKCRMaterial, params::RKCPointParameters, t, Δt, i)
-    (; bonds, volume) = system
+    (; volume) = system
     (; bond_active, defgrad, defgrad_dot, weighted_volume,
        bond_first_piola_kirchhoff) = storage
     Fi = get_tensor(defgrad, i)
@@ -103,8 +102,7 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
     isolated_point(wi) && return ∑P # see `rkc_stress_integral!` of `RKCMaterial`
     for bond_id in each_bond_idx(system, i)
         if bond_active[bond_id]
-            bond = bonds[bond_id]
-            j, L = bond.neighbor, bond.length
+            (; j, L) = get_bond(system, bond_id)
             wj = weighted_volume[j]
             if isolated_point(wj)
                 update_tensor!(bond_first_piola_kirchhoff, bond_id, zero(SMatrix{3,3,Float64,9}))

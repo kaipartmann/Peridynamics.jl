@@ -1,16 +1,26 @@
 # # [Writing your own material](@id tutorial_custom_material)
 
-# This tutorial adds a material, a damage model and a constitutive model of your own to
-# Peridynamics.jl. Everything here is written against the [Extension API](@ref), so the same
-# file runs single-threaded, with `julia -t 6`, and under `mpiexec -n 6 julia --project`
-# without a single change.
+# This tutorial adds a material of your own to Peridynamics.jl: a bond-based material with
+# a conical micro-modulus. Everything here is written against the [Extension API](@ref), so
+# the same file runs single-threaded, with `julia -t 6`, and under
+# `mpiexec -n 6 julia --project` without a change. The tutorials
+# [Writing your own damage model](@ref tutorial_custom_damage_model) and
+# [Writing your own constitutive model](@ref tutorial_custom_constitutive_model) build on
+# the same ideas.
+#
+# The names of the extension API are not exported. Importing the ones a file uses keeps the
+# code readable, and the methods the material defines are written as
+# `Peridynamics.force_density_point!`, so that it is visible where the package is extended.
 
 using Peridynamics
-## `LinearAlgebra` and `StaticArrays` are reached through the package, so they do not have to
-## be dependencies of your own project
-using Peridynamics.LinearAlgebra
+using Peridynamics: BondSystem, each_bond_idx, get_bond, get_volume, get_params,
+                    get_n_loc_points, get_vector_diff, update_add_vector!,
+                    surface_correction_factor
+## `LinearAlgebra` is reached through the package, so it does not have to be a dependency
+## of your own project
+using Peridynamics.LinearAlgebra: norm
 
-# ## Part 1: a custom material
+# ## The material
 #
 # The bond-based formulation that [`BBMaterial`](@ref) implements uses a constant
 # micro-modulus: every bond in the family of a point is equally stiff, no matter how long it
@@ -49,14 +59,14 @@ using Peridynamics.LinearAlgebra
 # parameter is the surface correction, and we accept whatever the user asks for.
 #
 # The damage model is a field, because every bond system material is asked for one. We
-# default it to the `ConicalStretch` model of Part 2, which is written for exactly this
-# micro-modulus.
+# take the built-in [`CriticalStretch`](@ref), which breaks a bond when its stretch exceeds a
+# critical value.
 
 struct ConicalBBMaterial{Correction,DM} <: Peridynamics.AbstractBondSystemMaterial{Correction}
     dmgmodel::DM
 end
 
-function ConicalBBMaterial{C}(; dmgmodel=ConicalStretch()) where {C}
+function ConicalBBMaterial{C}(; dmgmodel=CriticalStretch()) where {C}
     return ConicalBBMaterial{C,typeof(dmgmodel)}(dmgmodel)
 end
 ConicalBBMaterial(; kwargs...) = ConicalBBMaterial{NoCorrection}(; kwargs...)
@@ -72,8 +82,8 @@ ConicalBBMaterial(; kwargs...) = ConicalBBMaterial{NoCorrection}(; kwargs...)
 # `rho`, and `BBElasticParameters` gives the six elastic constants in the ``\nu = 1/4``
 # variant that bond-based peridynamics is restricted to. On top of that we derive the bond
 # constant, and we give the parameters of the damage model a place with the marker field
-# `dmg_params`. Which parameters those are is decided by the damage model in Part 2, not
-# by the material.
+# `dmg_params`. Which parameters those are is decided by the damage model, not by the
+# material. With `CriticalStretch` they are `Gc` and `εc`.
 
 Peridynamics.@params ConicalBBMaterial struct ConicalBBPointParameters
     @inherit DiscretizationParameters BBElasticParameters
@@ -102,10 +112,10 @@ end
 
 Peridynamics.DiscretizationParameters
 
-# The blocks this package ships are listed in [Blocks you can inherit](@ref). For a material
-# that is not restricted to ``\nu = 1/4``, `@inherit StandardParameters` gives the same set
-# with the general elastic parameters, which take any two of `E`, `nu`, `G`, `K`, `λ` and
-# `μ`, and it already includes the `dmg_params` marker.
+# Everything that can be inherited is listed in [Blocks you can inherit](@ref). For a
+# material that is not restricted to ``\nu = 1/4``, `@inherit StandardParameters` gives the
+# same set with the general elastic parameters, which take any two of `E`, `nu`, `G`, `K`,
+# `λ` and `μ`, and it already includes the `dmg_params` marker.
 
 # ### The storage
 #
@@ -114,8 +124,8 @@ Peridynamics.DiscretizationParameters
 # allocation, the halo exchange lists and the `Adapt` rule.
 #
 # `@inherit` pulls in the fields of the three time solvers and of the fracture bookkeeping,
-# so the material works with all of them. We add one bond field of our own, so that Part 1
-# can also show how a field that is not a standard output reaches a VTK file.
+# so the material works with all of them. We add one bond field of our own, so that the
+# tutorial can also show how a field that is not a standard output reaches a VTK file.
 
 Peridynamics.@storage ConicalBBMaterial struct ConicalBBStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
@@ -133,17 +143,28 @@ end
 # and per time step, inside a loop that runs on every thread and on every MPI rank. It only
 # ever writes to the columns of point `i` and reads everything else through the system. That
 # is the whole reason the same code parallelizes.
+#
+# What a force density may use is small and worth knowing by heart:
+#
+# - **The system**, through its accessors: `each_bond_idx(system, i)` iterates the bonds of
+#   a point, `get_bond(system, bond_id)` returns the bond with its neighbor `j` and its
+#   initial length `L`, `get_volume(system, j)` the volume of a point,
+#   `get_position(system)` the reference positions, `kernel(system, bond_id)` the influence
+#   function and `surface_correction_factor(system, bond_id)` the surface correction.
+# - **The storage**, through the fields of the blocks it inherited and its own fields. Here
+#   these are `storage.position` and `storage.b_int` from the solver blocks,
+#   `storage.bond_active` from `BondFracFields`, and `storage.bond_stretch`. The table of
+#   every block says which fields it brings.
+# - **The parameters** of the point, `params`, with everything the `@params` block declared.
 
-function Peridynamics.force_density_point!(storage::ConicalBBStorage,
-                                           system::Peridynamics.BondSystem,
+function Peridynamics.force_density_point!(storage::ConicalBBStorage, system::BondSystem,
                                            mat::ConicalBBMaterial,
                                            params::ConicalBBPointParameters, t, Δt, i)
-    for bond_id in Peridynamics.each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+    for bond_id in each_bond_idx(system, i)
+        (; j, L) = get_bond(system, bond_id)
 
         ## the current bond vector and the bond stretch
-        Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
+        Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
         storage.bond_stretch[bond_id] = ε
@@ -152,15 +173,49 @@ function Peridynamics.force_density_point!(storage::ConicalBBStorage,
         c = params.bc * (1 - L / params.δ)
 
         ## a broken bond carries no force, and the surface correction is 1 for `NoCorrection`
-        ω = storage.bond_active[bond_id] *
-            Peridynamics.surface_correction_factor(system.correction, bond_id)
+        ω = storage.bond_active[bond_id] * surface_correction_factor(system, bond_id)
 
         ## the bond force, accumulated into point `i`
-        b = ω * c * ε * system.volume[j] / l .* Δxij
-        Peridynamics.update_add_vector!(storage.b_int, i, b)
+        b = ω * c * ε * get_volume(system, j) / l .* Δxij
+        update_add_vector!(storage.b_int, i, b)
     end
     return nothing
 end
+
+# Which bonds are broken was decided right before this call by the damage model, which is
+# why the force density only multiplies `bond_active` in and never touches it.
+
+# ### The fracture parameters
+#
+# A user gives a critical energy release rate ``G_c``, and `CriticalStretch` breaks a bond at
+# a critical stretch ``\varepsilon_c``. The conversion between the two is an integral over
+# all the bonds that a unit of crack surface cuts,
+#
+# ```math
+# G_c = \frac{\pi \varepsilon_c^2}{2} \int_0^\delta c(\xi) \, \xi^4 \, \mathrm{d}\xi ,
+# ```
+#
+# and it therefore depends on the micro-modulus. The package evaluates it for the constant
+# micro-modulus by default and gets the familiar ``\varepsilon_c = \sqrt{5 G_c / (9 K \delta)}``.
+# For the conical one, ``\int_0^\delta c_1 (1 - \xi/\delta) \xi^4 \mathrm{d}\xi = c_1 \delta^5/30``,
+# so
+#
+# ```math
+# G_c = \frac{3}{2} K \delta \varepsilon_c^2
+# \qquad \Longleftrightarrow \qquad
+# \varepsilon_c = \sqrt{\frac{2 G_c}{3 K \delta}} ,
+# ```
+#
+# which is ``\sqrt{1.2} \approx 1.0954`` times the constant micro-modulus value. Put the
+# other way round, the default conversion would return a critical stretch 8.7 % *below* the
+# one this material implies, so the same ``G_c`` would break the body too early, silently.
+#
+# The relation is a property of the material, so the material states it. Two one-line
+# methods, one for each direction, and `material!(...; Gc)` as well as
+# `material!(...; epsilon_c)` convert correctly from now on:
+
+Peridynamics.critical_stretch(::ConicalBBMaterial, δ, K, Gc) = sqrt(2 * Gc / (3 * K * δ))
+Peridynamics.energy_release_rate(::ConicalBBMaterial, δ, K, εc) = 1.5 * K * δ * εc^2
 
 # ### Exporting a field of your own
 #
@@ -177,12 +232,13 @@ Peridynamics.custom_field(::Type{<:ConicalBBStorage}, ::Val{:weighted_stretch}) 
 
 function Peridynamics.export_field(::Val{:weighted_stretch}, mat, system,
                                    storage::ConicalBBStorage, paramsetup, t)
-    weighted_stretch = zeros(Peridynamics.get_n_loc_points(system))
+    weighted_stretch = zeros(get_n_loc_points(system))
     for i in eachindex(weighted_stretch)
-        δ = Peridynamics.get_params(paramsetup, i).δ
+        (; δ) = get_params(paramsetup, i)
         num, den = 0.0, 0.0
-        for bond_id in Peridynamics.each_bond_idx(system, i)
-            c = 1 - system.bonds[bond_id].length / δ
+        for bond_id in each_bond_idx(system, i)
+            (; L) = get_bond(system, bond_id)
+            c = 1 - L / δ
             num += c * storage.bond_stretch[bond_id]
             den += c
         end
@@ -191,76 +247,10 @@ function Peridynamics.export_field(::Val{:weighted_stretch}, mat, system,
     return weighted_stretch
 end
 
-# ## Part 2: a custom damage model
+# ## Running it
 #
-# A bond-based material breaks a bond when its stretch exceeds a critical value
-# ``\varepsilon_c``, and the user would rather give a critical energy release rate ``G_c``
-# than that stretch. The conversion between the two is an integral over all the bonds that
-# a unit of crack surface cuts,
-#
-# ```math
-# G_c = \frac{\pi \varepsilon_c^2}{2} \int_0^\delta c(\xi) \, \xi^4 \, \mathrm{d}\xi ,
-# ```
-#
-# and it therefore depends on the micro-modulus. The built-in [`CriticalStretch`](@ref)
-# evaluates it for the constant micro-modulus and gets the familiar
-# ``\varepsilon_c = \sqrt{5 G_c / (9 K \delta)}``. For the conical one,
-# ``\int_0^\delta c_1 (1 - \xi/\delta) \xi^4 \mathrm{d}\xi = c_1 \delta^5/30``, so
-#
-# ```math
-# G_c = \frac{3}{2} K \delta \varepsilon_c^2
-# \qquad \Longleftrightarrow \qquad
-# \varepsilon_c = \sqrt{\frac{2 G_c}{3 K \delta}} ,
-# ```
-#
-# which is ``\sqrt{1.2} \approx 1.0954`` times the constant micro-modulus value. Put the
-# other way round, the built-in conversion returns a critical stretch 8.7 % *below* the one
-# this material actually implies, so the same ``G_c`` would break the body too early. The
-# material needs a damage model of its own.
-#
-# A damage model is a type, its parameters and the conversion. The parameters are the
-# standard fracture parameters `Gc` and `εc`, which the
-# [`FractureParameters`](@ref Peridynamics.FractureParameters) block declares. It reads the
-# keywords `Gc` and `epsilon_c` of `material!` and hands them to
-# [`get_frac_params`](@ref Peridynamics.get_frac_params) of the model, which is where the
-# conversion lives. The failure criterion itself is unchanged, a bond breaks when it is
-# stretched too far, so `calc_failure!` and `has_fracture` forward to the built-in model
-# rather than repeating it.
-
-struct ConicalStretch <: Peridynamics.AbstractDamageModel end
-
-Peridynamics.@dmg_params ConicalStretch struct ConicalStretchParameters
-    @inherit FractureParameters
-end
-
-function Peridynamics.get_frac_params(::ConicalStretch, δ, K; Gc=nothing, epsilon_c=nothing,
-                                      kwargs...)
-    if !isnothing(Gc) && isnothing(epsilon_c)
-        return (; Gc=float(Gc), εc=sqrt(2 * Gc / (3 * K * δ)))
-    elseif isnothing(Gc) && !isnothing(epsilon_c)
-        return (; Gc=1.5 * K * δ * epsilon_c^2, εc=float(epsilon_c))
-    elseif !isnothing(Gc) && !isnothing(epsilon_c)
-        throw(ArgumentError("define either Gc or epsilon_c, not both!\n"))
-    end
-    return (; Gc=0.0, εc=0.0)
-end
-
-function Peridynamics.calc_failure!(storage, system, mat, ::ConicalStretch, paramsetup, i)
-    return Peridynamics.calc_failure!(storage, system, mat, CriticalStretch(), paramsetup, i)
-end
-
-function Peridynamics.has_fracture(::ConicalStretch, params)
-    return Peridynamics.has_fracture(CriticalStretch(), params)
-end
-
-# `material!` now accepts `Gc` or `epsilon_c` for a `ConicalBBMaterial` and rejects both at
-# once. The keywords a damage model reads are the keyword arguments of its own
-# `get_frac_params` method, and a keyword the user did not give arrives as `nothing`.
-
-# ### Running it
-#
-# The material and its damage model are finished. From here on nothing is specific to them.
-# They are used exactly like a material that ships with the package.
+# The material is finished. From here on nothing is specific to it. It is used exactly like
+# a material that ships with the package.
 
 l, Δx = 0.1, 0.002
 pos, vol = uniform_box(l, 0.1l, 0.1l, Δx)
@@ -296,97 +286,12 @@ job = Job(body, VelocityVerlet(steps=200);
 # declarations: `position` is annotated `@lth` in `VelocityVerletFields`, so it is sent from
 # the chunk that owns a point to the chunks that need it, and everything else is chunk-local.
 
-# ## Part 3: a custom constitutive model
-#
-# For the correspondence families ([`CMaterial`](@ref), [`RKCMaterial`](@ref),
-# [`BACMaterial`](@ref)) a new stress-strain relation usually does **not** need a new
-# material at all. Those materials ask a constitutive model for the first Piola-Kirchhoff
-# stress that belongs to a deformation gradient, so the model is all you write, and it then
-# runs on every one of those families.
-#
-# As an example, the Mooney-Rivlin solid [Mooney1940](@cite), [Rivlin1948](@cite), in the
-# volumetric-isochoric split
-#
-# ```math
-# W = C_{10} (\bar{I}_1 - 3) + C_{01} (\bar{I}_2 - 3) + \frac{K}{2} (J - 1)^2 ,
-# ```
-#
-# whose second Piola-Kirchhoff stress is ``\boldsymbol{S} = 2 \, \partial W / \partial
-# \boldsymbol{C}``:
-
-struct MooneyRivlin <: Peridynamics.AbstractConstitutiveModel
-    C10::Float64
-    C01::Float64
-end
-MooneyRivlin(; C10=0.3, C01=0.1) = MooneyRivlin(C10, C01)
-
-function Peridynamics.first_piola_kirchhoff(cm::MooneyRivlin, storage, params, F)
-    J = det(F)
-    J < eps() && return zero(F)
-    Finv = inv(F)
-    ## the first two invariants of the right Cauchy-Green tensor
-    C = F' * F
-    I1, I2 = tr(C), 0.5 * (tr(C)^2 - tr(C * C))
-    P = 2 * cm.C10 * J^(-2 / 3) * (F - I1 / 3 * Finv') +
-        2 * cm.C01 * J^(-4 / 3) * (I1 * F - F * C - 2I2 / 3 * Finv') +
-        params.K * (J - 1) * J * Finv'
-    return P
-end
-
-# `RKCMaterial(model=MooneyRivlin())` now works, and so does `CMaterial(model=…)` and
-# `BACMaterial(model=…)`:
-
-hyperelastic_body = Body(RKCMaterial(; model=MooneyRivlin()), pos, vol)
-material!(hyperelastic_body; horizon=3.015Δx, rho=2700, E=70e9, nu=0.3, Gc=100)
-
-# ### A model with a history
-#
-# A model that integrates an internal state over time, such as plasticity, viscoelasticity
-# or creep, declares that state with [`@cm_storage`](@ref Peridynamics.@cm_storage), which
-# takes the same field declarations as `@storage`:
-#
-# ```julia
-# struct J2Plasticity <: Peridynamics.AbstractConstitutiveModel end
-#
-# Peridynamics.@cm_params J2Plasticity struct J2PlasticityParameters
-#     @log "yield stress" sigma_y
-#     @log "hardening modulus" H = 0.0
-# end
-#
-# Peridynamics.@cm_storage J2Plasticity struct J2PlasticityState
-#     bond_plastic_strain::BondSymTensor
-#     bond_eqps::BondScalar
-# end
-# ```
-#
-# The parameters are declared with [`@cm_params`](@ref Peridynamics.@cm_params) and become
-# keywords of `material!`. The state is allocated with the storage, moves with it to another
-# array backend, and is reached inside the stress update, which then takes two more
-# arguments: the index of the evaluated quantity and the time step. A symmetric field has
-# six rows rather than nine, so it is read and written with
-# [`get_sym_tensor`](@ref Peridynamics.get_sym_tensor) and
-# [`update_sym_tensor!`](@ref Peridynamics.update_sym_tensor!).
-#
-# ```julia
-# function Peridynamics.first_piola_kirchhoff(cm::J2Plasticity, storage, params, F, idx, Δt)
-#     state = Peridynamics.constitutive_state(storage)
-#     εᵖ = Peridynamics.get_sym_tensor(state.bond_plastic_strain, idx)
-#     ## the elastic predictor in logarithmic strain space
-#     ε, Uinv = Peridynamics.hencky_and_invstretch(F' * F)
-#     τ = params.λ * tr(ε - εᵖ) * I + 2 * params.μ * (ε - εᵖ)
-#     ## ... radial return with `params.sigma_y` and `params.H`, which updates `εᵖ` ...
-#     Peridynamics.update_sym_tensor!(state.bond_plastic_strain, idx, εᵖ_new)
-#     return F * (Uinv * τ * Uinv)
-# end
-# ```
-#
-# Declaring a state is what makes the model history dependent, and that is checked when the
-# [`Job`](@ref) is created: a solver that evaluates the force density more than once per
-# step, such as [`NewtonKrylov`](@ref), is rejected rather than integrating the history
-# several times.
-
 # ## Where to go next
 #
+# - [Writing your own damage model](@ref tutorial_custom_damage_model) replaces the failure
+#   criterion.
+# - [Writing your own constitutive model](@ref tutorial_custom_constitutive_model) is the
+#   way to go for a new stress-strain relation on the correspondence materials.
 # - [Materials](@ref) for the declaration language in full.
 # - [Blocks you can inherit](@ref) for everything `@inherit` accepts.
 # - [Extension API](@ref) for every name used here.

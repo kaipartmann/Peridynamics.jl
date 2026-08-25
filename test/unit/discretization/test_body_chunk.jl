@@ -203,7 +203,7 @@ end
                 neighbors_of_loc = Set{Int}()
                 for (li, i) in enumerate(ch.loc_points)
                     for bond_id in Peridynamics.each_bond_idx(system, li)
-                        j = ch.point_ids[system.bonds[bond_id].neighbor]
+                        j = ch.point_ids[system.bonds[bond_id].j]
                         push!(neighbors_of_loc, j)
                         # the bond length is the distance of the points of the body
                         @test system.bonds[bond_id].length ≈ abs(position[1, i] - position[1, j])

@@ -567,7 +567,8 @@ end
     @test !(PFCountParams isa UnionAll)
     @test damage_param_type(PFCountDamage(), Float64) === PFCountParams
     @test damage_param_type(PFCountDamage(), Float32) === PFCountParams
-    mp = get_dmg_params(PFCountDamage(), Float64, (;), Dict{Symbol,Any}(:n_max => 5))
+    mp = get_dmg_params(PFCountDamage(), Float64, BBMaterial(), (;),
+                        Dict{Symbol,Any}(:n_max => 5))
     @test mp === PFCountParams(5)
     @test convert_nested_params(Float32, mp) === mp
     @test damage_param_kwargs(PFCountDamage()) == (:n_max,)

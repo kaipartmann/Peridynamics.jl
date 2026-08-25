@@ -186,6 +186,7 @@ $(block_table(CStorage))
     von_mises_stress::PointScalar
     strain_energy_density::PointScalar
     cm_state::ConstitutiveState
+    dmg_state::DamageState
 end
 
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
@@ -200,13 +201,12 @@ end
 
 function calc_deformation_gradient!(storage::CStorage, system::BondSystem, ::CMaterial,
                                     ::CPointParameters, i)
-    (; bonds, volume) = system
+    (; volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
+        (; j) = get_bond(system, bond_id)
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
         ωij = kernel(system, bond_id) * bond_active[bond_id]
@@ -234,14 +234,13 @@ end
 function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
                           ::AbstractCorrespondenceMaterial, params::AbstractPointParameters,
                           zem_correction::ZEMSilling, PKinv, defgrad_res, i)
-    (; bonds, volume) = system
+    (; volume) = system
     (; bond_active) = storage
     (; F) = defgrad_res
     (; Cs) = zem_correction
     β = Cs * params.bc / params.δ
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
+        (; j) = get_bond(system, bond_id)
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
 
@@ -262,13 +261,12 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
                           mat::AbstractCorrespondenceMaterial,
                           params::AbstractPointParameters, zem::ZEMWan, PKinv, defgrad_res,
                           i)
-    (; bonds, volume) = system
+    (; volume) = system
     (; bond_active) = storage
     (; F) = defgrad_res
     C_1 = calc_zem_stiffness_tensor!(storage, system, mat, params, zem, defgrad_res, i)
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
+        (; j) = get_bond(system, bond_id)
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
 

@@ -67,6 +67,7 @@ $(block_table(CRStorage))
     left_stretch::PointTensor = I
     rotation::PointTensor = I
     zem_stiffness_rotated::MArray{NTuple{4,3},Float64,4,81}
+    dmg_state::DamageState
 end
 
 function init_field(::CRMaterial, ::AbstractTimeSolver, system::BondSystem,
@@ -76,14 +77,13 @@ end
 
 function calc_deformation_gradient!(storage::CRStorage, system::BondSystem, ::CRMaterial,
                                     ::CPointParameters, i)
-    (; bonds, volume) = system
+    (; volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     _Ḟ = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
+        (; j) = get_bond(system, bond_id)
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
         Δvij = get_vector_diff(storage.velocity_half, i, j)
