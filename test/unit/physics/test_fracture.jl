@@ -316,6 +316,29 @@ end
     @test softened.bond_first_piola_kirchhoff ≈ 0.25 .* ref.bond_first_piola_kirchhoff
     @test softened.b_int ≈ 0.25 .* ref.b_int
     @test softened.strain_energy_density ≈ 0.25 .* ref.strain_energy_density
+
+    # a vanishing kinematic weight leaves every point without a family for the fit: the
+    # weighted volume is zero, the bonds stay active, and instead of `1 / 0` in the stress
+    # integral such an isolated point transmits no stress at all, see `isolated_point`
+    isolated = force_calc(ConstSoftening(0.0, 1.0))
+    @test all(iszero, isolated.weighted_volume)
+    @test all(isolated.bond_active)
+    @test all(iszero, isolated.gradient_weight)
+    @test all(iszero, isolated.b_int)
+    @test all(iszero, isolated.bond_first_piola_kirchhoff)
+    @test all(iszero, isolated.strain_energy_density)
+    @test !any(isnan, isolated.b_int)
+
+    # the rotated material takes the same path
+    body = stretched_body(RKCRMaterial(; dmgmodel=ConstSoftening(0.0, 1.0)))
+    dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+    chunk = dh.chunks[1]
+    chunk.storage.position[1, :] .*= 1.01
+    Peridynamics.calc_weights_and_defgrad!(chunk, 0.0, 1e-7)
+    Peridynamics.calc_force_density!(chunk, 0.0, 1e-7)
+    @test all(iszero, chunk.storage.weighted_volume)
+    @test all(iszero, chunk.storage.b_int)
+    @test all(iszero, chunk.storage.bond_first_piola_kirchhoff)
 end
 
 @testitem "softening support: ignored hooks fail at Job creation" begin

@@ -45,11 +45,12 @@ end
     @test mat1.kernel == const_one_kernel
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
-    @test mat1.monomial == :C1
+    @test Peridynamics.monomial(mat1) == :C1
+    @test mat1.epsilon == 1e-3
     @test mat1.lambda == 0
-    @test mat1.beta ≈ sqrt(eps())
+    @test mat1.beta == 0
 
-    # Test constructor with parameters
+    # Test constructor with parameters, `lambda` or `beta` select the legacy regularization
     mat2 = RKCMaterial(
         kernel = linear_kernel,
         model = LinearElastic(),
@@ -61,13 +62,106 @@ end
     @test mat2.kernel == linear_kernel
     @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
-    @test mat2.monomial == :C1
+    @test Peridynamics.monomial(mat2) == :C1
+    @test mat2.epsilon == 0
     @test mat2.lambda == 0
     @test mat2.beta == 1e-8
 
-    # Test constructor with invalid lambda/beta
+    # Setting only one of the legacy parameters keeps the legacy default of the other one
+    mat3 = RKCMaterial(lambda = 1e-6)
+    @test mat3.epsilon == 0
+    @test mat3.lambda == 1e-6
+    @test mat3.beta ≈ sqrt(eps())
+
+    # Test constructor with a singular value floor
+    mat4 = RKCMaterial(epsilon = 1e-2)
+    @test mat4.epsilon == 1e-2
+    @test mat4.lambda == 0
+    @test mat4.beta == 0
+
+    # `epsilon = 0` is the exact pseudo-inverse, not the legacy regularization
+    mat5 = RKCMaterial(epsilon = 0)
+    @test mat5.epsilon == 0
+    @test mat5.lambda == 0
+    @test mat5.beta == 0
+
+    # Test constructor with invalid epsilon/lambda/beta
+    @test_throws ArgumentError RKCMaterial(epsilon = -0.5)
     @test_throws ArgumentError RKCMaterial(lambda = -0.5)
     @test_throws ArgumentError RKCMaterial(beta = -0.5)
+
+    # The two regularizations cannot be combined
+    @test_throws ArgumentError RKCMaterial(epsilon = 1e-3, lambda = 1e-6)
+    @test_throws ArgumentError RKCMaterial(epsilon = 1e-3, beta = 1e-6)
+end
+
+@testitem "RKCMaterial: the monomial is a type parameter" begin
+    # the monomial basis selects the size of the moment matrix, so it is part of the type
+    # and `monomial(mat)` is a compile-time constant
+    for monomial in (:C1, :RK1, :RK2, :PD2)
+        mat = RKCMaterial(; monomial)
+        @test mat isa RKCMaterial{SaintVenantKirchhoff,typeof(const_one_kernel),
+                                  CriticalStretch,monomial}
+        @test mat isa Peridynamics.AbstractRKCMaterial{SaintVenantKirchhoff,
+                                                       Peridynamics.NoCorrection,monomial}
+        @test Peridynamics.monomial(mat) == monomial
+        @test (@inferred Peridynamics.monomial(mat)) == monomial
+        @test !hasproperty(mat, :monomial)
+        matr = RKCRMaterial(; monomial)
+        @test matr isa RKCRMaterial{SaintVenantKirchhoff,typeof(const_one_kernel),
+                                    CriticalStretch,monomial}
+        @test Peridynamics.monomial(matr) == monomial
+    end
+    @test RKCMaterial(monomial=:C1) !== RKCMaterial(monomial=:RK1)
+    @test typeof(RKCMaterial(monomial=:C1)) != typeof(RKCMaterial(monomial=:RK1))
+end
+
+@testitem "get_invreg_params: exactly one regularization is active" begin
+    import Peridynamics: get_invreg_params
+
+    # nothing given: the adaptive regularization with its default floor
+    @test get_invreg_params(nothing, nothing, nothing) == (1e-3, 0.0, 0.0)
+    @test get_invreg_params(1e-2, nothing, nothing) == (1e-2, 0.0, 0.0)
+    @test get_invreg_params(0, nothing, nothing) == (0.0, 0.0, 0.0)
+    @test get_invreg_params(1, nothing, nothing) === (1.0, 0.0, 0.0) # converted to Float64
+
+    # a legacy keyword switches the floor off and fills in the legacy default of the other
+    @test get_invreg_params(nothing, 1e-6, nothing) == (0.0, 1e-6, sqrt(eps()))
+    @test get_invreg_params(nothing, nothing, 1e-8) == (0.0, 0.0, 1e-8)
+    @test get_invreg_params(nothing, 1e-6, 1e-8) == (0.0, 1e-6, 1e-8)
+    @test get_invreg_params(nothing, 0, 0) === (0.0, 0.0, 0.0)
+
+    # negative values and mixing the two regularizations are rejected
+    @test_throws ArgumentError get_invreg_params(-1e-3, nothing, nothing)
+    @test_throws ArgumentError get_invreg_params(nothing, -1e-6, nothing)
+    @test_throws ArgumentError get_invreg_params(nothing, nothing, -1e-8)
+    @test_throws ArgumentError get_invreg_params(1e-3, 1e-6, nothing)
+    @test_throws ArgumentError get_invreg_params(1e-3, nothing, 1e-8)
+    @test_throws ArgumentError get_invreg_params(0, 0, 0)
+end
+
+@testitem "log_material: the monomial and the active regularization are logged" begin
+    # the monomial is a type parameter and not a field, so it needs its own line
+    msg = Peridynamics.log_material(RKCMaterial(monomial=:RK2))
+    @test contains(msg, "RKCMaterial")
+    @test contains(msg, "monomial type")
+    @test contains(msg, "RK2")
+    @test contains(msg, "singular value floor")
+    @test !contains(msg, "Tikhonov")
+    @test !contains(msg, "SVD truncation")
+
+    # the legacy regularization is logged with both of its parameters and no floor
+    msg = Peridynamics.log_material(RKCMaterial(lambda=1e-6))
+    @test contains(msg, "Tikhonov regularization parameter")
+    @test contains(msg, "SVD truncation parameter")
+    @test !contains(msg, "singular value floor")
+
+    # the rotated material logs the same way
+    msg = Peridynamics.log_material(RKCRMaterial(monomial=:RK1, epsilon=1e-2))
+    @test contains(msg, "RKCRMaterial")
+    @test contains(msg, "RK1")
+    @test contains(msg, "singular value floor")
+    @test !contains(msg, "Tikhonov")
 end
 
 @testitem "gradient weights calculation" begin
@@ -238,7 +332,7 @@ end
 
     for kernel in monomials
         mat = RKCMaterial(monomial=kernel)
-        @test mat.monomial == kernel
+        @test Peridynamics.monomial(mat) == kernel
         @test Peridynamics.get_q_dim(kernel) > 0
     end
 
@@ -278,17 +372,75 @@ end
 
 @testitem "RKCMaterial: show" begin
     @test contains(sprint(show, RKCMaterial()), "RKCMaterial")
+    # the monomial is visible as the last type parameter
     @test contains(sprint(show, RKCMaterial(monomial=:RK1)), "RKCMaterial")
+    @test contains(sprint(show, RKCMaterial(monomial=:RK1)), ":RK1")
     @test contains(sprint(show, MIME("text/plain"), RKCMaterial()), "RKCMaterial")
 end
 
 @testitem "RKCMaterial: invalid keyword values are rejected" begin
     @test_throws ArgumentError RKCMaterial(; monomial=:NoSuchMonomial)
+    @test_throws ArgumentError RKCMaterial(; epsilon=-1.0)
     @test_throws ArgumentError RKCMaterial(; lambda=-1.0)
     @test_throws ArgumentError RKCMaterial(; beta=-1.0)
+    @test_throws ArgumentError RKCMaterial(; epsilon=1e-3, lambda=0.0)
     @test_throws ArgumentError RKCRMaterial(; monomial=:NoSuchMonomial)
+    @test_throws ArgumentError RKCRMaterial(; epsilon=-1.0)
     @test_throws ArgumentError RKCRMaterial(; lambda=-1.0)
     @test_throws ArgumentError RKCRMaterial(; beta=-1.0)
+    @test_throws ArgumentError RKCRMaterial(; epsilon=1e-3, beta=0.0)
+end
+
+@testitem "rkc_weights!: the singular value floor is inactive for intact families" setup=[Fixtures] begin
+    # The default floor only damps singular values below `epsilon * σ_max`. The moment
+    # matrix of an intact family is far better conditioned than that, so the gradient
+    # weights are bit-identical to those of the exact inverse and to the legacy
+    # regularization with no truncation: the new default changes nothing in the bulk.
+    function weights(mat)
+        body = Fixtures.cube(mat; n=5)
+        dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+        return copy(dh.chunks[1].storage.gradient_weight)
+    end
+    for monomial in (:C1, :RK1, :RK2, :PD2)
+        @testset "$monomial" begin
+            floor = weights(RKCMaterial(; monomial))
+            exact = weights(RKCMaterial(; monomial, epsilon=0))
+            legacy = weights(RKCMaterial(; monomial, lambda=0, beta=0))
+            @test floor == exact
+            @test floor == legacy
+            @test all(isfinite, floor)
+        end
+    end
+end
+
+@testitem "rkc_weights!: the singular value floor bounds a degenerate family" begin
+    # Two points and the neighbors of the first one all on the x-axis: for `:C1` the moment
+    # matrix has rank one. The floor keeps the gradient weights of the degenerate family
+    # finite and bounded, and the resolved direction is still reproduced exactly.
+    using Peridynamics.LinearAlgebra
+    pos = [0.0 1.0 -1.0 2.0; 0.0 0.0 0.0 0.0; 0.0 0.0 0.0 0.0]
+    vol = fill(1.0, 4)
+    body = Body(RKCMaterial(), pos, vol)
+    # a critical stretch far above the stretch applied below, so no bond fails
+    material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, epsilon_c=0.1)
+    dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+    (; storage, system) = dh.chunks[1]
+    Φ = [Peridynamics.get_vector(storage.gradient_weight, b)
+         for b in Peridynamics.each_bond_idx(system, 1)]
+    @test all(v -> all(isfinite, v), Φ)
+    # a bond along x contributes only to ∂/∂x, the singular directions get no weight
+    @test all(v -> v[2] == 0 && v[3] == 0, Φ)
+    # the reproducing condition Σ Φ ⊗ ΔX = I holds in the resolved direction
+    ΔX = [Peridynamics.get_vector_diff(system.position, 1, system.bonds[b].neighbor)
+          for b in Peridynamics.each_bond_idx(system, 1)]
+    @test sum(Φ[k][1] * ΔX[k][1] for k in eachindex(Φ)) ≈ 1
+    # the deformation gradient of a uniform stretch in x is recovered without `NaN`
+    storage.position[1, :] .*= 1.01
+    Peridynamics.calc_force_density!(dh, 0.0, 0.0)
+    F = Peridynamics.get_tensor(storage.defgrad, 1)
+    @test !Peridynamics.containsnan(F)
+    @test F[1, 1] ≈ 1.01
+    @test all(isfinite, storage.b_int)
 end
 
 @testitem "export_field: the strain energy density is computed on demand" setup=[Fixtures] begin

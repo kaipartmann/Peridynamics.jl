@@ -93,7 +93,7 @@ abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 abstract type AbstractBondBasedMaterial{CM} <: AbstractBondSystemMaterial{CM} end
 abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMaterial{ZEM} end
-abstract type AbstractRKCMaterial{CM,C} <: AbstractBondSystemMaterial{C} end
+abstract type AbstractRKCMaterial{CM,C,M} <: AbstractBondSystemMaterial{C} end
 abstract type AbstractBondAssociatedSystemMaterial <: AbstractBondSystemMaterial{Nothing} end
 abstract type AbstractConstitutiveModel end
 abstract type AbstractConstitutiveState end
