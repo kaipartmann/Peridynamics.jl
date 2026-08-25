@@ -159,11 +159,13 @@ they carry the elastic stiffness tensor `C`, which the [`ZEMWan`](@ref) stabiliz
 """
 @params struct CPointParameters
     @inherit StandardParameters
+    cm_params::ConstitutiveParameters
     @derived C::SArray{NTuple{4,3},Float64,4,81} = get_hooke_matrix(nu, λ, μ)
 end
 
 @params AbstractMaterial CPointParameters begin
     @inherit StandardParameters
+    cm_params::ConstitutiveParameters
     @derived C::SArray{NTuple{4,3},Float64,4,81} = get_hooke_matrix(nu, λ, μ)
 end
 

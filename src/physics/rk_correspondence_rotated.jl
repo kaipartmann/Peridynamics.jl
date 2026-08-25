@@ -44,7 +44,7 @@ function RKCRMaterial(; kernel::Function=const_one_kernel,
     return RKCRMaterial(kernel, model, dmgmodel, monomial, lambda, beta)
 end
 
-@params RKCRMaterial StandardPointParameters
+@params RKCRMaterial RKCPointParameters
 
 @storage RKCRMaterial struct RKCRStorage
     @inherit VelocityVerletFields DynamicRelaxationFields
@@ -63,7 +63,7 @@ end
 rkc_lth_after_fields(::RKCRMaterial) = (:defgrad, :defgrad_dot, :weighted_volume)
 
 function rkc_defgrad!(storage::RKCRStorage, system::AbstractBondSystem, mat::RKCRMaterial,
-                      params::StandardPointParameters, t, Δt, i)
+                      params::RKCPointParameters, t, Δt, i)
     (; bonds) = system
     (; defgrad, defgrad_dot, gradient_weight) = storage
     F = SMatrix{3,3,Float64,9}(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
@@ -86,7 +86,7 @@ function rkc_defgrad!(storage::RKCRStorage, system::AbstractBondSystem, mat::RKC
 end
 
 function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
-                              mat::RKCRMaterial, params::StandardPointParameters, t, Δt, i)
+                              mat::RKCRMaterial, params::RKCPointParameters, t, Δt, i)
     (; bonds, volume) = system
     (; bond_active, defgrad, defgrad_dot, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
@@ -117,7 +117,7 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
 end
 
 function calc_first_piola_kirchhoff!(storage::RKCRStorage, mat::RKCRMaterial,
-                                     params::StandardPointParameters, F::SMatrix{3,3,FT,9},
+                                     params::RKCPointParameters, F::SMatrix{3,3,FT,9},
                                      Ḟ::SMatrix{3,3,FT,9}, Δt, bond_id) where {FT}
     D = init_stress_rotation!(storage, F, Ḟ, Δt, bond_id)
     Δε = D * Δt

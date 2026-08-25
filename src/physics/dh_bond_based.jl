@@ -86,7 +86,6 @@ DHBBMaterial(; kwargs...) = DHBBMaterial{NoCorrection}(; kwargs...)
 @params DHBBMaterial StandardPointParameters begin
     @inherit DiscretizationParameters BBElasticParameters
     @derived bc = 0.5 * 18 * K / (π * δ^4) # half of the normal bond constant
-    cm_params::ConstitutiveParameters
     dmg_params::DamageParameters
 end
 

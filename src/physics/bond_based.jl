@@ -145,7 +145,6 @@ $(block_table(BBStandardParameters))
 @params_fields BBStandardParameters begin
     @inherit DiscretizationParameters BBElasticParameters
     @derived bc = 18 * K / (π * δ^4)
-    cm_params::ConstitutiveParameters
     dmg_params::DamageParameters
 end
 

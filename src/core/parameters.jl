@@ -564,17 +564,18 @@ end
 $(extension_api_note())
 
 Parameter block of the parameters a standard peridynamics model needs: the discretization
-and the elastic parameters, the bond constant `bc`, and the two marker fields that hold
-whatever parameters the constitutive model and the damage model of the material declare —
-with the standard [`CriticalStretch`](@ref), the fracture parameters `Gc` and `εc`. See
-[`@params_fields`](@ref), [`ConstitutiveParameters`](@ref), [`DamageParameters`](@ref).
+and the elastic parameters, the bond constant `bc`, and the marker field that holds
+whatever parameters the damage model of the material declares — with the standard
+[`CriticalStretch`](@ref), the fracture parameters `Gc` and `εc`. Materials that carry a
+constitutive model add `cm_params::ConstitutiveParameters` themselves, e.g.
+[`RKCPointParameters`](@ref). See [`@params_fields`](@ref),
+[`ConstitutiveParameters`](@ref), [`DamageParameters`](@ref).
 
 $(block_table(StandardParameters))
 """
 @params_fields StandardParameters begin
     @inherit DiscretizationParameters ElasticParameters
     @derived bc = 18 * K / (π * δ^4)
-    cm_params::ConstitutiveParameters
     dmg_params::DamageParameters
 end
 
@@ -583,9 +584,9 @@ end
 
 $(internal_api_warning())
 
-Type containing the material parameters for a standard peridynamics model using the
-bond-based, ordinary state-based or non-ordinary state-based correspondence formulation of
-peridynamics.
+Type containing the material parameters for a standard peridynamics model without a
+constitutive model of its own, e.g. the bond-based and the ordinary state-based
+formulations of peridynamics.
 
 # Fields
 
@@ -598,7 +599,6 @@ peridynamics.
 - `λ::FT`: 1st Lamé parameter.
 - `μ::FT`: 2nd Lamé parameter.
 - `bc::FT`: Bond constant.
-- `cm_params::CMP`: Parameters of the constitutive model, `nothing` if it has none.
 - `dmg_params::DMP`: Parameters of the damage model — with [`CriticalStretch`](@ref) the
     critical energy release rate `Gc` and the critical stretch `εc`, read flat as
     `params.Gc` and `params.εc`.

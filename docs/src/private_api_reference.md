@@ -37,6 +37,7 @@ Peridynamics.PosDepSingleDimBC
 Peridynamics.CKIPointParameters
 Peridynamics.BACPointParameters
 Peridynamics.CPointParameters
+Peridynamics.RKCPointParameters
 Peridynamics.SingleDimIC
 Peridynamics.PosDepSingleDimIC
 Peridynamics.ShortRangeForceContact
