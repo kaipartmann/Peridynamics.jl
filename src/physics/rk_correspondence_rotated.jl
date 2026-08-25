@@ -1,5 +1,5 @@
 """
-    RKCRMaterial(; kernel, model, dmgmodel, monomial, lambda, beta)
+    RKCRMaterial(; kernel, model, dmgmodel, monomial, epsilon, lambda, beta)
 
 The same as the [`RKCMaterial`](@ref) but with rotation of the stress tensor for large
 deformation simulations, therefore not all models are supported.
@@ -9,39 +9,33 @@ Supported models:
 - `LinearElastic`
 
 Please take a look at the [`RKCMaterial`](@ref) docs for more information about the
-material, including details about the `monomial`, `lambda`, and `beta` parameters!
+material, including details about the `monomial`, `epsilon`, `lambda`, and `beta`
+parameters!
 """
-struct RKCRMaterial{CM,K,DM} <: AbstractRKCMaterial{CM,NoCorrection}
+struct RKCRMaterial{CM,K,DM,M} <: AbstractRKCMaterial{CM,NoCorrection,M}
     kernel::K
     constitutive_model::CM
     dmgmodel::DM
-    monomial::Symbol
+    epsilon::Float64
     lambda::Float64
     beta::Float64
-    function RKCRMaterial(kernel::K, cm::CM, dmgmodel::DM, monomial::Symbol,
-                          lambda::Real, beta::Real) where {CM,K,DM}
-        return new{CM,K,DM}(kernel, cm, dmgmodel, monomial, lambda, beta)
+    function RKCRMaterial(kernel::K, cm::CM, dmgmodel::DM, ::Val{M}, epsilon::Real,
+                          lambda::Real, beta::Real) where {CM,K,DM,M}
+        return new{CM,K,DM,M}(kernel, cm, dmgmodel, epsilon, lambda, beta)
     end
 end
 
 function RKCRMaterial(; kernel::Function=const_one_kernel,
                         model::AbstractConstitutiveModel=SaintVenantKirchhoff(),
                         dmgmodel::AbstractDamageModel=CriticalStretch(),
-                        monomial::Symbol=:C1, lambda::Real=0, beta::Real=sqrt(eps()))
+                        monomial::Symbol=:C1, epsilon=nothing, lambda=nothing, beta=nothing)
     if !(typeof(model) <: Union{SaintVenantKirchhoff,LinearElastic})
         msg = "model `$(typeof(model))` is currently not supported for `RKCRMaterial`!\n"
         throw(ArgumentError(msg))
     end
-    get_q_dim(monomial) # check if the kernel is implemented
-    if lambda < 0
-        msg = "Tikhonov regularization parameter must be non-negative! (`lambda ≥ 0`)\n"
-        throw(ArgumentError(msg))
-    end
-    if beta < 0
-        msg = "SVD truncation parameter must be non-negative! (`beta ≥ 0`)\n"
-        throw(ArgumentError(msg))
-    end
-    return RKCRMaterial(kernel, model, dmgmodel, monomial, lambda, beta)
+    get_q_dim(monomial) # check if the monomial is implemented
+    ε, λ, β = get_invreg_params(epsilon, lambda, beta)
+    return RKCRMaterial(kernel, model, dmgmodel, Val(monomial), ε, λ, β)
 end
 
 @params RKCRMaterial RKCPointParameters
@@ -88,15 +82,22 @@ end
 function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
                               mat::RKCRMaterial, params::RKCPointParameters, t, Δt, i)
     (; bonds, volume) = system
-    (; bond_active, defgrad, defgrad_dot, weighted_volume) = storage
+    (; bond_active, defgrad, defgrad_dot, weighted_volume,
+       bond_first_piola_kirchhoff) = storage
     Fi = get_tensor(defgrad, i)
     Ḟi = get_tensor(defgrad_dot, i)
     wi = weighted_volume[i]
     ∑P = zero(SMatrix{3,3,Float64,9})
+    isolated_point(wi) && return ∑P # see `rkc_stress_integral!` of `RKCMaterial`
     for bond_id in each_bond_idx(system, i)
         if bond_active[bond_id]
             bond = bonds[bond_id]
             j, L = bond.neighbor, bond.length
+            wj = weighted_volume[j]
+            if isolated_point(wj)
+                update_tensor!(bond_first_piola_kirchhoff, bond_id, zero(SMatrix{3,3,Float64,9}))
+                continue
+            end
             ΔXij = get_vector_diff(system.position, i, j)
             Δxij = get_vector_diff(storage.position, i, j)
             Δvij = get_vector_diff(storage.velocity_half, i, j)
@@ -105,8 +106,7 @@ function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
             Fij = bond_avg(Fi, Fj, ΔXij, Δxij, L)
             Ḟij = bond_avg(Ḟi, Ḟj, ΔXij, Δvij, L)
             Pij = calc_first_piola_kirchhoff!(storage, mat, params, Fij, Ḟij, Δt, bond_id)
-            Tempij = I - (ΔXij * ΔXij') / (L * L)
-            wj = weighted_volume[j]
+            Tempij = temp_ij(ΔXij, L)
             ϕ = (0.5 / wi + 0.5 / wj)
             ω̃ij = kernel(system, bond_id) * ϕ * volume[j]
             ∑Pij = ω̃ij * (Pij * Tempij)

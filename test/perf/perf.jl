@@ -24,8 +24,8 @@ end
     # `force_density!` never reaches the gradient weight calculation, so it is measured
     # separately here. See `gradient_weights!` in `test/setup/fixtures.jl`.
     #
-    # These allocate for a known reason, see the type stability item below. `@test_broken` keeps
-    # them visible in every run, and once the cause is fixed Julia reports an unexpected pass.
+    # The monomial of the RKC family is a type parameter, so the size of the moment matrix
+    # in `rkc_weights!` is a compile-time constant and the matrix lives on the stack.
     for (name, mat) in Fixtures.MATERIALS
         Fixtures.has_gradient_weights(mat) || continue
         fixture = Fixtures.material_fixture(mat)
@@ -34,7 +34,7 @@ end
         bytes = @allocated Fixtures.gradient_weights!(fixture)
         @debug "gradient weight allocations" material=name bytes
         @testset "$name" begin
-            @test_broken bytes == 0
+            @test bytes == 0
         end
     end
 end
@@ -49,16 +49,11 @@ end
     # actual *return* type, and that is `Nothing` no matter how unstable the body is.
     using JET
     for (name, mat) in Fixtures.MATERIALS
-        # `RKCMaterial` carries `monomial` as a `Symbol` field rather than as a type parameter,
-        # so `q_dim = get_q_dim(monomial)` in `rkc_weights!` is a runtime value and the moment
-        # matrix built from it cannot be stack allocated. JET names it exactly:
-        # `get_q_dim(%2::Val)::Any` and `zero(Type{SMatrix{_A,_B,Float64,_C}})::Any`.
-        broken = mat isa Peridynamics.AbstractRKCMaterial
         fixture = Fixtures.material_fixture(mat)
         @testset "$name" begin
-            @test_opt broken=broken target_modules=(Peridynamics,) Fixtures.force_density!(fixture)
+            @test_opt target_modules=(Peridynamics,) Fixtures.force_density!(fixture)
             if Fixtures.has_gradient_weights(mat)
-                @test_opt broken=broken target_modules=(Peridynamics,) Fixtures.gradient_weights!(fixture)
+                @test_opt target_modules=(Peridynamics,) Fixtures.gradient_weights!(fixture)
             end
         end
     end

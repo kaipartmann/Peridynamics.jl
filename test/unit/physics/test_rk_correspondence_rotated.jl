@@ -7,9 +7,10 @@
     @test mat1.kernel == const_one_kernel
     @test mat1.constitutive_model isa SaintVenantKirchhoff
     @test mat1.dmgmodel isa CriticalStretch
-    @test mat1.monomial == :C1
+    @test Peridynamics.monomial(mat1) == :C1
+    @test mat1.epsilon == 1e-3
     @test mat1.lambda == 0
-    @test mat1.beta ≈ sqrt(eps())
+    @test mat1.beta == 0
 
     # Test constructor with parameters (only linear elastic models are supported)
     mat2 = RKCRMaterial(
@@ -23,16 +24,24 @@
     @test mat2.kernel == linear_kernel
     @test mat2.constitutive_model isa LinearElastic
     @test mat2.dmgmodel isa CriticalStretch
-    @test mat2.monomial == :C1
+    @test Peridynamics.monomial(mat2) == :C1
+    @test mat2.epsilon == 0
     @test mat2.lambda == 0
     @test mat2.beta == 1e-10
+
+    mat3 = RKCRMaterial(epsilon = 1e-2)
+    @test mat3.epsilon == 1e-2
+    @test mat3.lambda == 0
+    @test mat3.beta == 0
 
     # Test failure with non-LinearElastic model
     @test_throws ArgumentError RKCRMaterial(model = NeoHooke())
 
-    # Test constructor with invalid lambda/beta
+    # Test constructor with invalid epsilon/lambda/beta
+    @test_throws ArgumentError RKCRMaterial(epsilon = -0.5)
     @test_throws ArgumentError RKCRMaterial(lambda = -0.5)
     @test_throws ArgumentError RKCRMaterial(beta = -0.5)
+    @test_throws ArgumentError RKCRMaterial(epsilon = 1e-3, beta = 1e-6)
 end
 
 @testitem "RKCRMaterial: deformation gradient and its rate" begin

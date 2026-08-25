@@ -63,6 +63,7 @@ Peridynamics.apply_precracks!
 Peridynamics.apply_precrack!
 Peridynamics.point_sets_intersect
 Peridynamics.invreg
+Peridynamics.get_invreg_params
 Peridynamics.update_sim_success_from_log!
 ```
 
@@ -79,6 +80,8 @@ Peridynamics.update_sym_tensor!
 Peridynamics.sym_eigvals
 Peridynamics.hencky_and_invstretch
 Peridynamics.surface_correction_factor
+Peridynamics.monomial
+Peridynamics.rkc_weights!
 Peridynamics.custom_field
 Peridynamics.export_field
 Peridynamics.sphere_shape_coords
