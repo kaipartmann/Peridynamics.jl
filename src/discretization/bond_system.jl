@@ -438,14 +438,6 @@ $(block_table(BondFracFields))
     bond_active::BondScalar{Bool}
 end
 
-function get_required_point_parameters(::AbstractBondSystemMaterial, p::Dict{Symbol,Any})
-    return (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)
-end
-
-function allowed_material_kwargs(::AbstractBondSystemMaterial)
-    return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...)
-end
-
 """
     get_n_bonds(system)
 

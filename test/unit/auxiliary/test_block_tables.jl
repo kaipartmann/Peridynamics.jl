@@ -51,3 +51,31 @@ end
     @test !contains(plain, "@inherit")
     @test !contains(sprint(show, MIME"text/html"(), LonelyBlock), "<table>")
 end
+
+@testitem "block_table: the table of a parameter block and of point parameters" begin
+    import Peridynamics: block_table, DiscretizationParameters, point_param_type
+
+    params = block_table(DiscretizationParameters)
+    @test startswith(params,
+                     "| parameter | type | `material!` keyword | value | simulation log |")
+    @test occursin("| `δ` |", params)
+    @test occursin("| `rho` |", params)
+    # the keywords appear inside the call that reads them, which is the connection between
+    # what `material!` takes and what the parameters are
+    @test occursin("`(; δ, rho) = get_discretization_params(; horizon, rho)`", params)
+    @test occursin("Keywords of `material!`: `horizon`, `rho`.", params)
+    @test occursin("horizon", params)   # the simulation log label
+
+    # a material instance answers with the table of its point parameters
+    @test block_table(BBMaterial()) == block_table(point_param_type(BBMaterial()))
+    @test occursin("Keywords of `material!`: `horizon`, `rho`, `E`",
+                   block_table(BBMaterial()))
+
+    # typing the name of a parameter block at the REPL shows the same table, rendered
+    shown = sprint(show, MIME"text/plain"(), DiscretizationParameters)
+    @test occursin("a block you can @inherit", shown)
+    @test occursin("get_discretization_params(; horizon, rho)", shown)
+    @test occursin("Keywords of material!: horizon, rho.", shown)
+    # and a real table in the documentation
+    @test occursin("<table>", sprint(show, MIME"text/html"(), DiscretizationParameters))
+end

@@ -9,7 +9,6 @@ body as part of the material.
 """
 struct CriticalStretch <: AbstractDamageModel end
 
-@inline fracture_kwargs() = (:Gc, :epsilon_c)
 
 """
     failure_permit!(body, set_name, fail_permit)
@@ -133,7 +132,7 @@ is ignored.
 """
 function get_frac_params end
 
-function get_frac_params(::CriticalStretch, δ::Float64, K::Float64; Gc=nothing,
+function get_frac_params(::CriticalStretch, δ::Real, K::Real; Gc=nothing,
                          epsilon_c=nothing, kwargs...)
     local _Gc::Float64
     local εc::Float64
@@ -158,13 +157,6 @@ end
 
 function get_frac_params(::AbstractDamageModel, δ, K; kwargs...)
     return (; )
-end
-
-# the point parameter constructors of `@params` still read the fracture keywords from the
-# `Dict` that `material!` collects; this bridge goes when the parameters are keyword-based
-function get_frac_params(dmgmodel::AbstractDamageModel, p::Dict{Symbol,Any}, δ, K)
-    return get_frac_params(dmgmodel, δ, K;
-                           (kw => get(p, kw, nothing) for kw in fracture_kwargs())...)
 end
 
 """
@@ -245,6 +237,10 @@ therefore is supposed to have failure allowed or return `false` if not.
 function has_fracture(mat::AbstractMaterial, params::AbstractPointParameters)
     return has_fracture(mat.dmgmodel, params)
 end
+
+# a damage model that declares no fracture parameters cannot say when a bond fails, so
+# failure stays prohibited unless the model defines its own method
+has_fracture(::AbstractDamageModel, params) = false
 
 function has_fracture(::CriticalStretch, params::AbstractPointParameters)
     if isapprox(params.Gc, 0; atol=eps()) || isapprox(params.εc, 0; atol=eps())
@@ -368,6 +364,44 @@ end
 
 function req_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
     return ()
+end
+
+"""
+    FractureParameters
+
+$(extension_api_note())
+
+Parameter block of the critical energy release rate `Gc` and the critical stretch `εc`,
+resolved by [`get_frac_params`](@ref) of the damage model, which decides which of the
+fracture keywords it reads and how it converts them into each other. The block belongs to
+the damage model, so it is inherited inside a [`@dmg_params`](@ref) declaration: this is
+how [`CriticalStretch`](@ref) declares its parameters, and a custom damage model that
+wants the standard fracture keywords inherits it the same way. It reads the horizon `δ`
+and the bulk modulus `K` of the material parameters declared above the
+`dmg_params::DamageParameters` marker. See [`@params_fields`](@ref).
+
+$(block_table(FractureParameters))
+"""
+@params_fields FractureParameters begin
+    @derived (; Gc, εc) = get_frac_params(model, δ, K; Gc, epsilon_c)
+    @log "critical energy release rate" Gc
+    @log "critical stretch" εc
+end
+
+"""
+    CriticalStretchParameters
+
+$(internal_api_warning())
+
+The point parameters of [`CriticalStretch`](@ref): the [`FractureParameters`](@ref) block,
+declared with [`@dmg_params`](@ref). They occupy the `dmg_params::DamageParameters` marker
+field of every material used with the standard damage model, and are read flat off the
+point parameters, e.g. `params.Gc`.
+
+$(block_table(CriticalStretchParameters))
+"""
+@dmg_params CriticalStretch struct CriticalStretchParameters
+    @inherit FractureParameters
 end
 
 # --------------------------------------------------------------------------------------
@@ -579,12 +613,4 @@ A damage model with properties worth logging defines its own method.
 """
 function log_dmgmodel(dmgmodel::AbstractDamageModel; indentation)
     return msg_qty("damage model type", typeof(dmgmodel); indentation)
-end
-
-function log_param_property(::Val{:Gc}, param; indentation)
-    return msg_qty("critical energy release rate", param.Gc; indentation)
-end
-
-function log_param_property(::Val{:εc}, param; indentation)
-    return msg_qty("critical stretch", param.εc; indentation)
 end

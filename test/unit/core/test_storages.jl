@@ -39,7 +39,7 @@ end
 end
 
 @testitem "check_storage_contract: the contract is checked when a Job is created" begin
-    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, StandardPointParameters,
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection,
                          StorageContractError, check_storage_contract
 
     function testbody(mat)
@@ -69,7 +69,9 @@ end
         dmgmodel::CriticalStretch
     end
     ContractMat() = ContractMat(CriticalStretch())
-    Peridynamics.@params ContractMat StandardPointParameters
+    Peridynamics.@params ContractMat struct ContractMatParams
+        @inherit StandardParameters
+    end
     Peridynamics.@storage ContractMat struct ContractStorage
         @inherit VelocityVerletFields BondFracFields
     end
@@ -298,27 +300,9 @@ end
         end
     end
     Mat3(; dmgmodel::AbstractDamageModel=CriticalStretch()) = Mat3(dmgmodel)
-    struct Params3 <: AbstractPointParameters
-        δ::Float64
-        rho::Float64
-        E::Float64
-        nu::Float64
-        G::Float64
-        K::Float64
-        λ::Float64
-        μ::Float64
-        Gc::Float64
-        εc::Float64
-        bc::Float64
+    Peridynamics.@params Mat3 struct Params3
+        @inherit StandardParameters
     end
-    @test_throws InterfaceError Peridynamics.@params Mat3 Params3
-    function Params3(mat::Mat3, p::Dict{Symbol,Any})
-        (; δ, rho, E, nu, G, K, λ, μ) = Peridynamics.get_required_point_parameters(mat, p)
-        (; Gc, εc) = Peridynamics.get_frac_params(mat.dmgmodel, p, δ, K)
-        bc = 18 * K / (π * δ^4) # bond constant
-        return Params3(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
-    end
-    Peridynamics.@params Mat3 Params3
 
     pos, vol = uniform_box(1,1,1,0.4)
     mat = Mat3()

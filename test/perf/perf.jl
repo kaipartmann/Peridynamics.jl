@@ -63,3 +63,30 @@ end
         end
     end
 end
+
+@testitem "parameter property forwarding" tags=[:perf] setup=[Fixtures] begin
+    # `params.Gc` reads a value that lives in the parameters of the damage model; the
+    # generated `getproperty` has to compile to a direct load, so a loop of flat reads
+    # allocates nothing and costs the same as reading a field
+    body = Fixtures.cube(BBMaterial(); n=4)
+    params = only(body.point_params)
+    function read_params(params, n)
+        s = 0.0
+        for _ in 1:n
+            s += params.Gc + params.εc + params.δ + params.E
+        end
+        return s
+    end
+    read_params(params, 2)
+    bytes = @allocated read_params(params, 1000)
+    if VERSION ≥ v"1.12"
+        @test bytes == 0 # allocates in v1.10
+    end
+    @test read_params(params, 1) ≈ params.Gc + params.εc + params.δ + params.E
+    # the nested access compiles away as well
+    nested(params, n) = sum(_ -> params.dmg_params.Gc, 1:n)
+    nested(params, 2)
+    if VERSION ≥ v"1.12"
+        @test (@allocated nested(params, 1000)) == 0 # allocates in v1.10
+    end
+end

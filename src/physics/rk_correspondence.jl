@@ -174,7 +174,21 @@ function log_material_property(::Val{:beta}, mat; indentation)
     return msg_qty("SVD truncation parameter", mat.beta; indentation)
 end
 
-@params RKCMaterial StandardPointParameters
+"""
+    RKCPointParameters
+
+$(internal_api_warning())
+
+Point parameters of the reproducing-kernel correspondence family: the standard parameters
+plus the parameters of the constitutive model the material carries.
+[`RKCRMaterial`](@ref) uses them as well.
+
+$(block_table(RKCPointParameters))
+"""
+@params RKCMaterial struct RKCPointParameters
+    @inherit StandardParameters
+    cm_params::ConstitutiveParameters
+end
 
 """
     RKCFields
@@ -517,7 +531,7 @@ function rkc_force_density!(storage::AbstractStorage, system::AbstractBondSystem
 end
 
 function calc_first_piola_kirchhoff!(storage::RKCStorage, mat::RKCMaterial,
-                                     params::StandardPointParameters, F, bond_id, Δt)
+                                     params::RKCPointParameters, F, bond_id, Δt)
     P₀ = first_piola_kirchhoff(mat.constitutive_model, storage, params, F, bond_id, Δt)
     P = bond_integrity(mat.dmgmodel, storage, bond_id) * P₀
     update_tensor!(storage.bond_first_piola_kirchhoff, bond_id, P)
@@ -532,7 +546,7 @@ function bond_avg(Fi, Fj, ΔXij, Δxij, L)
 end
 
 function cauchy_stress_point!(storage::AbstractStorage, system::BondSystem,
-                              ::AbstractRKCMaterial, ::StandardPointParameters, i)
+                              ::AbstractRKCMaterial, ::RKCPointParameters, i)
     (; bonds, volume) = system
     (; bond_active, defgrad, bond_first_piola_kirchhoff, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
@@ -608,7 +622,7 @@ end
 
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       mat::AbstractRKCMaterial,
-                                      params::StandardPointParameters, i)
+                                      params::RKCPointParameters, i)
     (; bonds, volume) = system
     (; bond_active, defgrad, weighted_volume) = storage
     model = mat.constitutive_model

@@ -1,8 +1,5 @@
 @inline elasticity_parameters() = (:E, :nu, :G, :K, :λ, :μ)
 
-@inline elasticity_kwargs() = (:E, :nu, :G, :K, :lambda, :mu)
-@inline discretization_kwargs() = (:horizon, :rho)
-
 """
     material!(body, set_name; kwargs...)
     material!(body; kwargs...)
@@ -65,6 +62,7 @@ function material!(body::AbstractBody, set_name::Symbol; kwargs...)
     check_if_set_is_defined(body.point_sets, set_name)
 
     p = Dict{Symbol,Any}(kwargs)
+    check_model_params(body.mat)
     check_material_kwargs(body.mat, p)
 
     points = body.point_sets[set_name]
@@ -92,33 +90,107 @@ function _material!(b::AbstractBody, points::V, params::P) where {P,V}
 end
 
 function check_material_kwargs(mat::AbstractMaterial, p::Dict{Symbol,Any})
-    allowed_kwargs = allowed_material_kwargs(mat)
-    check_kwargs(p, allowed_kwargs)
+    check_kwargs(p, all_material_kwargs(mat))
     return nothing
 end
 
-function get_horizon(p::Dict{Symbol,Any})
-    if !haskey(p, :horizon)
-        throw(UndefKeywordError(:horizon))
+"""
+    all_material_kwargs(mat)
+
+$(internal_api_warning())
+
+Every keyword `material!` accepts for a material: the keywords its own parameter
+declarations consume, plus the keywords of its constitutive model and of its damage model.
+A keyword is accepted exactly when something reads it, and a keyword two of them declare is
+an error naming both owners.
+"""
+function all_material_kwargs(mat::AbstractMaterial)
+    material = allowed_material_kwargs(mat)
+    cm = constitutive_param_kwargs(get_constitutive_model(mat))
+    dmg = damage_param_kwargs(get_dmgmodel(mat))
+    check_kwarg_owners(mat, material, cm, dmg)
+    return (material..., cm..., dmg...)
+end
+
+function check_kwarg_owners(mat, material, cm, dmg)
+    owners = Dict{Symbol,Vector{String}}()
+    for (kwargs, owner) in ((material, "the material `$(nameof(typeof(mat)))`"),
+                            (cm, "the constitutive model"),
+                            (dmg, "the damage model"))
+        for kwarg in kwargs
+            push!(get!(Vector{String}, owners, kwarg), owner)
+        end
     end
-    δ::Float64 = float(p[:horizon])
+    for (kwarg, names) in owners
+        length(names) > 1 || continue
+        msg = "the `material!` keyword `$(kwarg)` is declared more than once: by "
+        msg *= "$(join(names, " and "))!\n"
+        msg *= "  Rename the keyword with `@kwarg` in one of the declarations.\n"
+        throw(ArgumentError(msg))
+    end
+    return nothing
+end
+
+function get_horizon(; horizon)
+    δ::Float64 = float(horizon)
     δ ≤ 0 && throw(ArgumentError("`horizon` should be larger than zero!\n"))
     return (; δ,)
 end
 
-function get_density(p::Dict{Symbol,Any})
-    if !haskey(p, :rho)
-        throw(UndefKeywordError(:rho))
-    end
-    rho::Float64 = float(p[:rho])
-    rho ≤ 0 && throw(ArgumentError("`rho` should be larger than zero!\n"))
-    return (; rho,)
+function get_density(; rho)
+    ρ::Float64 = float(rho)
+    ρ ≤ 0 && throw(ArgumentError("`rho` should be larger than zero!\n"))
+    return (; rho=ρ)
 end
 
-function get_elastic_params(p::Dict{Symbol,Any})
-    par = get_given_elastic_params(p)
-    check_elastic_params(par)
-    (; E, nu)= get_E_and_nu(par)
+"""
+    DiscretizationParameters
+
+$(extension_api_note())
+
+Parameter block of the horizon `δ` and the density `rho`, the two parameters every
+peridynamic material needs. See [`@params_fields`](@ref).
+
+$(block_table(DiscretizationParameters))
+"""
+@params_fields DiscretizationParameters begin
+    @derived (; δ, rho) = get_discretization_params(; horizon, rho)
+    @log "horizon" δ
+    @log "density" rho
+end
+
+function get_discretization_params(; horizon, rho)
+    return (; get_horizon(; horizon)..., get_density(; rho)...)
+end
+
+"""
+    ElasticParameters
+
+$(extension_api_note())
+
+Parameter block of the six elastic parameters. They are resolved together, because any two
+of the six keywords `E`, `nu`, `G`, `K`, `lambda` and `mu` determine all of them. See
+[`@params_fields`](@ref).
+
+$(block_table(ElasticParameters))
+"""
+@params_fields ElasticParameters begin
+    @derived (; E, nu, G, K, λ, μ) = get_elastic_params(; E, nu, G, K, lambda, mu)
+    @log "Young's modulus" E
+    @log "Poisson's ratio" nu
+    @log "shear modulus" G
+    @log "bulk modulus" K
+end
+
+function get_elastic_params(; E=nothing, nu=nothing, G=nothing, K=nothing, lambda=nothing,
+                            mu=nothing)
+    return resolve_elastic_params(get_given_elastic_params(; E, nu, G, K, lambda, mu))
+end
+
+# the six elastic parameters that follow from the two that were given
+function resolve_elastic_params(given)
+    check_elastic_params(given)
+    (; E, nu) = get_E_and_nu(given)
 
     G = E / (2 * (1 + nu))
     K = E / (3 * (1 - 2 * nu))
@@ -128,45 +200,26 @@ function get_elastic_params(p::Dict{Symbol,Any})
     return (; E, nu, G, K, λ, μ)
 end
 
-function get_given_elastic_params(p::Dict{Symbol,Any})
-    # get elastic parameters from dictionary
-    if haskey(p, :E)
-        E::Float64 = float(p[:E])
-        E ≤ 0 && throw(ArgumentError("`E` should be larger than zero!\n"))
-    else
-        E = NaN
-    end
-    if haskey(p, :nu)
-        nu::Float64 = float(p[:nu])
-        nu ≤ 0 && throw(ArgumentError("`nu` should be larger than zero!\n"))
-        nu ≥ 1 && throw(ArgumentError("too high value of `nu`! Condition: 0 < `nu` ≤ 1\n"))
-    else
-        nu = NaN
-    end
-    if haskey(p, :G)
-        G::Float64 = float(p[:G])
-        G ≤ 0 && throw(ArgumentError("`G` should be larger than zero!\n"))
-    else
-        G = NaN
-    end
-    if haskey(p, :K)
-        K::Float64 = float(p[:K])
-        K ≤ 0 && throw(ArgumentError("`K` should be larger than zero!\n"))
-    else
-        K = NaN
-    end
-    if haskey(p, :lambda)
-        λ::Float64 = float(p[:lambda])
-    else
-        λ = NaN
-    end
-    if haskey(p, :mu)
-        μ::Float64 = float(p[:mu])
-        μ ≤ 0 && throw(ArgumentError("`μ` should be larger than zero!\n"))
-    else
-        μ = NaN
-    end
-    return (; E, nu, G, K, λ, μ)
+function get_given_elastic_params(; E=nothing, nu=nothing, G=nothing, K=nothing,
+                                  lambda=nothing, mu=nothing)
+    # a keyword that was not specified is `nothing` and becomes `NaN`, so that the number of
+    # given parameters is `count(isfinite, ...)`
+    _E = given_elastic_param(E, "E")
+    _nu = given_elastic_param(nu, "nu")
+    _nu ≥ 1 && throw(ArgumentError("too high value of `nu`! Condition: 0 < `nu` ≤ 1\n"))
+    _G = given_elastic_param(G, "G")
+    _K = given_elastic_param(K, "K")
+    # the 1st Lamé parameter is the only one that may be negative
+    λ::Float64 = isnothing(lambda) ? NaN : float(lambda)
+    _μ = given_elastic_param(mu, "μ")
+    return (; E=_E, nu=_nu, G=_G, K=_K, λ, μ=_μ)
+end
+
+function given_elastic_param(value, name::String)
+    isnothing(value) && return NaN
+    x::Float64 = float(value)
+    x ≤ 0 && throw(ArgumentError("`$(name)` should be larger than zero!\n"))
+    return x
 end
 
 function check_elastic_params(par)
@@ -230,45 +283,11 @@ function get_E_and_nu(par)
     return (; E, nu)
 end
 
-function log_material_parameters(param::P; indentation::Int=2) where {P}
-    msg = ""
-    for key in fieldnames(P)
-        msg *= log_param_property(Val(key), param; indentation)
-    end
-    return msg
-end
-
-function log_param_property(::Val{S}, param; indentation) where {S}
-    return ""
-end
-
-function log_param_property(::Val{:δ}, param; indentation)
-    return msg_qty("horizon", param.δ; indentation)
-end
-
-function log_param_property(::Val{:rho}, param; indentation)
-    return msg_qty("density", param.rho; indentation)
-end
-
-function log_param_property(::Val{:E}, param; indentation)
-    return msg_qty("Young's modulus", param.E; indentation)
-end
-
-function log_param_property(::Val{:nu}, param; indentation)
-    return msg_qty("Poisson's ratio", param.nu; indentation)
-end
-
-function log_param_property(::Val{:G}, param; indentation)
-    return msg_qty("shear modulus", param.G; indentation)
-end
-
-function log_param_property(::Val{:K}, param; indentation)
-    return msg_qty("bulk modulus", param.K; indentation)
-end
-
 function Base.show(io::IO, @nospecialize(params::AbstractPointParameters))
-    print(io, typeof(params), ": ")
-    print(io, msg_fields_inline(params, (:δ, :E, :nu, :rho, :Gc)))
+    print(io, nameof(typeof(params)), ": ")
+    props = Tuple(s for s in (:δ, :E, :nu, :rho, :Gc) if hasproperty(params, s))
+    values = Tuple(getproperty(params, s) for s in props)
+    print(io, _msg_fields_inline(props, values))
     return nothing
 end
 
@@ -277,8 +296,10 @@ function Base.show(io::IO, ::MIME"text/plain",
     if get(io, :compact, false)
         show(io, params)
     else
-        println(io, typeof(params), ":")
-        print(io, msg_fields(params))
+        println(io, nameof(typeof(params)), ":")
+        props = flat_param_property_names(params)
+        values = Tuple(getproperty(params, s) for s in props)
+        print(io, _msg_fields(props, values))
     end
     return nothing
 end

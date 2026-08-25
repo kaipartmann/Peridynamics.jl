@@ -83,14 +83,20 @@ function DHBBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) wher
 end
 DHBBMaterial(; kwargs...) = DHBBMaterial{NoCorrection}(; kwargs...)
 
-function StandardPointParameters(mat::DHBBMaterial{C,D}, p::Dict{Symbol,Any}) where {C,D}
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters_bb(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 0.5 * 18 * K / (π * δ^4) # half of the normal bond constant
-    return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
-end
+"""
+    DHBBPointParameters
 
-@params DHBBMaterial StandardPointParameters
+$(internal_api_warning())
+
+Point parameters of the dual-horizon bond-based material: the [`BBPointParameters`](@ref)
+with half of the bond constant, because every bond is visited from both of its points.
+
+$(block_table(DHBBPointParameters))
+"""
+@params DHBBMaterial struct DHBBPointParameters
+    @inherit BBPointParameters
+    @derived bc = 0.5 * 18 * K / (π * δ^4) # half of the normal bond constant
+end
 
 @storage DHBBMaterial struct DHBBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
@@ -101,7 +107,7 @@ end
 end
 
 function force_density_point!(storage::DHBBStorage, system::BondSystem, ::DHBBMaterial,
-                              params::StandardPointParameters, t, Δt, i)
+                              params::DHBBPointParameters, t, Δt, i)
     (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)

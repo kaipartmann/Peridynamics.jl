@@ -1,32 +1,27 @@
 @testitem "get_horizon" begin
-    p = Dict{Symbol,Any}(:horizon => 1)
-    (; δ) = Peridynamics.get_horizon(p)
+    (; δ) = Peridynamics.get_horizon(; horizon=1)
     @test δ ≈ 1.0
 
-    p = Dict{Symbol,Any}(:nothorizon => 1)
-    @test_throws UndefKeywordError(:horizon) Peridynamics.get_horizon(p)
+    # a keyword that was not given is not forwarded, so the provider reports it
+    @test_throws UndefKeywordError(:horizon) Peridynamics.get_horizon()
 
-    p = Dict{Symbol,Any}(:horizon => 0)
     msg = "`horizon` should be larger than zero!\n"
-    @test_throws ArgumentError(msg) Peridynamics.get_horizon(p)
+    @test_throws ArgumentError(msg) Peridynamics.get_horizon(; horizon=0)
 end
 
 @testitem "get_density" begin
-    p = Dict{Symbol,Any}(:rho => 1)
-    (; rho) = Peridynamics.get_density(p)
+    (; rho) = Peridynamics.get_density(; rho=1)
     @test rho ≈ 1.0
 
-    p = Dict{Symbol,Any}(:notrho => 1)
-    @test_throws UndefKeywordError(:rho) Peridynamics.get_density(p)
+    @test_throws UndefKeywordError(:rho) Peridynamics.get_density()
 
-    p = Dict{Symbol,Any}(:rho => 0)
     msg = "`rho` should be larger than zero!\n"
-    @test_throws ArgumentError(msg) Peridynamics.get_density(p)
+    @test_throws ArgumentError(msg) Peridynamics.get_density(; rho=0)
 end
 
 @testitem "get_elastic_params" begin
-    p = Dict{Symbol,Any}(:E => 1, :nu => 0.25)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; E=1, nu=0.25)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -34,8 +29,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:E => 1, :G => 0.4)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; E=1, G=0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -43,8 +38,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:E => 1, :K => 2/3)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; E=1, K=2/3)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -52,8 +47,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:E => 1, :lambda => 0.4)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; E=1, lambda=0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -61,8 +56,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:E => 1, :mu => 0.4)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; E=1, mu=0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -70,8 +65,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:nu => 0.25, :G => 0.4)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; nu=0.25, G=0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -79,8 +74,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:nu => 0.25, :K => 2/3)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; nu=0.25, K=2/3)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -88,8 +83,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:nu => 0.25, :lambda => 0.4)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; nu=0.25, lambda=0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -97,8 +92,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:nu => 0.25, :mu => 0.4)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; nu=0.25, mu=0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -106,8 +101,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:G => 0.4, :K => 2/3)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; G=0.4, K=2/3)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -115,8 +110,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:G => 0.4, :lambda => 0.4)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; G=0.4, lambda=0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -124,11 +119,11 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:G => 0.4, :mu => 0.4)
-    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+    p = (; G=0.4, mu=0.4)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(; p...)
 
-    p = Dict{Symbol,Any}(:K => 2/3, :lambda => 0.4)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; K=2/3, lambda=0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -136,8 +131,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:K => 2/3, :mu => 0.4)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; K=2/3, mu=0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -145,8 +140,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:lambda => 0.4, :mu => 0.4)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; lambda=0.4, mu=0.4)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -154,8 +149,8 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:E => 1, :nu => 0.25, :G => NaN, :K => NaN, :lambda => NaN, :mu => NaN)
-    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(p)
+    p = (; E=1, nu=0.25, G=NaN, K=NaN, lambda=NaN, mu=NaN)
+    (; E, nu, G, K, λ, μ) = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 1.0
     @test nu ≈ 0.25
     @test G ≈ 0.4
@@ -163,14 +158,14 @@ end
     @test λ ≈ 0.4
     @test μ ≈ 0.4
 
-    p = Dict{Symbol,Any}(:E => 1, :nu => 0.25, :G => NaN, :K => 3, :lambda => NaN, :mu => NaN)
-    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+    p = (; E=1, nu=0.25, G=NaN, K=3, lambda=NaN, mu=NaN)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(; p...)
 
-    p = Dict{Symbol,Any}(:E => 1, :nu => NaN, :G => NaN, :K => NaN, :lambda => NaN, :mu => NaN)
-    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+    p = (; E=1, nu=NaN, G=NaN, K=NaN, lambda=NaN, mu=NaN)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(; p...)
 
-    p = Dict{Symbol,Any}(:E => 210e9, :nu => 0.25)
-    E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(p)
+    p = (; E=210e9, nu=0.25)
+    E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 2.1e11
     @test nu ≈ 0.25
     @test G ≈ 8.4e10
@@ -178,8 +173,8 @@ end
     @test λ ≈ 8.4e10
     @test μ ≈ 8.4e10
 
-    p = Dict{Symbol,Any}(:E => 27e9, :nu => 0.2)
-    E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(p)
+    p = (; E=27e9, nu=0.2)
+    E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 2.7e10
     @test nu ≈ 0.2
     @test G ≈ 1.125e10
@@ -187,8 +182,8 @@ end
     @test λ ≈ 7.5e9
     @test μ ≈ 1.125e10
 
-    p = Dict{Symbol,Any}(:G => 1, :K => 1)
-    E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(p)
+    p = (; G=1, K=1)
+    E, nu, G, K, λ, μ = Peridynamics.get_elastic_params(; p...)
     @test E ≈ 2.25
     @test nu ≈ 0.125
     @test G ≈ 1.0
@@ -196,29 +191,29 @@ end
     @test λ ≈ 1/3
     @test μ ≈ 1.0
 
-    p = Dict{Symbol,Any}(:E => 0, :nu => 0.25)
+    p = (; E=0, nu=0.25)
     msg = "`E` should be larger than zero!\n"
-    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(; p...)
 
-    p = Dict{Symbol,Any}(:E => 1, :nu => 0)
+    p = (; E=1, nu=0)
     msg = "`nu` should be larger than zero!\n"
-    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(; p...)
 
-    p = Dict{Symbol,Any}(:E => 1, :nu => 1.1)
+    p = (; E=1, nu=1.1)
     msg = "too high value of `nu`! Condition: 0 < `nu` ≤ 1\n"
-    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(; p...)
 
-    p = Dict{Symbol,Any}(:E => 1, :G => 0)
+    p = (; E=1, G=0)
     msg = "`G` should be larger than zero!\n"
-    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(; p...)
 
-    p = Dict{Symbol,Any}(:E => 1, :K => 0)
+    p = (; E=1, K=0)
     msg = "`K` should be larger than zero!\n"
-    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(; p...)
 
-    p = Dict{Symbol,Any}(:E => 1, :mu => 0)
+    p = (; E=1, mu=0)
     msg = "`μ` should be larger than zero!\n"
-    @test_throws ArgumentError Peridynamics.get_elastic_params(p)
+    @test_throws ArgumentError Peridynamics.get_elastic_params(; p...)
 end
 
 @testitem "log_param_property" begin
@@ -246,4 +241,23 @@ end
     @test contains(msg, "δ") && contains(msg, "rho") && contains(msg, "bc")
     msg = sprint(show, MIME("text/plain"), params; context=:compact => true)
     @test contains(msg, name * ": ") && !contains(msg, "\n")
+end
+
+@testitem "all_material_kwargs: every keyword needs one owner" begin
+    import Peridynamics: all_material_kwargs
+
+    # a damage model that claims a keyword the material already declares
+    struct MPKwClashDamage <: Peridynamics.AbstractDamageModel end
+    Peridynamics.@dmg_params MPKwClashDamage struct MPKwClashParameters
+        @kwarg E Emod = 1.0
+    end
+    err = try
+        all_material_kwargs(BBMaterial(; dmgmodel=MPKwClashDamage()))
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("`E`", err.msg)
+    @test occursin("more than once", err.msg)
+    @test occursin("damage model", err.msg)
 end

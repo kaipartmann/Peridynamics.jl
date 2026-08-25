@@ -83,14 +83,8 @@ function GBBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) where
 end
 GBBMaterial(; kwargs...) = GBBMaterial{NoCorrection}(; kwargs...)
 
-function StandardPointParameters(mat::GBBMaterial{C,D}, p::Dict{Symbol,Any}) where {C,D}
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters_bb(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant of the standard BB model
-    return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
-end
-
-@params GBBMaterial StandardPointParameters
+# the point parameters of the bond-based material; `bc` is its bond constant
+@params GBBMaterial BBPointParameters
 
 @storage GBBMaterial struct GBBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
@@ -115,7 +109,7 @@ function calc_weighted_volume!(storage::GBBStorage, system::BondSystem,
 end
 
 function force_density_point!(storage::GBBStorage, system::BondSystem, mat::GBBMaterial,
-                              params::StandardPointParameters, t, Δt, i)
+                              params::BBPointParameters, t, Δt, i)
     (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     wvol = calc_weighted_volume!(storage, system, mat, params, i)
