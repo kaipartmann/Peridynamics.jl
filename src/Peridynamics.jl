@@ -84,6 +84,7 @@ abstract type AbstractMPIMultibodyDataHandler <: AbstractMPIDataHandler end
 abstract type AbstractCorrection end
 abstract type AbstractStorage end
 abstract type AbstractStorageFields end
+abstract type AbstractPointParameterFields end
 abstract type AbstractFieldShape{T} end
 abstract type AbstractSolverField end
 abstract type AbstractCondition end
@@ -112,6 +113,7 @@ include("auxiliary/autoinfiltrate.jl")
 # included early so that field blocks can be declared next to the system, solver or
 # material family whose contract they express
 include("core/storage_fields.jl")
+include("core/param_fields.jl")
 include("auxiliary/block_tables.jl")
 include("core/constitutive_models.jl")
 

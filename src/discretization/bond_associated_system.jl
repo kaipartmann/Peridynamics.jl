@@ -155,13 +155,14 @@ end
 
 function get_required_point_parameters(::AbstractBondAssociatedSystemMaterial,
                                        p::Dict{Symbol,Any})
-    δ_params = get_horizon(p)
-    δb_params = get_bond_horizon(p, δ_params.δ)
-    return (; δ_params..., δb_params..., get_density(p)..., get_elastic_params(p)...)
+    disc = get_discretization_params(; material_kwargs(p, discretization_kwargs())...)
+    δb_params = get_bond_horizon(disc.δ; material_kwargs(p, (:bond_horizon,))...)
+    return (; disc..., δb_params...,
+            get_elastic_params(; material_kwargs(p, elasticity_kwargs())...)...)
 end
 
-function get_bond_horizon(p::Dict{Symbol,Any}, δ::Float64)
-    δb::Float64 = float(get(p, :bond_horizon, δ))
+function get_bond_horizon(δ::Float64; bond_horizon=nothing)
+    δb::Float64 = isnothing(bond_horizon) ? δ : float(bond_horizon)
     if δb ≤ 0
         throw(ArgumentError("`bond_horizon` should be larger than zero!\n"))
     end
@@ -176,6 +177,18 @@ function allowed_material_kwargs(::AbstractBondAssociatedSystemMaterial)
             :bond_horizon)
 end
 
-function log_param_property(::Val{:δb}, param; indentation)
-    return msg_qty("bond horizon", param.δb; indentation)
+"""
+    BondHorizonParameters
+
+$(extension_api_note())
+
+Parameter block of the bond horizon `δb` of a bond-associated material. It defaults to the
+horizon `δ`, so the block has to follow the one that provides it. See
+[`@params_fields`](@ref).
+
+$(block_table(BondHorizonParameters))
+"""
+@params_fields BondHorizonParameters begin
+    @derived (; δb) = get_bond_horizon(δ; bond_horizon)
+    @log "bond horizon" δb
 end

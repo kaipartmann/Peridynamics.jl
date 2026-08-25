@@ -83,14 +83,9 @@ function GBBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) where
 end
 GBBMaterial(; kwargs...) = GBBMaterial{NoCorrection}(; kwargs...)
 
-function StandardPointParameters(mat::GBBMaterial{C,D}, p::Dict{Symbol,Any}) where {C,D}
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters_bb(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant of the standard BB model
-    return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+@params GBBMaterial StandardPointParameters begin
+    @inherit BBStandardParameters # `bc` is the bond constant of the standard BB model
 end
-
-@params GBBMaterial StandardPointParameters
 
 @storage GBBMaterial struct GBBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields

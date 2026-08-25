@@ -8,7 +8,7 @@
     @test Peridynamics.required_fields_fracture(CKIMaterial) === rff_interaction_system
 end
 
-@testitem "get_frac_params: the fracture keywords of CriticalStretch and the Dict bridge" begin
+@testitem "get_frac_params: the fracture keywords of CriticalStretch" begin
     import Peridynamics: get_frac_params
 
     # `Gc` and `epsilon_c` are converted into each other, one of them is enough
@@ -31,14 +31,21 @@ end
     # a damage model without parameters answers with an empty named tuple
     struct ParameterlessDamage <: Peridynamics.AbstractDamageModel end
     @test get_frac_params(ParameterlessDamage(), 1.0, 1.0; Gc=1.0) == (;)
+end
 
-    # the point parameters of `@params` still read the keywords from the `Dict` of
-    # `material!`; the bridge passes every fracture keyword, missing ones as `nothing`
-    p = Dict{Symbol,Any}(:Gc => 1.0, :horizon => 1.0)
-    @test get_frac_params(ParameterlessDamage(), p, 1.0, 1.0) == (;)
-    @test get_frac_params(CriticalStretch(), p, 2.0, 3.0) ==
-          get_frac_params(CriticalStretch(), 2.0, 3.0; Gc=1.0)
-    @test get_frac_params(CriticalStretch(), Dict{Symbol,Any}(), 2.0, 3.0) == (; Gc=0.0, εc=0.0)
+@testitem "FractureParameters: the block resolves Gc and εc through the damage model" begin
+    import Peridynamics: FractureParameters, param_fields_expr, is_provided
+
+    # the block is one `@derived` group, resolved by `get_frac_params` of the damage model
+    spec = param_fields_expr(FractureParameters)
+    @test [decl.name for decl in spec.decls] == [:Gc, :εc]
+    @test all(is_provided, spec.decls)
+    @test spec.kwargs == [:Gc, :epsilon_c]
+
+    # both parameters carry a simulation-log label
+    labels = Dict(decl.name => decl.label for decl in spec.decls)
+    @test labels[:Gc] == "critical energy release rate"
+    @test labels[:εc] == "critical stretch"
 end
 
 @testitem "damage model hooks: the defaults of a model that deletes bonds" begin

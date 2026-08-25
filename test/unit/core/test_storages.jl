@@ -314,7 +314,9 @@ end
     @test_throws InterfaceError Peridynamics.@params Mat3 Params3
     function Params3(mat::Mat3, p::Dict{Symbol,Any})
         (; δ, rho, E, nu, G, K, λ, μ) = Peridynamics.get_required_point_parameters(mat, p)
-        (; Gc, εc) = Peridynamics.get_frac_params(mat.dmgmodel, p, δ, K)
+        (; Gc, εc) = Peridynamics.get_frac_params(mat.dmgmodel, δ, K;
+                                                  Gc=get(p, :Gc, nothing),
+                                                  epsilon_c=get(p, :epsilon_c, nothing))
         bc = 18 * K / (π * δ^4) # bond constant
         return Params3(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
     end

@@ -36,6 +36,7 @@ Peridynamics.PosSingleDimBC
 Peridynamics.PosDepSingleDimBC
 Peridynamics.CKIPointParameters
 Peridynamics.BACPointParameters
+Peridynamics.CPointParameters
 Peridynamics.SingleDimIC
 Peridynamics.PosDepSingleDimIC
 Peridynamics.ShortRangeForceContact
@@ -99,6 +100,30 @@ Peridynamics.check_damage_model
 Peridynamics.SofteningSupportError
 Peridynamics.log_dmgmodel
 Peridynamics.kernel
+```
+
+## Parameter framework
+```@docs
+Peridynamics.@params
+Peridynamics.@params_fields
+Peridynamics.@kwarg
+Peridynamics.@derived
+Peridynamics.@log
+Peridynamics.ParamFieldDecl
+Peridynamics.ParamFieldsSpec
+Peridynamics.param_fields_expr
+Peridynamics.get_param_decls
+Peridynamics.material_kwargs
+Peridynamics.required_param
+Peridynamics.instantiate_point_params
+Peridynamics.StandardParameters
+Peridynamics.DiscretizationParameters
+Peridynamics.ElasticParameters
+Peridynamics.FractureParameters
+Peridynamics.BondHorizonParameters
+Peridynamics.InteractionParameters
+Peridynamics.BBElasticParameters
+Peridynamics.BBStandardParameters
 ```
 
 ## Storage framework

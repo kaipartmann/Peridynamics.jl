@@ -134,29 +134,11 @@ correspondence formulation of Chen and Spencer.
 - `εc::Float64`: Critical strain.
 - `bc::Float64`: Bond constant.
 """
-struct BACPointParameters <: AbstractPointParameters
-    δ::Float64
-    δb::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
-    bc::Float64
+@params BACMaterial struct BACPointParameters
+    @inherit DiscretizationParameters BondHorizonParameters
+    @inherit ElasticParameters FractureParameters
+    @derived bc = 18 * K / (π * δ^4)
 end
-
-function BACPointParameters(mat::BACMaterial, p::Dict{Symbol,Any})
-    (; δ, δb, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
-    return BACPointParameters(δ, δb, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
-end
-
-@params BACMaterial BACPointParameters
 
 @storage BACMaterial struct BACStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields

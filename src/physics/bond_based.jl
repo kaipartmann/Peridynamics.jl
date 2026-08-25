@@ -83,36 +83,73 @@ function BBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) where 
 end
 BBMaterial(; kwargs...) = BBMaterial{NoCorrection}(; kwargs...)
 
-function StandardPointParameters(mat::BBMaterial, p::Dict{Symbol,Any})
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters_bb(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
-    return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+"""
+    BBElasticParameters
+
+$(extension_api_note())
+
+Parameter block of the six elastic parameters of a bond-based material. Bond-based
+peridynamics fixes the Poisson's ratio at `nu = 0.25`, so a single elastic keyword is enough
+and any combination that results in another value is rejected. See [`@params_fields`](@ref).
+
+$(block_table(BBElasticParameters))
+"""
+@params_fields BBElasticParameters begin
+    @derived (; E, nu, G, K, λ, μ) = get_elastic_params_bb(; E, nu, G, K, lambda, mu)
+    @log "Young's modulus" E
+    @log "Poisson's ratio" nu
+    @log "shear modulus" G
+    @log "bulk modulus" K
 end
 
-function get_required_point_parameters_bb(mat::AbstractBondBasedMaterial,
-                                          p::Dict{Symbol,Any})
-    par = get_given_elastic_params(p)
-    (; E, nu, G, K, λ, μ) = par
-    if isfinite(nu) && !isapprox(nu, 0.25)
-        msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
-        msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
-        throw(ArgumentError(msg))
-    elseif !isfinite(nu) && length(findall(isfinite, par)) == 1
-        p[:nu] = 0.25
+function get_elastic_params_bb(; E=nothing, nu=nothing, G=nothing, K=nothing,
+                               lambda=nothing, mu=nothing)
+    given = get_given_elastic_params(; E, nu, G, K, lambda, mu)
+    if isfinite(given.nu) && !isapprox(given.nu, 0.25)
+        throw(ArgumentError(bb_poissons_ratio_msg()))
+    elseif !isfinite(given.nu) && length(findall(isfinite, given)) == 1
+        given = merge(given, (; nu=0.25))
     end
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    if !isapprox(nu, 0.25)
-        msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
-        msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
+    elastic_params = resolve_elastic_params(given)
+    if !isapprox(elastic_params.nu, 0.25)
+        msg = bb_poissons_ratio_msg()
         msg *= "The submitted parameter combination results in an illegal value for nu!\n"
         msg *= "Please define either only one or two fitting elastic parameters!\n"
         throw(ArgumentError(msg))
     end
-    return (; δ, rho, E, nu, G, K, λ, μ)
+    return elastic_params
 end
 
-@params BBMaterial StandardPointParameters
+function bb_poissons_ratio_msg()
+    msg = "Bond-based peridynamics has a limitation on the Poisson's ratio!\n"
+    msg *= "With BBMaterial, no other values than nu=0.25 are allowed!\n"
+    return msg
+end
+
+function get_required_point_parameters_bb(mat::AbstractBondBasedMaterial,
+                                          p::Dict{Symbol,Any})
+    return (; get_discretization_params(; material_kwargs(p, discretization_kwargs())...)...,
+            get_elastic_params_bb(; material_kwargs(p, elasticity_kwargs())...)...)
+end
+
+"""
+    BBStandardParameters
+
+$(internal_api_warning())
+
+Parameter block of a bond-based material: the standard parameters with the Poisson's ratio
+of bond-based peridynamics. See [`@params_fields`](@ref).
+
+$(block_table(BBStandardParameters))
+"""
+@params_fields BBStandardParameters begin
+    @inherit DiscretizationParameters BBElasticParameters FractureParameters
+    @derived bc = 18 * K / (π * δ^4)
+end
+
+@params BBMaterial StandardPointParameters begin
+    @inherit BBStandardParameters
+end
 
 @storage BBMaterial struct BBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields

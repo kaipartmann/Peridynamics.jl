@@ -160,13 +160,6 @@ function get_frac_params(::AbstractDamageModel, δ, K; kwargs...)
     return (; )
 end
 
-# the point parameter constructors of `@params` still read the fracture keywords from the
-# `Dict` that `material!` collects; this bridge goes when the parameters are keyword-based
-function get_frac_params(dmgmodel::AbstractDamageModel, p::Dict{Symbol,Any}, δ, K)
-    return get_frac_params(dmgmodel, δ, K;
-                           (kw => get(p, kw, nothing) for kw in fracture_kwargs())...)
-end
-
 """
     set_failure_permissions!(body, set_name, params)
 
@@ -368,6 +361,24 @@ end
 
 function req_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
     return ()
+end
+
+"""
+    FractureParameters
+
+$(extension_api_note())
+
+Parameter block of the critical energy release rate `Gc` and the critical stretch `εc`. The
+damage model decides which of the fracture keywords it reads and how it converts them into
+each other, so the block is resolved by [`get_frac_params`](@ref) and needs the horizon `δ`
+and the bulk modulus `K` of the parameters before it. See [`@params_fields`](@ref).
+
+$(block_table(FractureParameters))
+"""
+@params_fields FractureParameters begin
+    @derived (; Gc, εc) = get_frac_params(mat.dmgmodel, δ, K; Gc, epsilon_c)
+    @log "critical energy release rate" Gc
+    @log "critical stretch" εc
 end
 
 # --------------------------------------------------------------------------------------
@@ -579,12 +590,4 @@ A damage model with properties worth logging defines its own method.
 """
 function log_dmgmodel(dmgmodel::AbstractDamageModel; indentation)
     return msg_qty("damage model type", typeof(dmgmodel); indentation)
-end
-
-function log_param_property(::Val{:Gc}, param; indentation)
-    return msg_qty("critical energy release rate", param.Gc; indentation)
-end
-
-function log_param_property(::Val{:εc}, param; indentation)
-    return msg_qty("critical stretch", param.εc; indentation)
 end

@@ -149,27 +149,22 @@ function log_material_property(::Val{:maxdmg}, mat; indentation)
     return msg_qty("maximum damage", mat.maxdmg; indentation)
 end
 
-struct CPointParameters <: AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
-    bc::Float64
-    C::MArray{NTuple{4,3},Float64,4,81}
+"""
+    CPointParameters
+
+$(internal_api_warning())
+
+Point parameters of the correspondence formulation. In addition to the standard parameters,
+they carry the elastic stiffness tensor `C`, which the [`ZEMWan`](@ref) stabilization needs.
+"""
+@params struct CPointParameters
+    @inherit StandardParameters
+    @derived C::SArray{NTuple{4,3},Float64,4,81} = get_hooke_matrix(nu, λ, μ)
 end
 
-function CPointParameters(mat::AbstractMaterial, p::Dict{Symbol,Any})
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
-    C = get_hooke_matrix(nu, λ, μ)
-    return CPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc, C)
+@params AbstractMaterial CPointParameters begin
+    @inherit StandardParameters
+    @derived C::SArray{NTuple{4,3},Float64,4,81} = get_hooke_matrix(nu, λ, μ)
 end
 
 @params CMaterial CPointParameters

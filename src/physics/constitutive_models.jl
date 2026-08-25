@@ -129,7 +129,9 @@ function get_hooke_matrix(nu, λ, μ)
         C[i1, i2, j2, j1] = Cvoigt[I, J]
         C[i2, i1, j2, j1] = Cvoigt[I, J]
     end
-    return C
+    # the point parameters have to stay isbits, so the tensor is only built by mutation and
+    # then handed on as an immutable one; it is read and never written afterwards
+    return SArray(C)
 end
 
 @doc raw"""

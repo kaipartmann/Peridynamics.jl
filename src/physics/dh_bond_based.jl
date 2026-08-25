@@ -83,14 +83,10 @@ function DHBBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) wher
 end
 DHBBMaterial(; kwargs...) = DHBBMaterial{NoCorrection}(; kwargs...)
 
-function StandardPointParameters(mat::DHBBMaterial{C,D}, p::Dict{Symbol,Any}) where {C,D}
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters_bb(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 0.5 * 18 * K / (π * δ^4) # half of the normal bond constant
-    return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
+@params DHBBMaterial StandardPointParameters begin
+    @inherit DiscretizationParameters BBElasticParameters FractureParameters
+    @derived bc = 0.5 * 18 * K / (π * δ^4) # half of the normal bond constant
 end
-
-@params DHBBMaterial StandardPointParameters
 
 @storage DHBBMaterial struct DHBBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields

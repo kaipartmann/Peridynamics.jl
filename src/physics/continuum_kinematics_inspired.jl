@@ -113,29 +113,10 @@ model.
 - `C2::Float64`: Material constant for two-neighbor interactions.
 - `C3::Float64`: Material constant for three-neighbor interactions.
 """
-struct CKIPointParameters <: AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
-    C1::Float64
-    C2::Float64
-    C3::Float64
+@params CKIMaterial struct CKIPointParameters
+    @inherit DiscretizationParameters ElasticParameters FractureParameters
+    @inherit InteractionParameters
 end
-
-function CKIPointParameters(mat::CKIMaterial, p::Dict{Symbol,Any})
-    (; δ, rho, E, nu, G, K, λ, μ, C1, C2, C3) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    return CKIPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, C1, C2, C3)
-end
-
-@params CKIMaterial CKIPointParameters
 
 @storage CKIMaterial struct CKIStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields

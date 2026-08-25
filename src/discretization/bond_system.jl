@@ -439,7 +439,8 @@ $(block_table(BondFracFields))
 end
 
 function get_required_point_parameters(::AbstractBondSystemMaterial, p::Dict{Symbol,Any})
-    return (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)
+    return (; get_discretization_params(; material_kwargs(p, discretization_kwargs())...)...,
+            get_elastic_params(; material_kwargs(p, elasticity_kwargs())...)...)
 end
 
 function allowed_material_kwargs(::AbstractBondSystemMaterial)
