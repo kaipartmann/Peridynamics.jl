@@ -228,20 +228,3 @@ end
     params = Peridynamics.required_point_parameters(BACMaterial)
     @test :δ in params && :δb in params && :rho in params && :E in params
 end
-
-@testitem "get_required_point_parameters: the bond-associated family fallback" begin
-    import Peridynamics: get_required_point_parameters, allowed_material_kwargs
-
-    # the family methods serve hand-written point parameter types of custom materials
-    struct BASFallbackMat <: Peridynamics.AbstractBondAssociatedSystemMaterial end
-    p = Dict{Symbol,Any}(:horizon => 2.0, :rho => 3.0, :E => 1.0, :nu => 0.25)
-    par = get_required_point_parameters(BASFallbackMat(), p)
-    @test par.δ == 2.0
-    @test par.δb == 2.0    # defaults to the horizon
-    @test par.rho == 3.0
-    @test par.E == 1.0
-    p[:bond_horizon] = 3.0
-    @test get_required_point_parameters(BASFallbackMat(), p).δb == 3.0
-    @test allowed_material_kwargs(BASFallbackMat()) ==
-          (:horizon, :rho, :E, :nu, :G, :K, :lambda, :mu, :bond_horizon)
-end

@@ -83,10 +83,19 @@ function DHBBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) wher
 end
 DHBBMaterial(; kwargs...) = DHBBMaterial{NoCorrection}(; kwargs...)
 
-@params DHBBMaterial StandardPointParameters begin
-    @inherit DiscretizationParameters BBElasticParameters
+"""
+    DHBBPointParameters
+
+$(internal_api_warning())
+
+Point parameters of the dual-horizon bond-based material: the [`BBPointParameters`](@ref)
+with half of the bond constant, because every bond is visited from both of its points.
+
+$(block_table(DHBBPointParameters))
+"""
+@params DHBBMaterial struct DHBBPointParameters
+    @inherit BBPointParameters
     @derived bc = 0.5 * 18 * K / (π * δ^4) # half of the normal bond constant
-    dmg_params::DamageParameters
 end
 
 @storage DHBBMaterial struct DHBBStorage <: AbstractStorage
@@ -98,7 +107,7 @@ end
 end
 
 function force_density_point!(storage::DHBBStorage, system::BondSystem, ::DHBBMaterial,
-                              params::StandardPointParameters, t, Δt, i)
+                              params::DHBBPointParameters, t, Δt, i)
     (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)

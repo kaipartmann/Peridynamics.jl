@@ -112,7 +112,7 @@ end
 
 function param_type_msg(decl::ParamFieldDecl)
     decl.type === SimFloat && return "simulation float"
-    return "`$(type_msg(decl.type))`"
+    return "`$(type_expr_string(decl.type))`"
 end
 
 param_kwarg_msg(decl::ParamFieldDecl) = decl.kwarg === :none ? "–" : "`$(decl.kwarg)`"

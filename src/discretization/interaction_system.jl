@@ -558,15 +558,6 @@ $(block_table(InteractionFracFields))
     one_ni_active::Vector{Bool}
 end
 
-function get_required_point_parameters(mat::AbstractInteractionSystemMaterial,
-                                       p::Dict{Symbol,Any})
-    params = (; get_discretization_params(; material_kwargs(p, discretization_kwargs())...)...,
-              get_elastic_params(; material_kwargs(p, elasticity_kwargs())...)...)
-    interaction = get_interaction_parameters(mat, params;
-                                             material_kwargs(p, (:C1, :C2, :C3))...)
-    return (; params..., interaction...)
-end
-
 function get_interaction_parameters(mat::AbstractInteractionSystemMaterial, params;
                                     C1=nothing, C2=nothing, C3=nothing)
     (; δ, μ, λ) = params
@@ -585,11 +576,6 @@ function get_interaction_parameters(mat::AbstractInteractionSystemMaterial, para
     end
 
     return (; C1=_C1, C2=_C2, C3=_C3)
-end
-
-function allowed_material_kwargs(::AbstractInteractionSystemMaterial)
-    kwargs = (discretization_kwargs()..., elasticity_kwargs()..., :C1, :C2, :C3)
-    return kwargs
 end
 
 @inline get_n_one_nis(system::InteractionSystem) = length(system.one_nis)

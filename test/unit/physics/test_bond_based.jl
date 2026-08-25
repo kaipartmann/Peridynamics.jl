@@ -241,16 +241,3 @@ end
     b12 = 18 * E / (3 * (1 - 2 * 0.25)) / (π * δ^4) * 1.0015 * 0.0015/1.0015 * 1.0
     @test b_int ≈ [b12 -b12; 0.0 0.0; 0.0 0.0]
 end
-
-@testitem "get_required_point_parameters_bb: the bond-based family fallback" begin
-    import Peridynamics: get_required_point_parameters_bb
-
-    # serves hand-written point parameter types of custom bond-based materials, with the
-    # Poisson's ratio fixed at 1/4
-    p = Dict{Symbol,Any}(:horizon => 2.0, :rho => 3.0, :E => 1.0)
-    par = get_required_point_parameters_bb(BBMaterial(), p)
-    @test par.δ == 2.0
-    @test par.rho == 3.0
-    @test par.E == 1.0
-    @test par.nu ≈ 0.25
-end

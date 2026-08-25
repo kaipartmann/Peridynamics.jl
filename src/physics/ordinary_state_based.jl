@@ -93,7 +93,19 @@ function OSBMaterial{C}(; kernel::F=linear_kernel,
 end
 OSBMaterial(; kwargs...) = OSBMaterial{NoCorrection}(; kwargs...)
 
-@params OSBMaterial StandardPointParameters
+"""
+    OSBPointParameters
+
+$(internal_api_warning())
+
+Point parameters of the ordinary state-based material: exactly the
+[`StandardParameters`](@ref).
+
+$(block_table(OSBPointParameters))
+"""
+@params OSBMaterial struct OSBPointParameters
+    @inherit StandardParameters
+end
 
 @storage OSBMaterial struct OSBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
@@ -126,7 +138,7 @@ function calc_failure!(storage::OSBStorage, system::BondSystem,
 end
 
 function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::StandardPointParameters, t, Δt, i)
+                              params::OSBPointParameters, t, Δt, i)
     wvol = calc_weighted_volume(storage, system, mat, params, i)
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, mat, params, wvol, i)
@@ -174,7 +186,7 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
 end
 
 function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::StandardPointParameters, i)
+                              params::OSBPointParameters, i)
     wvol = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
@@ -189,7 +201,7 @@ function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBM
 end
 
 function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                         params::StandardPointParameters, wvol, i)
+                         params::OSBPointParameters, wvol, i)
     dil = 0.0
     c1 = 3.0 / wvol
     for bond_id in each_bond_idx(system, i)

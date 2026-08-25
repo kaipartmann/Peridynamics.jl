@@ -180,26 +180,15 @@ end
 $(internal_api_warning())
 
 Point parameters of the reproducing-kernel correspondence family: the standard parameters
-plus the marker for the parameters of the constitutive model the material carries.
-
-# Fields
-
-The fields of [`StandardPointParameters`](@ref) and
-- `cm_params::CMP`: Parameters of the constitutive model, `nothing` if it has none.
+plus the parameters of the constitutive model the material carries.
+[`RKCRMaterial`](@ref) uses them as well.
 
 $(block_table(RKCPointParameters))
 """
-@params struct RKCPointParameters
+@params RKCMaterial struct RKCPointParameters
     @inherit StandardParameters
     cm_params::ConstitutiveParameters
 end
-
-@params AbstractRKCMaterial RKCPointParameters begin
-    @inherit StandardParameters
-    cm_params::ConstitutiveParameters
-end
-
-@params RKCMaterial RKCPointParameters
 
 """
     RKCFields

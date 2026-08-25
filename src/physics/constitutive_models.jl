@@ -105,8 +105,9 @@ function strain_energy_density(::LinearElastic, storage::AbstractStorage,
 end
 
 function get_hooke_matrix_voigt(nu, λ, μ)
+    T = promote_type(typeof(nu), typeof(λ), typeof(μ))
     a = (1 - nu) * λ / nu
-    Cvoigt = SMatrix{6,6,Float64,36}(
+    Cvoigt = SMatrix{6,6,T,36}(
         a, λ, λ, 0, 0, 0,
         λ, a, λ, 0, 0, 0,
         λ, λ, a, 0, 0, 0,
@@ -119,7 +120,7 @@ end
 
 function get_hooke_matrix(nu, λ, μ)
     Cvoigt = get_hooke_matrix_voigt(nu, λ, μ)
-    C = zero(MArray{NTuple{4,3},Float64,4,81})
+    C = zero(MArray{NTuple{4,3},eltype(Cvoigt),4,81})
     voigt_map = @SVector [(1,1), (2,2), (3,3), (2,3), (1,3), (1,2)]
     for I in 1:6, J in 1:6
         i1, i2 = voigt_map[I]

@@ -153,14 +153,6 @@ function required_point_parameters(::Type{<:AbstractBondAssociatedSystemMaterial
     return (:δ, :δb, :rho, elasticity_parameters()...)
 end
 
-function get_required_point_parameters(::AbstractBondAssociatedSystemMaterial,
-                                       p::Dict{Symbol,Any})
-    disc = get_discretization_params(; material_kwargs(p, discretization_kwargs())...)
-    δb_params = get_bond_horizon(disc.δ; material_kwargs(p, (:bond_horizon,))...)
-    return (; disc..., δb_params...,
-            get_elastic_params(; material_kwargs(p, elasticity_kwargs())...)...)
-end
-
 function get_bond_horizon(δ::Float64; bond_horizon=nothing)
     δb::Float64 = isnothing(bond_horizon) ? δ : float(bond_horizon)
     if δb ≤ 0
@@ -170,10 +162,6 @@ function get_bond_horizon(δ::Float64; bond_horizon=nothing)
         @warn "a small bond horizon < δ will possibly lead to numerical instabilities!"
     end
     return (; δb)
-end
-
-function allowed_material_kwargs(::AbstractBondAssociatedSystemMaterial)
-    return (discretization_kwargs()..., elasticity_kwargs()..., :bond_horizon)
 end
 
 """

@@ -22,6 +22,6 @@ The selected material specifies, which peridynamic formulation is employed in ca
 Custom materials can be defined for existing systems.
 Therefore the `<XYZ>Material` type has to be a subtype of an `Abstract<SystemName>Material`, which automatically sets methods for this type.
 Further it is necessary to: 
-- link a point parameter type with `@params`.
-- link and create a storage with `@storage`.
+- declare the point parameters with `@params`.
+- declare the storage with `@storage`.
 - define the `force_density_point!` function.

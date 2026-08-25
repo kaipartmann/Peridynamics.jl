@@ -1,15 +1,27 @@
 # The `@params` macro and the point parameter interface of `src/core/parameters.jl`. The
 # declaration language itself is covered in `test_param_fields.jl`.
 
-@testitem "material declaration: required parameters and allowed kwargs" begin
+@testitem "material declaration: required parameters and the interface without @params" begin
     import Peridynamics: NoCorrection, InterfaceError
 
     struct TestMaterial1 <: Peridynamics.AbstractBondSystemMaterial{NoCorrection} end
     @test isnothing(Peridynamics.typecheck_material(TestMaterial1))
     @test Peridynamics.required_point_parameters(TestMaterial1) === (:δ, :rho, :E, :nu, :G,
            :K, :λ, :μ)
-    @test Peridynamics.allowed_material_kwargs(TestMaterial1()) === (:horizon, :rho, :E,
-           :nu, :G, :K, :lambda, :mu)
+
+    # without a `@params` declaration every method of the interface names the macro
+    for f in (() -> Peridynamics.point_param_type(TestMaterial1()),
+              () -> Peridynamics.get_point_params(TestMaterial1(), Dict{Symbol,Any}()),
+              () -> Peridynamics.allowed_material_kwargs(TestMaterial1()))
+        err = try
+            f()
+        catch e
+            e
+        end
+        @test err isa InterfaceError
+        @test err.type === TestMaterial1
+        @test occursin("@params TestMaterial1 struct", err.hint)
+    end
 
     struct WrongTestMaterial end
     @test_throws ArgumentError Peridynamics.typecheck_material(WrongTestMaterial)
@@ -17,14 +29,12 @@
     struct WrongTestMaterial2 <: Peridynamics.AbstractMaterial end
     @test isnothing(Peridynamics.typecheck_material(WrongTestMaterial2))
     @test_throws InterfaceError Peridynamics.required_point_parameters(WrongTestMaterial2)
-    @test_throws InterfaceError Peridynamics.allowed_material_kwargs(WrongTestMaterial2())
 end
 
-@testitem "@params: linking a hand-written point parameter type" begin
+@testitem "typecheck_params: the required parameters of the material family" begin
     import Peridynamics: AbstractBondSystemMaterial, NoCorrection, AbstractPointParameters,
-                         InterfaceError, typecheck_params, constructor_check,
-                         point_param_type, get_point_params, macrocheck_input_material,
-                         macrocheck_input_params
+                         typecheck_params
+
     struct TestMaterial2 <: AbstractBondSystemMaterial{NoCorrection} end
     struct TestPointParameters2 <: AbstractPointParameters
         δ::Float64
@@ -35,42 +45,14 @@ end
         K::Float64
         λ::Float64
         μ::Float64
-        Gc::Float64
-        εc::Float64
     end
-    tpp2 = TestPointParameters2(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-    TestPointParameters2(::TestMaterial2, ::Dict{Symbol,Any}) = nothing
-
     @test isnothing(typecheck_params(TestMaterial2, TestPointParameters2))
-    # the error names the type and the method, and its hint shows how to fill the hole
-    for (f, name) in ((() -> point_param_type(TestMaterial2()), "point_param_type"),
-                      (() -> get_point_params(TestMaterial2(), Dict{Symbol,Any}()),
-                       "get_point_params"))
-        err = try
-            f()
-        catch e
-            e
-        end
-        @test err isa InterfaceError
-        @test err.type === TestMaterial2
-        @test err.func == name
-        @test occursin("@params", err.hint)
-    end
 
     struct PointParametersNoSubtype
         δ::Float64
         rho::Float64
-        E::Float64
-        nu::Float64
-        G::Float64
-        K::Float64
-        λ::Float64
-        μ::Float64
-        Gc::Float64
-        εc::Float64
     end
     @test_throws ArgumentError typecheck_params(TestMaterial2, PointParametersNoSubtype)
-    @test_throws InterfaceError constructor_check(TestMaterial2, PointParametersNoSubtype)
 
     struct PointParametersMissingHorizon <: AbstractPointParameters
         rho::Float64
@@ -80,105 +62,9 @@ end
         K::Float64
         λ::Float64
         μ::Float64
-        Gc::Float64
-        εc::Float64
     end
     @test_throws ErrorException typecheck_params(TestMaterial2,
                                                  PointParametersMissingHorizon)
-
-    Peridynamics.@params TestMaterial2 TestPointParameters2
-    @test hasmethod(point_param_type, Tuple{TestMaterial2})
-    @test Peridynamics.point_param_type(TestMaterial2()) == TestPointParameters2
-    # a hand-written type is not generic in the float type and ignores the request
-    @test Peridynamics.point_param_type(TestMaterial2(), Float32) == TestPointParameters2
-    @test hasmethod(get_point_params, Tuple{TestMaterial2,Dict{Symbol,Any}})
-
-    @test isnothing(macrocheck_input_material(:MyMaterial))
-    @test isnothing(macrocheck_input_material(:(MyModule.MyMaterial)))
-    @test_throws ArgumentError macrocheck_input_material(:(1 + 1))
-    @test isnothing(macrocheck_input_params(:MyParams))
-    @test isnothing(macrocheck_input_params(:(MyModule.MyParams)))
-    @test_throws ArgumentError macrocheck_input_params(:(1 + 1))
-end
-
-@testitem "@params: a material family shares a constructor, not a binding" begin
-    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, point_param_type,
-                         get_point_params
-
-    # binding a family to a struct would answer `point_param_type` for every material of it
-    err = try
-        @eval Peridynamics.@params AbstractBondSystemMaterial struct PFFamilyParams
-            @inherit StandardParameters
-        end
-    catch e
-        e
-    end
-    @test err isa LoadError
-    @test err.error isa ArgumentError
-    @test occursin("material family", err.error.msg)
-
-    # a family constructor serves every material that links the shared type
-    struct PFFamilyMat <: AbstractBondSystemMaterial{NoCorrection}
-        dmgmodel::Peridynamics.CriticalStretch
-    end
-    PFFamilyMat() = PFFamilyMat(Peridynamics.CriticalStretch())
-    Peridynamics.@params PFFamilyMat Peridynamics.StandardPointParameters
-    @test point_param_type(PFFamilyMat()) ===
-          Peridynamics.StandardPointParameters{Float64,
-                                               Peridynamics.CriticalStretchParameters{Float64}}
-    p = Dict{Symbol,Any}(:horizon => 1.0, :rho => 1.0, :E => 1.0, :nu => 0.25, :Gc => 1.0)
-    par = get_point_params(PFFamilyMat(), p)
-    @test par isa Peridynamics.StandardPointParameters{Float64}   # partial `isa` still holds
-    @test par.bc ≈ 18 * par.K / (π * par.δ^4)
-
-    # the constructor-only form has to declare exactly the fields of the existing type
-    struct PFFamilyMat2 <: AbstractBondSystemMaterial{NoCorrection}
-        dmgmodel::Peridynamics.CriticalStretch
-    end
-    @test_throws ArgumentError @eval Peridynamics.@params PFFamilyMat2 Peridynamics.StandardPointParameters begin
-        @inherit DiscretizationParameters
-    end
-end
-
-@testitem "instantiate_point_params: generated and hand-written types" begin
-    import Peridynamics: instantiate_point_params, StandardPointParameters,
-                         AbstractPointParameters
-
-    # a `@params`-generated type is a `UnionAll` and takes the requested float type
-    @test instantiate_point_params(StandardPointParameters, Float64) ===
-          StandardPointParameters{Float64}
-    @test instantiate_point_params(StandardPointParameters, Float32) ===
-          StandardPointParameters{Float32}
-
-    # a hand-written concrete type ignores it
-    struct PFHandwritten <: AbstractPointParameters
-        δ::Float64
-    end
-    @test instantiate_point_params(PFHandwritten, Float32) === PFHandwritten
-end
-
-@testitem "StandardPointParameters: fields, family constructor and float conversion" begin
-    import Peridynamics: StandardPointParameters
-
-    @test StandardPointParameters isa UnionAll
-    @test fieldnames(StandardPointParameters) == (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :bc,
-                                                  :dmg_params)
-    CSP = Peridynamics.CriticalStretchParameters
-    @test isbitstype(StandardPointParameters{Float64,CSP{Float64}})
-
-    # the family constructor accepts any material and resolves the standard parameters
-    p = Dict{Symbol,Any}(:horizon => 2.0, :rho => 3.0, :E => 1.0, :nu => 0.25,
-                         :epsilon_c => 0.01)
-    par = StandardPointParameters(OSBMaterial(), p)
-    @test par isa StandardPointParameters{Float64}
-    @test par.δ == 2.0
-    @test par.εc == 0.01
-    @test par.Gc ≈ 9.0 / 5.0 * par.K * par.δ * par.εc^2
-
-    par32 = StandardPointParameters{Float32}(par)
-    @test par32 isa StandardPointParameters{Float32}
-    @test par32.δ === 2.0f0
-    @test par32.εc ≈ 0.01f0
 end
 
 @testsnippet ParamModels begin
@@ -217,6 +103,241 @@ end
         return Peridynamics.calc_failure!(storage, system, mat, CriticalStretch(),
                                           paramsetup, i)
     end
+end
+
+@testitem "@params: using the point parameters of another material" setup=[ParamModels] begin
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, AbstractPointParameters,
+                         point_param_type, get_point_params, allowed_material_kwargs
+
+    # the definition binds one material ...
+    struct PLBaseMat{D} <: AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::D
+    end
+    PLBaseMat() = PLBaseMat(CriticalStretch())
+    Peridynamics.@params PLBaseMat struct PLParams
+        @inherit StandardParameters
+        @log "scale" scale = 1.0
+    end
+
+    # ... and the second form binds another one to the same type, with the same keywords
+    struct PLOtherMat{D} <: AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::D
+    end
+    PLOtherMat() = PLOtherMat(CriticalStretch())
+    Peridynamics.@params PLOtherMat PLParams
+    @test allowed_material_kwargs(PLOtherMat()) == allowed_material_kwargs(PLBaseMat())
+    CSP = Peridynamics.CriticalStretchParameters
+    @test point_param_type(PLOtherMat()) === PLParams{Float64,CSP{Float64}}
+    @test point_param_type(PLOtherMat(), Float32) === PLParams{Float32,CSP{Float32}}
+
+    p = Dict{Symbol,Any}(:horizon => 1.0, :rho => 1.0, :E => 1.0, :nu => 0.25, :Gc => 1.0,
+                         :scale => 2.0)
+    par = get_point_params(PLOtherMat(), p)
+    @test typeof(par) === point_param_type(PLOtherMat())
+    @test par.scale == 2.0
+    @test par.bc ≈ 18 * par.K / (π * par.δ^4)
+
+    # the marker fields resolve with the models of the material that uses the type
+    mat = PLOtherMat(PMDamage())
+    @test point_param_type(mat) === PLParams{Float64,PMDamageParameters{Float64}}
+    @test :stretch_scale in Peridynamics.all_material_kwargs(mat)
+    par = get_point_params(mat, merge(p, Dict{Symbol,Any}(:stretch_scale => 3.0)))
+    @test par.stretch_scale == 3.0
+
+    # the qualified name of a type of the package works as well
+    struct PLPackageMat{D} <: AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::D
+    end
+    PLPackageMat() = PLPackageMat(CriticalStretch())
+    Peridynamics.@params PLPackageMat Peridynamics.OSBPointParameters
+    @test point_param_type(PLPackageMat()) === point_param_type(OSBMaterial())
+
+    # only point parameters defined with `@params` can be used for another material
+    struct PLHandwritten <: AbstractPointParameters
+        δ::Float64
+        rho::Float64
+        E::Float64
+        nu::Float64
+        G::Float64
+        K::Float64
+        λ::Float64
+        μ::Float64
+    end
+    struct PLHandMat <: AbstractBondSystemMaterial{NoCorrection} end
+    err = try
+        @eval Peridynamics.@params PLHandMat PLHandwritten
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test err.error isa ArgumentError
+    @test occursin("not defined with `@params`", err.error.msg)
+    @test occursin("allowed_material_kwargs", err.error.msg)
+
+    # a name that does not resolve, or resolves to something else
+    err = try
+        @eval Peridynamics.@params PLHandMat PLNotDefinedAnywhere
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test err.error isa ArgumentError
+    @test occursin("cannot resolve", err.error.msg)
+    err = try
+        @eval Peridynamics.@params PLHandMat Float64
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test err.error isa ArgumentError
+    @test occursin("not a point parameter type", err.error.msg)
+
+    # the material still has to provide what its family requires
+    struct PLShortMat <: AbstractBondSystemMaterial{NoCorrection} end
+    Peridynamics.required_point_parameters(::Type{PLShortMat}) = (:δ, :rho, :nope)
+    @test_throws ErrorException @eval Peridynamics.@params PLShortMat PLParams
+end
+
+@testitem "@params: the generated constructor accepts any material" begin
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, point_param_type,
+                         get_point_params
+
+    # the point parameters of one material can be constructed for another, which is what
+    # the second form of `@params` relies on; only the declarations read the material
+    p = Dict{Symbol,Any}(:horizon => 2.0, :rho => 3.0, :E => 1.0, :nu => 0.25,
+                         :epsilon_c => 0.01)
+    par = Peridynamics.OSBPointParameters(BBMaterial(), p)
+    @test par isa Peridynamics.OSBPointParameters{Float64}
+    @test par.δ == 2.0
+    @test par.εc == 0.01
+    @test par.Gc ≈ 9.0 / 5.0 * par.K * par.δ * par.εc^2
+    @test Peridynamics.OSBPointParameters{Float32}(BBMaterial(), p) isa
+          Peridynamics.OSBPointParameters{Float32}
+
+    # binding a material family works like binding a family with `@storage`: every
+    # material of the family answers with the type unless it declares its own
+    abstract type PFTestFam <: AbstractBondSystemMaterial{NoCorrection} end
+    Peridynamics.@params PFTestFam struct PFFamParams
+        @inherit StandardParameters
+    end
+    struct PFTestFamMat <: PFTestFam
+        dmgmodel::Peridynamics.CriticalStretch
+    end
+    PFTestFamMat() = PFTestFamMat(Peridynamics.CriticalStretch())
+    @test point_param_type(PFTestFamMat()) ===
+          PFFamParams{Float64,Peridynamics.CriticalStretchParameters{Float64}}
+    @test get_point_params(PFTestFamMat(), p) isa PFFamParams{Float64}
+    struct PFTestFamOwnMat <: PFTestFam
+        dmgmodel::Peridynamics.CriticalStretch
+    end
+    PFTestFamOwnMat() = PFTestFamOwnMat(Peridynamics.CriticalStretch())
+    Peridynamics.@params PFTestFamOwnMat struct PFFamOwnParams
+        @inherit StandardParameters
+        own = 1.0
+    end
+    @test point_param_type(PFTestFamOwnMat()) <: PFFamOwnParams
+end
+
+@testitem "BBPointParameters and OSBPointParameters: fields, models and float conversion" begin
+    import Peridynamics: BBPointParameters, DHBBPointParameters, OSBPointParameters
+
+    CSP = Peridynamics.CriticalStretchParameters
+    @test BBPointParameters isa UnionAll
+    @test fieldnames(BBPointParameters) == (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :bc,
+                                            :dmg_params)
+    @test fieldnames(OSBPointParameters) == fieldnames(BBPointParameters)
+    @test fieldnames(DHBBPointParameters) == fieldnames(BBPointParameters)
+    @test isbitstype(BBPointParameters{Float64,CSP{Float64}})
+    @test isbitstype(OSBPointParameters{Float64,CSP{Float64}})
+
+    # the bond-based materials fix the Poisson's ratio, the state-based one does not
+    p = Dict{Symbol,Any}(:horizon => 2.0, :rho => 3.0, :E => 1.0, :nu => 0.3, :Gc => 1.0)
+    @test_throws ArgumentError BBPointParameters(BBMaterial(), p)
+    par = OSBPointParameters(OSBMaterial(), p)
+    @test par.nu == 0.3
+    @test par.Gc == 1.0
+    @test par.dmg_params isa CSP{Float64}
+
+    par32 = OSBPointParameters{Float32}(par)
+    @test par32 isa OSBPointParameters{Float32,CSP{Float32}}
+    @test par32.δ === 2.0f0
+    @test par32.Gc === 1.0f0
+end
+
+@testitem "@params: FT in the type of a parameter follows the float type" begin
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, point_param_type,
+                         get_point_params
+    using Peridynamics.StaticArrays
+
+    struct PFFTMat{D} <: AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::D
+    end
+    PFFTMat() = PFFTMat(CriticalStretch())
+    Peridynamics.@params PFFTMat struct PFFTParams
+        @inherit StandardParameters
+        @derived C::SArray{NTuple{4,3},FT,4,81} = Peridynamics.get_hooke_matrix(nu, λ, μ)
+        @derived n::SVector{3,FT} = SVector{3,Float64}(δ, rho, E)
+    end
+
+    # the field types are built from the float type parameter of the struct
+    CSP = Peridynamics.CriticalStretchParameters
+    @test fieldtype(PFFTParams{Float64,CSP{Float64}}, :C) ===
+          SArray{NTuple{4,3},Float64,4,81}
+    @test fieldtype(PFFTParams{Float32,CSP{Float32}}, :C) ===
+          SArray{NTuple{4,3},Float32,4,81}
+    @test fieldtype(PFFTParams{Float32,CSP{Float32}}, :n) === SVector{3,Float32}
+    @test point_param_type(PFFTMat(), Float32) === PFFTParams{Float32,CSP{Float32}}
+    @test isbitstype(point_param_type(PFFTMat()))
+
+    p = Dict{Symbol,Any}(:horizon => 2.0, :rho => 3.0, :E => 1.0, :nu => 0.25)
+    par = get_point_params(PFFTMat(), p)
+    @test par.C isa SArray{NTuple{4,3},Float64,4,81}
+    @test par.C ≈ Peridynamics.get_hooke_matrix(par.nu, par.λ, par.μ)
+    @test par.n == SVector{3,Float64}(2.0, 3.0, 1.0)
+
+    # the converting constructor converts the element type of such a parameter too
+    par32 = PFFTParams{Float32}(par)
+    @test par32.C isa SArray{NTuple{4,3},Float32,4,81}
+    @test par32.n === SVector{3,Float32}(2.0f0, 3.0f0, 1.0f0)
+    @test par32.C ≈ par.C
+
+    # the table shows the type as written
+    @test occursin("`SArray{NTuple{4, 3}, FT, 4, 81}`", Peridynamics.block_table(PFFTMat()))
+
+    # the shipped correspondence parameters are declared this way
+    @test fieldtype(point_param_type(CMaterial(), Float32), :C) ===
+          SArray{NTuple{4,3},Float32,4,81}
+
+    # such a declaration can be inherited from another module: the names of the type
+    # expression are resolved where it was written
+    struct PFFTInheritMat{D} <: AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::D
+    end
+    PFFTInheritMat() = PFFTInheritMat(CriticalStretch())
+    Peridynamics.@params PFFTInheritMat struct PFFTInheritParams
+        @inherit CPointParameters
+    end
+    @test fieldtype(point_param_type(PFFTInheritMat(), Float32), :C) ===
+          SArray{NTuple{4,3},Float32,4,81}
+
+    # `FT` cannot name a parameter, and every other name in the type has to resolve
+    struct PFFTBadMat <: AbstractBondSystemMaterial{NoCorrection} end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFFTNameBlock begin
+        FT = 1.0
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFFTGroupNameBlock begin
+        @derived (; FT, x) = f()
+    end
+    err = try
+        @eval Peridynamics.@params_fields PFFTUnknownBlock begin
+            c::NoSuchArray{FT}
+        end
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test err.error isa ArgumentError
+    @test occursin("NoSuchArray", err.error.msg)
 end
 
 @testitem "@cm_params: the parameters a constitutive model owns" setup=[ParamModels] begin
@@ -352,18 +473,40 @@ end
                          get_point_params, allowed_material_kwargs
 
     # an explicit supertype in the struct header is kept
-    Peridynamics.@params struct PFSuperParams <: Peridynamics.AbstractPointParameters
+    struct PFSuperMat <: Peridynamics.AbstractMaterial end
+    Peridynamics.required_point_parameters(::Type{PFSuperMat}) = ()
+    Peridynamics.@params PFSuperMat struct PFSuperParams <:
+                                            Peridynamics.AbstractPointParameters
         sp_a = 1.0
     end
     @test PFSuperParams <: Peridynamics.AbstractPointParameters
+    @test point_param_type(PFSuperMat()) === PFSuperParams{Float64}
 
     # a definition without declarations is refused
     struct PFEmptyMat <: AbstractBondSystemMaterial{NoCorrection} end
     @test_throws LoadError @eval Peridynamics.@params PFEmptyMat struct PFEmptyParams end
 
-    # direct macro input checks
-    @test_throws ArgumentError Peridynamics.macrocheck_input_params_block(:(1 + 1))
-    @test_throws ArgumentError Peridynamics.macrocheck_input_params_struct(:(1 + 1))
+    # the macro has exactly two forms; everything else names them
+    for expr in (:(Peridynamics.@params struct PFBare
+                       a = 1.0
+                   end),
+                 :(Peridynamics.@params PFEmptyMat PFBare begin
+                       a = 1.0
+                   end),
+                 :(Peridynamics.@params PFEmptyMat),
+                 :(Peridynamics.@params PFEmptyMat 1 + 1))
+        err = try
+            @eval $(expr)
+        catch e
+            e
+        end
+        @test err isa LoadError
+        @test err.error isa ArgumentError
+        @test occursin("struct MyPointParameters", err.error.msg)
+        @test occursin("MyOtherMaterial MyPointParameters", err.error.msg)
+    end
+    @test_throws ArgumentError Peridynamics.macrocheck_input_material(:(1 + 1))
+    @test isnothing(Peridynamics.macrocheck_input_material(:(MyModule.MyMaterial)))
 
     # a hand-written `point_param_type` without float-type method ignores the request
     struct PFOneArgMat <: AbstractBondSystemMaterial{NoCorrection} end
@@ -386,16 +529,11 @@ end
     par = get_point_params(PFPinnedMat(), Dict{Symbol,Any}())
     @test par === PFPinnedParams(2)
 
-    # a custom material family shares a constructor through the block form
-    abstract type PFTestFam <: AbstractBondSystemMaterial{NoCorrection} end
-    Peridynamics.@params PFTestFam Peridynamics.StandardPointParameters begin
-        @inherit StandardParameters
-    end
-    struct PFTestFamMat <: PFTestFam
-        dmgmodel::Peridynamics.CriticalStretch
-    end
-    PFTestFamMat() = PFTestFamMat(Peridynamics.CriticalStretch())
-    Peridynamics.@params PFTestFamMat Peridynamics.StandardPointParameters
-    p = Dict{Symbol,Any}(:horizon => 1.0, :rho => 1.0, :E => 1.0, :nu => 0.25)
-    @test get_point_params(PFTestFamMat(), p) isa Peridynamics.StandardPointParameters
+    # ... and a material that uses such a type is not either
+    struct PFPinnedMat2 <: Peridynamics.AbstractMaterial end
+    Peridynamics.required_point_parameters(::Type{PFPinnedMat2}) = ()
+    Peridynamics.@params PFPinnedMat2 PFPinnedParams
+    @test point_param_type(PFPinnedMat2(), Float32) === PFPinnedParams
+    @test get_point_params(PFPinnedMat2(), Dict{Symbol,Any}(:n_substeps => 3)) ===
+          PFPinnedParams(3)
 end

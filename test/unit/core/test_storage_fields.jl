@@ -319,14 +319,16 @@ end
 @testitem "@storage: a storage of shaped fields allocates without init_field" begin
     import Peridynamics: BondScalar, BondTensor, PointScalar, PointVector, PointTensor,
                          AbstractBondSystemMaterial, NoCorrection, CriticalStretch,
-                         StandardPointParameters, get_n_loc_points, get_n_points,
+                         get_n_loc_points, get_n_points,
                          get_n_bonds, storage_fields_expr
 
     struct ShapeMat <: AbstractBondSystemMaterial{NoCorrection}
         dmgmodel::CriticalStretch
     end
     ShapeMat() = ShapeMat(CriticalStretch())
-    Peridynamics.@params ShapeMat StandardPointParameters
+    Peridynamics.@params ShapeMat struct ShapeMatParams
+        @inherit StandardParameters
+    end
 
     Peridynamics.@storage ShapeMat struct ShapeStorage
         @inherit Peridynamics.VelocityVerletFields
@@ -386,14 +388,16 @@ end
 
 @testitem "@storage: a container-typed field keeps its type and needs init_field" begin
     import Peridynamics: AbstractBondSystemMaterial, AbstractTimeSolver, BondSystem,
-                         NoCorrection, CriticalStretch, StandardPointParameters,
+                         NoCorrection, CriticalStretch,
                          get_n_loc_points, get_n_bonds
 
     struct LegacyMat <: AbstractBondSystemMaterial{NoCorrection}
         dmgmodel::CriticalStretch
     end
     LegacyMat() = LegacyMat(CriticalStretch())
-    Peridynamics.@params LegacyMat StandardPointParameters
+    Peridynamics.@params LegacyMat struct LegacyMatParams
+        @inherit StandardParameters
+    end
 
     # the syntax of every field declaration before field shapes existed
     Peridynamics.@storage LegacyMat struct LegacyStorage <: Peridynamics.AbstractStorage
@@ -435,14 +439,15 @@ end
 end
 
 @testitem "@storage: a field a time solver sizes cannot be a container type" begin
-    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, CriticalStretch,
-                         StandardPointParameters
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, CriticalStretch
 
     struct UnshapedMat <: AbstractBondSystemMaterial{NoCorrection}
         dmgmodel::CriticalStretch
     end
     UnshapedMat() = UnshapedMat(CriticalStretch())
-    Peridynamics.@params UnshapedMat StandardPointParameters
+    Peridynamics.@params UnshapedMat struct UnshapedMatParams
+        @inherit StandardParameters
+    end
 
     # `velocity` is a field of the Velocity Verlet solver, and the solver only says that it
     # needs it, so a container type leaves nobody who knows the size
@@ -574,7 +579,7 @@ end
 
 @testitem "@storage: the storage is generic in the float type and adaptable" begin
     import Peridynamics: AbstractBondSystemMaterial, NoCorrection, CriticalStretch,
-                         StandardPointParameters, storage_type, get_storage
+                         storage_type, get_storage
 
     # a minimal stand-in for the array type of another backend
     struct WrappedArray{T,N} <: AbstractArray{T,N}
@@ -592,7 +597,9 @@ end
         dmgmodel::CriticalStretch
     end
     AdaptMat() = AdaptMat(CriticalStretch())
-    Peridynamics.@params AdaptMat StandardPointParameters
+    Peridynamics.@params AdaptMat struct AdaptMatParams
+        @inherit StandardParameters
+    end
 
     Peridynamics.@storage AdaptMat struct AdaptStorage
         @inherit Peridynamics.VelocityVerletFields

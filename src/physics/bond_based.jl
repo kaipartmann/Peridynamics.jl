@@ -126,30 +126,22 @@ function bb_poissons_ratio_msg()
     return msg
 end
 
-function get_required_point_parameters_bb(mat::AbstractBondBasedMaterial,
-                                          p::Dict{Symbol,Any})
-    return (; get_discretization_params(; material_kwargs(p, discretization_kwargs())...)...,
-            get_elastic_params_bb(; material_kwargs(p, elasticity_kwargs())...)...)
-end
-
 """
-    BBStandardParameters
+    BBPointParameters
 
 $(internal_api_warning())
 
-Parameter block of a bond-based material: the standard parameters with the Poisson's ratio
-of bond-based peridynamics. See [`@params_fields`](@ref).
+Point parameters of the bond-based material: the discretization parameters, the elastic
+parameters with the Poisson's ratio of bond-based peridynamics, the bond constant `bc` and
+the parameters of the damage model. [`GBBMaterial`](@ref) uses them as they are,
+[`DHBBMaterial`](@ref) inherits them and halves the bond constant.
 
-$(block_table(BBStandardParameters))
+$(block_table(BBPointParameters))
 """
-@params_fields BBStandardParameters begin
+@params BBMaterial struct BBPointParameters
     @inherit DiscretizationParameters BBElasticParameters
     @derived bc = 18 * K / (π * δ^4)
     dmg_params::DamageParameters
-end
-
-@params BBMaterial StandardPointParameters begin
-    @inherit BBStandardParameters
 end
 
 @storage BBMaterial struct BBStorage <: AbstractStorage
@@ -182,7 +174,7 @@ function calc_failure!(storage::AbstractStorage, system::BondSystem,
 end
 
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
-                              params::StandardPointParameters, t, Δt, i)
+                              params::BBPointParameters, t, Δt, i)
     (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)

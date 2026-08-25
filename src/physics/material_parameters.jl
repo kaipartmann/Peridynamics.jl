@@ -1,8 +1,5 @@
 @inline elasticity_parameters() = (:E, :nu, :G, :K, :λ, :μ)
 
-@inline elasticity_kwargs() = (:E, :nu, :G, :K, :lambda, :mu)
-@inline discretization_kwargs() = (:horizon, :rho)
-
 """
     material!(body, set_name; kwargs...)
     material!(body; kwargs...)

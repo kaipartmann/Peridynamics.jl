@@ -19,8 +19,8 @@
         n_substeps::Int = 1
     end
 
-    # the struct is parametric in the float type and in the model parameter types of the
-    # two markers of `StandardParameters`, and a pinned type stays what it is
+    # the struct is parametric in the float type and in the model parameter type of the
+    # damage-model marker of `StandardParameters`, and a pinned type stays what it is
     @test PFParams1 isa UnionAll
     @test fieldnames(PFParams1) == (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :bc,
                                     :dmg_params, :sigma_y, :hardening, :n_substeps)
@@ -206,6 +206,15 @@ end
         @inherit PFBlockA PFBlockD
     end
 
+    # the point parameters of a material are a block as well, and a declaration in the
+    # body overrides an inherited one in place: the dual-horizon parameters are the
+    # bond-based ones with another bond constant, in the same order
+    bb = param_fields_expr(Peridynamics.BBPointParameters).decls
+    dhbb = param_fields_expr(Peridynamics.DHBBPointParameters).decls
+    @test [d.name for d in dhbb] == [d.name for d in bb]
+    @test count(a != b for (a, b) in zip(bb, dhbb)) == 1
+    @test only(d for d in dhbb if d.name === :bc).source == "(0.5 * 18 * K) / (π * δ ^ 4)"
+
     # only `@params` and `@params_fields` definitions can be inherited from
     @test_throws ArgumentError param_fields_expr(Float64)
 end
@@ -247,8 +256,10 @@ end
 end
 
 @testitem "point_param_type: shipped parameters are concrete, isbits and float-generic" begin
-    using Peridynamics: point_param_type, StandardPointParameters, CPointParameters,
-                        BACPointParameters, CKIPointParameters
+    using Peridynamics: point_param_type, BBPointParameters, DHBBPointParameters,
+                        OSBPointParameters, CPointParameters, BACPointParameters,
+                        CKIPointParameters, RKCPointParameters
+    using Peridynamics.StaticArrays: SArray
 
     materials = (BBMaterial(), DHBBMaterial(), GBBMaterial(), OSBMaterial(), CMaterial(),
                  CRMaterial(), BACMaterial(), CKIMaterial(), RKCMaterial(), RKCRMaterial())
@@ -265,16 +276,27 @@ end
     # every shipped point parameter type is generic in the float type and carries the
     # marker for the damage model parameters; the marker for the constitutive model exists
     # exactly where the material carries one — the correspondence family
-    for P in (StandardPointParameters, CPointParameters, BACPointParameters,
-              CKIPointParameters, Peridynamics.RKCPointParameters)
+    for P in (BBPointParameters, DHBBPointParameters, OSBPointParameters, CPointParameters,
+              BACPointParameters, CKIPointParameters, RKCPointParameters)
         @test P isa UnionAll
         @test Peridynamics.has_dmg_param_marker(P)
     end
-    for P in (CPointParameters, BACPointParameters, Peridynamics.RKCPointParameters)
+    for P in (CPointParameters, BACPointParameters, RKCPointParameters)
         @test Peridynamics.has_cm_param_marker(P)
     end
-    @test !Peridynamics.has_cm_param_marker(StandardPointParameters)
-    @test !Peridynamics.has_cm_param_marker(CKIPointParameters)
+    for P in (BBPointParameters, DHBBPointParameters, OSBPointParameters, CKIPointParameters)
+        @test !Peridynamics.has_cm_param_marker(P)
+    end
+
+    # materials with identical parameters share the type, the others have their own
+    @test point_param_type(GBBMaterial()) === point_param_type(BBMaterial())
+    @test point_param_type(CRMaterial()) === point_param_type(CMaterial())
+    @test point_param_type(RKCRMaterial()) === point_param_type(RKCMaterial())
+    @test point_param_type(DHBBMaterial()) !== point_param_type(BBMaterial())
+
+    # the stiffness tensor of the correspondence parameters follows the float type
+    @test fieldtype(point_param_type(CMaterial(), Float32), :C) ===
+          SArray{NTuple{4,3},Float32,4,81}
 end
 
 @testitem "material!: point parameters of every material" begin

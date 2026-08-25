@@ -996,7 +996,7 @@ end
 function macrocheck_input_storage_struct(storage)
     (storage isa Expr && storage.head === :struct) && return nothing
     (storage isa Expr && storage.head === :escape) && return nothing
-    msg = "specified input is not a valid point parameter struct expression!\n"
+    msg = "specified input is not a valid storage struct expression!\n"
     return throw(ArgumentError(msg))
 end
 

@@ -132,7 +132,7 @@ is ignored.
 """
 function get_frac_params end
 
-function get_frac_params(::CriticalStretch, δ::Float64, K::Float64; Gc=nothing,
+function get_frac_params(::CriticalStretch, δ::Real, K::Real; Gc=nothing,
                          epsilon_c=nothing, kwargs...)
     local _Gc::Float64
     local εc::Float64

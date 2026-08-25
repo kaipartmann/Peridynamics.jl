@@ -30,10 +30,12 @@ Peridynamics.TwoNeighborInteraction
 Peridynamics.ThreeNeighborInteraction
 Peridynamics.InteractionSystem
 Peridynamics.PointSetsPreCrack
-Peridynamics.StandardPointParameters
 Peridynamics.SingleDimBC
 Peridynamics.PosSingleDimBC
 Peridynamics.PosDepSingleDimBC
+Peridynamics.BBPointParameters
+Peridynamics.DHBBPointParameters
+Peridynamics.OSBPointParameters
 Peridynamics.CKIPointParameters
 Peridynamics.BACPointParameters
 Peridynamics.CPointParameters
@@ -116,7 +118,6 @@ Peridynamics.param_fields_expr
 Peridynamics.get_param_decls
 Peridynamics.material_kwargs
 Peridynamics.required_param
-Peridynamics.instantiate_point_params
 Peridynamics.StandardParameters
 Peridynamics.DiscretizationParameters
 Peridynamics.ElasticParameters
@@ -124,7 +125,6 @@ Peridynamics.FractureParameters
 Peridynamics.BondHorizonParameters
 Peridynamics.InteractionParameters
 Peridynamics.BBElasticParameters
-Peridynamics.BBStandardParameters
 Peridynamics.@cm_params
 Peridynamics.@dmg_params
 Peridynamics.ConstitutiveParameters

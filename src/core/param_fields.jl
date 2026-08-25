@@ -30,8 +30,9 @@ One parameter declaration of a [`@params`](@ref) or [`@params_fields`](@ref) bod
 # Fields
 
 - `name::Symbol`: Name of the parameter, i.e. the field of the generated struct.
-- `type::Any`: Declared type of the parameter, or [`SimFloat`](@ref) if the parameter
-    follows the float type of the simulation.
+- `type::Any`: Declared type of the parameter: a `Type`, [`SimFloat`](@ref) if the
+    parameter is declared without a type and follows the float type of the simulation, or a
+    type expression over `FT`, e.g. `SArray{NTuple{4,3},FT,4,81}`, which follows it too.
 - `kwarg::Symbol`: `material!` keyword the parameter is read from, or `:none` if it is not
     read from a keyword of its own.
 - `default::Any`: Expression of the default value, or `nothing` if the keyword is required.
@@ -201,11 +202,34 @@ end
 @inline function param_field_type(d::ParamFieldDecl)
     is_cm_param_decl(d) && return CM_PARAM_TYPE_PARAM
     is_dmg_param_decl(d) && return DMG_PARAM_TYPE_PARAM
-    return d.type === SimFloat ? FLOAT_TYPE_PARAM : d.type
+    d.type === SimFloat && return FLOAT_TYPE_PARAM
+    return float_type_expr(d.type, FLOAT_TYPE_PARAM)
+end
+
+# the name a declaration uses for the float type of the simulation; it is the name of the
+# generated type parameter, so `FT` in `SArray{NTuple{4,3},FT,4,81}` is that parameter
+const SIM_FLOAT_NAME = :FT
+
+# a parameter follows the float type of the simulation if it is declared without a type or
+# with a type expression that names `FT`
+@inline function follows_sim_float(d::ParamFieldDecl)
+    return d.type === SimFloat || is_float_type_expr(d.type)
+end
+
+@inline function is_float_type_expr(type)
+    return type isa Expr && in(SIM_FLOAT_NAME, referenced_names(type))
 end
 
 @inline function params_use_sim_float(spec::ParamFieldsSpec)
-    return any(d -> d.type === SimFloat, spec.decls)
+    return any(follows_sim_float, spec.decls)
+end
+
+# the type expression with the float type replaced by `ft`: the type parameter of the
+# struct and the constructor, or `FT_TO` of the converting constructor
+float_type_expr(type, ft) = type
+float_type_expr(type::Symbol, ft) = type === SIM_FLOAT_NAME ? ft : type
+function float_type_expr(type::Expr, ft)
+    return Expr(type.head, (float_type_expr(a, ft) for a in type.args)...)
 end
 
 # --------------------------------------------------------------------------------------
@@ -244,7 +268,7 @@ Every right-hand side follows one rule:
 
 ```julia
 @derived bc = 18 * K / (π * δ^4)
-@derived (; Gc, εc) = get_frac_params(mat.dmgmodel, δ, K; Gc, epsilon_c)
+@derived (; δ, rho) = get_discretization_params(; horizon, rho)
 ```
 
 The keywords written after `;` are exactly the `material!` keywords the block consumes, so
@@ -279,8 +303,8 @@ does not appear in the log, which is the default of `log_param_property`.
 @log "yield stress" sigma_y = Inf
 @log "bond constant" @derived bc = 18 * K / (π * δ^4)
 
-@derived (; Gc, εc) = get_frac_params(mat.dmgmodel, δ, K; Gc, epsilon_c)
-@log "critical stretch" εc
+@derived (; δ, rho) = get_discretization_params(; horizon, rho)
+@log "horizon" δ
 ```
 """
 macro log(label, parameter)
@@ -335,9 +359,12 @@ end
 ```
 
 The blocks this package ships are [`DiscretizationParameters`](@ref),
-[`ElasticParameters`](@ref) and [`FractureParameters`](@ref) (combined in
-[`StandardParameters`](@ref)), [`BondHorizonParameters`](@ref) and
-[`InteractionParameters`](@ref), each documented with the parameters it exposes.
+[`ElasticParameters`](@ref), [`BBElasticParameters`](@ref),
+[`BondHorizonParameters`](@ref), [`InteractionParameters`](@ref) and
+[`StandardParameters`](@ref), each documented with the parameters it exposes;
+[`FractureParameters`](@ref) belongs to the damage model and is inherited inside a
+[`@dmg_params`](@ref) declaration. The point parameters of a material defined with
+[`@params`](@ref) can be inherited the same way, e.g. `@inherit BBPointParameters`.
 """
 macro params_fields(name, block)
     macrocheck_input_params_fields_name(name)
@@ -507,9 +534,11 @@ function parse_param_group(expr, mod::Module, kwargs::Vector{Symbol})
     decls = Vector{ParamFieldDecl}()
     for member in expr.args[1].args[1].args
         if member isa Symbol
+            check_param_name(member)
             push!(decls, ParamFieldDecl(member, SimFloat, :none, nothing, provider, source,
                                         ""))
         elseif member isa Expr && member.head === :(::) && member.args[1] isa Symbol
+            check_param_name(member.args[1])
             type = resolve_param_type(mod, member.args[2])
             push!(decls, ParamFieldDecl(member.args[1], type, :none, nothing, provider,
                                         source, ""))
@@ -525,8 +554,7 @@ function group_needs_derived_msg(expr)
     msg = "a group of parameters has to be declared with `@derived`, got: $(expr)\n"
     msg *= "  Every parameter a call supplies is computed and is not a `material!` keyword "
     msg *= "of its own, e.g.\n"
-    msg *= "        @derived (; Gc, εc) = get_frac_params(mat.dmgmodel, δ, K; Gc, "
-    msg *= "epsilon_c)\n"
+    msg *= "        @derived (; δ, rho) = get_discretization_params(; horizon, rho)\n"
     return msg
 end
 
@@ -591,7 +619,7 @@ function explicit_kwarg_msg(call, arg)
     msg = "unexpected keyword argument `$(shown)` in: $(call)\n"
     msg *= "  The keyword arguments of a call are the names of the `material!` keywords it "
     msg *= "reads, so they are written in shorthand:\n"
-    msg *= "        get_frac_params(mat.dmgmodel, δ, K; Gc, epsilon_c)\n"
+    msg *= "        get_bond_horizon(δ; bond_horizon)\n"
     msg *= "  Pass the parameters declared above positionally.\n"
     return msg
 end
@@ -605,8 +633,7 @@ function check_no_keyword_dict(expr)
     in(:p, referenced_names(expr)) || return nothing
     msg = "`p` is not available in a parameter declaration: $(expr)\n"
     msg *= "  Name the `material!` keywords a call reads as its keyword arguments:\n"
-    msg *= "        @derived (; Gc, εc) = get_frac_params(mat.dmgmodel, δ, K; Gc, "
-    msg *= "epsilon_c)\n"
+    msg *= "        @derived (; δb) = get_bond_horizon(δ; bond_horizon)\n"
     return throw(ArgumentError(msg))
 end
 
@@ -697,13 +724,25 @@ function parse_param_field(expr, mod::Module)
         decl = decl.args[1]
     end
     if decl isa Symbol
+        check_param_name(decl)
         # an untyped parameter follows the float type of the simulation
         return (; name=decl, type=SimFloat, default)
     end
     if decl isa Expr && decl.head === :(::) && decl.args[1] isa Symbol
+        check_param_name(decl.args[1])
         return (; name=decl.args[1], type=resolve_param_type(mod, decl.args[2]), default)
     end
     return throw(ArgumentError("unexpected parameter declaration: $expr\n"))
+end
+
+# `FT` names the float type of the simulation inside a definition, so it cannot name a
+# parameter
+function check_param_name(name::Symbol)
+    name === SIM_FLOAT_NAME || return nothing
+    msg = "`$(name)` cannot be the name of a parameter!\n"
+    msg *= "  Inside a parameter definition `$(SIM_FLOAT_NAME)` stands for the float type "
+    msg *= "of the simulation.\n"
+    return throw(ArgumentError(msg))
 end
 
 #=
@@ -747,12 +786,58 @@ function resolve_callee(mod::Module, callee)
 end
 
 function resolve_param_type(mod::Module, type_expr)
+    is_float_type_expr(type_expr) && return resolve_float_type_expr(mod, type_expr)
     resolved = resolve_in_mod_or_peridynamics(mod, type_expr)
     isa(resolved, Type) && return resolved
     msg = "cannot resolve the type `$(type_expr)` of a point parameter!\n"
     msg *= "  It has to be resolvable in `$(mod)` or in `Peridynamics`. Declare the "
-    msg *= "parameter without a type to let it follow the float type of the simulation.\n"
+    msg *= "parameter without a type to let it follow the float type of the simulation, "
+    msg *= "or\n  build the type from `$(SIM_FLOAT_NAME)`, e.g. "
+    msg *= "`SArray{NTuple{4,3},$(SIM_FLOAT_NAME),4,81}`.\n"
     return throw(ArgumentError(msg))
+end
+
+#=
+A type expression that names `FT` cannot be evaluated while the macro is expanded, because
+`FT` is the type parameter of the struct that is about to be generated. So it stays an
+expression, and every other name in it is resolved to the module that defines it, the way a
+provider call is resolved: an inherited declaration keeps its meaning in another module, and
+the expression evaluates wherever the generated struct and constructors are.
+=#
+function resolve_float_type_expr(mod::Module, type_expr)
+    return resolve_type_names(mod, type_expr, type_expr)
+end
+
+resolve_type_names(::Module, x, type_expr) = x
+
+function resolve_type_names(mod::Module, name::Symbol, type_expr)
+    name === SIM_FLOAT_NAME && return name
+    isnothing(try_eval(mod, name)) || return GlobalRef(mod, name)
+    isnothing(try_eval(Peridynamics, name)) || return GlobalRef(Peridynamics, name)
+    msg = "cannot resolve `$(name)` in the type `$(type_expr)` of a point parameter!\n"
+    msg *= "  Every name but `$(SIM_FLOAT_NAME)` has to be resolvable in `$(mod)` or in "
+    msg *= "`Peridynamics`.\n"
+    return throw(ArgumentError(msg))
+end
+
+function resolve_type_names(mod::Module, expr::Expr, type_expr)
+    # `a.b` resolves `a`, never `b`, and a quoted name is data
+    expr.head === :quote && return expr
+    if expr.head === :.
+        return Expr(:., resolve_type_names(mod, expr.args[1], type_expr),
+                    expr.args[2:end]...)
+    end
+    return Expr(expr.head, (resolve_type_names(mod, a, type_expr) for a in expr.args)...)
+end
+
+# the type as it was written, for the tables and the error messages
+type_expr_string(type) = type_msg(type)
+type_expr_string(type::Expr) = string(unresolve_type_names(type))
+
+unresolve_type_names(x) = x
+unresolve_type_names(ref::GlobalRef) = ref.name
+function unresolve_type_names(expr::Expr)
+    return Expr(expr.head, (unresolve_type_names(a) for a in expr.args)...)
 end
 
 #=
@@ -829,7 +914,7 @@ function param_decl_msg(d::ParamFieldDecl)
     is_derived(d) && (msg *= "@derived ")
     (d.kwarg !== :none && d.kwarg !== d.name) && (msg *= "@kwarg $(d.kwarg) ")
     msg *= string(d.name)
-    d.type === SimFloat || (msg *= "::$(d.type)")
+    d.type === SimFloat || (msg *= "::$(type_expr_string(d.type))")
     isnothing(d.default) || (msg *= " = $(d.source)")
     is_provided(d) && (msg *= " (from $(d.source))")
     return msg
@@ -1059,8 +1144,9 @@ function params_convert_expr(name, spec, sim_float)
                      :(Peridynamics.convert_nested_params(FT_TO,
                                                           Base.getfield(param,
                                                                         $(QuoteNode(d.name)))))
-                 elseif d.type === SimFloat
-                     :(Base.convert(FT_TO, Base.getfield(param, $(QuoteNode(d.name)))))
+                 elseif follows_sim_float(d)
+                     :(Base.convert($(float_type_expr(param_field_type(d), :FT_TO)),
+                                    Base.getfield(param, $(QuoteNode(d.name)))))
                  else
                      :(Base.getfield(param, $(QuoteNode(d.name))))
                  end
