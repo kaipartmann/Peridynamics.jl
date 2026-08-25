@@ -153,6 +153,8 @@ end
         "symmetry: NewtonKrylov, other materials",
         "symmetry: VelocityVerlet",
         "symmetry: VelocityVerlet, material variants",
+        "tutorial constitutive model: runs on every correspondence family",
+        "tutorial material: runs, breaks, and exports its own field",
         "uniform tension: DynamicRelaxation",
         "uniform tension: NewtonKrylov",
         "uniform tension: data boundary conditions",

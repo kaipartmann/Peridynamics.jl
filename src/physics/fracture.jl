@@ -105,7 +105,7 @@ Read or calculate the fracture parameters of a damage model from the fracture ke
 Otherwise, a default method returns an empty named tuple `(; )`.
 
 Every fracture keyword of `material!` is passed to this function, and a keyword the user
-did not specify arrives as `nothing` — that is how a damage model decides which keywords
+did not specify arrives as `nothing`. That is how a damage model decides which keywords
 it accepts and how it converts them into each other. A method declares **only the keywords
 its model reads** and collects everything else in `kwargs...`, so a model that has no
 notion of a critical strain never has to mention `epsilon_c`:
@@ -117,9 +117,9 @@ function Peridynamics.get_frac_params(::MyDamage, δ, K; Gc=nothing, kwargs...)
 end
 ```
 
-The fracture keywords `material!` accepts are currently fixed to `Gc` and `epsilon_c`; a
-damage model cannot register its own keywords yet, and a keyword its method does not read
-is ignored.
+The keywords a method reads are the fracture keywords `material!` accepts for a body
+with that damage model, see [`@dmg_params`](@ref). A keyword the method does not read is
+ignored.
 
 # Arguments
 - `dmgmodel::AbstractDamageModel`: The damage model
@@ -186,7 +186,7 @@ end
 $(extension_api_note())
 
 Decide which bonds of point `i` have failed and update the fracture bookkeeping of the
-storage accordingly. This is the one method a damage model has to define; it is called once
+storage accordingly. This is the one method a damage model has to define. It is called once
 per local point and per time step, right before [`force_density_point!`](@ref).
 
 A method sets `storage.bond_active[bond_id] = false` for every bond that fails and keeps
@@ -200,7 +200,7 @@ damage of the point. A bond whose `bond.fail_permit` is `false` must never fail,
 - `system`: The system of the body chunk.
 - `mat`: The material.
 - `dmgmodel`: The damage model, i.e. what a new model dispatches on.
-- `paramsetup`: The parameters of the body chunk; resolve them with [`get_params`](@ref).
+- `paramsetup`: The parameters of the body chunk. Resolve them with [`get_params`](@ref).
 - `i::Int`: The index of the local point that is evaluated.
 
 # Example
@@ -444,7 +444,7 @@ end
 The integrity is honored by the materials that evaluate their constitutive model per
 bond, i.e. [`RKCMaterial`](@ref) and [`RKCRMaterial`](@ref): the stress and the strain
 energy density of every bond are scaled by it. One scalar per bond is the isotropic
-damage of classical damage mechanics; a model that degrades anisotropically, e.g. only
+damage of classical damage mechanics. A model that degrades anisotropically, e.g. only
 the tensile part of the stress, instead specializes the stress computation of the
 material family for its damage model type. Combining a model that defines this method
 with a material that ignores it fails once when the [`Job`](@ref) is created, see
@@ -474,12 +474,12 @@ that data survives the damage of the bond: while a crack forms between two point
 neighbor turns into a point on the other side of a discontinuity, and a deformation
 gradient fitted through the jump produces spurious deformation and stress. Taking the
 weight back smoothly keeps the moment matrix a continuous function of the damage, where
-deleting the bond is a jump — which is what keeps fragmentation stable.
+deleting the bond is a jump. That is what keeps fragmentation stable.
 
 The kinematic weight is deliberately not the [`bond_integrity`](@ref): the integrity
 states how much load a bond carries, the kinematic weight whether its neighbor still
 moves with the point. A softened bond can remain perfectly valid data. The default is
-therefore `1.0` for every damage model — a failed bond is excluded from the fit through
+therefore `1.0` for every damage model. A failed bond is excluded from the fit through
 `bond_active`, so a model that deletes bonds needs nothing else. Combining a model that
 defines this method with a material that ignores it fails once when the [`Job`](@ref) is
 created, see [`supports_kinematic_weight`](@ref).

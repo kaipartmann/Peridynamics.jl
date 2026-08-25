@@ -129,7 +129,7 @@ end
 """
     BBPointParameters
 
-$(internal_api_warning())
+$(extension_api_note())
 
 Point parameters of the bond-based material: the discretization parameters, the elastic
 parameters with the Poisson's ratio of bond-based peridynamics, the bond constant `bc` and
@@ -144,6 +144,16 @@ $(block_table(BBPointParameters))
     dmg_params::DamageParameters
 end
 
+"""
+    BBStorage
+
+$(extension_api_note())
+
+Storage of [`BBMaterial`](@ref): the fields of the three time solvers and of the fracture
+bookkeeping, the strain energy density of every point and the current length of every bond.
+
+$(block_table(BBStorage))
+"""
 @storage BBMaterial struct BBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit BondFracFields

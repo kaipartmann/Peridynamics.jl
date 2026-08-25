@@ -96,7 +96,7 @@ OSBMaterial(; kwargs...) = OSBMaterial{NoCorrection}(; kwargs...)
 """
     OSBPointParameters
 
-$(internal_api_warning())
+$(extension_api_note())
 
 Point parameters of the ordinary state-based material: exactly the
 [`StandardParameters`](@ref).
@@ -107,6 +107,17 @@ $(block_table(OSBPointParameters))
     @inherit StandardParameters
 end
 
+"""
+    OSBStorage
+
+$(extension_api_note())
+
+Storage of [`OSBMaterial`](@ref): the fields of the three time solvers and of the fracture
+bookkeeping, `b_int` exchanged halo to local, the strain energy density of every point and
+the current length of every bond.
+
+$(block_table(OSBStorage))
+"""
 @storage OSBMaterial struct OSBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit BondFracFields

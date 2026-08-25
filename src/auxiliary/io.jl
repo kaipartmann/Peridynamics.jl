@@ -205,7 +205,7 @@ Specialize it to derive a quantity that is not a storage field, or to reduce a b
 a point field. A derived name also has to be announced with [`custom_field`](@ref).
 
 The returned array must have one column per *local* point, i.e. `get_n_loc_points(system)`
-of them; halo entries are owned by another chunk and must not be exported twice.
+of them. Halo entries are owned by another chunk and must not be exported twice.
 
 # Example
 

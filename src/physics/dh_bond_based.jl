@@ -86,7 +86,7 @@ DHBBMaterial(; kwargs...) = DHBBMaterial{NoCorrection}(; kwargs...)
 """
     DHBBPointParameters
 
-$(internal_api_warning())
+$(extension_api_note())
 
 Point parameters of the dual-horizon bond-based material: the [`BBPointParameters`](@ref)
 with half of the bond constant, because every bond is visited from both of its points.
@@ -98,6 +98,17 @@ $(block_table(DHBBPointParameters))
     @derived bc = 0.5 * 18 * K / (π * δ^4) # half of the normal bond constant
 end
 
+"""
+    DHBBStorage
+
+$(extension_api_note())
+
+Storage of [`DHBBMaterial`](@ref): the fields of [`BBStorage`](@ref), with `b_int` exchanged
+halo to local, because the dual-horizon formulation accumulates force density into the
+neighbors of a point.
+
+$(block_table(DHBBStorage))
+"""
 @storage DHBBMaterial struct DHBBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit BondFracFields

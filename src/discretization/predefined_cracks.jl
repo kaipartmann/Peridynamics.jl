@@ -67,7 +67,7 @@ $(internal_api_warning())
 
 Break every bond between a point of `set_a` and a point of `set_b`, which is how a
 predefined crack is applied to a body chunk, and keep the fracture bookkeeping of the
-storage in sync. The default marks the bonds inactive; a damage model that carries its own
+storage in sync. The default marks the bonds inactive. A damage model that carries its own
 state, see [`@dmg_storage`](@ref), defines a method that also writes the crack into that
 state:
 

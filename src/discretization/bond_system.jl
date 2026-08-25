@@ -20,7 +20,7 @@ end
 """
     BondSystem{Correction}
 
-$(internal_api_warning())
+$(extension_api_note())
 
 A type for a system for all peridynamic formulations that work with just bonds of two
 points.
@@ -345,7 +345,7 @@ local point and per time step, directly after [`calc_failure!`](@ref).
 The default is the fraction of broken bonds, `1 - n_active_bonds[i] / n_neighbors[i]`, which
 is what a model that deletes bonds wants. A model that degrades a bond continuously instead
 of deleting it defines its own method, so that a partially damaged bond is counted with its
-degree of damage rather than as intact; see [`kinematic_weight`](@ref) and
+degree of damage rather than as intact, see [`kinematic_weight`](@ref) and
 [`bond_integrity`](@ref).
 
 # Arguments
@@ -355,7 +355,7 @@ degree of damage rather than as intact; see [`kinematic_weight`](@ref) and
 - `system`: The system of the body chunk.
 - `mat`: The material.
 - `dmgmodel`: The damage model, i.e. what a new model dispatches on.
-- `paramsetup`: The parameters of the body chunk; resolve them with [`get_params`](@ref).
+- `paramsetup`: The parameters of the body chunk. Resolve them with [`get_params`](@ref).
 - `i::Int`: The index of the local point that is evaluated.
 
 See also [`calc_failure!`](@ref), [`@dmg_storage`](@ref), `AbstractDamageModel`.

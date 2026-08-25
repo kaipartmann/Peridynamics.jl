@@ -58,52 +58,12 @@ function __init__()
     return nothing
 end
 
-abstract type AbstractMaterial end
-abstract type AbstractSpatialSetup end
-abstract type AbstractBody{T<:AbstractMaterial} <: AbstractSpatialSetup end
-abstract type AbstractMultibodySetup <: AbstractSpatialSetup end
-abstract type AbstractParameterSetup end
-abstract type AbstractPointParameters <: AbstractParameterSetup end
-abstract type AbstractParamSpec end
-abstract type AbstractTimeSolver end
-abstract type AbstractJob end
-abstract type AbstractJobOptions end
-abstract type AbstractSystem end
-abstract type AbstractBondSystem <: AbstractSystem end
-abstract type AbstractPredefinedCrack end
-abstract type AbstractBodyChunk{S<:AbstractSystem,T<:AbstractMaterial} end
-abstract type AbstractParameterHandler <: AbstractParameterSetup end
-abstract type AbstractChunkHandler end
-abstract type AbstractDataHandler end
-abstract type AbstractThreadsDataHandler <: AbstractDataHandler end
-abstract type AbstractMPIDataHandler <: AbstractDataHandler end
-abstract type AbstractThreadsBodyDataHandler{Sys,M,P,S} <: AbstractThreadsDataHandler end
-abstract type AbstractThreadsMultibodyDataHandler <: AbstractThreadsDataHandler end
-abstract type AbstractMPIBodyDataHandler{Sys,M,P,S} <: AbstractMPIDataHandler end
-abstract type AbstractMPIMultibodyDataHandler <: AbstractMPIDataHandler end
-abstract type AbstractCorrection end
-abstract type AbstractStorage end
-abstract type AbstractStorageFields end
-abstract type AbstractPointParameterFields end
-abstract type AbstractConstitutiveParameters end
-abstract type AbstractDamageParameters end
-abstract type AbstractFieldShape{T} end
-abstract type AbstractSolverField end
-abstract type AbstractCondition end
-abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
-abstract type AbstractBondBasedMaterial{CM} <: AbstractBondSystemMaterial{CM} end
-abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMaterial{ZEM} end
-abstract type AbstractRKCMaterial{CM,C,M} <: AbstractBondSystemMaterial{C} end
-abstract type AbstractBondAssociatedSystemMaterial <: AbstractBondSystemMaterial{Nothing} end
-abstract type AbstractConstitutiveModel end
-abstract type AbstractConstitutiveState end
-abstract type AbstractZEMStabilization <: AbstractCorrection end
-abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
-abstract type AbstractDamageModel end
-abstract type AbstractDamageState end
+# the docstrings of the abstract types use the API tier markers of `auxiliary/docs.jl`, so
+# that file comes first
+include("auxiliary/docs.jl")
+include("core/abstract_types.jl")
 
 include("auxiliary/function_arguments.jl")
-include("auxiliary/docs.jl")
 include("auxiliary/io.jl")
 include("auxiliary/logs.jl")
 include("auxiliary/mpi.jl")
@@ -180,6 +140,12 @@ include("AbaqusMeshConverter/AbaqusMeshConverter.jl")
 using .AbaqusMeshConverter
 
 include("auxiliary/process_each_export.jl")
+
+# the `public` keyword exists from Julia 1.11 on, so the extension API is only declared
+# there. On 1.10 every name of the tier is still reachable as `Peridynamics.<name>`.
+@static if VERSION >= v"1.11"
+    include("public_api.jl")
+end
 
 try
     include("auxiliary/precompile_workload.jl")

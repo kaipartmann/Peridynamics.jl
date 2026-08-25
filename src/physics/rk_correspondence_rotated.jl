@@ -40,6 +40,18 @@ end
 
 @params RKCRMaterial RKCPointParameters
 
+"""
+    RKCRStorage
+
+$(extension_api_note())
+
+Storage of [`RKCRMaterial`](@ref): the fields of [`RKCFields`](@ref) and of the fracture
+bookkeeping, the rate of the deformation gradient of every point, and the left stretch, the
+rotation and the unrotated Cauchy stress of every bond that the stress rotation integrates.
+It carries the blocks of [`VelocityVerlet`](@ref) and [`DynamicRelaxation`](@ref) only.
+
+$(block_table(RKCRStorage))
+"""
 @storage RKCRMaterial struct RKCRStorage
     @inherit VelocityVerletFields DynamicRelaxationFields
     @inherit BondFracFields RKCFields

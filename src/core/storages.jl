@@ -10,7 +10,7 @@ material is declared with `@params` and [`@storage`](@ref).
 It is called once per local point and per time step, from inside a loop over
 [`each_point_idx`](@ref) that runs on every thread and on every MPI rank. A method must
 therefore only ever write to the columns of point `i`, and read every other point through
-the system; then the same material runs under multithreading and MPI without a change.
+the system. Then the same material runs under multithreading and MPI without a change.
 
 # Arguments
 
@@ -269,8 +269,8 @@ Inheriting the field block of the solver, e.g. `@inherit VelocityVerletFields`, 
 all of them with the right shape.
 
 An `init_field` method is also the escape hatch for a *shaped* field: it is more specific
-than the generic fallback and therefore wins, so a field can keep its shape — and with it
-its type, its size and its export status — while being filled by hand:
+than the generic fallback and therefore wins, so a field can keep its shape, and with it
+its type, its size and its export status, while being filled by hand:
 
 ````julia
 function Peridynamics.init_field(::MyMaterial, ::Peridynamics.AbstractTimeSolver,
@@ -487,6 +487,12 @@ function __storage(material, storage, mod::Module, timesolver=AbstractTimeSolver
         for _decl in _decls if !isnothing(_decl.shape)
     ]
 
+    # the docstring is attached last, so that a `$(block_table(Name))` in it can already read
+    # the declarations that were just registered
+    local _doc = quote
+        Base.@__doc__ $(esc(_storage_type))
+    end
+
     local _checks = quote
         Peridynamics.typecheck_material($(esc(material)))
         Peridynamics.typecheck_storage($(esc(material)), $(esc(_storage_type)))
@@ -496,7 +502,7 @@ function __storage(material, storage, mod::Module, timesolver=AbstractTimeSolver
                         _get_storage, _adapt_structure, _point_data_fields...,
                         _get_all_point_data_fields, _halo_to_loc_fields, _loc_to_halo_fields,
                         _is_halo_fields..., _storage_fields_expr, _init_field_storages...,
-                        _constitutive_state, _damage_state, _checks)
+                        _constitutive_state, _damage_state, _doc, _checks)
     return _exprs
 end
 

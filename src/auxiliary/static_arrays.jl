@@ -115,7 +115,7 @@ independent components in Voigt order, `(11, 22, 33, 23, 13, 12)`. The inverse o
 
 Only the upper triangle of `T` is read, and [`get_sym_tensor`](@ref) mirrors it back. A tensor
 that is symmetric only up to round-off therefore comes back changed by that round-off, and a
-tensor with a real skew part is *not* symmetrized — its lower triangle is silently discarded.
+tensor with a real skew part is not symmetrized. Its lower triangle is silently discarded.
 
 # Example
 
@@ -337,7 +337,7 @@ no matter how rank deficient `M` becomes, and it stays bounded without a jump: t
 derivative of ``\\sigma/(\\sigma^2 + (\\sigma_f - \\sigma)^2)`` at ``\\sigma_f^-`` is
 ``-1/\\sigma_f^2``, which is the derivative of ``1/\\sigma`` at ``\\sigma_f^+``. A hard
 truncation, as used by the two-parameter method above, is only ``C^0``: as a singular value
-crosses the cutoff — which is what happens when bonds drop out of a family — the inverse jumps,
+crosses the cutoff, which is what happens when bonds drop out of a family, the inverse jumps,
 and a time integrator sees that jump as a force impulse.
 
 !!! note "Relation to the two-parameter method"

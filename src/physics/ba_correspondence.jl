@@ -114,25 +114,13 @@ end
 """
     BACPointParameters
 
-$(internal_api_warning())
+$(extension_api_note())
 
-Type containing the material parameters for a peridynamics model using the bond-associated
-correspondence formulation of Chen and Spencer.
+Point parameters of the bond-associated correspondence material: the discretization
+parameters, the bond horizon `δb`, the elastic parameters, the bond constant `bc` and the
+parameters of the constitutive model and of the damage model.
 
-# Fields
-
-- `δ::Float64`: Horizon.
-- `δb::Float64`: Bond-associated horizon.
-- `rho::Float64`: Density.
-- `E::Float64`: Young's modulus.
-- `nu::Float64`: Poisson's ratio.
-- `G::Float64`: Shear modulus.
-- `K::Float64`: Bulk modulus.
-- `λ::Float64`: 1st Lamé parameter.
-- `μ::Float64`: 2nd Lamé parameter.
-- `Gc::Float64`: Critical energy release rate.
-- `εc::Float64`: Critical strain.
-- `bc::Float64`: Bond constant.
+$(block_table(BACPointParameters))
 """
 @params BACMaterial struct BACPointParameters
     @inherit DiscretizationParameters BondHorizonParameters ElasticParameters
@@ -141,6 +129,17 @@ correspondence formulation of Chen and Spencer.
     dmg_params::DamageParameters
 end
 
+"""
+    BACStorage
+
+$(extension_api_note())
+
+Storage of [`BACMaterial`](@ref): the stress and the von Mises stress of every point, the
+state of the constitutive model, and a scratch matrix for the bond stresses of one point,
+which is allocated by an `init_field` method.
+
+$(block_table(BACStorage))
+"""
 @storage BACMaterial struct BACStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit BondFracFields

@@ -33,6 +33,12 @@ To install `Peridynamics.jl`, follow these steps:
 - [Simulations with MPI](@ref)
 - [Visualize results with ParaView](@ref visualization)
 
+## Extending the package
+- [Writing your own material](@ref tutorial_custom_material): a material, a damage model
+  and a constitutive model of your own, step by step.
+- [Materials](@ref): the manual of the declaration language.
+- [API stability](@ref): what the three API tiers promise.
+
 ## Tutorials
 
 ```@raw html

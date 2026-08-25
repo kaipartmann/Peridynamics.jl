@@ -92,32 +92,29 @@ end
 """
     CKIPointParameters
 
-$(internal_api_warning())
+$(extension_api_note())
 
-Type containing the material parameters for a continuum-kinematics-inspired peridynamics
-model.
+Point parameters of the continuum-kinematics-inspired material: the discretization
+parameters, the elastic parameters, the three interaction constants `C1`, `C2` and `C3`,
+and the parameters of the damage model.
 
-# Fields
-
-- `δ::Float64`: Horizon.
-- `rho::Float64`: Density.
-- `E::Float64`: Young's modulus.
-- `nu::Float64`: Poisson's ratio.
-- `G::Float64`: Shear modulus.
-- `K::Float64`: Bulk modulus.
-- `λ::Float64`: 1st Lamé parameter.
-- `μ::Float64`: 2nd Lamé parameter.
-- `Gc::Float64`: Critical energy release rate.
-- `εc::Float64`: Critical strain.
-- `C1::Float64`: Material constant for one-neighbor interactions.
-- `C2::Float64`: Material constant for two-neighbor interactions.
-- `C3::Float64`: Material constant for three-neighbor interactions.
+$(block_table(CKIPointParameters))
 """
 @params CKIMaterial struct CKIPointParameters
     @inherit DiscretizationParameters ElasticParameters InteractionParameters
     dmg_params::DamageParameters
 end
 
+"""
+    CKIStorage
+
+$(extension_api_note())
+
+Storage of [`CKIMaterial`](@ref): the fields of the three time solvers, the fracture
+bookkeeping of the interaction system and the strain energy density of every point.
+
+$(block_table(CKIStorage))
+"""
 @storage CKIMaterial struct CKIStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit InteractionFracFields

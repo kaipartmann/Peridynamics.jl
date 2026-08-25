@@ -42,7 +42,7 @@ end
 $(extension_api_note())
 
 Return the number of points of a chunk, local *and* halo. Halo points are the points of other
-chunks that this chunk needs in order to evaluate the force density of its own points; they
+chunks that this chunk needs in order to evaluate the force density of its own points. They
 are read from the neighboring chunks and never integrated here.
 
 A field annotated with [`@lth`](@ref) or [`@htl`](@ref) has this many entries, i.e. the extent
@@ -116,7 +116,7 @@ $(internal_api_warning())
 
 Return the floating point type of all simulation data. This is the single place that decides
 it, so nothing below hardcodes `Float64` any more. It will become a property of [`Body`](@ref)
-and flow into the system, the point parameters and the storage; until then every
+and flow into the system, the point parameters and the storage. Until then every
 [`float_type`](@ref) method returns this value.
 """
 @inline default_float_type() = Float64

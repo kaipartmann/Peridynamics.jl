@@ -86,6 +86,16 @@ GBBMaterial(; kwargs...) = GBBMaterial{NoCorrection}(; kwargs...)
 # the point parameters of the bond-based material; `bc` is its bond constant
 @params GBBMaterial BBPointParameters
 
+"""
+    GBBStorage
+
+$(extension_api_note())
+
+Storage of [`GBBMaterial`](@ref): the fields of [`BBStorage`](@ref) and the weighted volume
+of every point.
+
+$(block_table(GBBStorage))
+"""
 @storage GBBMaterial struct GBBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit BondFracFields

@@ -252,7 +252,7 @@ end
 """
     RKCPointParameters
 
-$(internal_api_warning())
+$(extension_api_note())
 
 Point parameters of the reproducing-kernel correspondence family: the standard parameters
 plus the parameters of the constitutive model the material carries.
@@ -284,6 +284,19 @@ $(block_table(RKCFields))
     bond_first_piola_kirchhoff::BondTensor
 end
 
+"""
+    RKCStorage
+
+$(extension_api_note())
+
+Storage of [`RKCMaterial`](@ref): the fields of the three time solvers, of the fracture
+bookkeeping and of [`RKCFields`](@ref), the states of the constitutive model and of the
+damage model, and the Cauchy stress, the von Mises stress and the strain energy density of
+every point. This is the storage to inherit for a material of the reproducing kernel
+family.
+
+$(block_table(RKCStorage))
+"""
 @storage RKCMaterial struct RKCStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit BondFracFields RKCFields

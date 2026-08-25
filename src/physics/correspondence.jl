@@ -152,7 +152,7 @@ end
 """
     CPointParameters
 
-$(internal_api_warning())
+$(extension_api_note())
 
 Point parameters of the correspondence formulation. In addition to the standard parameters,
 they carry the parameters of the constitutive model and the elastic stiffness tensor `C`,
@@ -166,6 +166,17 @@ $(block_table(CPointParameters))
     @derived C::SArray{NTuple{4,3},FT,4,81} = get_hooke_matrix(nu, λ, μ)
 end
 
+"""
+    CStorage
+
+$(extension_api_note())
+
+Storage of [`CMaterial`](@ref): the deformation gradient, the Cauchy stress, the von Mises
+stress and the strain energy density of every point, and the state of the constitutive
+model.
+
+$(block_table(CStorage))
+"""
 @storage CMaterial struct CStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit BondFracFields

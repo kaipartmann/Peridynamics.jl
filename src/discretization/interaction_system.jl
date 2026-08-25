@@ -41,7 +41,7 @@ end
 """
     InteractionSystem
 
-$(internal_api_warning())
+$(extension_api_note())
 
 A peridynamic system type that is mainly designed for continuum-kinematics-inspired
 peridynamics [Javili2019](@cite).

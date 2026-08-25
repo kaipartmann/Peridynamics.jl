@@ -325,7 +325,7 @@ longitudinal axis of the frustum ends up at `center`.
 The square side length varies linearly from `d0` at the left end (internal
 `x = 0`, final `x = -L/2 + center_x`) to `dL` at the right end (internal
 `x = L`, final `x = +L/2 + center_x`). Each cross-section (layer) contains
-`nd × nd` points placed on a regular square grid; the layer thickness is
+`nd × nd` points placed on a regular square grid. The layer thickness is
 determined by the local spacing `Δx = d / nd` where `d` is the side length of that layer, and point volumes
 are set to `Δx^3` for the corresponding layer.
 

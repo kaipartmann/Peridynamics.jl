@@ -857,7 +857,7 @@ $(extension_api_note())
 
 The storage fields required by the [`NewtonKrylov`](@ref) time solver, see
 [`@storage_fields`](@ref). The working fields of the solver have one entry per degree of
-freedom and are declared with [`DofVector`](@ref); every other solver gets them as empty
+freedom and are declared with [`DofVector`](@ref). Every other solver gets them as empty
 arrays.
 
 $(block_table(NewtonKrylovFields))

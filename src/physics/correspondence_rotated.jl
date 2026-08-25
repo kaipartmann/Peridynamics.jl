@@ -42,6 +42,18 @@ end
 
 @params CRMaterial CPointParameters
 
+"""
+    CRStorage
+
+$(extension_api_note())
+
+Storage of [`CRMaterial`](@ref): the fields of [`CStorage`](@ref) without the state of the
+constitutive model, plus the unrotated stress, the left stretch and the rotation of every
+point that the stress rotation integrates. It carries the blocks of [`VelocityVerlet`](@ref)
+and [`DynamicRelaxation`](@ref) only.
+
+$(block_table(CRStorage))
+"""
 @storage CRMaterial struct CRStorage
     @inherit VelocityVerletFields DynamicRelaxationFields
     @inherit BondFracFields
