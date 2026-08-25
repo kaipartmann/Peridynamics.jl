@@ -281,3 +281,28 @@ end
     @test contains(sprint(show, RKCMaterial(monomial=:RK1)), "RKCMaterial")
     @test contains(sprint(show, MIME("text/plain"), RKCMaterial()), "RKCMaterial")
 end
+
+@testitem "RKCMaterial: invalid keyword values are rejected" begin
+    @test_throws ArgumentError RKCMaterial(; monomial=:NoSuchMonomial)
+    @test_throws ArgumentError RKCMaterial(; lambda=-1.0)
+    @test_throws ArgumentError RKCMaterial(; beta=-1.0)
+    @test_throws ArgumentError RKCRMaterial(; monomial=:NoSuchMonomial)
+    @test_throws ArgumentError RKCRMaterial(; lambda=-1.0)
+    @test_throws ArgumentError RKCRMaterial(; beta=-1.0)
+end
+
+@testitem "export_field: the strain energy density is computed on demand" setup=[Fixtures] begin
+    import Peridynamics: export_field
+
+    body = Fixtures.cube(RKCMaterial(); n=4)
+    dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+    chunk = dh.chunks[1]
+    chunk.storage.position .*= 1.001 # uniform stretch, so the energy is nonzero
+    Peridynamics.calc_weights_and_defgrad!(chunk, 0.0, 1e-7)
+    Peridynamics.calc_force_density!(chunk, 0.0, 1e-7)
+    export_field(Val(:strain_energy_density), chunk.mat, chunk.system, chunk.storage,
+                 chunk.paramsetup, 0.0)
+    sed = chunk.storage.strain_energy_density
+    @test all(>(0), sed)
+    @test all(isfinite, sed)
+end

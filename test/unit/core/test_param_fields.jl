@@ -22,7 +22,7 @@
     # the struct is parametric in the float type and in the model parameter types of the
     # two markers of `StandardParameters`, and a pinned type stays what it is
     @test PFParams1 isa UnionAll
-    @test fieldnames(PFParams1) == (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :bc, :cm_params,
+    @test fieldnames(PFParams1) == (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :bc,
                                     :dmg_params, :sigma_y, :hardening, :n_substeps)
     @test fieldtype(PFParams1{Float64}, :δ) === Float64
     @test fieldtype(PFParams1{Float32}, :δ) === Float32
@@ -31,8 +31,8 @@
     # `point_param_type` has to answer with a concrete type, `Body` is parameterized with
     # it; the marker parameters are answered by the models of the material instance
     CSP = Peridynamics.CriticalStretchParameters
-    @test point_param_type(PFMat1()) === PFParams1{Float64,Nothing,CSP{Float64}}
-    @test point_param_type(PFMat1(), Float32) === PFParams1{Float32,Nothing,CSP{Float32}}
+    @test point_param_type(PFMat1()) === PFParams1{Float64,CSP{Float64}}
+    @test point_param_type(PFMat1(), Float32) === PFParams1{Float32,CSP{Float32}}
     @test isbitstype(point_param_type(PFMat1()))
 
     # the allowed keywords follow from the declarations; the fracture keywords belong to
@@ -263,15 +263,17 @@ end
     end
 
     # every shipped point parameter type is generic in the float type and carries the
-    # marker for the damage model parameters; CKI has no constitutive-model concept
+    # marker for the damage model parameters; the marker for the constitutive model exists
+    # exactly where the material carries one — the correspondence family
     for P in (StandardPointParameters, CPointParameters, BACPointParameters,
-              CKIPointParameters)
+              CKIPointParameters, Peridynamics.RKCPointParameters)
         @test P isa UnionAll
         @test Peridynamics.has_dmg_param_marker(P)
     end
-    for P in (StandardPointParameters, CPointParameters, BACPointParameters)
+    for P in (CPointParameters, BACPointParameters, Peridynamics.RKCPointParameters)
         @test Peridynamics.has_cm_param_marker(P)
     end
+    @test !Peridynamics.has_cm_param_marker(StandardPointParameters)
     @test !Peridynamics.has_cm_param_marker(CKIPointParameters)
 end
 
@@ -364,7 +366,12 @@ end
     @test par.Gc == 2.7
     @test par.Gc === Base.getfield(Base.getfield(par, :dmg_params), :Gc)
     @test par.dmg_params isa Peridynamics.CriticalStretchParameters
-    @test par.cm_params === nothing
+    # a bond-based material has no constitutive model, so its parameters have no slot
+    @test !hasproperty(par, :cm_params)
+    # a correspondence material has one, empty for the parameterless standard model
+    rkc_body = Body(RKCMaterial(), pos, vol)
+    material!(rkc_body; horizon=1.5, rho=8e-6, E=2.1e5, nu=0.25, Gc=2.7)
+    @test only(rkc_body.point_params).cm_params === nothing
     @test :Gc in propertynames(par)
     @test hasproperty(par, :εc)
     @test hasproperty(par, :dmg_params)
@@ -386,4 +393,172 @@ end
     @test err isa ArgumentError
     @test occursin("δ", err.msg)
     @test occursin("more than once", err.msg)
+end
+
+@testitem "@params_fields: the error paths of the declaration parser" begin
+    import Peridynamics: param_fields_expr
+
+    # the annotations exist only inside a definition
+    @test_throws ArgumentError @eval Peridynamics.@derived x = 1.0
+    @test_throws ArgumentError @eval Peridynamics.@kwarg kw x
+    @test_throws ArgumentError @eval Peridynamics.@log "label" x
+
+    # invalid macro inputs
+    @test_throws LoadError @eval Peridynamics.@params_fields (1 + 1) begin
+        a = 1.0
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFBadBlock 42
+
+    # things that are no parameter declaration
+    @test_throws LoadError @eval Peridynamics.@params_fields PFLiteral begin
+        1.0
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFCallDecl begin
+        some_call(1.0)
+    end
+
+    # `@inherit` needs a resolvable type that registered declarations
+    @test_throws LoadError @eval Peridynamics.@params_fields PFInheritUnknown begin
+        @inherit NoSuchBlockName123
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFInheritValue begin
+        @inherit π
+    end
+
+    # a group needs a call on the right-hand side, and members are `name` or `name::Type`
+    @test_throws LoadError @eval Peridynamics.@params_fields PFGroupNoCall begin
+        @derived (; a, b) = 1.0
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFGroupBadMember begin
+        @derived (; a, f(b)) = Peridynamics.get_horizon(; horizon)
+    end
+    # a typed member pins its type
+    Peridynamics.@params_fields PFGroupTypedMember begin
+        @derived (; gtm_a::Int, gtm_b) = pf_typed_member_provider(; gtm_kw)
+    end
+    spec = param_fields_expr(PFGroupTypedMember)
+    @test spec.decls[1].type === Int
+
+    # explicit keyword values are rejected in the single-declaration path as well
+    @test_throws LoadError @eval Peridynamics.@params_fields PFExplicitSingle begin
+        @derived x = Peridynamics.get_horizon(; horizon=1.0)
+    end
+
+    # unknown and malformed annotations
+    @test_throws LoadError @eval Peridynamics.@params_fields PFUnknownAnnotation begin
+        @inbounds x = 1.0
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFBadDerived begin
+        @derived x y
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFBadKwarg begin
+        @kwarg onlyone
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFBadLog begin
+        @log missing_label x
+    end
+
+    # nothing of the declaration language applies to a marker field
+    @test_throws LoadError @eval Peridynamics.@params_fields PFMarkerDerivedBare begin
+        @derived dmg_params::Peridynamics.DamageParameters
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFMarkerKwarg begin
+        @kwarg kw dmg_params::Peridynamics.DamageParameters
+    end
+    @test_throws LoadError @eval Peridynamics.@params_fields PFMarkerLabel begin
+        @log "nope" dmg_params::Peridynamics.DamageParameters
+    end
+    # one marker per kind, also for the constitutive model
+    @test_throws LoadError @eval Peridynamics.@params_fields PFCmTwice begin
+        one::Peridynamics.ConstitutiveParameters
+        two::Peridynamics.ConstitutiveParameters
+    end
+
+    # a pinned type has to be resolvable
+    @test_throws LoadError @eval Peridynamics.@params_fields PFBadType begin
+        x::NoSuchType123 = 1.0
+    end
+
+    # a qualified callee that does not resolve is kept as written
+    Peridynamics.@params_fields PFUnresolvedQualified begin
+        @derived uq = Base.no_such_function_123(1.0)
+    end
+    @test occursin("no_such_function_123", param_fields_expr(PFUnresolvedQualified).decls[1].source)
+
+    # direct input checks of the model parameter macros
+    @test isnothing(Peridynamics.macrocheck_input_model(:(SomeModule.SomeModel)))
+    @test_throws ArgumentError Peridynamics.macrocheck_input_model(:(1 + 1))
+    @test_throws ArgumentError Peridynamics.macrocheck_input_model_params(:NotAStruct)
+    @test_throws ArgumentError Peridynamics.typecheck_model_params(:cm, 1)
+end
+
+@testitem "getproperty: an ambiguous parameter name names both owners" begin
+    using Peridynamics: NoCorrection, AbstractBondSystemMaterial, get_point_params
+
+    struct PFAmbCM <: Peridynamics.AbstractConstitutiveModel end
+    Peridynamics.@cm_params PFAmbCM struct PFAmbCMParams
+        q = 1.0
+    end
+    struct PFAmbDM <: Peridynamics.AbstractDamageModel end
+    Peridynamics.@dmg_params PFAmbDM struct PFAmbDMParams
+        q = 2.0
+    end
+    struct PFAmbMat <: AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::PFAmbDM
+    end
+    PFAmbMat() = PFAmbMat(PFAmbDM())
+    Peridynamics.get_constitutive_model(::PFAmbMat) = PFAmbCM()
+    Peridynamics.@params PFAmbMat struct PFAmbParams
+        @inherit StandardParameters
+        cm_params::Peridynamics.ConstitutiveParameters
+    end
+
+    # constructing directly bypasses `material!` and its collision check
+    p = Dict{Symbol,Any}(:horizon => 1.0, :rho => 1.0, :E => 1.0, :nu => 0.25)
+    par = get_point_params(PFAmbMat(), p)
+    @test par.cm_params.q == 1.0
+    @test par.dmg_params.q == 2.0
+    err = try
+        par.q
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("cm_params", err.msg)
+    @test occursin("dmg_params", err.msg)
+
+    # `material!` refuses the setup up front
+    pos, vol = uniform_box(1.0, 1.0, 1.0, 0.5)
+    body = Body(PFAmbMat(), pos, vol)
+    @test_throws ArgumentError material!(body; horizon=1.0, rho=1.0, E=1.0, nu=0.25)
+end
+
+@testitem "@dmg_params: pinned-type parameters and the paramless defaults" begin
+    import Peridynamics: damage_param_type, damage_param_kwargs, get_dmg_params,
+                         convert_nested_params
+
+    # a model whose parameters all pin their type is not generic in the float type
+    struct PFCountDamage <: Peridynamics.AbstractDamageModel end
+    Peridynamics.@dmg_params PFCountDamage struct PFCountParams
+        n_max::Int = 3
+    end
+    @test !(PFCountParams isa UnionAll)
+    @test damage_param_type(PFCountDamage(), Float64) === PFCountParams
+    @test damage_param_type(PFCountDamage(), Float32) === PFCountParams
+    mp = get_dmg_params(PFCountDamage(), Float64, (;), Dict{Symbol,Any}(:n_max => 5))
+    @test mp === PFCountParams(5)
+    @test convert_nested_params(Float32, mp) === mp
+    @test damage_param_kwargs(PFCountDamage()) == (:n_max,)
+
+    # a damage model without parameters resolves the marker to `nothing` and
+    # prohibits failure by default
+    struct PFPlainDamage <: Peridynamics.AbstractDamageModel end
+    @test damage_param_type(PFPlainDamage(), Float64) === Nothing
+    @test damage_param_kwargs(PFPlainDamage()) == ()
+    pos, vol = uniform_box(1.0, 1.0, 1.0, 0.5)
+    body = Body(BBMaterial(; dmgmodel=PFPlainDamage()), pos, vol)
+    material!(body; horizon=1.5, rho=8e-6, E=2.1e5)
+    par = only(body.point_params)
+    @test par.dmg_params === nothing
+    @test !any(body.fail_permit)
 end

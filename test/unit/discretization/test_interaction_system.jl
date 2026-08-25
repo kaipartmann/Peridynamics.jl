@@ -259,3 +259,19 @@ end
     @test contains(msg, "two-neighbor-interactions") && contains(msg, "22")
     @test contains(msg, "three-neighbor-interactions") && contains(msg, "33")
 end
+
+@testitem "get_required_point_parameters: the interaction family fallback" begin
+    import Peridynamics: get_required_point_parameters, allowed_material_kwargs
+
+    # the family methods serve hand-written point parameter types of custom materials
+    struct ISFallbackMat <: Peridynamics.AbstractInteractionSystemMaterial end
+    p = Dict{Symbol,Any}(:horizon => 2.0, :rho => 3.0, :E => 1.0, :nu => 0.25)
+    par = get_required_point_parameters(ISFallbackMat(), p)
+    @test par.δ == 2.0
+    @test par.rho == 3.0
+    @test par.C1 ≈ 30 / π * par.μ / par.δ^4
+    @test par.C2 == 0.0
+    @test par.C3 ≈ 32 / π^4 * (par.λ - par.μ) / par.δ^12
+    @test allowed_material_kwargs(ISFallbackMat()) ==
+          (:horizon, :rho, :E, :nu, :G, :K, :lambda, :mu, :C1, :C2, :C3)
+end

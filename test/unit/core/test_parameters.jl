@@ -124,7 +124,7 @@ end
     PFFamilyMat() = PFFamilyMat(Peridynamics.CriticalStretch())
     Peridynamics.@params PFFamilyMat Peridynamics.StandardPointParameters
     @test point_param_type(PFFamilyMat()) ===
-          Peridynamics.StandardPointParameters{Float64,Nothing,
+          Peridynamics.StandardPointParameters{Float64,
                                                Peridynamics.CriticalStretchParameters{Float64}}
     p = Dict{Symbol,Any}(:horizon => 1.0, :rho => 1.0, :E => 1.0, :nu => 0.25, :Gc => 1.0)
     par = get_point_params(PFFamilyMat(), p)
@@ -162,9 +162,9 @@ end
 
     @test StandardPointParameters isa UnionAll
     @test fieldnames(StandardPointParameters) == (:δ, :rho, :E, :nu, :G, :K, :λ, :μ, :bc,
-                                                  :cm_params, :dmg_params)
+                                                  :dmg_params)
     CSP = Peridynamics.CriticalStretchParameters
-    @test isbitstype(StandardPointParameters{Float64,Nothing,CSP{Float64}})
+    @test isbitstype(StandardPointParameters{Float64,CSP{Float64}})
 
     # the family constructor accepts any material and resolves the standard parameters
     p = Dict{Symbol,Any}(:horizon => 2.0, :rho => 3.0, :E => 1.0, :nu => 0.25,
@@ -345,4 +345,57 @@ end
     @test err isa ArgumentError
     @test occursin("PMDamage", err.msg)
     @test occursin("dmg_params::DamageParameters", err.msg)
+end
+
+@testitem "@params: header forms, empty bodies and input checks" begin
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, point_param_type,
+                         get_point_params, allowed_material_kwargs
+
+    # an explicit supertype in the struct header is kept
+    Peridynamics.@params struct PFSuperParams <: Peridynamics.AbstractPointParameters
+        sp_a = 1.0
+    end
+    @test PFSuperParams <: Peridynamics.AbstractPointParameters
+
+    # a definition without declarations is refused
+    struct PFEmptyMat <: AbstractBondSystemMaterial{NoCorrection} end
+    @test_throws LoadError @eval Peridynamics.@params PFEmptyMat struct PFEmptyParams end
+
+    # direct macro input checks
+    @test_throws ArgumentError Peridynamics.macrocheck_input_params_block(:(1 + 1))
+    @test_throws ArgumentError Peridynamics.macrocheck_input_params_struct(:(1 + 1))
+
+    # a hand-written `point_param_type` without float-type method ignores the request
+    struct PFOneArgMat <: AbstractBondSystemMaterial{NoCorrection} end
+    struct PFOneArgParams <: Peridynamics.AbstractPointParameters
+        δ::Float64
+    end
+    Peridynamics.point_param_type(::PFOneArgMat) = PFOneArgParams
+    @test point_param_type(PFOneArgMat(), Float32) === PFOneArgParams
+
+    # a definition whose parameters all pin their type is not generic in the float type
+    struct PFPinnedMat <: Peridynamics.AbstractMaterial end
+    Peridynamics.required_point_parameters(::Type{PFPinnedMat}) = ()
+    Peridynamics.@params PFPinnedMat struct PFPinnedParams
+        n_substeps::Int = 2
+    end
+    @test !(PFPinnedParams isa UnionAll)
+    @test point_param_type(PFPinnedMat()) === PFPinnedParams
+    @test point_param_type(PFPinnedMat(), Float32) === PFPinnedParams
+    @test allowed_material_kwargs(PFPinnedMat()) == (:n_substeps,)
+    par = get_point_params(PFPinnedMat(), Dict{Symbol,Any}())
+    @test par === PFPinnedParams(2)
+
+    # a custom material family shares a constructor through the block form
+    abstract type PFTestFam <: AbstractBondSystemMaterial{NoCorrection} end
+    Peridynamics.@params PFTestFam Peridynamics.StandardPointParameters begin
+        @inherit StandardParameters
+    end
+    struct PFTestFamMat <: PFTestFam
+        dmgmodel::Peridynamics.CriticalStretch
+    end
+    PFTestFamMat() = PFTestFamMat(Peridynamics.CriticalStretch())
+    Peridynamics.@params PFTestFamMat Peridynamics.StandardPointParameters
+    p = Dict{Symbol,Any}(:horizon => 1.0, :rho => 1.0, :E => 1.0, :nu => 0.25)
+    @test get_point_params(PFTestFamMat(), p) isa Peridynamics.StandardPointParameters
 end

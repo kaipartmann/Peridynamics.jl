@@ -242,3 +242,22 @@ end
     msg = sprint(show, MIME("text/plain"), params; context=:compact => true)
     @test contains(msg, name * ": ") && !contains(msg, "\n")
 end
+
+@testitem "all_material_kwargs: every keyword needs one owner" begin
+    import Peridynamics: all_material_kwargs
+
+    # a damage model that claims a keyword the material already declares
+    struct MPKwClashDamage <: Peridynamics.AbstractDamageModel end
+    Peridynamics.@dmg_params MPKwClashDamage struct MPKwClashParameters
+        @kwarg E Emod = 1.0
+    end
+    err = try
+        all_material_kwargs(BBMaterial(; dmgmodel=MPKwClashDamage()))
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("`E`", err.msg)
+    @test occursin("more than once", err.msg)
+    @test occursin("damage model", err.msg)
+end

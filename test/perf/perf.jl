@@ -79,10 +79,14 @@ end
     end
     read_params(params, 2)
     bytes = @allocated read_params(params, 1000)
-    @test bytes == 0
+    if VERSION ≥ v"1.12"
+        @test bytes == 0 # allocates in v1.10
+    end
     @test read_params(params, 1) ≈ params.Gc + params.εc + params.δ + params.E
     # the nested access compiles away as well
     nested(params, n) = sum(_ -> params.dmg_params.Gc, 1:n)
     nested(params, 2)
-    @test (@allocated nested(params, 1000)) == 0
+    if VERSION ≥ v"1.12"
+        @test (@allocated nested(params, 1000)) == 0 # allocates in v1.10
+    end
 end
