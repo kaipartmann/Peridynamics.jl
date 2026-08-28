@@ -13,9 +13,8 @@
 # `Peridynamics.force_density_point!`, so that it is visible where the package is extended.
 
 using Peridynamics
-using Peridynamics: BondSystem, each_bond_idx, get_bond, get_volume, get_params,
-                    get_n_loc_points, get_vector_diff, update_add_vector!,
-                    surface_correction_factor
+using Peridynamics: BondSystem, each_bond_idx, get_params, get_n_loc_points,
+                    get_vector_diff, update_add_vector!, surface_correction_factor
 ## `LinearAlgebra` is reached through the package, so it does not have to be a dependency
 ## of your own project
 using Peridynamics.LinearAlgebra: norm
@@ -146,11 +145,11 @@ end
 #
 # What a force density may use is small and worth knowing by heart:
 #
-# - **The system**, through its accessors: `each_bond_idx(system, i)` iterates the bonds of
-#   a point, `get_bond(system, bond_id)` returns the bond with its neighbor `j` and its
-#   initial length `L`, `get_volume(system, j)` the volume of a point,
-#   `get_position(system)` the reference positions, `kernel(system, bond_id)` the influence
-#   function and `surface_correction_factor(system, bond_id)` the surface correction.
+# - **The system**: `each_bond_idx(system, i)` iterates the bonds of a point and
+#   `system.bonds[bond_id]` is the bond itself, with its neighbor `neighbor` and its initial
+#   length `length`. `system.volume[j]` is the volume of a point, `system.position` the
+#   reference positions, `kernel(system, bond_id)` the influence function and
+#   `surface_correction_factor(system.correction, bond_id)` the surface correction.
 # - **The storage**, through the fields of the blocks it inherited and its own fields. Here
 #   these are `storage.position` and `storage.b_int` from the solver blocks,
 #   `storage.bond_active` from `BondFracFields`, and `storage.bond_stretch`. The table of
@@ -160,8 +159,10 @@ end
 function Peridynamics.force_density_point!(storage::ConicalBBStorage, system::BondSystem,
                                            mat::ConicalBBMaterial,
                                            params::ConicalBBPointParameters, t, Δt, i)
+    (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)
-        (; j, L) = get_bond(system, bond_id)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
 
         ## the current bond vector and the bond stretch
         Δxij = get_vector_diff(storage.position, i, j)
@@ -173,10 +174,10 @@ function Peridynamics.force_density_point!(storage::ConicalBBStorage, system::Bo
         c = params.bc * (1 - L / params.δ)
 
         ## a broken bond carries no force, and the surface correction is 1 for `NoCorrection`
-        ω = storage.bond_active[bond_id] * surface_correction_factor(system, bond_id)
+        ω = storage.bond_active[bond_id] * surface_correction_factor(correction, bond_id)
 
         ## the bond force, accumulated into point `i`
-        b = ω * c * ε * get_volume(system, j) / l .* Δxij
+        b = ω * c * ε * volume[j] / l .* Δxij
         update_add_vector!(storage.b_int, i, b)
     end
     return nothing
@@ -210,12 +211,23 @@ end
 # other way round, the default conversion would return a critical stretch 8.7 % *below* the
 # one this material implies, so the same ``G_c`` would break the body too early, silently.
 #
-# The relation is a property of the material, so the material states it. Two one-line
+# The relation follows from the micro-modulus, so the material states it, and it is the
+# damage model that decides what ``\\varepsilon_c`` means, so both are dispatched on. Two
 # methods, one for each direction, and `material!(...; Gc)` as well as
-# `material!(...; epsilon_c)` convert correctly from now on:
+# `material!(...; epsilon_c)` convert correctly from now on. Define **both**: whichever of
+# the two keywords the user gives, the other one is derived from it.
 
-Peridynamics.critical_stretch(::ConicalBBMaterial, δ, K, Gc) = sqrt(2 * Gc / (3 * K * δ))
-Peridynamics.energy_release_rate(::ConicalBBMaterial, δ, K, εc) = 1.5 * K * δ * εc^2
+Peridynamics.critical_stretch(::CriticalStretch, ::ConicalBBMaterial, δ, K, Gc) =
+    sqrt(2 * Gc / (3 * K * δ))
+
+Peridynamics.energy_release_rate(::CriticalStretch, ::ConicalBBMaterial, δ, K, εc) =
+    1.5 * K * δ * εc^2
+
+# Nothing else about fracture has to be written. The damage model owns the keywords `Gc` and
+# `epsilon_c`, decides which of them is an error to combine and switches fracture off when
+# neither is given, all in the default
+# [`get_frac_params`](@ref Peridynamics.get_frac_params). A method of that is only for a
+# model that reads *other* keywords.
 
 # ### Exporting a field of your own
 #
@@ -237,7 +249,7 @@ function Peridynamics.export_field(::Val{:weighted_stretch}, mat, system,
         (; δ) = get_params(paramsetup, i)
         num, den = 0.0, 0.0
         for bond_id in each_bond_idx(system, i)
-            (; L) = get_bond(system, bond_id)
+            L = system.bonds[bond_id].length
             c = 1 - L / δ
             num += c * storage.bond_stretch[bond_id]
             den += c

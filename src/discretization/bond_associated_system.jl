@@ -48,7 +48,7 @@ function check_bond_associated_system_compat(::AbstractBondAssociatedSystemMater
 end
 
 # `position` has to be the chunk-local matrix and not `body.position`, because
-# `get_bond_data` already localized `bond.j`. Only for the first chunk both are the
+# `get_bond_data` already localized `bond.neighbor`. Only for the first chunk both are the
 # same, all others would get the bond-associated families of the wrong points.
 function find_intersection_bond_ids(body, position, loc_points, bonds, bond_ids)
     intersection_bond_ids = Vector{Vector{Int}}(undef, length(bonds))
@@ -57,11 +57,13 @@ function find_intersection_bond_ids(body, position, loc_points, bonds, bond_ids)
         δb² = δb * δb
         bond_ids_of_i = bond_ids[li]
         for bond_id in bond_ids_of_i
-            (; j) = bonds[bond_id]
+            bond = bonds[bond_id]
+            j = bond.neighbor
             Xj = get_vector(position, j)
             intersecting_bonds = Vector{Int}()
             for (ibond_id, bond_id) in enumerate(bond_ids_of_i)
-                jj = bonds[bond_id].j
+                bond = bonds[bond_id]
+                jj = bond.neighbor
                 Xjj = get_vector(position, jj)
                 ΔX = Xj - Xjj
                 L² = dot(ΔX, ΔX)
@@ -92,7 +94,8 @@ function calc_ba_volumes!(chunk::AbstractBodyChunk{<:BondAssociatedSystem})
         for bond_idx in each_bond_idx(system, i)
             _ba_hood_volume = 0.0
             for i_bond_idx in each_intersecting_bond_idx(system, i, bond_idx)
-                jj = bonds[i_bond_idx].j
+                i_bond = bonds[i_bond_idx]
+                jj = i_bond.neighbor
                 _ba_hood_volume += volume[jj]
             end
             ba_hood_volume[bond_idx] = _ba_hood_volume

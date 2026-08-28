@@ -135,17 +135,18 @@ end
     b_int = [storage.b_int[d, i] for d in 1:3]
     @test T.norm(b_int) > 0
 
-    # Reproduce the force of point `i` by hand from the conical law, through the accessors
-    # of the system. This is the assertion that the micro-modulus really falls off with the
-    # bond length: a constant micro-modulus would give a different number.
+    # Reproduce the force of point `i` by hand from the conical law. This is the assertion
+    # that the micro-modulus really falls off with the bond length: a constant micro-modulus
+    # would give a different number.
     b_ref = zeros(3)
     b_const = zeros(3)
     for bond_id in Peridynamics.each_bond_idx(system, i)
-        (; j, L) = Peridynamics.get_bond(system, bond_id)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
         Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
         len = T.norm(Δxij)
         ε = (len - L) / L
-        Vj = Peridynamics.get_volume(system, j)
+        Vj = system.volume[j]
         b_ref .+= params.bc * (1 - L / params.δ) * ε * Vj / len .* Δxij
         b_const .+= 18 * params.K / (π * params.δ^4) * ε * Vj / len .* Δxij
     end

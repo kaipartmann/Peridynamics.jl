@@ -221,7 +221,7 @@ function find_two_nis(body, loc_points, bonds, bond_ids)
         δ = get_point_param(body, :δ, i)
         jk_seen = Set{Tuple{Int,Int}}()
         for oni_j in bond_ids[li], oni_k in bond_ids[li]
-            j, k = bonds[oni_j].j, bonds[oni_k].j
+            j, k = bonds[oni_j].neighbor, bonds[oni_k].neighbor
             if k !== j && !in((j, k), jk_seen)
                 Ξijx = position[1, j] - position[1, i]
                 Ξijy = position[2, j] - position[2, i]
@@ -267,9 +267,9 @@ function find_three_nis(body, loc_points, bonds, bond_ids)
         δ = get_point_param(body, :δ, i)
         jkl_seen = Set{Tuple{Int,Int,Int}}()
         for oni_j in bond_ids[li], oni_k in bond_ids[li], oni_l in bond_ids[li]
-            j = bonds[oni_j].j
-            k = bonds[oni_k].j
-            l = bonds[oni_l].j
+            j = bonds[oni_j].neighbor
+            k = bonds[oni_k].neighbor
+            l = bonds[oni_l].neighbor
             if k !== j && l !== j && l !== k && !in((j, k, l), jkl_seen)
                 Ξijx = position[1, j] - position[1, i]
                 Ξijy = position[2, j] - position[2, i]
@@ -319,10 +319,6 @@ end
 @inline each_one_ni_idx(is::InteractionSystem, point_id::Int) = is.one_ni_idxs[point_id]
 @inline each_bond_idx(is::InteractionSystem, point_id::Int) = each_one_ni_idx(is, point_id)
 
-# a one-neighbor interaction is a bond, so the bond accessors answer with it
-@inline get_bond(is::InteractionSystem, one_ni_id::Int) = is.one_nis[one_ni_id]
-@inline get_n_neighbors(is::InteractionSystem, point_id::Int) = is.n_one_nis[point_id]
-
 @inline each_two_ni_idx(is::InteractionSystem, point_id::Int) = is.two_ni_idxs[point_id]
 @inline each_three_ni_idx(is::InteractionSystem, point_id::Int) = is.three_ni_idxs[point_id]
 
@@ -347,7 +343,8 @@ end
     for i in each_point_idx(chunk)
         volume_hood_point = system.volume[i]
         for bond_id in each_one_ni_idx(system, i)
-            (; j) = get_bond(system, bond_id)
+            one_ni = system.one_nis[bond_id]
+            j = one_ni.neighbor
             volume_hood_point += system.volume[j]
         end
         discrete_volume_hoods[i] = volume_hood_point
@@ -392,11 +389,12 @@ function failure_by_sets!(storage, system::InteractionSystem, ::AbstractDamageMo
     storage.n_active_one_nis .= 0
     for point_id in each_point_idx(system)
         for bond_id in each_one_ni_idx(system, point_id)
-            (; j) = get_bond(system, bond_id)
+            bond = system.one_nis[bond_id]
+            neighbor_id = bond.neighbor
             point_in_a = in(point_id, set_a)
             point_in_b = in(point_id, set_b)
-            neigh_in_a = in(j, set_a)
-            neigh_in_b = in(j, set_b)
+            neigh_in_a = in(neighbor_id, set_a)
+            neigh_in_b = in(neighbor_id, set_b)
             if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
                 storage.one_ni_active[bond_id] = false
             end
@@ -410,8 +408,8 @@ function calc_timestep_point(system::InteractionSystem, params::AbstractPointPar
                              point_id::Int)
     dtsum = 0.0
     for bond_id in each_one_ni_idx(system, point_id)
-        (; j, L) = get_bond(system, bond_id)
-        dtsum += get_volume(system, j) * params.C1 / L
+        one_ni = system.one_nis[bond_id]
+        dtsum += system.volume[one_ni.neighbor] * params.C1 / one_ni.length
     end
     return sqrt(2 * params.rho / dtsum)
 end
@@ -441,12 +439,14 @@ function calc_failure!(storage::AbstractStorage, system::InteractionSystem,
                        paramsetup::AbstractParameterSetup, t, Δt, i)
     (; εc) = get_params(paramsetup, i)
     (; position, n_active_one_nis, one_ni_active) = storage
+    (; one_nis) = system
     for bond_id in each_one_ni_idx(system, i)
-        (; j, L, fail_permit) = get_bond(system, bond_id)
+        one_ni = one_nis[bond_id]
+        j, L = one_ni.neighbor, one_ni.length
         Δxij = get_vector_diff(position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
-        if ε > εc && fail_permit
+        if ε > εc && one_ni.fail_permit
             one_ni_active[bond_id] = false
         end
         n_active_one_nis[i] += one_ni_active[bond_id]

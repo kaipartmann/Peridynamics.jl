@@ -33,14 +33,17 @@ The force density of a bond-based material. The bonds that failed were deactivat
 ```julia
 function Peridynamics.force_density_point!(storage, system::Peridynamics.BondSystem,
                                            mat::MyMaterial, params, t, Δt, i)
-    for bond_id in each_bond_idx(system, i)
-        (; j, L) = get_bond(system, bond_id)
-        Δxij = get_vector_diff(storage.position, i, j)
+    (; bonds, correction, volume) = system
+    for bond_id in Peridynamics.each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
-        ω = storage.bond_active[bond_id] * surface_correction_factor(system, bond_id)
-        b = ω * params.bc * ε * get_volume(system, j) / l .* Δxij
-        update_add_vector!(storage.b_int, i, b)
+        ω = storage.bond_active[bond_id] *
+            Peridynamics.surface_correction_factor(correction, bond_id)
+        b = ω * params.bc * ε * volume[j] / l .* Δxij
+        Peridynamics.update_add_vector!(storage.b_int, i, b)
     end
     return nothing
 end
@@ -303,6 +306,7 @@ Example definition of the storage for the bond-based material:
 @storage BBMaterial struct BBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields BondFracFields
     strain_energy_density::PointScalar
+    bond_length::BondScalar
     dmg_state::DamageState
 end
 ````

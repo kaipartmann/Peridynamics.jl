@@ -256,17 +256,13 @@ Peridynamics.supports_kinematic_weight
 ## Accessing a system and its parameters
 
 What a force density or a failure criterion reads: the points and bonds of the chunk
-through the iterators, a bond and its neighbor through `get_bond` and `get_volume`, and
-the parameters of a point through `get_params`.
+through the iterators, a bond through `system.bonds[bond_id]`, and the parameters of a
+point through `get_params`.
 
 ```@docs
 Peridynamics.get_params
 Peridynamics.each_point_idx
 Peridynamics.each_bond_idx
-Peridynamics.get_bond
-Peridynamics.get_volume
-Peridynamics.get_position
-Peridynamics.get_n_neighbors
 Peridynamics.get_n_points
 Peridynamics.get_n_loc_points
 Peridynamics.get_n_bonds

@@ -62,7 +62,7 @@ end
     # for i in Peridynamics.each_point_idx(system)
     #     for bond_idx in Peridynamics.each_bond_idx(system, i)
     #         # bond = bonds[bond_idx]
-    #         # j = bond.j
+    #         # j = bond.neighbor
     #         for babond_idx in Peridynamics.each_intersecting_bond_idx(system, i, bond_idx)
 
     #         end
@@ -109,7 +109,7 @@ end
             for bond_idx in Peridynamics.each_bond_idx(system, i)
                 K = zero(SMatrix{3,3,Float64,9})
                 for bond_id in Peridynamics.each_intersecting_bond_idx(system, i, bond_idx)
-                    jj = bonds[bond_id].j
+                    jj = bonds[bond_id].neighbor
                     ΔX = Peridynamics.get_vector_diff(system.position, i, jj)
                     K += Peridynamics.kernel(system, bond_id) * volume[jj] * (ΔX * ΔX')
                 end
@@ -117,7 +117,7 @@ end
                 w = Peridynamics.volume_fraction_factor(system, i, bond_idx)
                 weights += w
                 for bond_id in Peridynamics.each_intersecting_bond_idx(system, i, bond_idx)
-                    j = bonds[bond_id].j
+                    j = bonds[bond_id].neighbor
                     ΔX = Peridynamics.get_vector_diff(system.position, i, j)
                     ω = Peridynamics.kernel(system, bond_id)
                     A += w * ω * volume[j] * (Kinv * (ΔX * ΔX'))
@@ -163,7 +163,7 @@ end
                 K = zero(SMatrix{3,3,Float64,9})
                 _F = zero(SMatrix{3,3,Float64,9})
                 for bond_id in Peridynamics.each_intersecting_bond_idx(system, i, bond_idx)
-                    j = system.bonds[bond_id].j
+                    j = system.bonds[bond_id].neighbor
                     ΔX = Peridynamics.get_vector_diff(system.position, i, j)
                     Δx_ = Peridynamics.get_vector_diff(storage.position, i, j)
                     ωV = Peridynamics.kernel(system, bond_id) * system.volume[j]

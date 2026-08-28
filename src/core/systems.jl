@@ -54,27 +54,6 @@ See also [`get_n_loc_points`](@ref).
     return get_n_points(system.chunk_handler)
 end
 
-"""
-    get_volume(system, i)
-
-$(extension_api_note())
-
-Return the volume of point `i`, which may be a local or a halo point of the chunk. The
-force of a bond is weighted with the volume of its neighbor, `get_volume(system, j)`.
-"""
-@inline get_volume(system::AbstractSystem, i::Int) = system.volume[i]
-
-"""
-    get_position(system)
-
-$(extension_api_note())
-
-Return the reference positions of all points of the chunk, local and halo, as a matrix with
-one column per point. `get_vector_diff(get_position(system), i, j)` is the initial bond
-vector, and `storage.position` holds the current positions.
-"""
-@inline get_position(system::AbstractSystem) = system.position
-
 @inline function get_point_ids(system::AbstractSystem)
     return get_point_ids(system.chunk_handler)
 end

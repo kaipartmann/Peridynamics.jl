@@ -114,7 +114,7 @@ end
             @test storage.damage[pulled] ≈ 1.0
             @test n_active[pulled] == 0
             for i in 2:n_points(body)
-                neighbors = [interactions[b].j for b in Peridynamics.each_bond_idx(system, i)]
+                neighbors = [interactions[b].neighbor for b in Peridynamics.each_bond_idx(system, i)]
                 lost = count(==(pulled), neighbors)
                 @test n_active[i] == length(neighbors) - lost
                 @test storage.damage[i] ≈ lost / length(neighbors)

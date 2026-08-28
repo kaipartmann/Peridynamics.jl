@@ -79,8 +79,8 @@ public AbstractDamageModel, AbstractDamageState
 public AbstractStorage, AbstractPointParameters, AbstractParameterSetup
 public AbstractSystem, AbstractBondSystem, AbstractTimeSolver
 
-# The systems a material is dispatched on. Their fields are internal, use the accessors
-# below. A bond is an immutable record, so its fields are the API.
+# The systems a material is dispatched on. A bond is an immutable record, so its fields are
+# the API.
 public BondSystem, InteractionSystem, Bond
 
 # The errors the interfaces throw. Catch them in tests, or throw them from your own
@@ -107,8 +107,7 @@ public bond_integrity, kinematic_weight
 public supports_bond_integrity, supports_kinematic_weight
 
 # Accessing a system, its points and its bonds from inside a force density calculation.
-public get_params, each_point_idx, each_bond_idx, get_bond
-public get_volume, get_position, get_n_neighbors
+public get_params, each_point_idx, each_bond_idx
 public get_n_points, get_n_loc_points, get_n_bonds
 public kernel, surface_correction_factor, float_type
 

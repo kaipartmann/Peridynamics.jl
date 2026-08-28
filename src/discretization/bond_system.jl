@@ -6,16 +6,16 @@ $(extension_api_note())
 A bond from a point to one of its neighbors. Bonds are built once during setup and never
 change, so the fields are the API of a bond:
 
-- `j::Int`: The index of the neighbor point.
-- `L::Float64`: The initial length of the bond.
+- `neighbor::Int`: The index of the neighbor point.
+- `length::Float64`: The initial length of the bond.
 - `fail_permit::Bool`: Whether the bond may fail. It is `false` for the bonds of a point
     that [`no_failure!`](@ref) protects and for a body without fracture parameters.
 
-The bond with index `bond_id` of a system is [`get_bond`](@ref)`(system, bond_id)`.
+The bond with index `bond_id` of a system is `system.bonds[bond_id]`.
 """
 struct Bond
-    j::Int
-    L::Float64
+    neighbor::Int
+    length::Float64
     fail_permit::Bool
 end
 
@@ -150,11 +150,12 @@ function filter_bonds_by_crack!(bonds::Vector{Bond}, n_neighbors::Vector{Int},
     bonds_to_delete = fill(false, length(bonds))
     for (loc_point_id, point_id) in enumerate(loc_points)
         for bond_id in bond_ids[loc_point_id]
-            (; j) = bonds[bond_id]
+            bond = bonds[bond_id]
+            neighbor_id = bond.neighbor
             point_in_a = in(point_id, set_a)
             point_in_b = in(point_id, set_b)
-            neigh_in_a = in(j, set_a)
-            neigh_in_b = in(j, set_b)
+            neigh_in_a = in(neighbor_id, set_a)
+            neigh_in_b = in(neighbor_id, set_b)
             if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
                 bonds_to_delete[bond_id] = true
                 n_neighbors[loc_point_id] -= 1
@@ -189,8 +190,8 @@ function find_kernels(body::AbstractBody, chunk_handler::ChunkHandler, bonds::Ve
     for i in each_point_idx(chunk_handler)
         params = get_point_param(body, i)
         for bond_id in bond_ids[i]
-            (; L) = bonds[bond_id]
-            kernels[bond_id] = get_kernel(body.mat, params, L)
+            bond = bonds[bond_id]
+            kernels[bond_id] = get_kernel(body.mat, params, bond.length)
         end
     end
     return kernels
@@ -223,42 +224,10 @@ end
     return system.kernels[bond_id]
 end
 
-"""
-    get_bond(system, bond_id)
-
-$(extension_api_note())
-
-Return the [`Bond`](@ref) with index `bond_id`: its neighbor `j`, its initial length `L`
-and whether it may fail. The idiom is to destructure the fields that are needed.
-
-# Example
-
-```julia
-for bond_id in each_bond_idx(system, i)
-    (; j, L) = get_bond(system, bond_id)
-    Δxij = get_vector_diff(storage.position, i, j)
-    ε = (norm(Δxij) - L) / L
-end
-```
-
-See also [`each_bond_idx`](@ref), [`get_volume`](@ref).
-"""
-@inline get_bond(system::AbstractBondSystem, bond_id::Int) = system.bonds[bond_id]
-
-"""
-    get_n_neighbors(system, i)
-
-$(extension_api_note())
-
-Return the number of bonds of point `i`. The default [`calc_damage!`](@ref) divides the
-number of active bonds of a point by it.
-"""
-@inline get_n_neighbors(system::AbstractBondSystem, i::Int) = system.n_neighbors[i]
-
 function find_halo_points(bonds::Vector{Bond}, loc_points::AbstractVector{Int})
     halo_points = Vector{Int}()
     for bond in bonds
-        (; j) = bond
+        j = bond.neighbor
         if !in(j, loc_points) && !in(j, halo_points)
             push!(halo_points, j)
         end
@@ -273,25 +242,26 @@ $(extension_api_note())
 
 Return an iterator over the bond indices of point `i`. A bond index addresses every bond
 field of the storage, that is every field declared with a `Bond...` field shape, and
-[`get_bond`](@ref) returns the bond itself.
+`system.bonds[bond_id]` gives the bond itself with its `neighbor` and its `length`.
 
 # Example
 
 ```julia
-for bond_id in each_bond_idx(system, i)
+for bond_id in Peridynamics.each_bond_idx(system, i)
+    bond = system.bonds[bond_id]
+    j, L = bond.neighbor, bond.length
     storage.bond_active[bond_id] || continue
-    (; j, L) = get_bond(system, bond_id)
 end
 ```
 
-See also [`each_point_idx`](@ref), [`get_bond`](@ref), [`get_n_bonds`](@ref).
+See also [`each_point_idx`](@ref), [`get_n_bonds`](@ref).
 """
 @inline each_bond_idx(system::AbstractBondSystem, i::Int) = system.bond_ids[i]
 
 function localize!(bonds::Vector{Bond}, localizer::Dict{Int,Int})
     for i in eachindex(bonds)
-        (; j, L, fail_permit) = bonds[i]
-        bonds[i] = Bond(localizer[j], L, fail_permit)
+        bond = bonds[i]
+        bonds[i] = Bond(localizer[bond.neighbor], bond.length, bond.fail_permit)
     end
     return nothing
 end
@@ -300,8 +270,8 @@ function calc_timestep_point(system::AbstractBondSystem, params::AbstractPointPa
                              point_id::Int)
     dtsum = 0.0
     for bond_id in each_bond_idx(system, point_id)
-        (; j, L) = get_bond(system, bond_id)
-        dtsum += get_volume(system, j) * params.bc / L
+        bond = system.bonds[bond_id]
+        dtsum += system.volume[bond.neighbor] * params.bc / bond.length
     end
     return sqrt(2 * params.rho / dtsum)
 end
@@ -312,6 +282,54 @@ function calc_force_density!(chunk::AbstractBodyChunk{<:AbstractBondSystem}, t, 
     return nothing
 end
 
+"""
+    update_bond_lengths!(storage, system, i)
+    update_bond_lengths!(storage, system, dmgmodel, i)
+
+$(internal_api_warning())
+
+Write the current length of every bond of point `i` into the `bond_length` field of the
+storage, or do nothing for a storage that does not declare such a field. `hasfield` is
+resolved at compile time, so the whole call disappears for a material that does not cache
+bond lengths.
+
+Some materials, e.g. [`BBMaterial`](@ref) and [`OSBMaterial`](@ref), keep the current bond
+length in a `BondScalar` field, so that the loop of the force density does not have to
+compute it a second time. That field is scratch between two adjacent bond loops:
+[`CriticalStretch`](@ref) walks the bonds of the point in [`calc_failure!`](@ref) anyway and
+fills it there, which is why the four-argument form dispatches to nothing for it and the
+cache costs those materials no extra loop.
+
+A damage model of the user does not know about the field, so for every other model the
+four-argument form fills it, once per point and right before `calc_failure!`. That is one
+extra bond loop, and it is what lets any damage model be combined with any material of the
+package.
+"""
+@inline function update_bond_lengths!(storage::AbstractStorage, system::AbstractBondSystem,
+                                      i)
+    hasfield(typeof(storage), :bond_length) || return nothing
+    (; position, bond_length) = storage
+    (; bonds) = system
+    for bond_id in each_bond_idx(system, i)
+        bond = bonds[bond_id]
+        j = bond.neighbor
+        Δxij = get_vector_diff(position, i, j)
+        @inbounds bond_length[bond_id] = norm(Δxij)
+    end
+    return nothing
+end
+
+# `CriticalStretch` fills the cache itself, see the docstring above
+@inline function update_bond_lengths!(::AbstractStorage, ::AbstractBondSystem,
+                                      ::CriticalStretch, i)
+    return nothing
+end
+
+@inline function update_bond_lengths!(storage::AbstractStorage, system::AbstractBondSystem,
+                                      ::AbstractDamageModel, i)
+    return update_bond_lengths!(storage, system, i)
+end
+
 function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
                              mat::AbstractBondSystemMaterial,
                              paramsetup::AbstractParameterSetup, t, Δt)
@@ -319,6 +337,7 @@ function calc_force_density!(storage::AbstractStorage, system::AbstractBondSyste
     storage.b_int .= 0.0
     storage.n_active_bonds .= 0
     for i in each_point_idx(system)
+        update_bond_lengths!(storage, system, dmgmodel, i)
         calc_failure!(storage, system, mat, dmgmodel, paramsetup, t, Δt, i)
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
@@ -341,12 +360,14 @@ function calc_failure!(storage::AbstractStorage, system::AbstractBondSystem,
                        paramsetup::AbstractParameterSetup, t, Δt, i)
     (; εc) = get_params(paramsetup, i)
     (; position, n_active_bonds, bond_active) = storage
+    (; bonds) = system
     for bond_id in each_bond_idx(system, i)
-        (; j, L, fail_permit) = get_bond(system, bond_id)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
-        if ε > εc && fail_permit
+        if ε > εc && bond.fail_permit
             bond_active[bond_id] = false
         end
         n_active_bonds[i] += bond_active[bond_id]

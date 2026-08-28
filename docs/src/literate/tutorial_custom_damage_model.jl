@@ -18,7 +18,7 @@
 # the [Extension API](@ref), and the model works with every material of the package.
 
 using Peridynamics
-using Peridynamics: BondSystem, each_bond_idx, get_bond, get_params, get_n_loc_points,
+using Peridynamics: BondSystem, each_bond_idx, get_params, get_n_loc_points,
                     get_vector_diff, damage_state
 using Peridynamics.LinearAlgebra: norm
 
@@ -73,18 +73,19 @@ end
 # how [`no_failure!`](@ref) and the pre-cracks are honored.
 #
 # The state is reached with [`damage_state`](@ref Peridynamics.damage_state). The bonds are
-# read exactly as in a force density: `each_bond_idx`, `get_bond`, and the current positions
-# from the storage.
+# read exactly as in a force density: `each_bond_idx`, `system.bonds[bond_id]`, and the
+# current positions from the storage.
 
 function Peridynamics.calc_failure!(storage, system::BondSystem, mat, ::DelayedFailure,
                                     paramsetup, t, Δt, i)
     (; εc, τ) = get_params(paramsetup, i)
     (; bond_damage) = damage_state(storage)
     for bond_id in each_bond_idx(system, i)
-        (; j, L, fail_permit) = get_bond(system, bond_id)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(storage.position, i, j)
         ε = (norm(Δxij) - L) / L
-        if storage.bond_active[bond_id] && fail_permit && ε > εc
+        if storage.bond_active[bond_id] && bond.fail_permit && ε > εc
             bond_damage[bond_id] += (ε / εc - 1) * Δt / τ
             if bond_damage[bond_id] ≥ 1
                 storage.bond_active[bond_id] = false

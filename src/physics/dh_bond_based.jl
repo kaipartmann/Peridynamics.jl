@@ -114,17 +114,19 @@ $(block_table(DHBBStorage))
     @inherit BondFracFields
     @htl b_int::PointVector
     strain_energy_density::PointScalar
+    bond_length::BondScalar
     dmg_state::DamageState
 end
 
 function force_density_point!(storage::DHBBStorage, system::BondSystem, ::DHBBMaterial,
                               params::DHBBPointParameters, t, Δt, i)
-    (; position, bond_active, b_int) = storage
-    (; correction, volume) = system
+    (; position, bond_length, bond_active, b_int) = storage
+    (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)
-        (; j, L) = get_bond(system, bond_id)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(position, i, j)
-        l = norm(Δxij)
+        l = bond_length[bond_id]
         ε = (l - L) / L
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
         b = ω * params.bc * ε .* Δxij / l
@@ -136,13 +138,14 @@ end
 
 function force_density_point!(storage::DHBBStorage, system::BondSystem, ::DHBBMaterial,
                               paramhandler::ParameterHandler, t, Δt, i)
-    (; position, bond_active, b_int) = storage
-    (; correction, volume) = system
+    (; position, bond_length, bond_active, b_int) = storage
+    (; bonds, correction, volume) = system
     params_i = get_params(paramhandler, i)
     for bond_id in each_bond_idx(system, i)
-        (; j, L) = get_bond(system, bond_id)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(position, i, j)
-        l = norm(Δxij)
+        l = bond_length[bond_id]
         ε = (l - L) / L
         params_j = get_params(paramhandler, j)
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
@@ -157,11 +160,12 @@ end
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       ::DHBBMaterial, paramsetup::AbstractParameterSetup, i)
     (; position, bond_active, strain_energy_density) = storage
-    (; correction, volume) = system
+    (; bonds, correction, volume) = system
     params_i = get_params(paramsetup, i)
     Ψ = 0.0
     for bond_id in each_bond_idx(system, i)
-        (; j, L) = get_bond(system, bond_id)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(position, i, j)
         l = norm(Δxij) # do not rely on the stored bond length here!
         ε = (l - L) / L

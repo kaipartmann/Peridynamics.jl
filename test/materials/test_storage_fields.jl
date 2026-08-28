@@ -61,11 +61,14 @@
 
     # what each material adds to the common fields
     const MATERIAL_FIELDS = [
-        BBMaterial() => Dict(:strain_energy_density => (1, :loc), :dmg_state => (:state,)),
-        DHBBMaterial() => Dict(:strain_energy_density => (1, :loc), :dmg_state => (:state,)),
-        GBBMaterial() => Dict(:strain_energy_density => (1, :loc), :dmg_state => (:state,),
-                              :weighted_volume => (1, :loc)),
-        OSBMaterial() => Dict(:strain_energy_density => (1, :loc), :dmg_state => (:state,)),
+        BBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds),
+                             :dmg_state => (:state,)),
+        DHBBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds),
+                               :dmg_state => (:state,)),
+        GBBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds),
+                              :dmg_state => (:state,), :weighted_volume => (1, :loc)),
+        OSBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds),
+                              :dmg_state => (:state,)),
         CMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :loc),
                             :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc),
                             :cm_state => (:state,), :dmg_state => (:state,)),

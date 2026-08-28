@@ -96,36 +96,47 @@ end
 
 
 """
-    critical_stretch(mat, δ, K, Gc)
+    critical_stretch(dmgmodel, mat, δ, K, Gc)
 
 $(extension_api_note())
 
-Return the critical stretch `εc` that belongs to the critical energy release rate `Gc` of a
-material with the horizon `δ` and the bulk modulus `K`. The default is the relation of the
-constant micro-modulus of bond-based peridynamics, `εc = sqrt(5 Gc / (9 K δ))`. The
-relation depends on the micro-modulus, so a material with another one defines this method
-and [`energy_release_rate`](@ref), and `material!(...; Gc)` converts correctly for it:
+Return the critical stretch `εc` that belongs to the critical energy release rate `Gc`, for
+the damage model `dmgmodel` of the material `mat` with the horizon `δ` and the bulk modulus
+`K`. The default is the relation of the constant micro-modulus of bond-based peridynamics,
+`εc = sqrt(5 Gc / (9 K δ))`.
+
+The relation follows from the micro-modulus, so it belongs to the material, and it is the
+damage model that decides what `εc` means, so it belongs to the model as well. Both are
+therefore dispatched on. A material with another micro-modulus defines this method **and**
+[`energy_release_rate`](@ref), always both, so that `Gc` and `epsilon_c` keep converting
+into each other. From then on `material!(...; Gc)` and `material!(...; epsilon_c)` are
+correct for it:
 
 ```julia
-Peridynamics.critical_stretch(::MyMaterial, δ, K, Gc) = sqrt(2 * Gc / (3 * K * δ))
-Peridynamics.energy_release_rate(::MyMaterial, δ, K, εc) = 1.5 * K * δ * εc^2
+Peridynamics.critical_stretch(::CriticalStretch, ::MyMaterial, δ, K, Gc) =
+    sqrt(2 * Gc / (3 * K * δ))
+Peridynamics.energy_release_rate(::CriticalStretch, ::MyMaterial, δ, K, εc) =
+    1.5 * K * δ * εc^2
 ```
+
+Dispatching on the model as well is what lets a damage model bring its own relation, and it
+lets a method be written for one pairing only, e.g. `(::MyDamage, ::MyMaterial, ...)`.
 
 See also [`get_frac_params`](@ref).
 """
-critical_stretch(mat, δ, K, Gc) = sqrt(5.0 * Gc / (9.0 * K * δ))
+critical_stretch(dmgmodel, mat, δ, K, Gc) = sqrt(5.0 * Gc / (9.0 * K * δ))
 
 """
-    energy_release_rate(mat, δ, K, εc)
+    energy_release_rate(dmgmodel, mat, δ, K, εc)
 
 $(extension_api_note())
 
 Return the critical energy release rate `Gc` that belongs to the critical stretch `εc`, the
 inverse of [`critical_stretch`](@ref). The default is `Gc = 9/5 K δ εc^2`, the relation of
-the constant micro-modulus. A material that defines `critical_stretch` defines this method
-as well, so that `Gc` and `epsilon_c` stay consistent whichever one the user gives.
+the constant micro-modulus. Whoever defines one of the two defines the other, so that `Gc`
+and `epsilon_c` stay consistent whichever one the user gives.
 """
-energy_release_rate(mat, δ, K, εc) = 9.0 / 5.0 * K * δ * εc^2
+energy_release_rate(dmgmodel, mat, δ, K, εc) = 9.0 / 5.0 * K * δ * εc^2
 
 """
     get_frac_params(dmgmodel, mat, δ, K; kwargs...)
@@ -136,17 +147,19 @@ Return the fracture parameters `Gc` and `εc` of a damage model as a `NamedTuple
 from the fracture keywords of [`material!`](@ref). This is the provider of the
 [`FractureParameters`](@ref) block, and the default serves every damage model that inherits
 the block: `Gc` and `epsilon_c` are converted into each other with
-[`critical_stretch`](@ref) and [`energy_release_rate`](@ref) of the material, giving both
-is an error, and giving neither switches fracture off with `Gc = εc = 0`.
+[`critical_stretch`](@ref) and [`energy_release_rate`](@ref), giving both is an error, and
+giving neither switches fracture off with `Gc = εc = 0`. **A damage model with the standard
+fracture keywords therefore defines nothing here**, and a material with another
+micro-modulus defines the two conversion hooks rather than this method.
 
-A damage model defines its own method only when it reads other keywords or converts them
-differently. Every fracture keyword arrives as a keyword argument, and one the user did not
-give arrives as `nothing`, which is how a method decides what it accepts:
+A method of its own is for a model that reads *other* keywords. Every fracture keyword
+arrives as a keyword argument, and one the user did not give arrives as `nothing`, which is
+how a method decides what it accepts:
 
 ```julia
-function Peridynamics.get_frac_params(::MyDamage, mat, δ, K; Gc=nothing, kwargs...)
-    isnothing(Gc) && return (; Gc=0.0, εc=0.0)
-    return (; Gc, εc=Peridynamics.critical_stretch(mat, δ, K, Gc))
+function Peridynamics.get_frac_params(::MyDamage, mat, δ, K; sigma_c=nothing, kwargs...)
+    isnothing(sigma_c) && return (; Gc=0.0, εc=0.0, σc=0.0)
+    ...
 end
 ```
 
@@ -162,16 +175,16 @@ end
 - `Gc`: The critical energy release rate, or `nothing` if not given.
 - `epsilon_c`: The critical stretch, or `nothing` if not given.
 """
-function get_frac_params(::AbstractDamageModel, mat, δ, K; Gc=nothing, epsilon_c=nothing,
-                         kwargs...)
+function get_frac_params(dmgmodel::AbstractDamageModel, mat, δ, K; Gc=nothing,
+                         epsilon_c=nothing, kwargs...)
     if !isnothing(Gc) && !isnothing(epsilon_c)
         msg = "insufficient keywords for calculation of fracture parameters!\n"
         msg *= "Define either Gc or epsilon_c, not both!\n"
         throw(ArgumentError(msg))
     elseif !isnothing(Gc)
-        return (; Gc=float(Gc), εc=float(critical_stretch(mat, δ, K, Gc)))
+        return (; Gc=float(Gc), εc=float(critical_stretch(dmgmodel, mat, δ, K, Gc)))
     elseif !isnothing(epsilon_c)
-        return (; Gc=float(energy_release_rate(mat, δ, K, epsilon_c)),
+        return (; Gc=float(energy_release_rate(dmgmodel, mat, δ, K, epsilon_c)),
                 εc=float(epsilon_c))
     end
     return (; Gc=0.0, εc=0.0)
@@ -231,12 +244,13 @@ replaces:
 
 ```julia
 function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup, t, Δt, i)
-    (; εc) = get_params(paramsetup, i)
-    for bond_id in each_bond_idx(system, i)
-        (; j, L, fail_permit) = get_bond(system, bond_id)
-        Δxij = get_vector_diff(storage.position, i, j)
+    (; εc) = Peridynamics.get_params(paramsetup, i)
+    for bond_id in Peridynamics.each_bond_idx(system, i)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
+        Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
         ε = (norm(Δxij) - L) / L
-        if ε > εc && fail_permit
+        if ε > εc && bond.fail_permit
             storage.bond_active[bond_id] = false
         end
         storage.n_active_bonds[i] += storage.bond_active[bond_id]

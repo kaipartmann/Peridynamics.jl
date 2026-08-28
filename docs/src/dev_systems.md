@@ -23,17 +23,18 @@ the ordinary state-based ([`OSBMaterial`](@ref)), the correspondence ([`CMateria
 [`RKCRMaterial`](@ref)) materials. Materials are subtypes of
 [`AbstractBondSystemMaterial`](@ref Peridynamics.AbstractBondSystemMaterial).
 
-Inside a force density calculation it is used through its accessors, never through its
-fields, and the idiom for a bond is to destructure what is needed:
+Inside a force density calculation the points and bonds of a chunk are walked with the
+iterators, and a bond is read off `system.bonds`:
 
 ```julia
-for i in each_point_idx(system)                          # the local points of this chunk
+for i in each_point_idx(system)                        # the local points of this chunk
     for bond_id in each_bond_idx(system, i)
-        (; j, L) = get_bond(system, bond_id)             # neighbor index, initial length
-        ωij = kernel(system, bond_id)                    # the influence function
-        β = surface_correction_factor(system, bond_id)   # 1 with `NoCorrection`
-        Vj = get_volume(system, j)                       # the volume of the neighbor
-        ΔXij = get_vector_diff(get_position(system), i, j) # the initial bond vector
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length              # neighbor index, initial length
+        ωij = kernel(system, bond_id)                  # the influence function
+        β = surface_correction_factor(system.correction, bond_id)  # 1 with `NoCorrection`
+        Vj = system.volume[j]                          # the volume of the neighbor
+        ΔXij = get_vector_diff(system.position, i, j)  # the initial bond vector
     end
 end
 ```
@@ -41,9 +42,8 @@ end
 A [`Bond`](@ref Peridynamics.Bond) also carries `fail_permit`, which a damage model reads.
 [`get_n_loc_points`](@ref Peridynamics.get_n_loc_points) is the number of points this chunk
 integrates, [`get_n_points`](@ref Peridynamics.get_n_points) additionally counts the halo
-points that are read from neighboring chunks, [`get_n_bonds`](@ref Peridynamics.get_n_bonds)
-is the number of bonds and [`get_n_neighbors`](@ref Peridynamics.get_n_neighbors) the
-number of bonds of one point.
+points that are read from neighboring chunks, and
+[`get_n_bonds`](@ref Peridynamics.get_n_bonds) is the number of bonds.
 
 ### BondAssociatedSystem
 

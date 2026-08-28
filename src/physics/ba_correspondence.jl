@@ -176,7 +176,7 @@ function force_density_point!(storage::BACStorage, system::BondAssociatedSystem,
     for k in eachindex(bond_ids_of_i)
         bond_idx = offset + k
         storage.bond_active[bond_idx] || continue
-        j = get_bond(system, bond_idx).j
+        j = system.bonds[bond_idx].neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         tij = kernel(system, bond_idx) * (get_tensor(storage.bond_stress, k) * ΔXij)
         update_add_vector!(storage.b_int, i, tij .* system.volume[j])
@@ -230,14 +230,15 @@ const BA_MIN_SHAPE_QUALITY = 1e-3
 function calc_deformation_gradient(storage::BACStorage, system::BondAssociatedSystem,
                                    mat::BACMaterial, params::BACPointParameters, i,
                                    bond_idx)
-    (; volume, ba_hood_volume) = system
+    (; bonds, volume, ba_hood_volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     intact_volume = 0.0
     for bond_id in each_intersecting_bond_idx(system, i, bond_idx)
         bond_active[bond_id] || continue
-        (; j) = get_bond(system, bond_id)
+        bond = bonds[bond_id]
+        j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
         ωijV = kernel(system, bond_id) * volume[j]

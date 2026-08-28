@@ -34,21 +34,23 @@ A material needs four things:
    [`force_density_point!`](@ref Peridynamics.force_density_point!).
 
 Everything these need is part of the [Extension API](@ref), so it is written as
-`Peridynamics.<name>` or imported explicitly. Inside the force density a material reads
-the system through its accessors, with `(; j, L) = get_bond(system, bond_id)` as the idiom
-for a bond, and the storage through the fields of the blocks it inherited and its own
-fields:
+`Peridynamics.<name>` or imported explicitly. Inside the force density a material walks the
+bonds of a point with [`each_bond_idx`](@ref Peridynamics.each_bond_idx), reads the bond off
+`system.bonds`, and reads the storage through the fields of the blocks it inherited and its
+own fields:
 
 ```julia
 function Peridynamics.force_density_point!(storage::MyStorage, system::BondSystem,
                                            mat::MyMaterial, params, t, Δt, i)
+    (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)
-        (; j, L) = get_bond(system, bond_id)
+        bond = bonds[bond_id]
+        j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(storage.position, i, j)
         l = norm(Δxij)
         ε = (l - L) / L
-        ω = storage.bond_active[bond_id] * surface_correction_factor(system, bond_id)
-        b = ω * params.bc * ε * get_volume(system, j) / l .* Δxij
+        ω = storage.bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        b = ω * params.bc * ε * volume[j] / l .* Δxij
         update_add_vector!(storage.b_int, i, b)
     end
     return nothing
@@ -486,7 +488,8 @@ point and per time step, right before the force density, with the time and the t
 function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup, t, Δt, i)
     (; εc) = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
-        (; j, L, fail_permit) = get_bond(system, bond_id)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
         ...
         storage.n_active_bonds[i] += storage.bond_active[bond_id]
     end
@@ -517,14 +520,16 @@ end
 ```
 
 Two things come for free with the block. The conversion between `Gc` and `εc` is the
-default of every damage model, and it asks the material through
+default of every damage model, and it goes through
 [`critical_stretch`](@ref Peridynamics.critical_stretch) and
-[`energy_release_rate`](@ref Peridynamics.energy_release_rate), because the relation depends
-on the micro-modulus. And [`has_fracture`](@ref Peridynamics.has_fracture), which decides
-whether the bonds of a point set may fail at all, reads `Gc` and `εc` by default, so leaving
-both keywords out switches fracture off as it does for `CriticalStretch`. A model that
-converts other keywords defines `get_frac_params`, a model whose own parameters are the
-fracture parameters defines `has_fracture`.
+[`energy_release_rate`](@ref Peridynamics.energy_release_rate), which dispatch on the damage
+model **and** the material, because the relation follows from the micro-modulus. A material
+with another micro-modulus defines those two, always both, and never `get_frac_params`. And
+[`has_fracture`](@ref Peridynamics.has_fracture), which decides whether the bonds of a point
+set may fail at all, reads `Gc` and `εc` by default, so leaving both keywords out switches
+fracture off as it does for `CriticalStretch`. A model that reads *other* keywords defines
+`get_frac_params`, a model whose own parameters are the fracture parameters defines
+`has_fracture`.
 
 A material carries the parameters of its damage model in the `dmg_params::DamageParameters`
 marker field, which `@inherit StandardParameters` includes.
@@ -543,7 +548,7 @@ end
 
 The state is reached with [`damage_state`](@ref Peridynamics.damage_state), and a material
 carries it by declaring the field `dmg_state::DamageState`, which every storage of this
-package does. A material that declares that field supports **every** damage model, stateful
+package does, so every shipped material takes a damage model of yours. A material that declares that field supports **every** damage model, stateful
 or not, without knowing any of them. The model brings its own arrays instead of the material
 having to allocate them for it. A model without state answers `nothing`, and no arrays are
 allocated at all.

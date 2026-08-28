@@ -239,7 +239,7 @@ end
     @test all(storage.one_ni_active)
     Peridynamics.apply_precracks!(c, body)
     left, right = body.point_sets[:left], body.point_sets[:right]
-    crossing = [(i in left) != (system.one_nis[bid].j in left)
+    crossing = [(i in left) != (system.one_nis[bid].neighbor in left)
                 for i in Peridynamics.each_point_idx(system)
                 for bid in Peridynamics.each_one_ni_idx(system, i)]
     @test any(crossing)

@@ -92,11 +92,12 @@ end
     storage.n_active_bonds[i] = 0
     Peridynamics.calc_failure!(storage, system, mat, T.DelayedFailure(), paramsetup, 0.0, Δt, i)
     @test all(storage.bond_active[bond_ids])
-    @test storage.n_active_bonds[i] == Peridynamics.get_n_neighbors(system, i)
+    @test storage.n_active_bonds[i] == system.n_neighbors[i]
     @test maximum(state.bond_damage[bond_ids]) ≈ 1.5 * Δt / τ
     # a bond that is not overstretched accumulates nothing
     for bond_id in bond_ids
-        (; j, L) = Peridynamics.get_bond(system, bond_id)
+        bond = system.bonds[bond_id]
+        j, L = bond.neighbor, bond.length
         ε = (Peridynamics.LinearAlgebra.norm(Peridynamics.get_vector_diff(storage.position, i, j)) - L) / L
         ε > εc || @test state.bond_damage[bond_id] == 0
     end

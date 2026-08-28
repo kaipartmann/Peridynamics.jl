@@ -34,8 +34,10 @@ end
     @test get_frac_params(FPOtherDamage(), mat, δ, K; Gc=1.0) == frac_gc
 
     # the two hooks are what the default calls, and they invert each other
-    @test critical_stretch(mat, δ, K, 1.0) == frac_gc.εc
-    @test energy_release_rate(mat, δ, K, frac_gc.εc) ≈ 1.0
+    @test critical_stretch(CriticalStretch(), mat, δ, K, 1.0) == frac_gc.εc
+    @test energy_release_rate(CriticalStretch(), mat, δ, K, frac_gc.εc) ≈ 1.0
+    # they dispatch on the damage model as well, so a model can bring its own relation
+    @test critical_stretch(FPOtherDamage(), mat, δ, K, 1.0) == frac_gc.εc
 end
 
 @testitem "critical_stretch: a material with another micro-modulus overrides the relation" begin
@@ -47,8 +49,11 @@ end
     Peridynamics.@params FPConicalMat struct FPConicalParams
         @inherit StandardParameters
     end
-    Peridynamics.critical_stretch(::FPConicalMat, δ, K, Gc) = sqrt(2 * Gc / (3 * K * δ))
-    Peridynamics.energy_release_rate(::FPConicalMat, δ, K, εc) = 1.5 * K * δ * εc^2
+    # the relation is dispatched on the damage model and the material, both
+    Peridynamics.critical_stretch(::CriticalStretch, ::FPConicalMat, δ, K, Gc) =
+        sqrt(2 * Gc / (3 * K * δ))
+    Peridynamics.energy_release_rate(::CriticalStretch, ::FPConicalMat, δ, K, εc) =
+        1.5 * K * δ * εc^2
 
     δ, K, Gc = 0.00603, 46.6e9, 100.0
     conical = get_frac_params(CriticalStretch(), FPConicalMat(), δ, K; Gc)
@@ -65,6 +70,12 @@ end
     params = only(body.point_params)
     @test params.εc ≈ sqrt(2 * 2.7 / (3 * params.K * params.δ))
     @test all(body.fail_permit)
+
+    # the methods are written for this one pairing, so another damage model on the same
+    # material still gets the default relation
+    struct FPConicalOtherDamage <: Peridynamics.AbstractDamageModel end
+    @test critical_stretch(FPConicalOtherDamage(), FPConicalMat(), δ, K, Gc) ≈
+          sqrt(5 * Gc / (9 * K * δ))
 end
 
 @testitem "FractureParameters: the block resolves Gc and εc through the damage model" begin
@@ -122,7 +133,7 @@ end
 end
 
 @testsnippet FatigueModel begin
-    using Peridynamics: damage_state, get_params, each_bond_idx, get_bond, get_vector_diff
+    using Peridynamics: damage_state, get_params, each_bond_idx, get_vector_diff
     using Peridynamics.LinearAlgebra
 
     # A damage model with a state of its own: a bond fails only after its stretch exceeded
@@ -149,9 +160,10 @@ end
         (; εc) = get_params(paramsetup, i)
         (; bond_exceedances) = damage_state(storage)
         for bond_id in each_bond_idx(system, i)
-            (; j, L, fail_permit) = get_bond(system, bond_id)
+            bond = system.bonds[bond_id]
+            j, L = bond.neighbor, bond.length
             ε = (norm(get_vector_diff(storage.position, i, j)) - L) / L
-            if ε > εc && fail_permit
+            if ε > εc && bond.fail_permit
                 bond_exceedances[bond_id] += 1
                 if bond_exceedances[bond_id] >= dmg.n_cycles
                     storage.bond_active[bond_id] = false

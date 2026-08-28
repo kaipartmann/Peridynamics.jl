@@ -77,13 +77,14 @@ end
 
 function calc_deformation_gradient!(storage::CRStorage, system::BondSystem, ::CRMaterial,
                                     ::CPointParameters, i)
-    (; volume) = system
+    (; bonds, volume) = system
     (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     _Ḟ = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
-        (; j) = get_bond(system, bond_id)
+        bond = bonds[bond_id]
+        j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
         Δvij = get_vector_diff(storage.velocity_half, i, j)
