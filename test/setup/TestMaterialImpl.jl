@@ -31,7 +31,9 @@
 
     function Peridynamics.force_density_point!(storage::TestStorage,
                                                system::Peridynamics.BondSystem, ::TestMaterial,
-                                               params::TestPointParameters, t, Δt, i)
+                                               paramsetup::Peridynamics.AbstractParameterSetup,
+                                               t, Δt, i)
+        params = Peridynamics.get_params(paramsetup, i)
         for bond_id in Peridynamics.each_bond_idx(system, i)
             bond = system.bonds[bond_id]
             j, L = bond.neighbor, bond.length

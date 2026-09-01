@@ -259,3 +259,31 @@ end
     @test contains(msg, "two-neighbor-interactions") && contains(msg, "22")
     @test contains(msg, "three-neighbor-interactions") && contains(msg, "33")
 end
+
+# The interaction system did not have `current_bond_length` for a long time, so a damage model
+# written the way the extension API documents it hit a `MethodError` on `CKIMaterial`. These
+# are the methods that close that gap, on the one-neighbor interactions of a CKI chunk.
+@testitem "current_bond_length and bond_stretch on an InteractionSystem" setup=[Fixtures] begin
+    using Peridynamics: current_bond_length, bond_stretch, update_bond_lengths!,
+                        each_one_ni_idx, each_bond_idx, each_point_idx
+
+    chunk = Fixtures.chunk(Fixtures.cube(CKIMaterial(); n=4))
+    (; system, storage) = chunk
+    @test !hasfield(typeof(storage), :bond_length)
+
+    storage.position .= system.position .* [1.02, 0.99, 1.0]
+    for i in each_point_idx(system)
+        # a no-op here, but a damage model that is unit tested calls it on every system
+        @test update_bond_lengths!(storage, system, i) === nothing
+        # the bond iterator of the interaction system is its one-neighbor interactions
+        @test each_bond_idx(system, i) == each_one_ni_idx(system, i)
+        for one_ni_id in each_one_ni_idx(system, i)
+            one_ni = system.one_nis[one_ni_id]
+            j, L = one_ni.neighbor, one_ni.length
+            Δx = storage.position[:, j] .- storage.position[:, i]
+            l = sqrt(Δx[1]^2 + Δx[2]^2 + Δx[3]^2)
+            @test current_bond_length(storage, system, i, one_ni_id) ≈ l
+            @test bond_stretch(storage, system, i, one_ni_id) ≈ (l - L) / L
+        end
+    end
+end

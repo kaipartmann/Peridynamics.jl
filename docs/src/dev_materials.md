@@ -41,13 +41,14 @@ own fields:
 
 ```julia
 function Peridynamics.force_density_point!(storage::MyStorage, system::BondSystem,
-                                           mat::MyMaterial, params, t, Δt, i)
+                                           mat::MyMaterial, paramsetup, t, Δt, i)
     (; bonds, correction, volume) = system
+    params = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(storage.position, i, j)
-        l = norm(Δxij)
+        l = current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
         ω = storage.bond_active[bond_id] * surface_correction_factor(correction, bond_id)
         b = ω * params.bc * ε * volume[j] / l .* Δxij
@@ -59,6 +60,47 @@ end
 
 Which bonds are broken was decided right before by the damage model, so the force density
 multiplies `bond_active` in and never changes it.
+
+The current length of a bond comes from
+[`current_bond_length`](@ref Peridynamics.current_bond_length), never from gathering the two
+positions and taking the norm. Some materials keep a cache of the bond lengths and others do
+not, and that function is what makes the same line as fast as it can be either way, see the
+storage section below. A kernel that needs the stretch and not the length takes
+[`bond_stretch`](@ref Peridynamics.bond_stretch) instead, which is the usual case for a damage
+model. Reading both of them for the same bond reads the bond twice, so a force density that
+needs the length forms the stretch from it as above.
+
+### Several parameter sets in one body
+
+A body may have several parameter sets, one per point set. The kernel receives them as the
+`paramsetup` argument, which is the one set of the body or a handler that resolves them per
+point when `material!` was called more than once.
+[`get_params`](@ref Peridynamics.get_params) returns the set of point `i` either way, which
+is why the same kernel runs on a body with one set and on a body with many.
+
+A material whose force density averages a parameter over the two points of a bond needs the
+set of the neighbor too. It resolves the set of its point once before the loop, as above, and
+reads the one of the neighbor inside it:
+
+```julia
+function Peridynamics.force_density_point!(storage::MyStorage, system::BondSystem,
+                                           mat::MyMaterial, paramsetup, t, Δt, i)
+    params_i = get_params(paramsetup, i)
+    for bond_id in each_bond_idx(system, i)
+        j = system.bonds[bond_id].neighbor
+        params_j = get_params(paramsetup, j)
+        bc = (params_i.bc + params_j.bc) / 2
+        ...
+    end
+    return nothing
+end
+```
+
+On a body with a single parameter set the read inside the loop returns that one set, so
+`params_j` does not depend on the loop and the compiler moves the averaging out of it. The
+averaging costs nothing where there is nothing to average, which is why the materials of this
+package are written with one kernel and not with two. `BBMaterial`, `DHBBMaterial`,
+`GBBMaterial`, `OSBMaterial` and `CKIMaterial` all do it this way.
 
 ### Two names that are not free
 
@@ -351,11 +393,25 @@ blocks:
 
 ```julia
 Peridynamics.@storage BBMaterial struct BBStorage
-    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields BondFracFields
+    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
+    @inherit BondLengthCache BondFracFields
     strain_energy_density::PointScalar
     dmg_state::DamageState
 end
 ```
+
+Every storage of a bond system inherits
+[`BondFracFields`](@ref Peridynamics.BondFracFields).
+[`BondLengthCache`](@ref Peridynamics.BondLengthCache) is optional and carries
+`bond_length`, the current length of every bond. A material that inherits it gets the field
+filled once per point and per time step, before the damage model and the force density run,
+so both read it instead of gathering the two positions and taking the norm a second time.
+That is worth 8 bytes per bond for a material whose force density needs the current length
+anyway, e.g. `BBMaterial` and `OSBMaterial`, and it is not worth it for one that does not,
+e.g. `CMaterial`. Either way a force density and a damage model read the length with
+[`current_bond_length`](@ref Peridynamics.current_bond_length) and the stretch with
+[`bond_stretch`](@ref Peridynamics.bond_stretch), and do not have to know which of the two it
+is. Nothing reaches `storage.bond_length` directly, not even the materials of this package.
 
 The marker `dmg_state::DamageState` is the place for the state of the damage model, see
 below. Every storage of this package declares it, so every damage model runs on every
@@ -489,7 +545,7 @@ function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup
     (; εc) = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        ε = bond_stretch(storage, system, i, bond_id)
         ...
         storage.n_active_bonds[i] += storage.bond_active[bond_id]
     end

@@ -227,8 +227,9 @@ $(extension_api_note())
 Supertype of what a body chunk carries as its point parameters: either one set of parameters
 for the whole chunk, or a handler that resolves them per point when [`material!`](@ref) was
 called more than once. Either way, [`get_params`](@ref) reads the parameters of a point from
-it. This is the type to annotate that argument with when a method has to, e.g. when
-[`calc_failure!`](@ref) is defined for one damage model.
+it. It is what [`force_density_point!`](@ref) receives as its parameters argument, and the
+type to annotate that argument with when a method has to, e.g. when [`calc_failure!`](@ref)
+is defined for one damage model.
 """
 abstract type AbstractParameterSetup end
 

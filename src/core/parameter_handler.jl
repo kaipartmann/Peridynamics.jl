@@ -71,6 +71,26 @@ $(extension_api_note())
 
 Return parameters of a specific point with index `point_id` of a `Body` with parameters
 `params` or parameter handler `paramhandler` or of the body `chunk`.
+
+# Resolving parameters inside a kernel
+
+[`force_density_point!`](@ref) receives the whole parameter setup of the chunk, which is one
+set of parameters or a handler for a body where [`material!`](@ref) was called more than
+once. A kernel resolves the set of its point once before the loop, and a material that
+averages a parameter across a bond reads the set of the neighbor inside it:
+
+```julia
+params_i = get_params(paramsetup, i)
+for bond_id in each_bond_idx(system, i)
+    j = system.bonds[bond_id].neighbor
+    params_j = get_params(paramsetup, j)
+    ...
+end
+```
+
+For a body with a single parameter set the read inside the loop is the identity, so
+`params_j` does not depend on the loop and the compiler hoists the averaging out of it. The
+averaging therefore costs nothing where there is nothing to average.
 """
 @inline function get_params(paramhandler::ParameterHandler, point_id::Int)
     return paramhandler.parameters[paramhandler.point_mapping[point_id]]

@@ -234,3 +234,52 @@ end
     material!(body, horizon=4 / 100, E=1, rho=1, Gc=1)
     @test_throws ErrorException Peridynamics.find_bonds(body, 1:n_points(body))
 end
+
+# `current_bond_length` and `bond_stretch` are the one idiom for the kinematics of a bond. A
+# material that inherits `BondLengthCache` reads the cache that `update_bond_lengths!` fills,
+# one without the field gets the distance computed, and the two have to agree with the hand
+# computed value on both.
+@testitem "current_bond_length and bond_stretch: with and without the cache" setup=[Fixtures] begin
+    using Peridynamics: current_bond_length, bond_stretch, update_bond_lengths!,
+                        each_bond_idx, each_point_idx
+
+    # `BBStorage` carries `bond_length`, `CStorage` does not, so the two chunks take the two
+    # branches of the `hasfield` test
+    cached = Fixtures.chunk(Fixtures.cube(BBMaterial(); n=4))
+    uncached = Fixtures.chunk(Fixtures.cube(CMaterial(); n=4))
+    @test hasfield(typeof(cached.storage), :bond_length)
+    @test !hasfield(typeof(uncached.storage), :bond_length)
+
+    for chunk in (cached, uncached)
+        (; system, storage) = chunk
+        # a deformation that stretches every bond by a different amount
+        storage.position .= system.position .* [1.02, 0.99, 1.0]
+        for i in each_point_idx(system)
+            update_bond_lengths!(storage, system, i)
+            for bond_id in each_bond_idx(system, i)
+                bond = system.bonds[bond_id]
+                j, L = bond.neighbor, bond.length
+                Δx = storage.position[:, j] .- storage.position[:, i]
+                l = sqrt(Δx[1]^2 + Δx[2]^2 + Δx[3]^2)
+                @test current_bond_length(storage, system, i, bond_id) ≈ l
+                @test bond_stretch(storage, system, i, bond_id) ≈ (l - L) / L
+            end
+        end
+    end
+
+    # the cache really is what the accessor reads on a material that keeps one, and the
+    # undeformed body has every bond at its reference length
+    (; system, storage) = cached
+    storage.position .= system.position
+    for i in each_point_idx(system)
+        update_bond_lengths!(storage, system, i)
+    end
+    for bond_id in eachindex(system.bonds)
+        @test storage.bond_length[bond_id] ≈ system.bonds[bond_id].length
+    end
+    i = 1
+    for bond_id in each_bond_idx(system, i)
+        @test current_bond_length(storage, system, i, bond_id) === storage.bond_length[bond_id]
+        @test bond_stretch(storage, system, i, bond_id) ≈ 0 atol=1e-14
+    end
+end

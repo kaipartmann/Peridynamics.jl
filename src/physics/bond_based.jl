@@ -157,63 +157,23 @@ $(block_table(BBStorage))
 """
 @storage BBMaterial struct BBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit BondFracFields
+    @inherit BondLengthCache BondFracFields
     strain_energy_density::PointScalar
-    bond_length::BondScalar
     dmg_state::DamageState
 end
 
-# Customized calc_failure to save the bond stretch ε for force density calculation
-function calc_failure!(storage::AbstractStorage, system::BondSystem,
-                       ::AbstractBondBasedMaterial, ::CriticalStretch,
-                       paramsetup::AbstractParameterSetup, t, Δt, i)
-    (; εc) = get_params(paramsetup, i)
-    (; position, n_active_bonds, bond_active, bond_length) = storage
-    (; bonds) = system
-    for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
-        bond_length[bond_id] = l # store current bond length
-        if ε > εc && bond.fail_permit
-            bond_active[bond_id] = false
-        end
-        n_active_bonds[i] += bond_active[bond_id]
-    end
-    return nothing
-end
-
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
-                              params::BBPointParameters, t, Δt, i)
-    (; position, bond_length, bond_active, b_int) = storage
+                              paramsetup::AbstractParameterSetup, t, Δt, i)
+    (; position, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
+    params_i = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(position, i, j)
-        l = bond_length[bond_id]
+        l = current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
-        ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * params.bc * ε * volume[j] .* Δxij / l
-        update_add_vector!(b_int, i, b)
-    end
-    return nothing
-end
-
-function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
-                              paramhandler::ParameterHandler, t, Δt, i)
-    (; position, bond_length, bond_active, b_int) = storage
-    (; bonds, correction, volume) = system
-    params_i = get_params(paramhandler, i)
-    for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
-        l = bond_length[bond_id]
-        ε = (l - L) / L
-        params_j = get_params(paramhandler, j)
+        params_j = get_params(paramsetup, j)
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
         b = ω * (params_i.bc + params_j.bc) / 2 * ε * volume[j] .* Δxij / l
         update_add_vector!(b_int, i, b)
@@ -221,19 +181,17 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
     return nothing
 end
 
-# Do not rely on any custom pre-stored properties here!
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       ::BBMaterial, paramsetup::AbstractParameterSetup, i)
-    (; position, bond_active, strain_energy_density) = storage
+    (; bond_active, strain_energy_density) = storage
     (; bonds, correction, volume) = system
+    update_bond_lengths!(storage, system, i)
     params_i = get_params(paramsetup, i)
     Ψ = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
-        l = norm(Δxij) # do not rely on the stored bond length here!
-        ε = (l - L) / L
+        ε = bond_stretch(storage, system, i, bond_id)
         params_j = get_params(paramsetup, j)
         ωij = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
         bc = (params_i.bc + params_j.bc) / 2

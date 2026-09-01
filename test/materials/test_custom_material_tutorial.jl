@@ -90,7 +90,7 @@ end
     # `storage_type` has to stay concrete, otherwise every body chunk is type unstable
     @test isconcretetype(S)
     @test S <: Peridynamics.AbstractStorage
-    @test :bond_stretch in fieldnames(S)
+    @test :stretch in fieldnames(S)
 
     # the inherited solver fields are all there
     for field in (:position, :displacement, :velocity, :b_int, :damage, :bond_active)
@@ -125,11 +125,12 @@ end
     n_loc = Peridynamics.get_n_loc_points(system)
     i = argmax(@view system.position[1, 1:n_loc])
     params = Peridynamics.get_params(chunk.paramsetup, i)
-    Peridynamics.force_density_point!(storage, system, chunk.mat, params, 0.0, 0.0, i)
+    Peridynamics.force_density_point!(storage, system, chunk.mat, chunk.paramsetup, 0.0, 0.0,
+                                      i)
 
     # the stretch of every bond of `i` was recorded on the way through
-    @test all(isfinite, storage.bond_stretch)
-    @test maximum(storage.bond_stretch) > 0
+    @test all(isfinite, storage.stretch)
+    @test maximum(storage.stretch) > 0
 
     # the point at the free end has a one-sided family, so it carries a net force
     b_int = [storage.b_int[d, i] for d in 1:3]
@@ -202,7 +203,7 @@ end
 
     u = Fixtures.whole_body(dh, :displacement)
     @test all(isfinite, u)
-    @test length(storage.bond_stretch) == Peridynamics.get_n_bonds(system)
+    @test length(storage.stretch) == Peridynamics.get_n_bonds(system)
 
     # the bar is pulled apart: the left end moved left, the right end moved right
     left, right = body.point_sets[:left], body.point_sets[:right]

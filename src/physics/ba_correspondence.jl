@@ -162,7 +162,8 @@ end
 # into forces. Same sum as writing the force of every family directly to all of its bonds,
 # but with a factor of the family size fewer scattered writes to `b_int`.
 function force_density_point!(storage::BACStorage, system::BondAssociatedSystem,
-                              mat::BACMaterial, params::BACPointParameters, t, Δt, i)
+                              mat::BACMaterial, paramsetup::AbstractParameterSetup, t, Δt, i)
+    params = get_params(paramsetup, i)
     bond_ids_of_i = each_bond_idx(system, i)
     for k in eachindex(bond_ids_of_i)
         zero_tensor!(storage.bond_stress, k)

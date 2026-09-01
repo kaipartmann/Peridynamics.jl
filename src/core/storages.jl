@@ -1,5 +1,5 @@
 """
-    force_density_point!(storage, system, mat, params, t, Δt, i)
+    force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
 
 $(extension_api_note())
 
@@ -18,9 +18,11 @@ the system. Then the same material runs under multithreading and MPI without a c
 - `system`: The system of the body chunk, e.g. a [`BondSystem`](@ref). Dispatch on it to say
     which discretization the material is written for.
 - `mat`: The material.
-- `params`: The point parameters of point `i`. When a body has several parameter sets, the
-    fallback resolves them with [`get_params`](@ref) before calling this method, so a method
-    only ever sees one set.
+- `paramsetup`: The parameter setup of the body chunk, one set of point parameters or a
+    handler for a body where [`material!`](@ref) was called more than once.
+    `get_params(paramsetup, i)` resolves the set of point `i` once at the top, and a material
+    that averages a parameter across a bond reads the set of the neighbor with
+    `get_params(paramsetup, j)` inside the loop, see [`get_params`](@ref).
 - `t::Real`: The current simulation time.
 - `Δt::Real`: The current time step.
 - `i::Int`: The index of the local point that is evaluated.
@@ -28,17 +30,20 @@ the system. Then the same material runs under multithreading and MPI without a c
 # Example
 
 The force density of a bond-based material. The bonds that failed were deactivated by
-[`calc_failure!`](@ref) right before, so a material only multiplies `bond_active` in:
+[`calc_failure!`](@ref) right before, so a material only multiplies `bond_active` in. The
+current length of the bond comes from [`current_bond_length`](@ref) and never from gathering
+the two positions and taking the norm:
 
 ```julia
 function Peridynamics.force_density_point!(storage, system::Peridynamics.BondSystem,
-                                           mat::MyMaterial, params, t, Δt, i)
+                                           mat::MyMaterial, paramsetup, t, Δt, i)
     (; bonds, correction, volume) = system
+    params = Peridynamics.get_params(paramsetup, i)
     for bond_id in Peridynamics.each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
         Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
-        l = norm(Δxij)
+        l = Peridynamics.current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
         ω = storage.bond_active[bond_id] *
             Peridynamics.surface_correction_factor(correction, bond_id)
@@ -49,7 +54,10 @@ function Peridynamics.force_density_point!(storage, system::Peridynamics.BondSys
 end
 ```
 
-See also [`storage_type`](@ref), [`get_params`](@ref), [`each_bond_idx`](@ref).
+A kernel that needs the stretch and not the length takes [`bond_stretch`](@ref) instead.
+
+See also [`storage_type`](@ref), [`get_params`](@ref), [`each_bond_idx`](@ref),
+[`current_bond_length`](@ref), [`bond_stretch`](@ref).
 """
 function force_density_point! end
 
@@ -304,9 +312,9 @@ unchanged.
 Example definition of the storage for the bond-based material:
 ````julia
 @storage BBMaterial struct BBStorage <: AbstractStorage
-    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields BondFracFields
+    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
+    @inherit BondLengthCache BondFracFields
     strain_energy_density::PointScalar
-    bond_length::BondScalar
     dmg_state::DamageState
 end
 ````

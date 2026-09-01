@@ -319,6 +319,27 @@ end
 @inline each_one_ni_idx(is::InteractionSystem, point_id::Int) = is.one_ni_idxs[point_id]
 @inline each_bond_idx(is::InteractionSystem, point_id::Int) = each_one_ni_idx(is, point_id)
 
+# The bond kinematics of the interaction system, so that a damage model reads the length and
+# the stretch of a one-neighbor interaction with the same two functions it uses on a bond
+# system. No material of this system caches lengths and no loop of this system fills such a
+# cache, so a storage field named `bond_length` must not be trusted here and the distance is
+# always computed.
+@inline function current_bond_length(storage::AbstractStorage, system::InteractionSystem, i,
+                                     bond_id)
+    j = @inbounds system.one_nis[bond_id].neighbor
+    return norm(get_vector_diff(storage.position, i, j))
+end
+
+@inline function bond_stretch(storage::AbstractStorage, system::InteractionSystem, i, bond_id)
+    L = @inbounds system.one_nis[bond_id].length
+    return (current_bond_length(storage, system, i, bond_id) - L) / L
+end
+
+# Nothing to fill, but a damage model that is unit tested outside of `calc_force_density!`
+# calls this before the criterion on every system, and so does a custom entry point that
+# walks the interactions itself.
+@inline update_bond_lengths!(::AbstractStorage, ::InteractionSystem, i) = nothing
+
 @inline each_two_ni_idx(is::InteractionSystem, point_id::Int) = is.two_ni_idxs[point_id]
 @inline each_three_ni_idx(is::InteractionSystem, point_id::Int) = is.three_ni_idxs[point_id]
 
@@ -438,14 +459,11 @@ function calc_failure!(storage::AbstractStorage, system::InteractionSystem,
                        mat::AbstractInteractionSystemMaterial, dmgmodel::CriticalStretch,
                        paramsetup::AbstractParameterSetup, t, Δt, i)
     (; εc) = get_params(paramsetup, i)
-    (; position, n_active_one_nis, one_ni_active) = storage
+    (; n_active_one_nis, one_ni_active) = storage
     (; one_nis) = system
     for bond_id in each_one_ni_idx(system, i)
         one_ni = one_nis[bond_id]
-        j, L = one_ni.neighbor, one_ni.length
-        Δxij = get_vector_diff(position, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
+        ε = bond_stretch(storage, system, i, bond_id)
         if ε > εc && one_ni.fail_permit
             one_ni_active[bond_id] = false
         end

@@ -52,7 +52,7 @@ public ConstitutiveParameters, DamageParameters
 # the time solver it is used with. The others follow from the system and the material
 # family.
 public VelocityVerletFields, DynamicRelaxationFields, NewtonKrylovFields
-public BondFracFields, InteractionFracFields, RKCFields
+public BondLengthCache, BondFracFields, InteractionFracFields, RKCFields
 
 # Point parameter blocks, to be `@inherit`ed by a set of point parameters.
 public DiscretizationParameters, ElasticParameters, BBElasticParameters
@@ -110,6 +110,10 @@ public supports_bond_integrity, supports_kinematic_weight
 public get_params, each_point_idx, each_bond_idx
 public get_n_points, get_n_loc_points, get_n_bonds
 public kernel, surface_correction_factor, float_type
+# The kinematics of a bond. Read the current length and the stretch of a bond with these and
+# never by gathering the two positions, then a material with a bond length cache and one
+# without it both run at full speed.
+public current_bond_length, bond_stretch, update_bond_lengths!
 
 # Reading and writing the columns of a storage field as static vectors and tensors.
 public get_vector, get_vector_diff, update_vector!, update_add_vector!

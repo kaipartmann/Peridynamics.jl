@@ -18,9 +18,8 @@
 # the [Extension API](@ref), and the model works with every material of the package.
 
 using Peridynamics
-using Peridynamics: BondSystem, each_bond_idx, get_params, get_n_loc_points,
-                    get_vector_diff, damage_state
-using Peridynamics.LinearAlgebra: norm
+using Peridynamics: BondSystem, each_bond_idx, get_params, get_n_loc_points, damage_state,
+                    bond_stretch
 
 # ## The type
 #
@@ -73,8 +72,12 @@ end
 # how [`no_failure!`](@ref) and the pre-cracks are honored.
 #
 # The state is reached with [`damage_state`](@ref Peridynamics.damage_state). The bonds are
-# read exactly as in a force density: `each_bond_idx`, `system.bonds[bond_id]`, and the
-# current positions from the storage.
+# read exactly as in a force density: `each_bond_idx` and `system.bonds[bond_id]`. The
+# stretch of the bond is read with [`bond_stretch`](@ref Peridynamics.bond_stretch) and never
+# computed here. A material that caches bond lengths has the cache refilled right before this
+# runs, one that does not gets the distance computed, and which of the two it is follows from
+# the material at compile time. The model therefore costs no more than the one of the package,
+# on every material.
 
 function Peridynamics.calc_failure!(storage, system::BondSystem, mat, ::DelayedFailure,
                                     paramsetup, t, Δt, i)
@@ -82,9 +85,7 @@ function Peridynamics.calc_failure!(storage, system::BondSystem, mat, ::DelayedF
     (; bond_damage) = damage_state(storage)
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(storage.position, i, j)
-        ε = (norm(Δxij) - L) / L
+        ε = bond_stretch(storage, system, i, bond_id)
         if storage.bond_active[bond_id] && bond.fail_permit && ε > εc
             bond_damage[bond_id] += (ε / εc - 1) * Δt / τ
             if bond_damage[bond_id] ≥ 1

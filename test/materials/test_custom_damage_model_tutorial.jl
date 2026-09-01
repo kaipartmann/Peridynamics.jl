@@ -88,8 +88,11 @@ end
     bond_ids = Peridynamics.each_bond_idx(system, i)
     state = Peridynamics.damage_state(storage)
 
-    # one step: damage has grown, but no bond has reached one
+    # one step: damage has grown, but no bond has reached one. The package fills the current
+    # bond lengths before it calls the criterion, so a direct call has to do the same, which
+    # is what `update_bond_lengths!` is public for.
     storage.n_active_bonds[i] = 0
+    Peridynamics.update_bond_lengths!(storage, system, i)
     Peridynamics.calc_failure!(storage, system, mat, T.DelayedFailure(), paramsetup, 0.0, Δt, i)
     @test all(storage.bond_active[bond_ids])
     @test storage.n_active_bonds[i] == system.n_neighbors[i]
@@ -105,6 +108,7 @@ end
     # after the delay the bonds along the axis are gone, the others are still there
     for _ in 1:2
         storage.n_active_bonds[i] = 0
+        Peridynamics.update_bond_lengths!(storage, system, i)
         Peridynamics.calc_failure!(storage, system, mat, T.DelayedFailure(), paramsetup, 0.0,
                                    Δt, i)
     end
@@ -123,6 +127,7 @@ end
     chunk_nf.storage.position[1, :] .*= 1 + 2.5 * εc
     for _ in 1:8
         chunk_nf.storage.n_active_bonds[i] = 0
+        Peridynamics.update_bond_lengths!(chunk_nf.storage, chunk_nf.system, i)
         Peridynamics.calc_failure!(chunk_nf.storage, chunk_nf.system, mat, T.DelayedFailure(),
                                    chunk_nf.paramsetup, 0.0, Δt, i)
     end

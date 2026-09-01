@@ -98,10 +98,9 @@ $(block_table(GBBStorage))
 """
 @storage GBBMaterial struct GBBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit BondFracFields
+    @inherit BondLengthCache BondFracFields
     strain_energy_density::PointScalar
     weighted_volume::PointScalar
-    bond_length::BondScalar
     dmg_state::DamageState
 end
 
@@ -120,39 +119,19 @@ function calc_weighted_volume!(storage::GBBStorage, system::BondSystem,
 end
 
 function force_density_point!(storage::GBBStorage, system::BondSystem, mat::GBBMaterial,
-                              params::BBPointParameters, t, Δt, i)
-    (; position, bond_length, bond_active, b_int) = storage
+                              paramsetup::AbstractParameterSetup, t, Δt, i)
+    (; position, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
-    wvol = calc_weighted_volume!(storage, system, mat, params, i)
+    wvol = calc_weighted_volume!(storage, system, mat, paramsetup, i)
     iszero(wvol) && return nothing
-    bond_constant = 18 * params.K / wvol
+    params_i = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
         Δxij = get_vector_diff(position, i, j)
-        l = bond_length[bond_id]
+        l = current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
-        ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
-        b = ω * bond_constant * ε * volume[j] .* Δxij / l
-        update_add_vector!(b_int, i, b)
-    end
-    return nothing
-end
-
-function force_density_point!(storage::GBBStorage, system::BondSystem, mat::GBBMaterial,
-                              paramhandler::ParameterHandler, t, Δt, i)
-    (; position, bond_length, bond_active, b_int) = storage
-    (; bonds, correction, volume) = system
-    wvol = calc_weighted_volume!(storage, system, mat, paramhandler, i)
-    iszero(wvol) && return nothing
-    params_i = get_params(paramhandler, i)
-    for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
-        l = bond_length[bond_id]
-        ε = (l - L) / L
-        params_j = get_params(paramhandler, j)
+        params_j = get_params(paramsetup, j)
         ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
         bond_constant = 9 * (params_i.K + params_j.K) / wvol
         b = ω * bond_constant * ε * volume[j] .* Δxij / l
@@ -161,12 +140,12 @@ function force_density_point!(storage::GBBStorage, system::BondSystem, mat::GBBM
     return nothing
 end
 
-# Do not rely on any custom pre-stored properties here!
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       mat::GBBMaterial, paramsetup::AbstractParameterSetup,
                                       i)
-    (; position, bond_active, strain_energy_density) = storage
+    (; bond_active, strain_energy_density) = storage
     (; bonds, correction, volume) = system
+    update_bond_lengths!(storage, system, i)
     params_i = get_params(paramsetup, i)
     wvol = calc_weighted_volume!(storage, system, mat, paramsetup, i)
     iszero(wvol) && return nothing
@@ -174,9 +153,7 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
-        l = norm(Δxij) # do not rely on the stored bond length here!
-        ε = (l - L) / L
+        ε = bond_stretch(storage, system, i, bond_id)
         params_j = get_params(paramsetup, j)
         ωij = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
         bond_constant = 9 * (params_i.K + params_j.K) / wvol

@@ -14,10 +14,8 @@
 
 using Peridynamics
 using Peridynamics: BondSystem, each_bond_idx, get_params, get_n_loc_points,
-                    get_vector_diff, update_add_vector!, surface_correction_factor
-## `LinearAlgebra` is reached through the package, so it does not have to be a dependency
-## of your own project
-using Peridynamics.LinearAlgebra: norm
+                    get_vector_diff, update_add_vector!, surface_correction_factor,
+                    current_bond_length
 
 # ## The material
 #
@@ -129,7 +127,7 @@ Peridynamics.DiscretizationParameters
 Peridynamics.@storage ConicalBBMaterial struct ConicalBBStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
     @inherit BondFracFields
-    bond_stretch::BondScalar
+    stretch::BondScalar
 end
 
 # A field shape such as `BondScalar` says what a field means: how many entries it has, what
@@ -150,25 +148,33 @@ end
 #   length `length`. `system.volume[j]` is the volume of a point, `system.position` the
 #   reference positions, `kernel(system, bond_id)` the influence function and
 #   `surface_correction_factor(system.correction, bond_id)` the surface correction.
+# - **The kinematics of a bond**: `current_bond_length(storage, system, i, bond_id)` is the
+#   distance of the two points of the bond right now. Read it this way and never by gathering
+#   the two positions yourself, then the same line is as fast as it can be on a material that
+#   caches bond lengths and on one that does not. A kernel that needs the stretch and not the
+#   length takes `bond_stretch(storage, system, i, bond_id)` instead, which is what the damage
+#   model tutorial does.
 # - **The storage**, through the fields of the blocks it inherited and its own fields. Here
 #   these are `storage.position` and `storage.b_int` from the solver blocks,
-#   `storage.bond_active` from `BondFracFields`, and `storage.bond_stretch`. The table of
+#   `storage.bond_active` from `BondFracFields`, and `storage.stretch`. The table of
 #   every block says which fields it brings.
-# - **The parameters** of the point, `params`, with everything the `@params` block declared.
+# - **The parameters**: `paramsetup` is the parameter setup of the chunk, and
+#   `get_params(paramsetup, i)` resolves the set of point `i`, with everything the `@params`
+#   block declared.
 
 function Peridynamics.force_density_point!(storage::ConicalBBStorage, system::BondSystem,
-                                           mat::ConicalBBMaterial,
-                                           params::ConicalBBPointParameters, t, Δt, i)
+                                           mat::ConicalBBMaterial, paramsetup, t, Δt, i)
     (; bonds, correction, volume) = system
+    params = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
         j, L = bond.neighbor, bond.length
 
-        ## the current bond vector and the bond stretch
+        ## the current bond vector, the current length and the stretch of the bond
         Δxij = get_vector_diff(storage.position, i, j)
-        l = norm(Δxij)
+        l = current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
-        storage.bond_stretch[bond_id] = ε
+        storage.stretch[bond_id] = ε
 
         ## the conical micro-modulus: full stiffness at L = 0, zero at the horizon
         c = params.bc * (1 - L / params.δ)
@@ -231,7 +237,7 @@ Peridynamics.energy_release_rate(::CriticalStretch, ::ConicalBBMaterial, δ, K, 
 
 # ### Exporting a field of your own
 #
-# `bond_stretch` is a bond field, so it cannot be written to a VTK file directly, because a
+# `stretch` is a bond field, so it cannot be written to a VTK file directly, because a
 # VTK file wants one value per point. [`export_field`](@ref Peridynamics.export_field)
 # reduces it, and [`custom_field`](@ref Peridynamics.custom_field) announces the name so that
 # asking for it in a `Job` is not rejected as a typo.
@@ -251,7 +257,7 @@ function Peridynamics.export_field(::Val{:weighted_stretch}, mat, system,
         for bond_id in each_bond_idx(system, i)
             L = system.bonds[bond_id].length
             c = 1 - L / δ
-            num += c * storage.bond_stretch[bond_id]
+            num += c * storage.stretch[bond_id]
             den += c
         end
         weighted_stretch[i] = iszero(den) ? 0.0 : num / den

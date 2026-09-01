@@ -284,26 +284,36 @@ end
 
 """
     update_bond_lengths!(storage, system, i)
-    update_bond_lengths!(storage, system, dmgmodel, i)
 
-$(internal_api_warning())
+$(extension_api_note())
 
-Write the current length of every bond of point `i` into the `bond_length` field of the
-storage, or do nothing for a storage that does not declare such a field. `hasfield` is
-resolved at compile time, so the whole call disappears for a material that does not cache
-bond lengths.
+Write the current length of every bond of point `i` into `storage.bond_length`, or do nothing
+for a storage that does not declare that field. `hasfield` is resolved at compile time, so
+the whole call disappears for a material that does not cache bond lengths, and the method for
+the [`InteractionSystem`](@ref) does nothing at all.
 
-Some materials, e.g. [`BBMaterial`](@ref) and [`OSBMaterial`](@ref), keep the current bond
-length in a `BondScalar` field, so that the loop of the force density does not have to
-compute it a second time. That field is scratch between two adjacent bond loops:
-[`CriticalStretch`](@ref) walks the bonds of the point in [`calc_failure!`](@ref) anyway and
-fills it there, which is why the four-argument form dispatches to nothing for it and the
-cache costs those materials no extra loop.
+The current length of a bond depends on nothing but `storage.position` and `system.bonds`,
+so it is neither a property of the material nor of the damage model. The package therefore
+fills it at the top of the point loop of `calc_force_density!`, before
+[`calc_failure!`](@ref) and before the force density of the material. Both of them read it
+with [`current_bond_length`](@ref) or [`bond_stretch`](@ref), which is why the damage model
+of a user costs no more than [`CriticalStretch`](@ref).
 
-A damage model of the user does not know about the field, so for every other model the
-four-argument form fills it, once per point and right before `calc_failure!`. That is one
-extra bond loop, and it is what lets any damage model be combined with any material of the
-package.
+A material opts in by inheriting [`BondLengthCache`](@ref). It is worth it for a material
+whose force density needs the current length of the bond anyway, e.g. [`BBMaterial`](@ref) or
+[`OSBMaterial`](@ref), and not worth it for one that does not, e.g. [`CMaterial`](@ref),
+which would pay 8 bytes per bond for nothing.
+
+# When you call this yourself
+
+Inside a simulation the package fills the cache, so a material and a damage model never have
+to. Call it yourself in two situations. The first is a unit test that calls a
+[`calc_failure!`](@ref) or a [`force_density_point!`](@ref) of your own on a chunk directly,
+because there the point loop of the package is not what runs. The second is an entry point of
+your own that walks bonds outside of `calc_force_density!`. Every
+`strain_energy_density_point!` of this package does the second, because
+[`export_field`](@ref) evaluates the strain energy density outside of a time step, where the
+cache holds the lengths of the last force density evaluation.
 """
 @inline function update_bond_lengths!(storage::AbstractStorage, system::AbstractBondSystem,
                                       i)
@@ -311,23 +321,73 @@ package.
     (; position, bond_length) = storage
     (; bonds) = system
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
+        j = bonds[bond_id].neighbor
         Δxij = get_vector_diff(position, i, j)
         @inbounds bond_length[bond_id] = norm(Δxij)
     end
     return nothing
 end
 
-# `CriticalStretch` fills the cache itself, see the docstring above
-@inline function update_bond_lengths!(::AbstractStorage, ::AbstractBondSystem,
-                                      ::CriticalStretch, i)
-    return nothing
+"""
+    current_bond_length(storage, system, i, bond_id)
+
+$(extension_api_note())
+
+The current length of bond `bond_id` of point `i`, i.e. the distance of its two points in the
+deformed configuration. `system.bonds[bond_id].length` is the length of the same bond in the
+reference configuration, and the ratio of the two is [`bond_stretch`](@ref).
+
+This is what a damage model and a force density use instead of gathering the two positions
+and taking the norm themselves. A material that inherits [`BondLengthCache`](@ref) has the
+length cached, and the package refills the cache before every call of [`calc_failure!`](@ref)
+and of [`force_density_point!`](@ref), so this reads it. For a material without the field it
+computes the distance. The test is `hasfield`, resolved at compile time, so exactly one of
+the two remains in the generated code and a model written this way is as fast as it can be on
+every material.
+
+There is a method for the [`InteractionSystem`](@ref) as well, where it is the current length
+of a one-neighbor interaction. No material of that system caches lengths, so that method
+always computes the distance.
+
+See also [`bond_stretch`](@ref), [`calc_failure!`](@ref), [`update_bond_lengths!`](@ref),
+[`each_bond_idx`](@ref).
+"""
+@inline function current_bond_length(storage::AbstractStorage, system::AbstractBondSystem, i,
+                                     bond_id)
+    if hasfield(typeof(storage), :bond_length)
+        return @inbounds storage.bond_length[bond_id]
+    end
+    j = @inbounds system.bonds[bond_id].neighbor
+    return norm(get_vector_diff(storage.position, i, j))
 end
 
-@inline function update_bond_lengths!(storage::AbstractStorage, system::AbstractBondSystem,
-                                      ::AbstractDamageModel, i)
-    return update_bond_lengths!(storage, system, i)
+"""
+    bond_stretch(storage, system, i, bond_id)
+
+$(extension_api_note())
+
+The stretch of bond `bond_id` of point `i`, i.e. `(l - L) / L` with the current length `l` of
+the bond and its length `L` in the reference configuration. It is what a damage criterion
+compares against the critical stretch `εc` of the point parameters, and the strain that the
+force density of a bond-based material multiplies with the bond constant.
+
+The current length comes from [`current_bond_length`](@ref), so this reads the cache of a
+material that keeps one and computes the distance for a material that does not. It works on
+every bond system and on the [`InteractionSystem`](@ref), where it is the stretch of a
+one-neighbor interaction.
+
+Call this when the stretch is all you need, which is the case for a failure criterion and for
+the strain energy density of a bond-based material. A force density that needs the current
+length as well reads that once with [`current_bond_length`](@ref) and forms the stretch from
+it and `system.bonds[bond_id].length`, because calling both functions reads the bond twice and
+the measurable cost of that is a lost vectorization, not a lost load.
+
+See also [`current_bond_length`](@ref), [`calc_failure!`](@ref), [`each_bond_idx`](@ref).
+"""
+@inline function bond_stretch(storage::AbstractStorage, system::AbstractBondSystem, i,
+                              bond_id)
+    L = @inbounds system.bonds[bond_id].length
+    return (current_bond_length(storage, system, i, bond_id) - L) / L
 end
 
 function calc_force_density!(storage::AbstractStorage, system::AbstractBondSystem,
@@ -337,7 +397,7 @@ function calc_force_density!(storage::AbstractStorage, system::AbstractBondSyste
     storage.b_int .= 0.0
     storage.n_active_bonds .= 0
     for i in each_point_idx(system)
-        update_bond_lengths!(storage, system, dmgmodel, i)
+        update_bond_lengths!(storage, system, i)
         calc_failure!(storage, system, mat, dmgmodel, paramsetup, t, Δt, i)
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
@@ -345,28 +405,15 @@ function calc_force_density!(storage::AbstractStorage, system::AbstractBondSyste
     return nothing
 end
 
-# a placeholder function for all force density calculations with multiple parameters that
-# are not specifially handled by the material
-function force_density_point!(storage::AbstractStorage, system::AbstractBondSystem,
-                              mat::AbstractBondSystemMaterial,
-                              paramhandler::AbstractParameterHandler, t, Δt, i)
-    params = get_params(paramhandler, i)
-    force_density_point!(storage, system, mat, params, t, Δt, i)
-    return nothing
-end
-
 function calc_failure!(storage::AbstractStorage, system::AbstractBondSystem,
                        mat::AbstractMaterial, dmgmodel::CriticalStretch,
                        paramsetup::AbstractParameterSetup, t, Δt, i)
     (; εc) = get_params(paramsetup, i)
-    (; position, n_active_bonds, bond_active) = storage
+    (; n_active_bonds, bond_active) = storage
     (; bonds) = system
     for bond_id in each_bond_idx(system, i)
         bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
-        l = norm(Δxij)
-        ε = (l - L) / L
+        ε = bond_stretch(storage, system, i, bond_id)
         if ε > εc && bond.fail_permit
             bond_active[bond_id] = false
         end
@@ -471,6 +518,32 @@ end
 
 function required_point_parameters(::Type{<:AbstractBondSystemMaterial})
     return (:δ, :rho, elasticity_parameters()...)
+end
+
+"""
+    BondLengthCache
+
+$(extension_api_note())
+
+The bond length cache of a bond system, see [`@storage_fields`](@ref). It is a plain
+`BondScalar` field, so it is allocated from its shape like every other storage field.
+
+`bond_length` holds the current length of every bond, i.e. the distance of the two points of
+the bond in the deformed configuration. It depends on nothing but `storage.position` and
+`system.bonds`, so the package fills it once per point and per time step, before the damage
+model and the force density of the material run, see [`update_bond_lengths!`](@ref). Both of
+them read it instead of computing the distance a second time.
+
+Inheriting this block is a decision of the material, and of the shipped ones
+[`BBMaterial`](@ref), [`DHBBMaterial`](@ref), [`GBBMaterial`](@ref) and
+[`OSBMaterial`](@ref) do. Nothing reads the field directly. A damage model and a force
+density go through [`current_bond_length`](@ref) and [`bond_stretch`](@ref), which is what
+makes them run on a material with the cache and on one without it.
+
+$(block_table(BondLengthCache))
+"""
+@storage_fields BondLengthCache begin
+    bond_length::BondScalar
 end
 
 """

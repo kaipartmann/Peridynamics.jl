@@ -37,6 +37,7 @@
         "AbstractStorage", "AbstractSystem", "AbstractTimeSolver",
         "BACPointParameters", "BACStorage", "BBElasticParameters", "BBPointParameters",
         "BBStorage", "Bond", "BondField", "BondFracFields", "BondHorizonParameters",
+        "BondLengthCache",
         "BondScalar", "BondSymTensor", "BondSystem", "BondTensor", "BondVector",
         "CKIPointParameters",
         "CKIStorage", "CPointParameters", "CRStorage", "CStorage", "ConstitutiveParameters",
@@ -49,8 +50,9 @@
         "PointScalar", "PointSymTensor", "PointTensor", "PointVector", "RKCFields",
         "RKCPointParameters", "RKCRStorage", "RKCStorage", "SimFloat", "StandardParameters",
         "StorageContractError", "VelocityVerletFields",
-        "block_table", "bond_integrity", "calc_damage!", "calc_failure!",
+        "block_table", "bond_integrity", "bond_stretch", "calc_damage!", "calc_failure!",
         "constitutive_state", "constitutive_storage_type", "critical_stretch",
+        "current_bond_length",
         "custom_field", "damage_state", "damage_storage_type", "each_bond_idx",
         "each_point_idx", "energy_release_rate", "export_field", "first_piola_kirchhoff",
         "float_type", "force_density_point!", "get_constitutive_model",
@@ -61,7 +63,8 @@
         "init_field", "is_history_dependent", "kernel", "kinematic_weight", "storage_type",
         "strain_energy_density", "supports_bond_integrity", "supports_history_dependence",
         "supports_kinematic_weight", "surface_correction_factor", "sym_eigvals",
-        "update_add_vector!", "update_sym_tensor!", "update_tensor!", "update_vector!",
+        "update_add_vector!", "update_bond_lengths!", "update_sym_tensor!", "update_tensor!",
+        "update_vector!",
     ]
 
     all_names() = names(Peridynamics)

@@ -87,7 +87,7 @@ under multithreading and MPI without a change: every chunk only ever iterates it
 
 ```julia
 for i in Peridynamics.each_point_idx(system)
-    force_density_point!(storage, system, mat, params, t, Δt, i)
+    force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
 end
 ```
 

@@ -12,6 +12,14 @@ tutorial_custom_damage_model) and [Writing your own constitutive model](@ref
 tutorial_custom_constitutive_model) show them in use, and [Materials](@ref) is the manual
 of the declaration language.
 
+The names follow four rules, so that a name you have not seen yet still tells you what it
+does. `get_*` pulls something that is already stored out of a container, as
+`get_params` and `get_vector_diff` do. `each_*_idx` returns what a loop iterates over.
+`update_*!` writes in place. Everything else is a bare noun, either a physical quantity that
+is computed on the spot, as `kernel`, `surface_correction_factor`, `current_bond_length` and
+`bond_stretch` are, or a question asked of a material or a model, as `damage_state` and
+`storage_type` are.
+
 ```@meta
 CollapsedDocStrings = true
 ```
@@ -139,6 +147,7 @@ system and the material family.
 Peridynamics.VelocityVerletFields
 Peridynamics.DynamicRelaxationFields
 Peridynamics.NewtonKrylovFields
+Peridynamics.BondLengthCache
 Peridynamics.BondFracFields
 Peridynamics.InteractionFracFields
 Peridynamics.RKCFields
@@ -257,12 +266,20 @@ Peridynamics.supports_kinematic_weight
 
 What a force density or a failure criterion reads: the points and bonds of the chunk
 through the iterators, a bond through `system.bonds[bond_id]`, and the parameters of a
-point through `get_params`.
+point through `get_params` from the parameter setup the kernel receives.
+
+The current length of a bond and its stretch are read with `current_bond_length` and
+`bond_stretch` and never by gathering the two positions and taking the norm. Some materials
+keep a cache of the bond lengths and others do not, and these two functions are what makes
+the same code as fast as it can be on either.
 
 ```@docs
 Peridynamics.get_params
 Peridynamics.each_point_idx
 Peridynamics.each_bond_idx
+Peridynamics.current_bond_length
+Peridynamics.bond_stretch
+Peridynamics.update_bond_lengths!
 Peridynamics.get_n_points
 Peridynamics.get_n_loc_points
 Peridynamics.get_n_bonds

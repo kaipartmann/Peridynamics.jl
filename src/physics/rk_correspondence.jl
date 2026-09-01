@@ -370,6 +370,7 @@ function calc_weights_and_defgrad!(chunk::BodyChunk{<:BondSystem,<:AbstractRKCMa
     (; dmgmodel) = mat
     storage.n_active_bonds .= 0
     for i in each_point_idx(system)
+        update_bond_lengths!(storage, system, i)
         calc_failure!(storage, system, mat, dmgmodel, paramsetup, t, Δt, i)
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
         calc_weights_and_defgrad!(storage, system, mat, paramsetup, t, Δt, i)
@@ -578,8 +579,9 @@ function calc_force_density!(storage::AbstractStorage, system::AbstractBondSyste
 end
 
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
-                              mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
+                              mat::AbstractRKCMaterial, paramsetup::AbstractParameterSetup, t,
                               Δt, i)
+    params = get_params(paramsetup, i)
     ∑P = rkc_stress_integral!(storage, system, mat, params, t, Δt, i)
     rkc_force_density!(storage, system, mat, params, ∑P, t, Δt, i)
     return nothing
@@ -741,15 +743,15 @@ function export_field(::Val{:strain_energy_density}, mat::AbstractRKCMaterial,
                       system::BondSystem, storage::AbstractStorage,
                       paramsetup::AbstractParameterSetup, t)
     for i in each_point_idx(system)
-        params = get_params(paramsetup, i)
-        strain_energy_density_point!(storage, system, mat, params, i)
+        strain_energy_density_point!(storage, system, mat, paramsetup, i)
     end
     return storage.strain_energy_density
 end
 
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       mat::AbstractRKCMaterial,
-                                      params::RKCPointParameters, i)
+                                      paramsetup::AbstractParameterSetup, i)
+    params = get_params(paramsetup, i)
     (; bonds, volume) = system
     (; bond_active, defgrad, weighted_volume) = storage
     model = mat.constitutive_model

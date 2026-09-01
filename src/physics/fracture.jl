@@ -226,6 +226,13 @@ every bond that is still active to `storage.n_active_bonds[i]`, because that cou
 `false` must never fail, which is how [`no_failure!`](@ref) and the pre-cracks are honored.
 A model with a state of its own reaches it with [`damage_state`](@ref).
 
+The stretch of a bond is read with [`bond_stretch`](@ref) and its current length with
+[`current_bond_length`](@ref), never by gathering the two positions and taking the norm. A
+material that caches bond lengths has the cache refilled right before this runs, and one that
+does not gets the distance computed, both decided at compile time. A model written this way
+is as fast as [`CriticalStretch`](@ref) on every material, and the same code runs on a bond
+system and on an [`InteractionSystem`](@ref).
+
 # Arguments
 
 - `storage`: The storage of the body chunk.
@@ -247,9 +254,7 @@ function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup
     (; εc) = Peridynamics.get_params(paramsetup, i)
     for bond_id in Peridynamics.each_bond_idx(system, i)
         bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
-        ε = (norm(Δxij) - L) / L
+        ε = Peridynamics.bond_stretch(storage, system, i, bond_id)
         if ε > εc && bond.fail_permit
             storage.bond_active[bond_id] = false
         end

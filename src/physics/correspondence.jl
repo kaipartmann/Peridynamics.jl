@@ -191,7 +191,8 @@ end
 
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
                               mat::AbstractCorrespondenceMaterial,
-                              params::AbstractPointParameters, t, Δt, i)
+                              paramsetup::AbstractParameterSetup, t, Δt, i)
+    params = get_params(paramsetup, i)
     defgrad_res = calc_deformation_gradient!(storage, system, mat, params, i)
     too_much_damage!(storage, system, mat, defgrad_res, i) && return nothing
     PKinv = calc_first_piola_kirchhoff!(storage, mat, params, defgrad_res, Δt, i)

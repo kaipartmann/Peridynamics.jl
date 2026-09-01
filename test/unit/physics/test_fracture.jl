@@ -532,3 +532,70 @@ end
     @test contains(err.hint, "FPNoCriterion")
     @test contains(err.hint, "t, Δt, i")
 end
+
+# A damage model of a user replaces `calc_failure!`, which used to be the loop that fills the
+# `bond_length` cache of the materials that keep one. Before the cache was filled by the
+# package, such a model left it at zero and the force density of `BBMaterial`, `DHBBMaterial`,
+# `GBBMaterial` and `OSBMaterial` silently turned into `Inf` and `NaN`. This is the guard for
+# that: `MirrorStretch` is `CriticalStretch` written the way the extension API documents it,
+# with `current_bond_length`, so it has to reach the same forces on every material of a bond
+# system, with and without a cache.
+@testitem "a custom damage model reaches the same forces as CriticalStretch" begin
+    using Peridynamics: each_bond_idx, get_params, bond_stretch
+
+    struct MirrorStretch <: Peridynamics.AbstractDamageModel end
+    Peridynamics.@dmg_params MirrorStretch struct MirrorStretchParameters
+        @inherit FractureParameters
+    end
+    function Peridynamics.calc_failure!(storage, system, mat, ::MirrorStretch, paramsetup, t,
+                                        Δt, i)
+        (; εc) = get_params(paramsetup, i)
+        for bond_id in each_bond_idx(system, i)
+            bond = system.bonds[bond_id]
+            ε = bond_stretch(storage, system, i, bond_id)
+            if ε > εc && bond.fail_permit
+                storage.bond_active[bond_id] = false
+            end
+            storage.n_active_bonds[i] += storage.bond_active[bond_id]
+        end
+        return nothing
+    end
+
+    function forces(mat)
+        Δx = 0.2
+        pos, vol = uniform_box(1.0, 1.0, 1.0, Δx)
+        body = Body(mat, pos, vol)
+        material!(body; horizon=3.015Δx, rho=7850.0, E=210e9, nu=0.25, Gc=2.7)
+        solver = VelocityVerlet(steps=1)
+        dh = Peridynamics.threads_data_handler(body, solver, 1)
+        Peridynamics.init_time_solver!(solver, dh)
+        Peridynamics.initialize!(dh, solver)
+        chunk = dh.chunks[1]
+        # a stretch of a few times the critical stretch, so bonds really do break
+        chunk.storage.position[1, :] .*= 1.00002
+        # the rotated formulations integrate their stress from the velocity gradient, so a
+        # body at rest would leave them with nothing to do and the test would say nothing
+        chunk.storage.velocity .= 0.01 .* chunk.system.position
+        chunk.storage.velocity_half .= chunk.storage.velocity
+        Peridynamics.calc_force_density!(dh, 0.0, solver.Δt)
+        return copy(chunk.storage.b_int), copy(chunk.storage.damage)
+    end
+
+    with(dmgmodel) = (BBMaterial(; dmgmodel), DHBBMaterial(; dmgmodel),
+                      GBBMaterial(; dmgmodel), OSBMaterial(; dmgmodel),
+                      CMaterial(; dmgmodel), CRMaterial(; dmgmodel),
+                      BACMaterial(; dmgmodel), RKCMaterial(; dmgmodel),
+                      RKCRMaterial(; dmgmodel))
+
+    for (ref_mat, mir_mat) in zip(with(CriticalStretch()), with(MirrorStretch()))
+        b_ref, d_ref = forces(ref_mat)
+        b_mir, d_mir = forces(mir_mat)
+        @test all(isfinite, b_mir)
+        # not vacuous: the setup really does load the material
+        @test maximum(abs, b_ref) > 0
+        # the two materials are different concrete types, so they are compiled separately and
+        # the last bits of the correspondence formulations may differ
+        @test b_mir ≈ b_ref rtol=1e-10
+        @test d_mir == d_ref
+    end
+end
