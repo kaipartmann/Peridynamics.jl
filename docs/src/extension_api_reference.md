@@ -140,7 +140,9 @@ Peridynamics.CKIPointParameters
 
 ### Storage field blocks
 
-A storage needs the block of the time solver it is used with. The others follow from the
+A storage needs the block of the time solver it is used with. The fracture bookkeeping
+blocks belong to the damage model and are inherited inside a
+[`@dmg_storage`](@ref Peridynamics.@dmg_storage) declaration. The others follow from the
 system and the material family.
 
 ```@docs
@@ -233,9 +235,14 @@ Peridynamics.supports_history_dependence
 
 ## The damage model interface
 
-A damage model decides which bonds fail, and it may carry per-bond state of its own. The
-relation between the critical energy release rate `Gc` and the critical stretch `εc`
-depends on the micro-modulus, so a material with a non-constant one defines
+A damage model decides which bonds fail, and it may carry per-bond state of its own. It is
+a plug-in box: everything outside of it reads the fracture bookkeeping through
+[`bond_is_active`](@ref Peridynamics.bond_is_active) and
+[`get_damage`](@ref Peridynamics.get_damage) and never by field name, and a material that
+kills bonds writes through [`break_bond!`](@ref Peridynamics.break_bond!) and
+[`break_bonds!`](@ref Peridynamics.break_bonds!). The relation between the critical energy
+release rate `Gc` and the critical stretch `εc` depends on the micro-modulus, so a material
+with a non-constant one defines
 [`critical_stretch`](@ref Peridynamics.critical_stretch) and
 [`energy_release_rate`](@ref Peridynamics.energy_release_rate). A model that softens a bond
 instead of deleting it does so through
@@ -249,6 +256,10 @@ path honors them.
 ```@docs
 Peridynamics.calc_failure!
 Peridynamics.calc_damage!
+Peridynamics.bond_is_active
+Peridynamics.get_damage
+Peridynamics.break_bond!
+Peridynamics.break_bonds!
 Peridynamics.get_dmgmodel
 Peridynamics.get_frac_params
 Peridynamics.critical_stretch
@@ -256,6 +267,8 @@ Peridynamics.energy_release_rate
 Peridynamics.has_fracture
 Peridynamics.damage_state
 Peridynamics.damage_storage_type
+Peridynamics.BondFracState
+Peridynamics.InteractionFracState
 Peridynamics.bond_integrity
 Peridynamics.kinematic_weight
 Peridynamics.supports_bond_integrity

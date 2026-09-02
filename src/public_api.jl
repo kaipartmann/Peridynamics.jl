@@ -48,11 +48,13 @@ public SimFloat, LocalPoints, HaloPoints, FullField, EmptyField
 public ConstitutiveState, DamageState
 public ConstitutiveParameters, DamageParameters
 
-# Storage field blocks, to be `@inherit`ed by a storage. Every storage needs the block of
-# the time solver it is used with. The others follow from the system and the material
-# family.
+# Storage field blocks, to be `@inherit`ed by a storage or a damage state. Every storage
+# needs the block of the time solver it is used with. The fracture bookkeeping blocks are
+# inherited inside a `@dmg_storage` declaration, the others follow from the system and the
+# material family.
 public VelocityVerletFields, DynamicRelaxationFields, NewtonKrylovFields
 public BondLengthCache, BondFracFields, InteractionFracFields, RKCFields
+public BondFracState, InteractionFracState
 
 # Point parameter blocks, to be `@inherit`ed by a set of point parameters.
 public DiscretizationParameters, ElasticParameters, BBElasticParameters
@@ -100,6 +102,10 @@ public is_history_dependent, supports_history_dependence
 public get_dmgmodel, get_frac_params, has_fracture, calc_failure!, calc_damage!
 public damage_state, damage_storage_type
 public critical_stretch, energy_release_rate
+# The damage model is a plug-in box: everything outside of it reads the fracture
+# bookkeeping through these functions and never by field name, and a material that kills
+# bonds writes through them.
+public bond_is_active, get_damage, break_bond!, break_bonds!
 # A damage model may soften a bond instead of deleting it. `bond_integrity` scales the load
 # a bond still carries, `kinematic_weight` scales what it contributes to the deformation
 # gradient. Both default to one. A material says whether its force path honors them.

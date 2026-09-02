@@ -419,6 +419,13 @@ end
         return zeros(get_n_bonds(system))
     end
 
+    # `bond_active` is declared with a container type here, so nothing knows how to
+    # allocate it and an `init_field` method is needed, exactly like for `my_own_field`
+    function Peridynamics.init_field(::LegacyMat, ::AbstractTimeSolver, system::BondSystem,
+                                     ::Val{:bond_active})
+        return ones(Bool, get_n_bonds(system))
+    end
+
     function Peridynamics.force_density_point!(storage::LegacyStorage, system, ::LegacyMat,
                                                params, t, Δt, i)
         return nothing

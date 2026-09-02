@@ -142,7 +142,6 @@ $(block_table(BACStorage))
 """
 @storage BACMaterial struct BACStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit BondFracFields
     @htl b_int::PointVector
     stress::PointTensor
     von_mises_stress::PointScalar
@@ -176,7 +175,7 @@ function force_density_point!(storage::BACStorage, system::BondAssociatedSystem,
     offset = first(bond_ids_of_i) - 1
     for k in eachindex(bond_ids_of_i)
         bond_idx = offset + k
-        storage.bond_active[bond_idx] || continue
+        bond_is_active(storage, system, bond_idx) || continue
         j = system.bonds[bond_idx].neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         tij = kernel(system, bond_idx) * (get_tensor(storage.bond_stress, k) * ΔXij)
@@ -193,12 +192,12 @@ end
 function collect_bond_stress!(storage::BACStorage, system::BondAssociatedSystem,
                               mat::BACMaterial, params::BACPointParameters, t, Δt, i,
                               bond_idx)
-    if storage.damage[i] > mat.maxdmg
-        storage.bond_active[bond_idx] = false
+    if get_damage(storage, i) > mat.maxdmg
+        break_bond!(storage, system, get_dmgmodel(mat), i, bond_idx)
         return nothing
     end
     # a broken bond has no share of the energy, so its family is never needed
-    storage.bond_active[bond_idx] || return nothing
+    bond_is_active(storage, system, bond_idx) || return nothing
     defgrad_res = calc_deformation_gradient(storage, system, mat, params, i, bond_idx)
     (; F, too_damaged) = defgrad_res
     # without a usable deformation gradient there is no stress, but breaking the bond is
@@ -209,7 +208,7 @@ function collect_bond_stress!(storage::BACStorage, system::BondAssociatedSystem,
     wPKinv = volume_fraction_factor(system, i, bond_idx) * PKinv
     offset = first(each_bond_idx(system, i)) - 1
     for k in system.intersection_bond_ids[bond_idx]
-        storage.bond_active[offset + k] || continue
+        bond_is_active(storage, system, offset + k) || continue
         update_add_tensor!(storage.bond_stress, k, wPKinv)
     end
     return nothing
@@ -232,12 +231,11 @@ function calc_deformation_gradient(storage::BACStorage, system::BondAssociatedSy
                                    mat::BACMaterial, params::BACPointParameters, i,
                                    bond_idx)
     (; bonds, volume, ba_hood_volume) = system
-    (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     intact_volume = 0.0
     for bond_id in each_intersecting_bond_idx(system, i, bond_idx)
-        bond_active[bond_id] || continue
+        bond_is_active(storage, system, bond_id) || continue
         bond = bonds[bond_id]
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)

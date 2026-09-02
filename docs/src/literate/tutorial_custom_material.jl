@@ -15,7 +15,7 @@
 using Peridynamics
 using Peridynamics: BondSystem, each_bond_idx, get_params, get_n_loc_points,
                     get_vector_diff, update_add_vector!, surface_correction_factor,
-                    current_bond_length
+                    current_bond_length, bond_is_active
 
 # ## The material
 #
@@ -120,14 +120,16 @@ Peridynamics.DiscretizationParameters
 # [`@storage`](@ref Peridynamics.@storage) generates the struct, its type parameters, the
 # allocation, the halo exchange lists and the `Adapt` rule.
 #
-# `@inherit` pulls in the fields of the three time solvers and of the fracture bookkeeping,
-# so the material works with all of them. We add one bond field of our own, so that the
-# tutorial can also show how a field that is not a standard output reaches a VTK file.
+# `@inherit` pulls in the fields of the three time solvers, so the material works with all
+# of them. The fracture bookkeeping is not declared here: it belongs to the damage model,
+# and the `dmg_state::DamageState` marker is where the model puts it, whichever model the
+# material is used with. We add one bond field of our own, so that the tutorial can also
+# show how a field that is not a standard output reaches a VTK file.
 
 Peridynamics.@storage ConicalBBMaterial struct ConicalBBStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit BondFracFields
     stretch::BondScalar
+    dmg_state::DamageState
 end
 
 # A field shape such as `BondScalar` says what a field means: how many entries it has, what
@@ -154,10 +156,12 @@ end
 #   caches bond lengths and on one that does not. A kernel that needs the stretch and not the
 #   length takes `bond_stretch(storage, system, i, bond_id)` instead, which is what the damage
 #   model tutorial does.
-# - **The storage**, through the fields of the blocks it inherited and its own fields. Here
-#   these are `storage.position` and `storage.b_int` from the solver blocks,
-#   `storage.bond_active` from `BondFracFields`, and `storage.stretch`. The table of
-#   every block says which fields it brings.
+# - **The storage**, through the fields of the blocks it inherited and its own fields, all
+#   read the same flat way. Here these are `storage.position` and `storage.b_int` from the
+#   solver blocks and `storage.stretch`. The table of every block says which fields it
+#   brings. Whether a bond is broken is not read from a field but asked with
+#   `bond_is_active(storage, system, bond_id)`, because the bookkeeping belongs to the
+#   damage model and a material does not know which model it runs with.
 # - **The parameters**: `paramsetup` is the parameter setup of the chunk, and
 #   `get_params(paramsetup, i)` resolves the set of point `i`, with everything the `@params`
 #   block declared.
@@ -180,7 +184,8 @@ function Peridynamics.force_density_point!(storage::ConicalBBStorage, system::Bo
         c = params.bc * (1 - L / params.δ)
 
         ## a broken bond carries no force, and the surface correction is 1 for `NoCorrection`
-        ω = storage.bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        ω = bond_is_active(storage, system, bond_id) *
+            surface_correction_factor(correction, bond_id)
 
         ## the bond force, accumulated into point `i`
         b = ω * c * ε * volume[j] / l .* Δxij
@@ -190,7 +195,7 @@ function Peridynamics.force_density_point!(storage::ConicalBBStorage, system::Bo
 end
 
 # Which bonds are broken was decided right before this call by the damage model, which is
-# why the force density only multiplies `bond_active` in and never touches it.
+# why the force density only multiplies `bond_is_active` in and never breaks anything.
 
 # ### The fracture parameters
 #

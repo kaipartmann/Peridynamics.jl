@@ -188,8 +188,9 @@ end
 Recompute the gradient weights of a reproducing kernel material for every point of `fixture`.
 
 [`force_density!`](@ref) does not reach this. The weights are only recomputed where damage has
-just grown, and `calc_damage!` rewrites the `update_gradients` flag at the start of every force
-calculation, so an undamaged body never enters it and the cost stays invisible.
+just grown, and the RKC force path rewrites the `update_gradients` flag at the start of every
+force calculation from the damage before and after `calc_damage!`, so an undamaged body never
+enters it and the cost stays invisible.
 """
 gradient_weights!(fixture) = Peridynamics.initialize!(fixture.chunk)
 

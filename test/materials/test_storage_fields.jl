@@ -10,18 +10,25 @@
     # A shape spec is a tuple of (d, count): d rows and `count` columns, where `count` is
     # `:all` (points incl. halo), `:loc` (local points), `:bonds`, `:dof` (local dof),
     # `:neighbors` (max. neighbors of a point); `(d,)` with d === 0 is empty, `(:state,)` is
-    # the nested state of a constitutive or damage model that carries no state. Vectors use
-    # d = 1.
+    # the nested state of a constitutive model that carries no state, and `(:dmg_state,)`
+    # the state of the damage model, which carries the fracture bookkeeping of the system
+    # family. Vectors use d = 1.
     const COMMON_FIELDS = Dict(
         :position => (3, :all),
         :displacement => (3, :loc),
-        :damage => (1, :loc),
     )
 
-    # fields the bond systems share, beyond `COMMON_FIELDS`
-    const BOND_SYSTEM_FIELDS = Dict(
+    # the fracture bookkeeping of `CriticalStretch`, carried in `dmg_state` and named by
+    # the system family
+    const BOND_FRAC_STATE = Dict(
+        :damage => (1, :loc),
         :n_active_bonds => (1, :loc),
         :bond_active => (1, :bonds),
+    )
+    const INTERACTION_FRAC_STATE = Dict(
+        :damage => (1, :loc),
+        :n_active_one_nis => (1, :loc),
+        :one_ni_active => (1, :bonds),
     )
 
     # per solver: the fields it needs and how, and the fields of the others it leaves empty
@@ -62,24 +69,24 @@
     # what each material adds to the common fields
     const MATERIAL_FIELDS = [
         BBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds),
-                             :dmg_state => (:state,)),
+                             :dmg_state => (:dmg_state,)),
         DHBBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds),
-                               :dmg_state => (:state,)),
+                               :dmg_state => (:dmg_state,)),
         GBBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds),
-                              :dmg_state => (:state,), :weighted_volume => (1, :loc)),
+                              :dmg_state => (:dmg_state,), :weighted_volume => (1, :loc)),
         OSBMaterial() => Dict(:strain_energy_density => (1, :loc), :bond_length => (1, :bonds),
-                              :dmg_state => (:state,)),
+                              :dmg_state => (:dmg_state,)),
         CMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :loc),
                             :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc),
-                            :cm_state => (:state,), :dmg_state => (:state,)),
+                            :cm_state => (:state,), :dmg_state => (:dmg_state,)),
         CRMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :loc),
                              :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc),
                              :unrotated_stress => (9, :loc), :left_stretch => (9, :loc),
                              :rotation => (9, :loc), :zem_stiffness_rotated => (3, 3, 3, 3),
-                             :dmg_state => (:state,)),
+                             :dmg_state => (:dmg_state,)),
         RKCMaterial() => Dict(:strain_energy_density => (1, :loc), :defgrad => (9, :all),
                               :weighted_volume => (1, :all), :update_gradients => (1, :loc),
-                              :dmg_state => (:state,),
+                              :dmg_state => (:dmg_state,),
                               :cauchy_stress => (9, :loc), :von_mises_stress => (1, :loc),
                               :gradient_weight => (3, :bonds),
                               :bond_first_piola_kirchhoff => (9, :bonds),
@@ -91,12 +98,12 @@
                                :bond_first_piola_kirchhoff => (9, :bonds),
                                :left_stretch => (9, :bonds), :rotation => (9, :bonds),
                                :bond_unrot_cauchy_stress => (9, :bonds),
-                               :dmg_state => (:state,)),
+                               :dmg_state => (:dmg_state,)),
         BACMaterial() => Dict(:stress => (9, :loc), :von_mises_stress => (1, :loc),
                               :bond_stress => (9, :neighbors), :cm_state => (:state,),
-                              :dmg_state => (:state,)),
-        CKIMaterial() => Dict(:strain_energy_density => (1, :loc), :n_active_one_nis => (1, :loc),
-                              :one_ni_active => (1, :bonds), :dmg_state => (:state,)),
+                              :dmg_state => (:dmg_state,)),
+        CKIMaterial() => Dict(:strain_energy_density => (1, :loc),
+                              :dmg_state => (:dmg_state,)),
     ]
 
     # the expected size of a field with shape `spec`, given the `counts` of the system
@@ -140,7 +147,6 @@
         n = counts(system)
         expected = merge(COMMON_FIELDS, SOLVER_FIELDS[typeof(solver)],
                          Dict(MATERIAL_FIELDS)[mat])
-        system isa Peridynamics.AbstractBondSystem && merge!(expected, BOND_SYSTEM_FIELDS)
         expected[:b_int] = b_int_spec(mat, solver)
         expected[:velocity_half] = velocity_half_spec(mat, solver)
         # the rotated formulations are not supported by the Newton-Krylov solver and have no
@@ -156,7 +162,9 @@
         for (field, spec) in expected
             hasfield(typeof(storage), field) || continue
             value = getfield(storage, field)
-            if spec[1] === :state
+            if spec[1] === :dmg_state
+                check_frac_state(value, system, n)
+            elseif spec[1] === :state
                 # the nested state of a stateless model is `nothing`
                 @test isnothing(value) || (field, typeof(value)) === nothing
             elseif spec[1] == 0
@@ -164,6 +172,21 @@
             else
                 @test size(value) == expected_size(spec, n) || (field, size(value)) === nothing
             end
+        end
+        return nothing
+    end
+
+    # the damage state of `CriticalStretch` is the fracture bookkeeping of the system
+    # family, allocated like a flat field and reachable flat through the storage
+    function check_frac_state(state, system, n)
+        expected = system isa Peridynamics.AbstractBondSystem ? BOND_FRAC_STATE :
+                   INTERACTION_FRAC_STATE
+        @test state isa Peridynamics.AbstractDamageState
+        @test Set(fieldnames(typeof(state))) == Set(keys(expected))
+        for (field, spec) in expected
+            hasfield(typeof(state), field) || continue
+            value = getfield(state, field)
+            @test size(value) == expected_size(spec, n) || (field, size(value)) === nothing
         end
         return nothing
     end

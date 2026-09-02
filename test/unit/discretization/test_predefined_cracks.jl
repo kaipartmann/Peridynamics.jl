@@ -339,16 +339,17 @@ end
         return first(Peridynamics.chop_body_threads(body, VelocityVerlet(steps=10), pd, ps))
     end
 
-    # the default damage model tracks the crack with `bond_active` and carries no state
+    # the default damage model tracks the crack with the `bond_active` of its state
     b1 = chunk_with_precrack(RKCMaterial())
     @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
     @test b1.storage.n_active_bonds == [1, 1]
-    @test isnothing(damage_state(b1.storage))
+    @test damage_state(b1.storage) isa Peridynamics.BondFracState
     @test b1.storage.damage ≈ [2 / 3, 2 / 3]
 
-    # a damage model with a state of its own writes the crack into that state as well
+    # a damage model with extra state of its own writes the crack into that state as well
     struct MarkedDamage <: Peridynamics.AbstractDamageModel end
     Peridynamics.@dmg_storage MarkedDamage struct MarkedState
+        @inherit BondFracFields
         bond_marked::BondScalar{Bool}
     end
     Peridynamics.@dmg_params MarkedDamage struct MarkedDamageParameters

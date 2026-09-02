@@ -117,6 +117,8 @@ include("core/threads_multibody_data_handler.jl")
 include("core/mpi_body_data_handler.jl")
 include("core/mpi_multibody_data_handler.jl")
 
+include("physics/critical_stretch.jl")
+
 include("time_solvers/velocity_verlet.jl")
 include("time_solvers/dynamic_relaxation.jl")
 include("time_solvers/newton_krylov.jl")

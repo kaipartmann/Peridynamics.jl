@@ -2,14 +2,11 @@
 # declaration framework (shapes, blocks, allocation) is tested in `test_storage_fields.jl`.
 
 @testitem "required_fields: the type-level part of the storage contract" begin
-    # only the solver-independent, type-level part of the contract is checked by `@storage`
+    # the fracture bookkeeping belongs to the damage model and is checked at Job creation,
+    # so nothing is left that could be known from the material type alone
     @test Peridynamics.required_fields(Peridynamics.AbstractMaterial) === ()
-
-    rf_bb = (:damage, :n_active_bonds, :bond_active)
-    @test Peridynamics.required_fields(BBMaterial) === rf_bb
-
-    rf_cki = (:damage, :n_active_one_nis, :one_ni_active)
-    @test Peridynamics.required_fields(CKIMaterial) === rf_cki
+    @test Peridynamics.required_fields(BBMaterial) === ()
+    @test Peridynamics.required_fields(CKIMaterial) === ()
 end
 
 @testitem "req_storage_fields: material, damage model and time solver" begin
@@ -24,8 +21,8 @@ end
     @test Peridynamics.req_storage_fields(RKCRMaterial()) === rf_rkc
 
     # damage models are dispatched together with the material, and a material without a
-    # damage model must not error
-    @test Peridynamics.req_storage_fields(BBMaterial(), CriticalStretch()) === ()
+    # damage model must not error; a model with a state needs the marker that carries it
+    @test Peridynamics.req_storage_fields(BBMaterial(), CriticalStretch()) === (:dmg_state,)
     @test Peridynamics.req_storage_fields(BBMaterial(), nothing) === ()
 
     # time solvers are dispatched on the instance that is actually used
@@ -73,7 +70,8 @@ end
         @inherit StandardParameters
     end
     Peridynamics.@storage ContractMat struct ContractStorage
-        @inherit VelocityVerletFields BondFracFields
+        @inherit VelocityVerletFields
+        dmg_state::DamageState
     end
     function Peridynamics.force_density_point!(::ContractStorage, system, ::ContractMat,
                                                params, t, Δt, i)
@@ -234,19 +232,8 @@ end
     struct StorageWrong1 <: Peridynamics.AbstractStorage end
     @test_throws InterfaceError Peridynamics.point_data_fields(StorageWrong1)
 
-    # the fields of the system are checked when the macro is expanded: `n_active_bonds` and
-    # `n_active_one_nis` are missing
-    @test_throws ErrorException @storage Mat1 struct StorageMissing1
-        @inherit VelocityVerletFields
-        damage::PointScalar
-        bond_active::BondScalar{Bool}
-    end
-
-    @test_throws ErrorException @storage Mat2 struct StorageMissing2
-        @inherit VelocityVerletFields
-        damage::PointScalar
-        one_ni_active::Vector{Bool}
-    end
+    # the fracture bookkeeping belongs to the damage model and is checked when a Job is
+    # created, see `check_damage_model`, so nothing about it is checked at expansion time
 
     # an untyped field is rejected when the macro is expanded
     try
@@ -485,7 +472,68 @@ end
     # a material without a damage model has a contract whose damage part is `Nothing`
     @test isnothing(Peridynamics.get_dmgmodel(ManualMat()))
     contract = storage_contract(ManualMat(), VelocityVerlet(steps=1))
-    @test length(contract) == 4
-    @test contract[3] == ((), "the damage model `Nothing`")
-    @test contract[2] == ((), "the material `ManualMat`")
+    @test length(contract) == 3
+    @test contract[2] == ((), "the damage model `Nothing`")
+    @test contract[1] == ((), "the material `ManualMat`")
+end
+
+@testitem "storage property forwarding: flat reads reach into the nested states" setup=[Fixtures] begin
+    # `storage.bond_active` reads a field that lives in the state of the damage model, so
+    # a kernel never sees the nesting; a flat field is read exactly as before
+    body = Fixtures.cube(BBMaterial())
+    storage = Fixtures.chunk(body).storage
+    state = Peridynamics.damage_state(storage)
+    @test storage.bond_active === state.bond_active
+    @test storage.damage === state.damage
+    @test storage.b_int === Base.getfield(storage, :b_int)
+
+    # destructuring goes through `getproperty` and works for both kinds
+    (; n_active_bonds, b_int) = storage
+    @test n_active_bonds === state.n_active_bonds
+    @test b_int === Base.getfield(storage, :b_int)
+
+    # `propertynames` lists the fields plus what the states hold
+    names = propertynames(storage)
+    @test :bond_active in names
+    @test :damage in names
+    @test :b_int in names
+    @test :dmg_state in names
+
+    # an unknown name falls through to `getfield` and its native error
+    @test_throws Exception storage.not_a_field
+
+    # an ambiguous name reports both homes and how to read it directly
+    err = try
+        Peridynamics.ambiguous_storage_property(:damage, storage, (:cm_state, :dmg_state))
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test contains(err.msg, "`damage` exists in `cm_state` and `dmg_state`")
+    @test contains(err.msg, "storage.cm_state.damage")
+end
+
+@testitem "check_state_field_collisions: a flat field must not shadow a state field" begin
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, check_storage_contract
+
+    # a storage that declares the bookkeeping flat although the damage model carries it
+    struct CollMat{D} <: AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::D
+    end
+    CollMat() = CollMat(CriticalStretch())
+    Peridynamics.@params CollMat struct CollParams
+        @inherit StandardParameters
+    end
+    Peridynamics.@storage CollMat struct CollStorage
+        @inherit VelocityVerletFields BondFracFields
+        dmg_state::DamageState
+    end
+    err = try
+        check_storage_contract(CollMat(), VelocityVerlet(steps=1))
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test contains(err.msg, "CollStorage")
+    @test contains(err.msg, "Remove the flat declaration")
 end

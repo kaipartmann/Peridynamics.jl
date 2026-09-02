@@ -52,14 +52,20 @@ end
 
 # ## The state
 #
-# The accumulated damage of every bond has to survive from one time step to the next.
-# [`@dmg_storage`](@ref Peridynamics.@dmg_storage) declares it with the field shapes of
-# [`@storage`](@ref Peridynamics.@storage). The state is allocated with the storage of
+# A damage model owns the fracture bookkeeping. Inheriting
+# [`BondFracFields`](@ref Peridynamics.BondFracFields) brings `bond_active`,
+# `n_active_bonds` and `damage`, the fields every model that deletes bonds maintains, and
+# with them every default of the interface functions, e.g.
+# [`bond_is_active`](@ref Peridynamics.bond_is_active), which is how the materials read the
+# flag. Inside the methods of the model itself the fields are read flat off the storage, as
+# if the material had declared them, because there they are its own data. The accumulated
+# damage of every bond is a field of our own next to them, declared with the field shapes
+# of [`@storage`](@ref Peridynamics.@storage). The state is allocated with the storage of
 # whatever material the model is attached to, moves with it to another array backend and is
-# never exchanged between chunks, because a bond belongs to one point. A model without a
-# state simply skips this declaration.
+# never exchanged between chunks, because a bond belongs to one point.
 
 Peridynamics.@dmg_storage DelayedFailure struct DelayedFailureState
+    @inherit BondFracFields
     bond_damage::BondScalar
 end
 
@@ -67,9 +73,10 @@ end
 #
 # This is the one method a damage model has to define. It is called once per local point and
 # per time step, right before the force density, and it receives the time and the time step.
-# Its contract is short: deactivate the bonds that fail, count the ones that are still active
-# in `n_active_bonds`, and never break a bond whose `fail_permit` is `false`, because that is
-# how [`no_failure!`](@ref) and the pre-cracks are honored.
+# Its contract is short: reset the count of the point, deactivate the bonds that fail, count
+# the ones that are still active in `n_active_bonds`, and never break a bond whose
+# `fail_permit` is `false`, because that is how [`no_failure!`](@ref) and the pre-cracks are
+# honored.
 #
 # The state is reached with [`damage_state`](@ref Peridynamics.damage_state). The bonds are
 # read exactly as in a force density: `each_bond_idx` and `system.bonds[bond_id]`. The
@@ -83,6 +90,7 @@ function Peridynamics.calc_failure!(storage, system::BondSystem, mat, ::DelayedF
                                     paramsetup, t, Δt, i)
     (; εc, τ) = get_params(paramsetup, i)
     (; bond_damage) = damage_state(storage)
+    storage.n_active_bonds[i] = 0
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         ε = bond_stretch(storage, system, i, bond_id)

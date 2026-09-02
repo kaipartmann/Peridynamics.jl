@@ -405,26 +405,6 @@ function update_volume_three_nis!(system, volume_hood)
     return nothing
 end
 
-function failure_by_sets!(storage, system::InteractionSystem, ::AbstractDamageModel, set_a,
-                          set_b)
-    storage.n_active_one_nis .= 0
-    for point_id in each_point_idx(system)
-        for bond_id in each_one_ni_idx(system, point_id)
-            bond = system.one_nis[bond_id]
-            neighbor_id = bond.neighbor
-            point_in_a = in(point_id, set_a)
-            point_in_b = in(point_id, set_b)
-            neigh_in_a = in(neighbor_id, set_a)
-            neigh_in_b = in(neighbor_id, set_b)
-            if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
-                storage.one_ni_active[bond_id] = false
-            end
-            storage.n_active_one_nis[point_id] += storage.one_ni_active[bond_id]
-        end
-    end
-    return nothing
-end
-
 function calc_timestep_point(system::InteractionSystem, params::AbstractPointParameters,
                              point_id::Int)
     dtsum = 0.0
@@ -446,28 +426,10 @@ function calc_force_density!(storage::AbstractStorage, system::InteractionSystem
                              paramsetup::AbstractParameterSetup, t, Δt)
     (; dmgmodel) = mat
     storage.b_int .= 0
-    storage.n_active_one_nis .= 0
     for i in each_point_idx(system)
         calc_failure!(storage, system, mat, dmgmodel, paramsetup, t, Δt, i)
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
-    end
-    return nothing
-end
-
-function calc_failure!(storage::AbstractStorage, system::InteractionSystem,
-                       mat::AbstractInteractionSystemMaterial, dmgmodel::CriticalStretch,
-                       paramsetup::AbstractParameterSetup, t, Δt, i)
-    (; εc) = get_params(paramsetup, i)
-    (; n_active_one_nis, one_ni_active) = storage
-    (; one_nis) = system
-    for bond_id in each_one_ni_idx(system, i)
-        one_ni = one_nis[bond_id]
-        ε = bond_stretch(storage, system, i, bond_id)
-        if ε > εc && one_ni.fail_permit
-            one_ni_active[bond_id] = false
-        end
-        n_active_one_nis[i] += one_ni_active[bond_id]
     end
     return nothing
 end
@@ -479,16 +441,6 @@ function calc_damage!(chunk::AbstractBodyChunk{<:InteractionSystem})
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, point_id)
     end
     return nothing
-end
-
-function calc_damage!(storage::AbstractStorage, system::InteractionSystem,
-                      mat::AbstractInteractionSystemMaterial, dmgmodel::AbstractDamageModel,
-                      paramsetup::AbstractParameterSetup, i)
-    @inbounds storage.damage[i] = 1 - storage.n_active_one_nis[i] / system.n_one_nis[i]
-end
-
-@inline function one_ni_failure(storage::AbstractStorage, one_ni_id::Int)
-    return storage.one_ni_active[one_ni_id]
 end
 
 function log_msg_interaction_system(n_one_nis::Int, n_two_nis::Int, n_three_nis::Int)
@@ -532,48 +484,15 @@ function calc_n_interactions(dh::AbstractMPIBodyDataHandler)
     return n_one_nis, n_two_nis, n_three_nis
 end
 
-function init_field_system(system::InteractionSystem, ::Val{:one_ni_active})
-    return ones(Bool, get_n_one_nis(system))
-end
-
+# the interaction count is system knowledge, so this initial value serves the field inside
+# a damage state and as a flat storage field alike; `one_ni_active` and `damage` need no
+# hook, their initial values follow from the declarations of `InteractionFracFields`
 function init_field_system(system::InteractionSystem, ::Val{:n_active_one_nis})
     return copy(system.n_one_nis)
 end
 
-function init_field_system(system::InteractionSystem, ::Val{:damage})
-    return zeros(get_n_loc_points(system))
-end
-
-function req_point_data_fields_fracture(::Type{<:AbstractInteractionSystemMaterial})
-    return (:damage, :n_active_one_nis)
-end
-
-function req_bond_data_fields_fracture(::Type{<:AbstractInteractionSystemMaterial})
-    return (:one_ni_active,)
-end
-
-function req_data_fields_fracture(::Type{<:AbstractInteractionSystemMaterial})
-    return ()
-end
-
 function required_point_parameters(::Type{<:AbstractInteractionSystemMaterial})
     return (:δ, :rho, elasticity_parameters()..., :C1, :C2, :C3)
-end
-
-"""
-    InteractionFracFields
-
-$(extension_api_note())
-
-The storage fields of the fracture bookkeeping of an interaction system, see
-[`@storage_fields`](@ref). All of them are allocated by `init_field_system`.
-
-$(block_table(InteractionFracFields))
-"""
-@storage_fields InteractionFracFields begin
-    damage::PointScalar
-    n_active_one_nis::PointScalar{Int}
-    one_ni_active::Vector{Bool}
 end
 
 function get_interaction_parameters(mat::AbstractInteractionSystemMaterial, params;
@@ -597,6 +516,10 @@ function get_interaction_parameters(mat::AbstractInteractionSystemMaterial, para
 end
 
 @inline get_n_one_nis(system::InteractionSystem) = length(system.one_nis)
+
+# the bond-shaped fields of an interaction system are the one-neighbor interactions, so
+# `BondScalar` and its siblings allocate with one entry per one-neighbor interaction
+@inline get_n_bonds(system::InteractionSystem) = get_n_one_nis(system)
 
 function log_material_property(::Val{:dmgmodel}, mat::AbstractInteractionSystemMaterial;
                                indentation::Int=2)

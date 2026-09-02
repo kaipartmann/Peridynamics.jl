@@ -216,15 +216,20 @@ end
 
 $(extension_api_note())
 
-Decide which bonds of point `i` have failed and update the fracture bookkeeping of the
-storage accordingly. This is the one method a damage model has to define. It is called once
+Decide which bonds of point `i` have failed and update the fracture bookkeeping
+accordingly. This is the one method a damage model has to define. It is called once
 per local point and per time step, right before [`force_density_point!`](@ref).
 
-A method sets `storage.bond_active[bond_id] = false` for every bond that fails and adds
-every bond that is still active to `storage.n_active_bonds[i]`, because that count is what
+The bookkeeping lives in the state of the model itself, declared with
+[`@dmg_storage`](@ref) by inheriting the block of the system family, e.g.
+[`BondFracFields`](@ref), and read flat off the storage. A method starts by resetting the
+count of the point with `storage.n_active_bonds[i] = 0`, then sets
+`storage.bond_active[bond_id] = false` for every bond that fails and adds every bond that
+is still active to `storage.n_active_bonds[i]`, because that count is what
 [`calc_damage!`](@ref) turns into the damage of the point. A bond whose `fail_permit` is
 `false` must never fail, which is how [`no_failure!`](@ref) and the pre-cracks are honored.
-A model with a state of its own reaches it with [`damage_state`](@ref).
+A model with extra state of its own reaches it the same flat way, or with
+[`damage_state`](@ref).
 
 The stretch of a bond is read with [`bond_stretch`](@ref) and its current length with
 [`current_bond_length`](@ref), never by gathering the two positions and taking the norm. A
@@ -252,6 +257,7 @@ replaces:
 ```julia
 function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup, t, Δt, i)
     (; εc) = Peridynamics.get_params(paramsetup, i)
+    storage.n_active_bonds[i] = 0
     for bond_id in Peridynamics.each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         ε = Peridynamics.bond_stretch(storage, system, i, bond_id)
@@ -276,6 +282,40 @@ function calc_failure!(storage, system, mat, dmgmodel::AbstractDamageModel, para
     hint *= "        end"
     return throw(InterfaceError(dmgmodel, "calc_failure!", hint))
 end
+
+"""
+    calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
+
+$(extension_api_note())
+
+Reduce the bond-wise state of the damage model to the damage of point `i`, which is the
+scalar written to `storage.damage` and exported as the `:damage` field. It is called once
+per local point and per time step, directly after [`calc_failure!`](@ref), and
+[`get_damage`](@ref) is the reading counterpart.
+
+The default is the fraction of broken bonds, `1 - n_active_bonds[i] / n_neighbors[i]`,
+which is what a model that deletes bonds wants. It is written for the standard bookkeeping
+and does nothing when the storage does not carry it, so a model that inherits
+[`BondFracFields`](@ref) needs no method of its own and any other model defines one
+dispatching on its model type. A model that degrades a bond continuously instead of
+deleting it defines its own method, so that a partially damaged bond is counted with its
+degree of damage rather than as intact, see [`kinematic_weight`](@ref) and
+[`bond_integrity`](@ref).
+
+# Arguments
+
+- `storage`: The storage of the body chunk. A stateful damage model reaches its own bond
+    fields with [`damage_state`](@ref).
+- `system`: The system of the body chunk.
+- `mat`: The material.
+- `dmgmodel`: The damage model, i.e. what a new model dispatches on.
+- `paramsetup`: The parameters of the body chunk. Resolve them with [`get_params`](@ref).
+- `i::Int`: The index of the local point that is evaluated.
+
+See also [`calc_failure!`](@ref), [`get_damage`](@ref), [`@dmg_storage`](@ref),
+`AbstractDamageModel`.
+"""
+function calc_damage! end
 
 """
     has_fracture(mat, params)
@@ -319,10 +359,20 @@ Return the damage model of `mat`, or `nothing` if the material has no damage mod
 end
 
 # a damage model that declares a state with `@dmg_storage` needs a storage that carries it
-function req_storage_fields(::AbstractMaterial, dmgmodel::AbstractDamageModel)
-    return damage_storage_type(dmgmodel) === Nothing ? () : (:dmg_state,)
+function req_storage_fields(mat::AbstractMaterial, dmgmodel::AbstractDamageModel)
+    return damage_storage_type(dmgmodel, system_type(mat)) === Nothing ? () : (:dmg_state,)
 end
 req_storage_fields(::AbstractMaterial, ::Nothing) = ()
+
+# a material without a damage model has no failure to evaluate and no damage to reduce, so
+# the standard force density loop runs with both steps as no-ops
+function calc_failure!(storage, system, mat, dmgmodel::Nothing, paramsetup, t, Δt, i)
+    return nothing
+end
+
+function calc_damage!(storage, system, mat, dmgmodel::Nothing, paramsetup, i)
+    return nothing
+end
 
 # --------------------------------------------------------------------------------------
 # state of a damage model
@@ -337,19 +387,26 @@ req_storage_fields(::AbstractMaterial, ::Nothing) = ()
 # --------------------------------------------------------------------------------------
 
 """
-    damage_storage_type(dmgmodel)
-    damage_storage_type(dmgmodel, ::Type{FT})
+    damage_storage_type(dmgmodel, ::Type{System})
+    damage_storage_type(dmgmodel, ::Type{System}, ::Type{FT})
 
 $(extension_api_note())
 
-Return the type of the state of a damage model, instantiated for the float type `FT` of the
-simulation, or `Nothing` for a model without state. This method is generated by
-[`@dmg_storage`](@ref) and is the damage-model analogue of [`storage_type`](@ref).
+Return the type of the state a damage model carries on the system family `System`,
+instantiated for the float type `FT` of the simulation, or `Nothing` for a model without
+state. This method is generated by [`@dmg_storage`](@ref) and is the damage-model analogue
+of [`storage_type`](@ref). The system type is dispatched on because the fracture
+bookkeeping is named by the system family, e.g. [`CriticalStretch`](@ref) carries
+[`BondFracFields`](@ref) on a bond system and [`InteractionFracFields`](@ref) on an
+[`InteractionSystem`](@ref). Note that [`constitutive_storage_type`](@ref) takes no system,
+the state of a constitutive model is the same on every system.
 """
 function damage_storage_type end
 
-damage_storage_type(dmgmodel) = Nothing
-damage_storage_type(dmgmodel, ::Type) = damage_storage_type(dmgmodel)
+function damage_storage_type(dmgmodel, ::Type{<:AbstractSystem},
+                             ::Type=default_float_type())
+    return Nothing
+end
 
 """
     get_dmg_storage(dmgmodel, solver, system)
@@ -403,24 +460,115 @@ function has_damage_state end
 
 has_damage_state(::Type) = false
 
-function required_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
-    fields = (req_point_data_fields_fracture(Material)...,
-              req_bond_data_fields_fracture(Material)...,
-              req_data_fields_fracture(Material)...)
-    return fields
+"""
+    has_storage_field(::Type{Storage}, ::Val{field})
+
+$(internal_api_warning())
+
+Return whether a storage type provides a field, flat or through one of its nested states.
+The answer is computed when the generated function is expanded, so a guard like
+`has_storage_field(typeof(storage), Val(:bond_active))` folds to a constant and the branch
+that is not taken disappears from the compiled code. This is what makes the default methods
+of [`bond_is_active`](@ref), [`get_damage`](@ref) and [`calc_damage!`](@ref) cost nothing
+on a storage that carries the standard bookkeeping and stay correct on one that does not.
+"""
+@generated function has_storage_field(::Type{S}, ::Val{field}) where {S,field}
+    in(field, fieldnames(S)) && return :(true)
+    for name in fieldnames(S)
+        FT = fieldtype(S, name)
+        FT <: Union{AbstractConstitutiveState,AbstractDamageState} || continue
+        in(field, fieldnames(FT)) && return :(true)
+    end
+    return :(false)
 end
 
-function req_point_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
-    return ()
+"""
+    bond_is_active(storage, system, bond_id)
+
+$(extension_api_note())
+
+Return whether bond `bond_id` is intact. This is what a force density multiplies into the
+influence function or branches on, and on an [`InteractionSystem`](@ref) `bond_id` is the
+index of a one-neighbor interaction. Materials, corrections and every other consumer ask
+this function instead of reading a storage field, which is what makes them work with any
+damage model, including one that carries no bookkeeping at all.
+
+The call is resolved through the state of the damage model, see [`damage_state`](@ref).
+A model with its own notion of a broken bond overrides
+`bond_is_active(state::MyState, storage, system, bond_id)` on its state type. The default
+reads `storage.bond_active` on a bond system and `storage.one_ni_active` on an interaction
+system when the storage provides the field, flat or inside a state, and returns `true`
+otherwise. A model that inherits [`BondFracFields`](@ref) therefore needs no method of its
+own.
+
+# Example
+
+```julia
+for bond_id in Peridynamics.each_bond_idx(system, i)
+    ω = Peridynamics.bond_is_active(storage, system, bond_id) *
+        Peridynamics.surface_correction_factor(system.correction, bond_id)
+end
+```
+"""
+@inline function bond_is_active(storage::AbstractStorage, system::AbstractSystem,
+                                bond_id::Int)
+    return bond_is_active(damage_state(storage), storage, system, bond_id)
 end
 
-function req_bond_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
-    return ()
+"""
+    get_damage(storage, i)
+
+$(extension_api_note())
+
+Return the damage of point `i`, the scalar that [`calc_damage!`](@ref) writes once per
+point and time step. Everything outside the damage model reads the damage through this
+function, e.g. the `maxdmg` mechanism of [`CMaterial`](@ref) and the gradient update
+decision of [`RKCMaterial`](@ref).
+
+The call is resolved through the state of the damage model, see [`damage_state`](@ref).
+A model that stores its damage differently overrides
+`get_damage(state::MyState, storage, i)` on its state type. The default reads
+`storage.damage` when the storage provides the field, flat or inside a state, and returns
+`0.0` otherwise.
+"""
+@inline function get_damage(storage::AbstractStorage, i::Int)
+    return get_damage(damage_state(storage), storage, i)
 end
 
-function req_data_fields_fracture(::Type{Material}) where {Material<:AbstractMaterial}
-    return ()
-end
+"""
+    break_bond!(storage, system, dmgmodel, i, bond_id)
+
+$(extension_api_note())
+
+Mark bond `bond_id` of point `i` as failed. This is how code outside the damage model
+breaks a single bond, e.g. [`BACMaterial`](@ref) when a bond-associated family cannot
+carry stress anymore. The count of active bonds is deliberately left alone, the next
+[`calc_failure!`](@ref) recomputes it. A damage model with bookkeeping of its own defines
+a method dispatching on its model type. The default writes the standard bookkeeping when
+the storage provides it and does nothing otherwise.
+
+See also [`break_bonds!`](@ref), [`bond_is_active`](@ref).
+"""
+function break_bond! end
+
+"""
+    break_bonds!(storage, system, dmgmodel, i)
+
+$(extension_api_note())
+
+Mark every bond of point `i` as failed and zero its count of active bonds. This is how
+code outside the damage model removes a whole point from the force calculation, e.g. the
+`maxdmg` mechanism of [`CMaterial`](@ref). A damage model with bookkeeping of its own
+defines a method dispatching on its model type. The default writes the standard
+bookkeeping when the storage provides it and does nothing otherwise.
+
+See also [`break_bond!`](@ref), [`bond_is_active`](@ref).
+"""
+function break_bonds! end
+
+# a material without a damage model has no bookkeeping to write
+@inline break_bond!(storage, system, dmgmodel::Nothing, i, bond_id) = nothing
+@inline break_bonds!(storage, system, dmgmodel::Nothing, i) = nothing
 
 """
     FractureParameters
@@ -614,13 +762,17 @@ end
 
 $(internal_api_warning())
 
-Check that a damage model that defines [`bond_integrity`](@ref) or
-[`kinematic_weight`](@ref) is combined with a material whose force path calls the hooks,
-see [`supports_bond_integrity`](@ref) and [`supports_kinematic_weight`](@ref). Throws a
-[`SofteningSupportError`](@ref) that names the ignored hooks and how to fix the setup.
+Check that the damage model and the material fit together. This is verified once when a
+[`Job`](@ref) is created, next to [`check_constitutive_model`](@ref): a damage model that
+defines [`bond_integrity`](@ref) or [`kinematic_weight`](@ref) must be combined with a
+material whose force path calls the hooks, see [`supports_bond_integrity`](@ref) and
+[`supports_kinematic_weight`](@ref). Throws a [`SofteningSupportError`](@ref) that names
+the ignored hooks and how to fix the setup.
 
-This check is done once when a [`Job`](@ref) is created, next to
-[`check_constitutive_model`](@ref).
+There is no structural check of the fracture bookkeeping. Every consumer outside the
+damage model reads it through [`bond_is_active`](@ref) and [`get_damage`](@ref), which
+behave neutrally when a model carries no bookkeeping, and a pre-crack that cannot be
+applied throws its own error.
 """
 function check_damage_model(mat::AbstractMaterial)
     dmgmodel = get_dmgmodel(mat)

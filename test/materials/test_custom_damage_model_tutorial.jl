@@ -55,12 +55,15 @@ end
     T = CustomDamageModelTutorial
     mat = BBMaterial(; dmgmodel=T.DelayedFailure())
 
-    # the model brought a state, and the storage of the material carries it concretely
-    @test Peridynamics.damage_storage_type(T.DelayedFailure()) <: Peridynamics.AbstractDamageState
+    # the model brought a state with the inherited bookkeeping and its own field, and the
+    # storage of the material carries it concretely
+    @test Peridynamics.damage_storage_type(T.DelayedFailure(), Peridynamics.BondSystem) <:
+          Peridynamics.AbstractDamageState
     S = Peridynamics.storage_type(mat)
     @test isconcretetype(S)
     @test Peridynamics.has_damage_state(S)
-    @test fieldtype(S, :dmg_state) === T.DelayedFailureState{Float64,Vector{Float64}}
+    @test fieldtype(S, :dmg_state) ===
+          T.DelayedFailureState{Float64,Vector{Float64},Vector{Int},Vector{Bool}}
 
     # one entry per bond of the chunk, starting undamaged
     body = T.bar(mat; Gc=100, tau=2e-6)

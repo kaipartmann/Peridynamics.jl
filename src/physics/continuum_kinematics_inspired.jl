@@ -110,14 +110,14 @@ end
 
 $(extension_api_note())
 
-Storage of [`CKIMaterial`](@ref): the fields of the three time solvers, the fracture
-bookkeeping of the interaction system and the strain energy density of every point.
+Storage of [`CKIMaterial`](@ref): the fields of the three time solvers, the strain energy
+density of every point and the state of the damage model, which carries the fracture
+bookkeeping of the interaction system.
 
 $(block_table(CKIStorage))
 """
 @storage CKIMaterial struct CKIStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit InteractionFracFields
     strain_energy_density::PointScalar
     dmg_state::DamageState
 end
@@ -142,7 +142,8 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
         Δxij = get_vector_diff(storage.position, i, j)
         l = current_bond_length(storage, system, i, one_ni_id)
         params_j = get_params(paramsetup, j)
-        b_int = one_ni_failure(storage, one_ni_id) * (params_i.C1 + params_j.C1) / 2 *
+        b_int = bond_is_active(storage, system, one_ni_id) *
+                (params_i.C1 + params_j.C1) / 2 *
                 (1 / L - 1 / l) * system.volume_one_nis[i] .* Δxij
         update_add_vector!(storage.b_int, i, b_int)
     end
@@ -173,7 +174,8 @@ function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSys
         # tolerance on purpose, the surface carries the units of an area and a tolerance
         # would depend on them, see `isolated_point` of the reproducing kernel materials.
         iszero(surface) && (surface = 1e-40)
-        failure = storage.one_ni_active[oni_j_id] * storage.one_ni_active[oni_k_id]
+        failure = bond_is_active(storage, system, oni_j_id) *
+                  bond_is_active(storage, system, oni_k_id)
         params_j = get_params(paramsetup, j)
         params_k = get_params(paramsetup, k)
         C2_effective = (params_i.C2 + params_j.C2 + params_k.C2) / 3
@@ -225,8 +227,9 @@ function force_density_point_three_ni!(storage::CKIStorage, system::InteractionS
         # tolerance on purpose, see the two-neighbor kernel above.
         iszero(volume) && (volume = 1e-40)
         abs_volume = abs(volume)
-        failure = storage.one_ni_active[oni_j_id] * storage.one_ni_active[oni_k_id] *
-                  storage.one_ni_active[oni_l_id]
+        failure = bond_is_active(storage, system, oni_j_id) *
+                  bond_is_active(storage, system, oni_k_id) *
+                  bond_is_active(storage, system, oni_l_id)
         params_j = get_params(paramsetup, j)
         params_k = get_params(paramsetup, k)
         params_l = get_params(paramsetup, l)
@@ -279,7 +282,7 @@ function strain_energy_density_point_one_ni!(storage::CKIStorage, system::Intera
         L = one_ni.length
         εl = bond_stretch(storage, system, i, one_ni_id)
         ψij = 0.5 * params.C1 * εl * εl * L
-        failure = one_ni_failure(storage, one_ni_id)
+        failure = bond_is_active(storage, system, one_ni_id)
         Ψ += 0.5 * failure * ψij * system.volume_one_nis[i]
     end
     storage.strain_energy_density[i] += Ψ
@@ -306,7 +309,8 @@ function strain_energy_density_point_two_ni!(storage::CKIStorage, system::Intera
         surface = sqrt(aijkx * aijkx + aijky * aijky + aijkz * aijkz)
         εa = (surface - surface_ref) / surface_ref
         ψijk = 0.5 * params.C2 * εa * εa * surface_ref
-        failure = one_ni_failure(storage, oni_j_id) * one_ni_failure(storage, oni_k_id)
+        failure = bond_is_active(storage, system, oni_j_id) *
+                  bond_is_active(storage, system, oni_k_id)
         Ψ += 1/3 * failure * ψijk * system.volume_two_nis[i]
     end
     storage.strain_energy_density[i] += Ψ
@@ -344,8 +348,9 @@ function strain_energy_density_point_three_ni!(storage::CKIStorage,
         abs_volume_ref = abs(volume_ref)
         εv = (abs_volume - abs_volume_ref) / abs_volume_ref
         ψijkl = 0.5 * params.C3 * εv * εv * abs_volume_ref
-        failure = one_ni_failure(storage, oni_j_id) * one_ni_failure(storage, oni_k_id) *
-                  one_ni_failure(storage, oni_l_id)
+        failure = bond_is_active(storage, system, oni_j_id) *
+                  bond_is_active(storage, system, oni_k_id) *
+                  bond_is_active(storage, system, oni_l_id)
         Ψ += 1/4 * failure * ψijkl * system.volume_three_nis[i]
     end
     storage.strain_energy_density[i] += Ψ

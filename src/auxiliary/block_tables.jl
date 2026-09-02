@@ -146,6 +146,7 @@ end
 
 function entries_msg(decl::StorageFieldDecl)
     is_cm_state_decl(decl) && return "state of the constitutive model"
+    is_dmg_state_decl(decl) && return "state of the damage model"
     decl.shape isa AbstractPointFieldShape && return "points"
     decl.shape isa AbstractBondFieldShape && return "bonds"
     decl.type === DofVector && return "degrees of freedom"

@@ -56,7 +56,6 @@ $(block_table(CRStorage))
 """
 @storage CRMaterial struct CRStorage
     @inherit VelocityVerletFields DynamicRelaxationFields
-    @inherit BondFracFields
     @lth velocity_half::PointVector
     @htl b_int::PointVector
     unrotated_stress::PointTensor
@@ -78,7 +77,6 @@ end
 function calc_deformation_gradient!(storage::CRStorage, system::BondSystem, ::CRMaterial,
                                     ::CPointParameters, i)
     (; bonds, volume) = system
-    (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     _Ḟ = zero(SMatrix{3,3,Float64,9})
@@ -88,7 +86,7 @@ function calc_deformation_gradient!(storage::CRStorage, system::BondSystem, ::CR
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
         Δvij = get_vector_diff(storage.velocity_half, i, j)
-        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id)
         temp = ωij * volume[j]
         ΔXijt = ΔXij'
         K += temp * (ΔXij * ΔXijt)

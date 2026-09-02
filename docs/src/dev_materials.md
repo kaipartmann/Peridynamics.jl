@@ -50,7 +50,8 @@ function Peridynamics.force_density_point!(storage::MyStorage, system::BondSyste
         Δxij = get_vector_diff(storage.position, i, j)
         l = current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
-        ω = storage.bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        ω = bond_is_active(storage, system, bond_id) *
+            surface_correction_factor(correction, bond_id)
         b = ω * params.bc * ε * volume[j] / l .* Δxij
         update_add_vector!(storage.b_int, i, b)
     end
@@ -59,7 +60,9 @@ end
 ```
 
 Which bonds are broken was decided right before by the damage model, so the force density
-multiplies `bond_active` in and never changes it.
+multiplies [`bond_is_active`](@ref Peridynamics.bond_is_active) in and never changes
+anything. Asking that function instead of reading a storage field is what makes the same
+kernel run with every damage model, including one that carries no bookkeeping at all.
 
 The current length of a bond comes from
 [`current_bond_length`](@ref Peridynamics.current_bond_length), never from gathering the two
@@ -394,14 +397,17 @@ blocks:
 ```julia
 Peridynamics.@storage BBMaterial struct BBStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit BondLengthCache BondFracFields
+    @inherit BondLengthCache
     strain_energy_density::PointScalar
     dmg_state::DamageState
 end
 ```
 
-Every storage of a bond system inherits
-[`BondFracFields`](@ref Peridynamics.BondFracFields).
+The fracture bookkeeping is not declared here. It belongs to the damage model, which
+carries [`BondFracFields`](@ref Peridynamics.BondFracFields) in its state and provides it
+through the `dmg_state::DamageState` marker, see below. A material never touches those
+fields by name, it asks [`bond_is_active`](@ref Peridynamics.bond_is_active) and
+[`get_damage`](@ref Peridynamics.get_damage) instead.
 [`BondLengthCache`](@ref Peridynamics.BondLengthCache) is optional and carries
 `bond_length`, the current length of every bond. A material that inherits it gets the field
 filled once per point and per time step, before the damage model and the force density run,
@@ -413,9 +419,9 @@ e.g. `CMaterial`. Either way a force density and a damage model read the length 
 [`bond_stretch`](@ref Peridynamics.bond_stretch), and do not have to know which of the two it
 is. Nothing reaches `storage.bond_length` directly, not even the materials of this package.
 
-The marker `dmg_state::DamageState` is the place for the state of the damage model, see
-below. Every storage of this package declares it, so every damage model runs on every
-material.
+The marker `dmg_state::DamageState` is the place for the state of the damage model, the
+fracture bookkeeping included, see below. Every storage of this package declares it, so
+every damage model runs on every material.
 
 Own field blocks are defined with [`@storage_fields`](@ref Peridynamics.@storage_fields):
 
@@ -436,14 +442,17 @@ these are depends on three things that are not all known when `@storage` is expa
 
 1. the material family, e.g. every material of the RKC family needs the fields of
    `RKCFields`,
-2. the damage model, e.g. a model with a state of its own needs the field `dmg_state`,
+2. the damage model, e.g. a model with a state needs the field `dmg_state`,
 3. the time solver, e.g. `NewtonKrylov` needs `residual`, `Δu` and further buffers.
 
-Therefore `@storage` only checks the part of the contract that follows from the material
-type. The complete contract is checked once when a [`Job`](@ref) is created, and a missing
+The complete contract is therefore checked once when a [`Job`](@ref) is created. A missing
 field results in a
 [`StorageContractError`](@ref Peridynamics.StorageContractError) that names the field and
-the reason why it is required.
+the reason why it is required. The fracture bookkeeping is not part of the contract:
+everything outside the damage model reads it through
+[`bond_is_active`](@ref Peridynamics.bond_is_active) and
+[`get_damage`](@ref Peridynamics.get_damage), which behave neutrally for a model that
+carries none.
 
 ## Constitutive models
 
@@ -543,6 +552,7 @@ point and per time step, right before the force density, with the time and the t
 ```julia
 function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup, t, Δt, i)
     (; εc) = get_params(paramsetup, i)
+    storage.n_active_bonds[i] = 0
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
         ε = bond_stretch(storage, system, i, bond_id)
@@ -553,11 +563,30 @@ function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup
 end
 ```
 
-A method deactivates the bonds that fail, counts the ones that are still active in
-`n_active_bonds`, and never breaks a bond whose `fail_permit` is `false`, because that is
-how [`no_failure!`](@ref) and the pre-cracks are honored. The tutorial
-[Writing your own damage model](@ref tutorial_custom_damage_model) writes a model with a
-delay in full.
+A method starts by resetting the count of the point, deactivates the bonds that fail,
+counts the ones that are still active in `n_active_bonds`, and never breaks a bond whose
+`fail_permit` is `false`, because that is how [`no_failure!`](@ref) and the pre-cracks are
+honored. The tutorial [Writing your own damage model](@ref tutorial_custom_damage_model)
+writes a model with a delay in full.
+
+Note the reading rule of the example: inside its own methods a model reads and writes its
+state flat, that is its own data. Everything outside the model goes through the interface
+functions instead. The damage model is a plug-in box, and these are its walls:
+
+| function | read or write | the default when the state carries the standard bookkeeping |
+|---|---|---|
+| [`calc_failure!`](@ref Peridynamics.calc_failure!) | write | none, this is the one method a model defines |
+| [`calc_damage!`](@ref Peridynamics.calc_damage!) | write | the fraction of broken bonds |
+| [`bond_is_active`](@ref Peridynamics.bond_is_active) | read | the `bond_active` flag of the bond |
+| [`get_damage`](@ref Peridynamics.get_damage) | read | the `damage` of the point |
+| [`break_bond!`](@ref Peridynamics.break_bond!) | write | deactivate one bond |
+| [`break_bonds!`](@ref Peridynamics.break_bonds!) | write | deactivate every bond of a point |
+
+A model that inherits the bookkeeping block of the system family gets every default for
+free and defines nothing but `calc_failure!`. A model with bookkeeping of its own overrides
+exactly the functions whose defaults do not fit, on its state type for the read functions
+and on its model type for the write functions. A model without any bookkeeping runs with
+every bond active and zero damage, and only a pre-crack it cannot apply is an error.
 
 ### Fracture parameters
 
@@ -590,24 +619,36 @@ fracture off as it does for `CriticalStretch`. A model that reads *other* keywor
 A material carries the parameters of its damage model in the `dmg_params::DamageParameters`
 marker field, which `@inherit StandardParameters` includes.
 
-### State of its own
+### The state of the model
 
-A model that needs per-bond variables, e.g. an accumulated damage, declares them with
+A damage model owns the fracture bookkeeping and every per-bond variable of its own, e.g.
+an accumulated damage. It declares them with
 [`@dmg_storage`](@ref Peridynamics.@dmg_storage), which accepts the same field declarations
-as [`@storage`](@ref Peridynamics.@storage):
+as [`@storage`](@ref Peridynamics.@storage). A model that deletes bonds inherits the
+bookkeeping block of the system family and adds its own fields next to it:
 
 ```julia
 Peridynamics.@dmg_storage MyDamage struct MyDamageState
+    @inherit BondFracFields
     bond_damage::BondScalar
 end
 ```
 
-The state is reached with [`damage_state`](@ref Peridynamics.damage_state), and a material
-carries it by declaring the field `dmg_state::DamageState`, which every storage of this
-package does, so every shipped material takes a damage model of yours. A material that declares that field supports **every** damage model, stateful
-or not, without knowing any of them. The model brings its own arrays instead of the material
-having to allocate them for it. A model without state answers `nothing`, and no arrays are
-allocated at all.
+Inheriting [`BondFracFields`](@ref Peridynamics.BondFracFields) brings `bond_active`,
+`n_active_bonds` and `damage`, and with them every default of the interface functions
+above. This is how [`CriticalStretch`](@ref) itself is written, with
+[`InteractionFracFields`](@ref Peridynamics.InteractionFracFields) as the block of an
+interaction system, and the optional system argument of the macro is how one model declares
+different states for different system families.
+
+Inside the methods of the model the fields of the state are read flat off the storage,
+e.g. `storage.bond_active`, so its own code never sees the nesting, or with
+[`damage_state`](@ref Peridynamics.damage_state). A material carries the state by declaring
+the field `dmg_state::DamageState`, which every storage of this package does, so every
+shipped material takes a damage model of yours. A material that declares that field
+supports **every** damage model without knowing any of them. The model brings its own
+arrays instead of the material having to allocate them for it. A model without state
+answers `nothing`, and no arrays are allocated at all.
 
 Unlike a constitutive state, a damage state does not make anything history dependent. A
 damage model advances its state in `calc_failure!`, which every time solver calls exactly

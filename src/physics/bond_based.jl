@@ -149,22 +149,22 @@ end
 
 $(extension_api_note())
 
-Storage of [`BBMaterial`](@ref): the fields of the three time solvers and of the fracture
-bookkeeping, the strain energy density of every point, the current length of every bond
-and the state of the damage model.
+Storage of [`BBMaterial`](@ref): the fields of the three time solvers, the strain energy
+density of every point, the current length of every bond and the state of the damage
+model, which carries the fracture bookkeeping.
 
 $(block_table(BBStorage))
 """
 @storage BBMaterial struct BBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit BondLengthCache BondFracFields
+    @inherit BondLengthCache
     strain_energy_density::PointScalar
     dmg_state::DamageState
 end
 
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
                               paramsetup::AbstractParameterSetup, t, Δt, i)
-    (; position, bond_active, b_int) = storage
+    (; position, b_int) = storage
     (; bonds, correction, volume) = system
     params_i = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
@@ -174,7 +174,8 @@ function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMateri
         l = current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
         params_j = get_params(paramsetup, j)
-        ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        ω = bond_is_active(storage, system, bond_id) *
+            surface_correction_factor(correction, bond_id)
         b = ω * (params_i.bc + params_j.bc) / 2 * ε * volume[j] .* Δxij / l
         update_add_vector!(b_int, i, b)
     end
@@ -183,7 +184,7 @@ end
 
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       ::BBMaterial, paramsetup::AbstractParameterSetup, i)
-    (; bond_active, strain_energy_density) = storage
+    (; strain_energy_density) = storage
     (; bonds, correction, volume) = system
     update_bond_lengths!(storage, system, i)
     params_i = get_params(paramsetup, i)
@@ -193,7 +194,8 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
         j, L = bond.neighbor, bond.length
         ε = bond_stretch(storage, system, i, bond_id)
         params_j = get_params(paramsetup, j)
-        ωij = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        ωij = bond_is_active(storage, system, bond_id) *
+              surface_correction_factor(correction, bond_id)
         bc = (params_i.bc + params_j.bc) / 2
         Ψ += 0.25 * ωij * bc * ε * ε * L * volume[j]
     end

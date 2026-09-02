@@ -32,7 +32,7 @@ can always write the multiplication and pays nothing when no correction is used.
 # Example
 
 ```julia
-ω = storage.bond_active[bond_id] *
+ω = Peridynamics.bond_is_active(storage, system, bond_id) *
     Peridynamics.surface_correction_factor(system.correction, bond_id)
 b = ω * params.bc * ε / l .* Δxij
 ```
@@ -127,12 +127,11 @@ end
 function get_averaged_lame_parameters(system::BondSystem, storage::AbstractStorage,
                                       paramsetup::AbstractParameterHandler, i)
     (; bonds) = system
-    (; bond_active) = storage
     lame = zero(SVector{2,Float64}) # lame[1] = λ, lame[2] = μ
     params_i = get_params(paramsetup, i)
     n_active_bonds = 0
     for bond_id in each_bond_idx(system, i)
-        if bond_active[bond_id]
+        if bond_is_active(storage, system, bond_id)
             bond = bonds[bond_id]
             j = bond.neighbor
             params_j = get_params(paramsetup, j)

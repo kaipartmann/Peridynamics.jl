@@ -250,7 +250,7 @@ field of the storage, that is every field declared with a `Bond...` field shape,
 for bond_id in Peridynamics.each_bond_idx(system, i)
     bond = system.bonds[bond_id]
     j, L = bond.neighbor, bond.length
-    storage.bond_active[bond_id] || continue
+    Peridynamics.bond_is_active(storage, system, bond_id) || continue
 end
 ```
 
@@ -395,29 +395,11 @@ function calc_force_density!(storage::AbstractStorage, system::AbstractBondSyste
                              paramsetup::AbstractParameterSetup, t, Δt)
     (; dmgmodel) = mat
     storage.b_int .= 0.0
-    storage.n_active_bonds .= 0
     for i in each_point_idx(system)
         update_bond_lengths!(storage, system, i)
         calc_failure!(storage, system, mat, dmgmodel, paramsetup, t, Δt, i)
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
         force_density_point!(storage, system, mat, paramsetup, t, Δt, i)
-    end
-    return nothing
-end
-
-function calc_failure!(storage::AbstractStorage, system::AbstractBondSystem,
-                       mat::AbstractMaterial, dmgmodel::CriticalStretch,
-                       paramsetup::AbstractParameterSetup, t, Δt, i)
-    (; εc) = get_params(paramsetup, i)
-    (; n_active_bonds, bond_active) = storage
-    (; bonds) = system
-    for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        ε = bond_stretch(storage, system, i, bond_id)
-        if ε > εc && bond.fail_permit
-            bond_active[bond_id] = false
-        end
-        n_active_bonds[i] += bond_active[bond_id]
     end
     return nothing
 end
@@ -428,42 +410,6 @@ function calc_damage!(chunk::AbstractBodyChunk{<:AbstractBondSystem})
     for point_id in each_point_idx(chunk)
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, point_id)
     end
-    return nothing
-end
-
-"""
-    calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
-
-$(extension_api_note())
-
-Reduce the bond-wise state of the damage model to the damage of point `i`, which is the
-scalar written to `storage.damage` and exported as the `:damage` field. It is called once per
-local point and per time step, directly after [`calc_failure!`](@ref).
-
-The default is the fraction of broken bonds, `1 - n_active_bonds[i] / n_neighbors[i]`, which
-is what a model that deletes bonds wants. A model that degrades a bond continuously instead
-of deleting it defines its own method, so that a partially damaged bond is counted with its
-degree of damage rather than as intact, see [`kinematic_weight`](@ref) and
-[`bond_integrity`](@ref).
-
-# Arguments
-
-- `storage`: The storage of the body chunk. A stateful damage model reaches its own bond
-    fields with [`damage_state`](@ref).
-- `system`: The system of the body chunk.
-- `mat`: The material.
-- `dmgmodel`: The damage model, i.e. what a new model dispatches on.
-- `paramsetup`: The parameters of the body chunk. Resolve them with [`get_params`](@ref).
-- `i::Int`: The index of the local point that is evaluated.
-
-See also [`calc_failure!`](@ref), [`@dmg_storage`](@ref), `AbstractDamageModel`.
-"""
-function calc_damage! end
-
-function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
-                      mat::AbstractMaterial, dmgmodel::AbstractDamageModel,
-                      paramsetup::AbstractParameterSetup, i)
-    @inbounds storage.damage[i] = 1 - storage.n_active_bonds[i] / system.n_neighbors[i]
     return nothing
 end
 
@@ -492,28 +438,11 @@ function calc_n_bonds(dh::AbstractMPIBodyDataHandler)
     return n_bonds
 end
 
-function init_field_system(system::AbstractBondSystem, ::Val{:bond_active})
-    return ones(Bool, get_n_bonds(system))
-end
-
+# the neighbor count is system knowledge, so this initial value serves the field inside a
+# damage state and as a flat storage field alike; `bond_active` and `damage` need no hook,
+# their initial values follow from the declarations of `BondFracFields`
 function init_field_system(system::AbstractBondSystem, ::Val{:n_active_bonds})
     return copy(system.n_neighbors)
-end
-
-function init_field_system(system::AbstractBondSystem, ::Val{:damage})
-    return zeros(get_n_loc_points(system))
-end
-
-function req_point_data_fields_fracture(::Type{<:AbstractBondSystemMaterial})
-    return (:damage, :n_active_bonds)
-end
-
-function req_bond_data_fields_fracture(::Type{<:AbstractBondSystemMaterial})
-    return (:bond_active,)
-end
-
-function req_data_fields_fracture(::Type{<:AbstractBondSystemMaterial})
-    return ()
 end
 
 function required_point_parameters(::Type{<:AbstractBondSystemMaterial})
@@ -544,22 +473,6 @@ $(block_table(BondLengthCache))
 """
 @storage_fields BondLengthCache begin
     bond_length::BondScalar
-end
-
-"""
-    BondFracFields
-
-$(extension_api_note())
-
-The storage fields of the fracture bookkeeping of a bond system, see
-[`@storage_fields`](@ref). All of them are allocated by `init_field_system`.
-
-$(block_table(BondFracFields))
-"""
-@storage_fields BondFracFields begin
-    damage::PointScalar
-    n_active_bonds::PointScalar{Int}
-    bond_active::BondScalar{Bool}
 end
 
 """

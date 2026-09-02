@@ -1,9 +1,18 @@
 @inline default_export_fields() = [:displacement, :damage]
 
+# the default list is filtered to what the storage can provide, so a body whose material
+# has no damage model exports only the displacement instead of erroring on `:damage`;
+# a list the user gave is never filtered, a typo there has to fail loudly
+function default_export_fields(body::AbstractBody)
+    S = storage_type(body)
+    return [f for f in default_export_fields() if in(f, point_data_fields(S)) ||
+            custom_field(S, f)]
+end
+
 @inline function default_fields_spec(ms::AbstractMultibodySetup)
     fields_spec = Dict{Symbol,Vector{Symbol}}()
     for body_name in each_body_name(ms)
-        fields_spec[body_name] = default_export_fields()
+        fields_spec[body_name] = default_export_fields(get_body(ms, body_name))
     end
     return fields_spec
 end
@@ -13,7 +22,7 @@ function get_export_fields(body::AbstractBody, solver::AbstractTimeSolver,
     if haskey(o, :fields)
         fields = extract_export_fields(o[:fields])
     else
-        fields = default_export_fields()
+        fields = default_export_fields(body)
     end
 
     check_export_fields(body, solver, fields)
@@ -57,7 +66,7 @@ end
     fields_spec::Dict{Symbol,Vector{Symbol}} = _extract_fields_spec(ms, o)
     for body_name in each_body_name(ms)
         if !haskey(fields_spec, body_name)
-            fields_spec[body_name] = default_export_fields()
+            fields_spec[body_name] = default_export_fields(get_body(ms, body_name))
         end
     end
     return fields_spec

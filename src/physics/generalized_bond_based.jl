@@ -98,7 +98,7 @@ $(block_table(GBBStorage))
 """
 @storage GBBMaterial struct GBBStorage <: AbstractStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit BondLengthCache BondFracFields
+    @inherit BondLengthCache
     strain_energy_density::PointScalar
     weighted_volume::PointScalar
     dmg_state::DamageState
@@ -120,7 +120,7 @@ end
 
 function force_density_point!(storage::GBBStorage, system::BondSystem, mat::GBBMaterial,
                               paramsetup::AbstractParameterSetup, t, Δt, i)
-    (; position, bond_active, b_int) = storage
+    (; position, b_int) = storage
     (; bonds, correction, volume) = system
     wvol = calc_weighted_volume!(storage, system, mat, paramsetup, i)
     iszero(wvol) && return nothing
@@ -132,7 +132,8 @@ function force_density_point!(storage::GBBStorage, system::BondSystem, mat::GBBM
         l = current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
         params_j = get_params(paramsetup, j)
-        ω = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        ω = bond_is_active(storage, system, bond_id) *
+            surface_correction_factor(correction, bond_id)
         bond_constant = 9 * (params_i.K + params_j.K) / wvol
         b = ω * bond_constant * ε * volume[j] .* Δxij / l
         update_add_vector!(b_int, i, b)
@@ -143,7 +144,7 @@ end
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       mat::GBBMaterial, paramsetup::AbstractParameterSetup,
                                       i)
-    (; bond_active, strain_energy_density) = storage
+    (; strain_energy_density) = storage
     (; bonds, correction, volume) = system
     update_bond_lengths!(storage, system, i)
     params_i = get_params(paramsetup, i)
@@ -155,7 +156,8 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
         j, L = bond.neighbor, bond.length
         ε = bond_stretch(storage, system, i, bond_id)
         params_j = get_params(paramsetup, j)
-        ωij = bond_active[bond_id] * surface_correction_factor(correction, bond_id)
+        ωij = bond_is_active(storage, system, bond_id) *
+              surface_correction_factor(correction, bond_id)
         bond_constant = 9 * (params_i.K + params_j.K) / wvol
         Ψ += 0.25 * ωij * bond_constant * ε * ε * L * volume[j]
     end

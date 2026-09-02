@@ -559,7 +559,7 @@ Declaration of the storage field that carries the state of the constitutive mode
 
 ```julia
 Peridynamics.@storage MyMaterial struct MyStorage
-    @inherit VelocityVerletFields BondFracFields
+    @inherit VelocityVerletFields
     cm_state::ConstitutiveState
 end
 ```
@@ -593,7 +593,7 @@ Declaration of the storage field that carries the state of the damage model:
 
 ```julia
 Peridynamics.@storage MyMaterial struct MyStorage
-    @inherit VelocityVerletFields BondFracFields
+    @inherit VelocityVerletFields
     dmg_state::DamageState
 end
 ```
@@ -602,12 +602,15 @@ This is the damage-model twin of [`ConstitutiveState`](@ref): the field is not a
 is whatever the damage model of the material declares with [`@dmg_storage`](@ref), and
 `nothing` for a model without state. The generated storage gets one extra type parameter
 `DMS` for it, which [`storage_type`](@ref) fills with
-`damage_storage_type(get_dmgmodel(mat), FT)`, so the storage stays concrete whichever damage
-model is used. The state is reached with [`damage_state`](@ref).
+`damage_storage_type(get_dmgmodel(mat), system_type(mat), FT)`, so the storage stays
+concrete whichever damage model is used. The state is reached with [`damage_state`](@ref),
+and inside the methods of the model its fields are read flat off the storage, e.g.
+`storage.bond_active`. Everything outside the model asks the interface functions instead,
+e.g. [`bond_is_active`](@ref).
 
-A material that declares this field supports **every** damage model, stateful or not,
-without knowing any of them: a model that needs per-bond variables brings them itself
-instead of the material having to allocate them for it.
+A material that declares this field supports **every** damage model without knowing any of
+them: a model brings the fracture bookkeeping of the system family and every per-bond
+variable of its own itself instead of the material having to allocate them for it.
 
 A storage may declare at most one such field, and it cannot be annotated with
 [`@lth`](@ref) or [`@htl`](@ref), because the halo exchange does not descend into a nested
@@ -738,8 +741,9 @@ end
 $(extension_api_note())
 
 Define a reusable block of storage field declarations that can be included into a
-[`@storage`](@ref) definition with [`@inherit`](@ref). The body accepts exactly the same
-field declarations as `@storage`, including `@inherit` itself.
+[`@storage`](@ref), [`@cm_storage`](@ref) or [`@dmg_storage`](@ref) definition with
+[`@inherit`](@ref). The body accepts exactly the same field declarations as `@storage`,
+including `@inherit` itself.
 
 The macro defines a marker type `name` and registers the (flattened) field declarations
 with [`storage_fields_expr`](@ref).
@@ -783,8 +787,11 @@ end
 $(extension_api_note())
 
 Include all field declarations of another storage or of a field block defined with
-[`@storage_fields`](@ref) into a [`@storage`](@ref) or `@storage_fields` definition. The
-inherited fields keep their order and are spliced in at the position of the `@inherit`.
+[`@storage_fields`](@ref) into a [`@storage`](@ref), [`@cm_storage`](@ref),
+[`@dmg_storage`](@ref) or `@storage_fields` definition. The inherited fields keep their
+order and are spliced in at the position of the `@inherit`. This is how a damage model
+takes over the fracture bookkeeping of its system family, e.g. `@inherit BondFracFields`
+inside its `@dmg_storage` declaration.
 
 Two `@inherit`s may contribute the same field, as long as they declare it identically. A
 field declared in the body itself overrides an inherited field of the same name and keeps

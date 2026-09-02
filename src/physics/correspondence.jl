@@ -179,7 +179,6 @@ $(block_table(CStorage))
 """
 @storage CMaterial struct CStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit BondFracFields
     @htl b_int::PointVector
     defgrad::PointTensor
     cauchy_stress::PointTensor
@@ -203,7 +202,6 @@ end
 function calc_deformation_gradient!(storage::CStorage, system::BondSystem, ::CMaterial,
                                     ::CPointParameters, i)
     (; bonds, volume) = system
-    (; bond_active) = storage
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
@@ -211,7 +209,7 @@ function calc_deformation_gradient!(storage::CStorage, system::BondSystem, ::CMa
         j = bond.neighbor
         ΔXij = get_vector_diff(system.position, i, j)
         Δxij = get_vector_diff(storage.position, i, j)
-        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id)
         temp = ωij * volume[j]
         ΔXijt = ΔXij'
         K += temp * (ΔXij * ΔXijt)
@@ -237,7 +235,6 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
                           ::AbstractCorrespondenceMaterial, params::AbstractPointParameters,
                           zem_correction::ZEMSilling, PKinv, defgrad_res, i)
     (; bonds, volume) = system
-    (; bond_active) = storage
     (; F) = defgrad_res
     (; Cs) = zem_correction
     β = Cs * params.bc / params.δ
@@ -248,7 +245,7 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
         Δxij = get_vector_diff(storage.position, i, j)
 
         # stabilization
-        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id)
         z = Δxij - F * ΔXij
         tzem = ωij * β * z
 
@@ -265,7 +262,6 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
                           params::AbstractPointParameters, zem::ZEMWan, PKinv, defgrad_res,
                           i)
     (; bonds, volume) = system
-    (; bond_active) = storage
     (; F) = defgrad_res
     C_1 = calc_zem_stiffness_tensor!(storage, system, mat, params, zem, defgrad_res, i)
     for bond_id in each_bond_idx(system, i)
@@ -276,7 +272,7 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
 
         # improved stabilization from this article:
         # https://doi.org/10.1007/s10409-019-00873-y
-        ωij = kernel(system, bond_id) * bond_active[bond_id]
+        ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id)
         z = Δxij - F * ΔXij
         tzem = ωij * C_1 * z
 
@@ -298,10 +294,9 @@ end
 function too_much_damage!(storage::AbstractStorage, system::AbstractSystem,
                           mat::AbstractCorrespondenceMaterial, defgrad_res, i)
     (; F) = defgrad_res
-    if storage.damage[i] > mat.maxdmg || containsnan(F)
+    if get_damage(storage, i) > mat.maxdmg || containsnan(F)
         # kill all bonds of this point
-        storage.bond_active[each_bond_idx(system, i)] .= false
-        storage.n_active_bonds[i] = 0
+        break_bonds!(storage, system, get_dmgmodel(mat), i)
         return true
     end
     return false

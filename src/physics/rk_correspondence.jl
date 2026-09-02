@@ -299,7 +299,7 @@ $(block_table(RKCStorage))
 """
 @storage RKCMaterial struct RKCStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit BondFracFields RKCFields
+    @inherit RKCFields
     dmg_state::DamageState
     @htl b_int::PointVector
     cauchy_stress::PointTensor
@@ -368,29 +368,16 @@ function calc_weights_and_defgrad!(chunk::BodyChunk{<:BondSystem,<:AbstractRKCMa
                                    Δt)
     (; system, mat, paramsetup, storage) = chunk
     (; dmgmodel) = mat
-    storage.n_active_bonds .= 0
     for i in each_point_idx(system)
         update_bond_lengths!(storage, system, i)
         calc_failure!(storage, system, mat, dmgmodel, paramsetup, t, Δt, i)
+        # the gradients are only recomputed for a point whose damage grew, so the damage
+        # before and after the reduction of the damage model decides
+        old_damage = get_damage(storage, i)
         calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
+        storage.update_gradients[i] = get_damage(storage, i) > old_damage
         calc_weights_and_defgrad!(storage, system, mat, paramsetup, t, Δt, i)
     end
-    return nothing
-end
-
-function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
-                      mat::AbstractRKCMaterial, dmgmodel::AbstractDamageModel,
-                      paramsetup::AbstractParameterSetup, i)
-    (; n_neighbors) = system
-    (; n_active_bonds, damage, update_gradients) = storage
-    old_damage = damage[i]
-    new_damage = 1 - n_active_bonds[i] / n_neighbors[i]
-    if new_damage > old_damage
-        update_gradients[i] = true
-    else
-        update_gradients[i] = false
-    end
-    damage[i] = new_damage
     return nothing
 end
 
@@ -429,7 +416,7 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
                       mat::AbstractRKCMaterial{CM,C,M}, params::AbstractPointParameters,
                       t, Δt, i) where {CM,C,M}
     (; bonds, volume) = system
-    (; bond_active, gradient_weight, weighted_volume, update_gradients) = storage
+    (; gradient_weight, weighted_volume, update_gradients) = storage
     (; epsilon, lambda, beta, dmgmodel) = mat
     (; δ) = params
 
@@ -447,7 +434,7 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         ΔXij = get_vector_diff(system.position, i, j)
         Q = get_monomial_vector(Val(M), ΔXij ./ δ) # normalize by δ
         wkin = kinematic_weight(dmgmodel, storage, bond_id)
-        ωij = kernel(system, bond_id) * bond_active[bond_id] * wkin
+        ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id) * wkin
         temp = ωij * volume[j]
         Mmat += temp * (Q * Q')
         wi += temp
@@ -465,7 +452,7 @@ function rkc_weights!(storage::AbstractStorage, system::AbstractBondSystem,
         ΔXij = get_vector_diff(system.position, i, j)
         Q = get_monomial_vector(Val(M), ΔXij ./ δ) # normalize by δ
         wkin = kinematic_weight(dmgmodel, storage, bond_id)
-        ωij = kernel(system, bond_id) * bond_active[bond_id] * wkin
+        ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id) * wkin
         temp = ωij / δ * volume[j] # note the division by δ here, due to normalization of Q
         MinvQ = Minv * Q
         Φ = temp * (Q∇ᵀ * MinvQ)
@@ -599,13 +586,13 @@ function rkc_stress_integral!(storage::AbstractStorage, system::AbstractBondSyst
                               mat::AbstractRKCMaterial, params::AbstractPointParameters, t,
                               Δt, i)
     (; bonds, volume) = system
-    (; bond_active, defgrad, weighted_volume, bond_first_piola_kirchhoff) = storage
+    (; defgrad, weighted_volume, bond_first_piola_kirchhoff) = storage
     Fi = get_tensor(defgrad, i)
     wi = weighted_volume[i]
     ∑P = zero(SMatrix{3,3,Float64,9})
     isolated_point(wi) && return ∑P
     for bond_id in each_bond_idx(system, i)
-        if bond_active[bond_id]
+        if bond_is_active(storage, system, bond_id)
             bond = bonds[bond_id]
             j, L = bond.neighbor, bond.length
             wj = weighted_volume[j]
@@ -634,12 +621,11 @@ function rkc_force_density!(storage::AbstractStorage, system::AbstractBondSystem
                             mat::AbstractRKCMaterial, params::AbstractPointParameters,
                             ∑P, t, Δt, i)
     (; bonds, volume) = system
-    (; bond_active, gradient_weight, bond_first_piola_kirchhoff, weighted_volume,
-       b_int) = storage
+    (; gradient_weight, bond_first_piola_kirchhoff, weighted_volume, b_int) = storage
     wi = weighted_volume[i]
     isolated_point(wi) && return nothing
     for bond_id in each_bond_idx(system, i)
-        if bond_active[bond_id]
+        if bond_is_active(storage, system, bond_id)
             bond = bonds[bond_id]
             j, L = bond.neighbor, bond.length
             ΔXij = get_vector_diff(system.position, i, j)
@@ -675,13 +661,13 @@ end
 function cauchy_stress_point!(storage::AbstractStorage, system::BondSystem,
                               ::AbstractRKCMaterial, ::RKCPointParameters, i)
     (; bonds, volume) = system
-    (; bond_active, defgrad, bond_first_piola_kirchhoff, weighted_volume) = storage
+    (; defgrad, bond_first_piola_kirchhoff, weighted_volume) = storage
     Fi = get_tensor(defgrad, i)
     σi = zero(SMatrix{3,3,Float64,9})
     wi = weighted_volume[i]
     if !isolated_point(wi)
         for bond_id in each_bond_idx(system, i)
-            if bond_active[bond_id]
+            if bond_is_active(storage, system, bond_id)
                 bond = bonds[bond_id]
                 j, L = bond.neighbor, bond.length
                 ΔXij = get_vector_diff(system.position, i, j)
@@ -753,14 +739,14 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
                                       paramsetup::AbstractParameterSetup, i)
     params = get_params(paramsetup, i)
     (; bonds, volume) = system
-    (; bond_active, defgrad, weighted_volume) = storage
+    (; defgrad, weighted_volume) = storage
     model = mat.constitutive_model
     Fi = get_tensor(defgrad, i)
     Ψi = 0.0
     wi = weighted_volume[i]
     if !isolated_point(wi)
         for bond_id in each_bond_idx(system, i)
-            if bond_active[bond_id]
+            if bond_is_active(storage, system, bond_id)
                 bond = bonds[bond_id]
                 j, L = bond.neighbor, bond.length
                 ΔXij = get_vector_diff(system.position, i, j)

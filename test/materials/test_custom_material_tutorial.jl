@@ -92,9 +92,13 @@ end
     @test S <: Peridynamics.AbstractStorage
     @test :stretch in fieldnames(S)
 
-    # the inherited solver fields are all there
-    for field in (:position, :displacement, :velocity, :b_int, :damage, :bond_active)
+    # the inherited solver fields are all there, and the fracture bookkeeping comes through
+    # the state of the damage model, readable flat like a field
+    for field in (:position, :displacement, :velocity, :b_int)
         @test field in fieldnames(S)
+    end
+    for field in (:damage, :bond_active, :n_active_bonds)
+        @test Peridynamics.has_storage_field(S, Val(field))
     end
 
     # `position` is inherited with its halo annotation, so the material parallelizes: it is

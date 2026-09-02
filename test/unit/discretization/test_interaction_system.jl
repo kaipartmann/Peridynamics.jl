@@ -248,7 +248,7 @@ end
     n_active = [count(storage.one_ni_active[Peridynamics.each_one_ni_idx(system, i)])
                 for i in Peridynamics.each_point_idx(system)]
     @test storage.n_active_one_nis == n_active
-    @test Peridynamics.one_ni_failure(storage, findfirst(crossing)) == false
+    @test Peridynamics.bond_is_active(storage, system, findfirst(crossing)) == false
 end
 
 @testitem "InteractionSystem: required parameters and log message" begin

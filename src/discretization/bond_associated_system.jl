@@ -137,18 +137,6 @@ end
     return system.ba_hood_volume[bond_idx] / system.ba_volume_sum[point_idx]
 end
 
-function req_point_data_fields_fracture(::Type{<:AbstractBondAssociatedSystemMaterial})
-    return (:damage, :n_active_bonds)
-end
-
-function req_bond_data_fields_fracture(::Type{<:AbstractBondAssociatedSystemMaterial})
-    return (:bond_active,)
-end
-
-function req_data_fields_fracture(::Type{<:AbstractBondAssociatedSystemMaterial})
-    return ()
-end
-
 function required_point_parameters(::Type{<:AbstractBondAssociatedSystemMaterial})
     return (:δ, :δb, :rho, elasticity_parameters()...)
 end

@@ -54,7 +54,7 @@ $(block_table(RKCRStorage))
 """
 @storage RKCRMaterial struct RKCRStorage
     @inherit VelocityVerletFields DynamicRelaxationFields
-    @inherit BondFracFields RKCFields
+    @inherit RKCFields
     @lth velocity_half::PointVector
     @htl b_int::PointVector
     cauchy_stress::PointTensor
@@ -95,15 +95,14 @@ end
 function rkc_stress_integral!(storage::RKCRStorage, system::AbstractBondSystem,
                               mat::RKCRMaterial, params::RKCPointParameters, t, Δt, i)
     (; bonds, volume) = system
-    (; bond_active, defgrad, defgrad_dot, weighted_volume,
-       bond_first_piola_kirchhoff) = storage
+    (; defgrad, defgrad_dot, weighted_volume, bond_first_piola_kirchhoff) = storage
     Fi = get_tensor(defgrad, i)
     Ḟi = get_tensor(defgrad_dot, i)
     wi = weighted_volume[i]
     ∑P = zero(SMatrix{3,3,Float64,9})
     isolated_point(wi) && return ∑P # see `rkc_stress_integral!` of `RKCMaterial`
     for bond_id in each_bond_idx(system, i)
-        if bond_active[bond_id]
+        if bond_is_active(storage, system, bond_id)
             bond = bonds[bond_id]
             j, L = bond.neighbor, bond.length
             wj = weighted_volume[j]

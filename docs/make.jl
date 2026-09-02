@@ -84,10 +84,11 @@ function write_inheritable_blocks_page(path)
     # Blocks you can inherit
 
     [`@inherit`](@ref Peridynamics.@inherit) includes all declarations of another block into
-    a [`@params`](@ref Peridynamics.@params) or [`@storage`](@ref Peridynamics.@storage)
-    definition. This page lists everything the package ships that can be inherited. What a
-    block exposes is on its reference entry, and the same table is printed by
-    `Peridynamics.block_table(Block)` and by typing the name of a block at the REPL.
+    a [`@params`](@ref Peridynamics.@params), [`@storage`](@ref Peridynamics.@storage) or
+    [`@dmg_storage`](@ref Peridynamics.@dmg_storage) definition. This page lists everything
+    the package ships that can be inherited. What a block exposes is on its reference entry,
+    and the same table is printed by `Peridynamics.block_table(Block)` and by typing the
+    name of a block at the REPL.
 
     Two `@inherit`s may contribute the same name only if they declare it identically, and a
     declaration in the body overrides an inherited one in place.
@@ -108,8 +109,10 @@ function write_inheritable_blocks_page(path)
 
     ## Storage field blocks
 
-    A storage needs the block of the time solver it is used with. The others follow from the
-    system and the material family.
+    A storage needs the block of the time solver it is used with. The fracture bookkeeping
+    blocks belong to the damage model and are inherited inside a
+    [`@dmg_storage`](@ref Peridynamics.@dmg_storage) declaration. The others follow from
+    the system and the material family.
 
     $(block_links(Peridynamics.AbstractStorageFields))
 

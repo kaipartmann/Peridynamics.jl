@@ -1,11 +1,53 @@
-@testitem "required_fields_fracture" begin
-    @test Peridynamics.required_fields_fracture(Peridynamics.AbstractMaterial) == ()
+@testitem "damage interface: every outside access goes through the model's functions" begin
+    import Peridynamics: bond_is_active, get_damage, break_bond!, break_bonds!,
+                         has_storage_field, each_bond_idx, get_dmgmodel
 
-    rff_bond_system = (:damage, :n_active_bonds, :bond_active)
-    @test Peridynamics.required_fields_fracture(BBMaterial) === rff_bond_system
+    pos, vol = uniform_box(1, 1, 1, 0.5)
+    body = Body(BBMaterial(), pos, vol)
+    material!(body; horizon=1.5, rho=1, E=1, Gc=1)
+    dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+    (; storage, system, mat) = dh.chunks[1]
+    S = typeof(storage)
 
-    rff_interaction_system = (:damage, :n_active_one_nis, :one_ni_active)
-    @test Peridynamics.required_fields_fracture(CKIMaterial) === rff_interaction_system
+    # the storage provides the bookkeeping through the state of the damage model, and
+    # `has_storage_field` answers for flat fields and nested state fields alike
+    @test has_storage_field(S, Val(:bond_active))
+    @test has_storage_field(S, Val(:damage))
+    @test has_storage_field(S, Val(:position))
+    @test !has_storage_field(S, Val(:not_a_field))
+
+    # pristine bookkeeping: every bond active, no damage
+    @test all(bond_is_active(storage, system, b) for b in eachindex(system.bonds))
+    @test get_damage(storage, 1) == 0.0
+
+    # the write hooks maintain the standard bookkeeping: `break_bond!` flips one flag and
+    # leaves the count to the next `calc_failure!`, `break_bonds!` kills a whole point
+    dmg = get_dmgmodel(mat)
+    bid = first(each_bond_idx(system, 1))
+    break_bond!(storage, system, dmg, 1, bid)
+    @test !bond_is_active(storage, system, bid)
+    @test storage.bond_active[bid] == false # the flat read of the model itself agrees
+    break_bonds!(storage, system, dmg, 2)
+    @test all(!bond_is_active(storage, system, b) for b in each_bond_idx(system, 2))
+    @test storage.n_active_bonds[2] == 0
+
+    # a storage without any bookkeeping behaves neutrally, and a material without a
+    # damage model writes nothing at all
+    struct NoBookkeepingStorage <: Peridynamics.AbstractStorage end
+    ns = NoBookkeepingStorage()
+    @test bond_is_active(ns, system, 1) === true
+    @test get_damage(ns, 1) === 0.0
+    @test isnothing(break_bond!(ns, system, dmg, 1, 1))
+    @test isnothing(break_bonds!(ns, system, dmg, 1))
+    @test isnothing(break_bond!(storage, system, nothing, 1, 1))
+    @test isnothing(break_bonds!(storage, system, nothing, 1))
+
+    # a model with its own notion of a broken bond overrides on its state type
+    struct EverythingBroken <: Peridynamics.AbstractDamageState end
+    Peridynamics.bond_is_active(::EverythingBroken, storage, system, bond_id) = false
+    @test bond_is_active(EverythingBroken(), storage, system, 1) === false
+    Peridynamics.get_damage(::EverythingBroken, storage, i) = 1.0
+    @test get_damage(EverythingBroken(), storage, 1) === 1.0
 end
 
 @testitem "get_frac_params: the default conversion of the fracture keywords" begin
@@ -109,16 +151,32 @@ end
     @test kinematic_weight(dmg, storage, 1) === 1.0
     @test bond_integrity(dmg, storage, 1) === 1.0
 
-    # no state: the storage carries `nothing` and the contract asks for nothing
-    @test damage_storage_type(dmg) === Nothing
-    @test damage_storage_type(dmg, Float32) === Nothing
-    @test isnothing(get_dmg_storage(dmg, VelocityVerlet(steps=1), system))
-    @test isnothing(init_damage_state(BBMaterial(), VelocityVerlet(steps=1), system))
-    @test isnothing(damage_state(storage))
-    # every storage of the package carries the marker, which holds `nothing` here
+    # the state of the model is the fracture bookkeeping of the system family
+    BondFracState = Peridynamics.BondFracState
+    BFS = BondFracState{Float64,Vector{Float64},Vector{Int},Vector{Bool}}
+    @test damage_storage_type(dmg, Peridynamics.BondSystem) === BFS
+    @test damage_storage_type(dmg, Peridynamics.BondAssociatedSystem) === BFS
+    @test damage_storage_type(dmg, Peridynamics.BondSystem, Float32) ===
+          BondFracState{Float32,Vector{Float32},Vector{Int},Vector{Bool}}
+    @test damage_storage_type(dmg, Peridynamics.InteractionSystem) ===
+          Peridynamics.InteractionFracState{Float64,Vector{Float64},Vector{Int},
+                                            Vector{Bool}}
+    # an unknown system family means no state
+    struct HooksUnknownSystem <: Peridynamics.AbstractSystem end
+    @test damage_storage_type(dmg, HooksUnknownSystem) === Nothing
+
+    # the state is allocated per chunk, fully intact
+    state = get_dmg_storage(dmg, VelocityVerlet(steps=1), system)
+    @test state isa BFS
+    @test all(state.bond_active)
+    @test state.n_active_bonds == system.n_neighbors
+    @test all(iszero, state.damage)
+    @test init_damage_state(BBMaterial(), VelocityVerlet(steps=1), system) isa BFS
+    @test damage_state(storage) isa BFS
+    # every storage of the package carries the marker, and the model fills it
     @test has_damage_state(storage_type(BBMaterial()))
-    @test fieldtype(storage_type(BBMaterial()), :dmg_state) === Nothing
-    @test req_storage_fields(BBMaterial(), dmg) == ()
+    @test fieldtype(storage_type(BBMaterial()), :dmg_state) === BFS
+    @test req_storage_fields(BBMaterial(), dmg) == (:dmg_state,)
     @test req_storage_fields(BBMaterial(), nothing) == ()
 
     # the log names the model
@@ -145,6 +203,7 @@ end
     FatigueDamage() = FatigueDamage(3)
 
     Peridynamics.@dmg_storage FatigueDamage struct FatigueState
+        @inherit BondFracFields
         bond_exceedances::BondScalar{Int}
         bond_weight::BondScalar = 1.0
     end
@@ -159,6 +218,7 @@ end
                                         t, Δt, i)
         (; εc) = get_params(paramsetup, i)
         (; bond_exceedances) = damage_state(storage)
+        storage.n_active_bonds[i] = 0
         for bond_id in each_bond_idx(system, i)
             bond = system.bonds[bond_id]
             j, L = bond.neighbor, bond.length
@@ -193,27 +253,35 @@ end
 
     dmg = FatigueDamage()
 
-    # the state is a parametric struct, exactly like a storage
+    # the state is a parametric struct, exactly like a storage, and the inherited
+    # bookkeeping block comes before the model's own fields
     @test FatigueState isa UnionAll
     @test FatigueState <: Peridynamics.AbstractDamageState
-    @test fieldnames(FatigueState) == (:bond_exceedances, :bond_weight)
-    @test damage_storage_type(dmg) === FatigueState{Float64,Vector{Int},Vector{Float64}}
-    @test damage_storage_type(dmg, Float32) === FatigueState{Float32,Vector{Int},Vector{Float32}}
-    @test isconcretetype(damage_storage_type(dmg))
-    @test [d.name for d in storage_fields_expr(FatigueState)] == [:bond_exceedances, :bond_weight]
+    @test fieldnames(FatigueState) ==
+          (:damage, :n_active_bonds, :bond_active, :bond_exceedances, :bond_weight)
+    FS = FatigueState{Float64,Vector{Float64},Vector{Int},Vector{Bool}}
+    @test damage_storage_type(dmg, Peridynamics.BondSystem) === FS
+    @test damage_storage_type(dmg, Peridynamics.BondSystem, Float32) ===
+          FatigueState{Float32,Vector{Float32},Vector{Int},Vector{Bool}}
+    @test isconcretetype(damage_storage_type(dmg, Peridynamics.BondSystem))
+    @test [d.name for d in storage_fields_expr(FatigueState)] ==
+          [:damage, :n_active_bonds, :bond_active, :bond_exceedances, :bond_weight]
 
     # the state is allocated per chunk from the system, with the initial values of the
-    # declarations
+    # declarations, and the system fills what it knows better
     pos, vol = uniform_box(1, 1, 1, 0.5)
     body = Body(BBMaterial(), pos, vol)
     material!(body; horizon=1.5, rho=1, E=1, Gc=1)
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     system = dh.chunks[1].system
     state = get_dmg_storage(dmg, VelocityVerlet(steps=1), system)
-    @test state isa FatigueState{Float64,Vector{Int},Vector{Float64}}
+    @test state isa FS
     @test length(state.bond_exceedances) == get_n_bonds(system)
     @test all(iszero, state.bond_exceedances)
     @test all(isone, state.bond_weight)
+    @test all(state.bond_active)
+    @test state.n_active_bonds == system.n_neighbors
+    @test all(iszero, state.damage)
     @test Peridynamics.Adapt.adapt(Array, state) isa FatigueState
 end
 
@@ -248,26 +316,36 @@ end
                         req_storage_fields, StorageContractError
 
     # the storage stays concrete whichever model is used, and the model fills the parameter
-    for (mat, DMS) in ((RKCMaterial(), Nothing),
+    for (mat, DMS) in ((RKCMaterial(),
+                        Peridynamics.BondFracState{Float64,Vector{Float64},Vector{Int},
+                                                   Vector{Bool}}),
                        (RKCMaterial(; dmgmodel=FatigueDamage()),
-                        FatigueState{Float64,Vector{Int},Vector{Float64}}))
+                        FatigueState{Float64,Vector{Float64},Vector{Int},Vector{Bool}}))
         S = storage_type(mat)
         @test isconcretetype(S)
         @test has_damage_state(S)
         @test fieldtype(S, :dmg_state) === DMS
     end
 
-    # a stateful model requires a storage that carries its state, a stateless one does not
+    # every model with a state requires a storage that carries it
     @test req_storage_fields(RKCMaterial(), FatigueDamage()) == (:dmg_state,)
-    @test req_storage_fields(RKCMaterial(), CriticalStretch()) == ()
+    @test req_storage_fields(RKCMaterial(), CriticalStretch()) == (:dmg_state,)
     @test isnothing(check_storage_contract(RKCMaterial(; dmgmodel=FatigueDamage()),
                                            VelocityVerlet(steps=1)))
     # a storage that does not declare the marker cannot carry the state, which the contract
     # check reports once when the `Job` is created
-    @test !has_damage_state(storage_type(TestMaterialImpl.TestMaterial()))
+    struct DSNoMarkerMat{D} <: Peridynamics.AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::D
+    end
+    Peridynamics.@params DSNoMarkerMat struct DSNoMarkerParams
+        @inherit StandardParameters
+    end
+    Peridynamics.@storage DSNoMarkerMat struct DSNoMarkerStorage
+        @inherit Peridynamics.VelocityVerletFields
+    end
+    @test !has_damage_state(storage_type(DSNoMarkerMat(FatigueDamage())))
     err = try
-        check_storage_contract(TestMaterialImpl.TestMaterial(FatigueDamage()),
-                               VelocityVerlet(steps=1))
+        check_storage_contract(DSNoMarkerMat(FatigueDamage()), VelocityVerlet(steps=1))
     catch e
         e
     end
@@ -306,8 +384,12 @@ end
     Peridynamics.@dmg_params ConstSoftening struct ConstSofteningParameters
         @inherit FractureParameters
     end
+    Peridynamics.@dmg_storage ConstSoftening struct ConstSofteningState
+        @inherit BondFracFields
+    end
     function Peridynamics.calc_failure!(storage, system, mat, ::ConstSoftening, paramsetup,
                                         t, Δt, i)
+        storage.n_active_bonds[i] = 0
         for bond_id in Peridynamics.each_bond_idx(system, i)
             storage.n_active_bonds[i] += storage.bond_active[bond_id]
         end
@@ -390,6 +472,12 @@ end
     end
     Peridynamics.@dmg_params WeightNotSupported struct WeightNotSupportedParameters
         @inherit FractureParameters
+    end
+    Peridynamics.@dmg_storage SofteningNotSupported struct SofteningNotSupportedState
+        @inherit BondFracFields
+    end
+    Peridynamics.@dmg_storage WeightNotSupported struct WeightNotSupportedState
+        @inherit BondFracFields
     end
 
     @inline function Peridynamics.bond_integrity(::SofteningNotSupported,
@@ -547,9 +635,13 @@ end
     Peridynamics.@dmg_params MirrorStretch struct MirrorStretchParameters
         @inherit FractureParameters
     end
+    Peridynamics.@dmg_storage MirrorStretch struct MirrorStretchState
+        @inherit BondFracFields
+    end
     function Peridynamics.calc_failure!(storage, system, mat, ::MirrorStretch, paramsetup, t,
                                         Δt, i)
         (; εc) = get_params(paramsetup, i)
+        storage.n_active_bonds[i] = 0
         for bond_id in each_bond_idx(system, i)
             bond = system.bonds[bond_id]
             ε = bond_stretch(storage, system, i, bond_id)
@@ -598,4 +690,49 @@ end
         @test b_mir ≈ b_ref rtol=1e-10
         @test d_mir == d_ref
     end
+end
+
+@testitem "a damage model without bookkeeping: neutral run, loud pre-crack" begin
+    import Peridynamics: check_damage_model, bond_is_active, get_damage
+
+    # a damage model that declares no state at all: nothing provides the bookkeeping, the
+    # interface functions behave neutrally and the setup stays constructible and runnable
+    struct FFNoBookkeeping <: Peridynamics.AbstractDamageModel end
+    Peridynamics.@dmg_params FFNoBookkeeping struct FFNoBookkeepingParameters
+        @inherit FractureParameters
+    end
+    function Peridynamics.calc_failure!(storage, system, mat, ::FFNoBookkeeping, paramsetup,
+                                        t, Δt, i)
+        return nothing
+    end
+
+    pos, vol = uniform_box(1.0, 1.0, 1.0, 0.5)
+    body = Body(BBMaterial(; dmgmodel=FFNoBookkeeping()), pos, vol)
+    material!(body; horizon=1.5, rho=8e-6, E=2.1e5, Gc=2.7)
+    velocity_bc!(t -> 0.1, body, :all_points, :x)
+    @test isnothing(check_damage_model(body.mat))
+    dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+    (; storage, system) = dh.chunks[1]
+    @test isnothing(Peridynamics.damage_state(storage))
+    @test all(bond_is_active(storage, system, b) for b in eachindex(system.bonds))
+    @test get_damage(storage, 1) == 0.0
+    Peridynamics.calc_force_density!(dh.chunks[1], 0.0, 1e-7)
+    @test !any(isnan, storage.b_int)
+
+    # a pre-crack has nothing to write its broken bonds into, so applying one fails with
+    # an error that names the model and the ways out
+    err = try
+        Peridynamics.failure_by_sets!(storage, system, FFNoBookkeeping(), [1], [2])
+    catch e
+        e
+    end
+    @test err isa ErrorException
+    msg = sprint(showerror, err)
+    @test contains(msg, "FFNoBookkeeping")
+    @test contains(msg, "update_dmg=false")
+    @test contains(msg, "@inherit BondFracFields")
+
+    # the shipped model passes the remaining softening check
+    @test isnothing(check_damage_model(BBMaterial()))
+    @test isnothing(check_damage_model(CKIMaterial()))
 end
