@@ -215,8 +215,6 @@ end
     @test all(isapprox(Peridynamics.get_tensor(defgrad, i), F_a; atol=1e-5) for i in eachindex(vol))
 end
 
-end
-
 @testitem "damage model integration with RKCMaterial" begin
     pos, vol = uniform_box(1, 1, 1, 0.4)
     body = Body(RKCMaterial(dmgmodel=CriticalStretch()), pos, vol)
