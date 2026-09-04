@@ -227,8 +227,9 @@ $(extension_api_note())
 Supertype of what a body chunk carries as its point parameters: either one set of parameters
 for the whole chunk, or a handler that resolves them per point when [`material!`](@ref) was
 called more than once. Either way, [`get_params`](@ref) reads the parameters of a point from
-it. This is the type to annotate that argument with when a method has to, e.g. when
-[`calc_failure!`](@ref) is defined for one damage model.
+it. It is what [`force_density_point!`](@ref) receives as its parameters argument, and the
+type to annotate that argument with when a method has to, e.g. when [`calc_failure!`](@ref)
+is defined for one damage model.
 """
 abstract type AbstractParameterSetup end
 
@@ -394,6 +395,14 @@ Supertype of the systems whose neighborhood relation is a bond, that is
 
 The points of such a system are iterated with [`each_point_idx`](@ref) and the bonds of
 point `i` with [`each_bond_idx`](@ref).
+
+A bond is not a record but three arrays, one per quantity, and a kernel reads each of them
+through one accessor: [`get_neighbor`](@ref), [`reference_bond_length`](@ref) and
+[`bond_may_fail`](@ref).
+
+`bond_length` is the length of a bond in the reference configuration. `system.position` is
+the reference position and `storage.position` the current one, so the owner of the field
+says which configuration it belongs to, see [`current_bond_length`](@ref).
 """
 abstract type AbstractBondSystem <: AbstractSystem end
 

@@ -63,7 +63,7 @@ end
 function req_bond_data_fields_timesolver(::Type{TS}) where {TS}
     return throw(InterfaceError(TS, "req_bond_data_fields_timesolver",
                                 timesolver_fields_hint(TS, "req_bond_data_fields_timesolver",
-                                                       "(:bond_active,)")))
+                                                       "(:bond_length,)")))
 end
 
 function req_data_fields_timesolver(::Type{TS}) where {TS}

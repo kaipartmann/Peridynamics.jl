@@ -309,7 +309,11 @@ end
     return getfield(b.point_params[b.params_map[i]], key)
 end
 
-@inline storage_type(b::AbstractBody) = storage_type(b.mat, float_type(b))
+@inline storage_type(b::AbstractBody) = storage_type(b.mat, float_type(b), dims(b))
+
+# the dimension of a body is a runtime value read off its position matrix, so `dims(body)`
+# is a setup-time helper and never a kernel argument
+@inline get_n_dim(b::AbstractBody) = size(b.position, 1)
 
 @inline float_type(::AbstractBody) = default_float_type()
 

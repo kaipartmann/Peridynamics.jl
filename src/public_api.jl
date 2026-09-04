@@ -48,11 +48,13 @@ public SimFloat, LocalPoints, HaloPoints, FullField, EmptyField
 public ConstitutiveState, DamageState
 public ConstitutiveParameters, DamageParameters
 
-# Storage field blocks, to be `@inherit`ed by a storage. Every storage needs the block of
-# the time solver it is used with. The others follow from the system and the material
-# family.
+# Storage field blocks, to be `@inherit`ed by a storage or a damage state. Every storage
+# needs the block of the time solver it is used with. The fracture bookkeeping blocks are
+# inherited inside a `@dmg_storage` declaration, the others follow from the system and the
+# material family.
 public VelocityVerletFields, DynamicRelaxationFields, NewtonKrylovFields
-public BondFracFields, InteractionFracFields, RKCFields
+public BondLengthCache, BondFracFields, InteractionFracFields, RKCFields
+public BondFracState, InteractionFracState
 
 # Point parameter blocks, to be `@inherit`ed by a set of point parameters.
 public DiscretizationParameters, ElasticParameters, BBElasticParameters
@@ -79,9 +81,13 @@ public AbstractDamageModel, AbstractDamageState
 public AbstractStorage, AbstractPointParameters, AbstractParameterSetup
 public AbstractSystem, AbstractBondSystem, AbstractTimeSolver
 
-# The systems a material is dispatched on. Their fields are internal, use the accessors
-# below.
+# The systems a material is dispatched on, and what it takes to write one: the declaration
+# macros, the sizes a constructor allocates against and the two functions that say which
+# system a material gets and which materials a system accepts.
 public BondSystem, InteractionSystem
+public @system
+public SystemSizes, system_type, host_system_type, check_system_compat
+public max_n_chunks, first_chunk
 
 # The errors the interfaces throw. Catch them in tests, or throw them from your own
 # interface.
@@ -95,9 +101,15 @@ public get_constitutive_model, first_piola_kirchhoff, strain_energy_density
 public constitutive_state, constitutive_storage_type
 public is_history_dependent, supports_history_dependence
 
-# The damage model interface.
+# The damage model interface. The relation between `Gc` and `εc` depends on the
+# micro-modulus, so a material with a non-constant one defines the two hooks.
 public get_dmgmodel, get_frac_params, has_fracture, calc_failure!, calc_damage!
 public damage_state, damage_storage_type
+public critical_stretch, energy_release_rate
+# The damage model is a plug-in box: everything outside of it reads the fracture
+# bookkeeping through these functions and never by field name, and a material that kills
+# bonds writes through them.
+public bond_is_active, get_damage, break_bond!, break_bonds!
 # A damage model may soften a bond instead of deleting it. `bond_integrity` scales the load
 # a bond still carries, `kinematic_weight` scales what it contributes to the deformation
 # gradient. Both default to one. A material says whether its force path honors them.
@@ -106,11 +118,16 @@ public supports_bond_integrity, supports_kinematic_weight
 
 # Accessing a system, its points and its bonds from inside a force density calculation.
 public get_params, each_point_idx, each_bond_idx
-public get_n_points, get_n_loc_points, get_n_bonds
+public get_n_points, get_n_loc_points, get_n_bonds, get_n_dim
 public kernel, surface_correction_factor, float_type
+# The kinematics of a bond. Read the current length and the stretch of a bond with these and
+# never by gathering the two positions, then a material with a bond length cache and one
+# without it both run at full speed.
+public current_bond_length, bond_stretch, update_bond_lengths!
+public get_neighbor, reference_bond_length, bond_may_fail
 
 # Reading and writing the columns of a storage field as static vectors and tensors.
-public get_vector, get_vector_diff, update_vector!, update_add_vector!
+public dims, get_vector, get_vector_diff, update_vector!, update_add_vector!
 public get_tensor, update_tensor!, get_sym_tensor, update_sym_tensor!
 
 # Strain measures a finite strain constitutive model needs, evaluated in closed form.

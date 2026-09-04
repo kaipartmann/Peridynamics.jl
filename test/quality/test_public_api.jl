@@ -28,7 +28,7 @@
     const PUBLIC = [
         "@cm_params", "@cm_storage", "@derived", "@dmg_params", "@dmg_storage", "@htl",
         "@inherit", "@kwarg", "@log", "@lth", "@params", "@params_fields", "@storage",
-        "@storage_fields",
+        "@storage_fields", "@system",
         "AbstractBondAssociatedSystemMaterial", "AbstractBondBasedMaterial",
         "AbstractBondSystem", "AbstractBondSystemMaterial", "AbstractConstitutiveModel",
         "AbstractConstitutiveState", "AbstractCorrespondenceMaterial", "AbstractDamageModel",
@@ -36,29 +36,41 @@
         "AbstractParameterSetup", "AbstractPointParameters", "AbstractRKCMaterial",
         "AbstractStorage", "AbstractSystem", "AbstractTimeSolver",
         "BACPointParameters", "BACStorage", "BBElasticParameters", "BBPointParameters",
-        "BBStorage", "BondField", "BondFracFields", "BondHorizonParameters", "BondScalar",
-        "BondSymTensor", "BondSystem", "BondTensor", "BondVector", "CKIPointParameters",
+        "BBStorage", "BondField", "BondFracFields", "BondFracState",
+        "BondHorizonParameters", "BondLengthCache",
+        "BondScalar", "BondSymTensor", "BondSystem", "BondTensor", "BondVector",
+        "CKIPointParameters",
         "CKIStorage", "CPointParameters", "CRStorage", "CStorage", "ConstitutiveParameters",
         "ConstitutiveState", "DHBBPointParameters", "DHBBStorage", "DamageParameters",
         "DamageState", "DiscretizationParameters", "DofVector", "DynamicRelaxationFields",
         "ElasticParameters", "EmptyField", "FractureParameters", "FullField", "GBBStorage",
         "HaloPoints", "HistoryDependenceError", "InteractionFracFields",
+        "InteractionFracState",
         "InteractionParameters", "InteractionSystem", "InterfaceError", "LocalPoints",
         "NewtonKrylovFields", "OSBPointParameters", "OSBStorage", "PointField",
         "PointScalar", "PointSymTensor", "PointTensor", "PointVector", "RKCFields",
         "RKCPointParameters", "RKCRStorage", "RKCStorage", "SimFloat", "StandardParameters",
-        "StorageContractError", "VelocityVerletFields",
-        "block_table", "bond_integrity", "calc_damage!", "calc_failure!",
-        "constitutive_state", "constitutive_storage_type", "custom_field", "damage_state",
-        "damage_storage_type", "each_bond_idx", "each_point_idx", "export_field",
-        "first_piola_kirchhoff", "float_type", "force_density_point!",
-        "get_constitutive_model", "get_dmgmodel", "get_frac_params", "get_n_bonds",
-        "get_n_loc_points", "get_n_points", "get_params", "get_sym_tensor", "get_tensor",
-        "get_vector", "get_vector_diff", "has_fracture", "hencky_and_invstretch",
-        "init_field", "is_history_dependent", "kernel", "kinematic_weight", "storage_type",
+        "StorageContractError", "SystemSizes", "VelocityVerletFields",
+        "block_table", "bond_integrity", "bond_is_active", "bond_may_fail", "bond_stretch",
+        "break_bond!",
+        "break_bonds!", "calc_damage!", "calc_failure!", "check_system_compat",
+        "constitutive_state", "constitutive_storage_type", "critical_stretch",
+        "current_bond_length",
+        "custom_field", "damage_state", "damage_storage_type", "dims", "each_bond_idx",
+        "each_point_idx", "energy_release_rate", "export_field", "first_chunk",
+        "first_piola_kirchhoff",
+        "float_type", "force_density_point!", "get_constitutive_model", "get_damage",
+        "get_dmgmodel", "get_frac_params", "get_n_bonds", "get_n_dim", "get_n_loc_points",
+        "get_n_points", "get_neighbor", "get_params", "get_sym_tensor",
+        "get_tensor", "get_vector", "get_vector_diff", "has_fracture",
+        "hencky_and_invstretch", "host_system_type",
+        "init_field", "is_history_dependent", "kernel", "kinematic_weight",
+        "max_n_chunks", "reference_bond_length", "storage_type",
         "strain_energy_density", "supports_bond_integrity", "supports_history_dependence",
         "supports_kinematic_weight", "surface_correction_factor", "sym_eigvals",
-        "update_add_vector!", "update_sym_tensor!", "update_tensor!", "update_vector!",
+        "system_type",
+        "update_add_vector!", "update_bond_lengths!", "update_sym_tensor!", "update_tensor!",
+        "update_vector!",
     ]
 
     all_names() = names(Peridynamics)
@@ -67,21 +79,23 @@
     public_names() = sort!(String.(filter(n -> !Base.isexported(Peridynamics, n),
                                           all_names())))
 
-    const TUTORIAL = normpath(@__DIR__, "..", "..", "docs", "src", "literate",
-                              "tutorial_custom_material.jl")
+    const LITERATE = normpath(@__DIR__, "..", "..", "docs", "src", "literate")
+    const TUTORIALS = [joinpath(LITERATE, "tutorial_custom_material.jl"),
+                       joinpath(LITERATE, "tutorial_custom_damage_model.jl"),
+                       joinpath(LITERATE, "tutorial_custom_constitutive_model.jl")]
 
-    # every name the tutorial reaches through the package: `Peridynamics.<name>` and the
-    # names of `using Peridynamics: a, b` lines
-    function tutorial_names()
-        src = read(TUTORIAL, String)
+    # every name a tutorial reaches through the package: `Peridynamics.<name>` and the
+    # names of `using Peridynamics: a, b` lines, which may span several lines
+    function tutorial_names(path)
+        src = read(path, String)
         found = Set{String}()
         for m in eachmatch(r"Peridynamics\.(@?[A-Za-z_][A-Za-z0-9_!]*)", src)
             # "Peridynamics.jl" is the package, not a name of it
             m.captures[1] == "jl" || push!(found, m.captures[1])
         end
-        for m in eachmatch(r"using Peridynamics:\s*([^\n]+)", src)
+        for m in eachmatch(r"using Peridynamics:((?:[^\n]*,\s*\n)*[^\n]*)", src)
             for name in split(m.captures[1], ",")
-                push!(found, strip(name))
+                isempty(strip(name)) || push!(found, strip(name))
             end
         end
         return sort!(collect(found))
@@ -125,14 +139,16 @@ end
     end
 end
 
-@testitem "public API: the tutorial uses only exported or public names" tags=[:lint] setup=[APISnapshot] begin
-    # the tutorial is the promise that a custom material needs nothing internal, so every
-    # `Peridynamics.<name>` in it has to be in one of the two tiers. `LinearAlgebra` and
+@testitem "public API: the tutorials use only exported or public names" tags=[:lint] setup=[APISnapshot] begin
+    # the tutorials are the promise that an extension needs nothing internal, so every
+    # `Peridynamics.<name>` in them has to be in one of the two tiers. `LinearAlgebra` and
     # `StaticArrays` are reached through the package and are not names of it.
     reexported = ("LinearAlgebra", "StaticArrays")
-    found = filter(n -> !(n in reexported), APISnapshot.tutorial_names())
-    @test !isempty(found)
     tiers = union(Set(APISnapshot.EXPORTED), Set(APISnapshot.PUBLIC))
-    internal = filter(n -> !(n in tiers), found)
-    @test isempty(internal)
+    for path in APISnapshot.TUTORIALS
+        found = filter(n -> !(n in reexported), APISnapshot.tutorial_names(path))
+        @test !isempty(found)
+        internal = filter(n -> !(n in tiers), found)
+        @test isempty(internal)
+    end
 end

@@ -633,8 +633,9 @@ function rotate!(position, dimension::Union{Integer,Symbol}, angle)
 
     # Apply rotation to all position vectors
     for i in axes(position, 2)
-        pos = get_vector(position, i)
-        update_vector!(position, i, R * pos)
+        # no system in scope here, and point generation is 3D until 2D physics lands
+        pos = get_vector(position, i, Val(3))
+        update_vector!(position, i, R * pos, Val(3))
     end
     return nothing
 end

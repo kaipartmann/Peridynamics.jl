@@ -142,7 +142,7 @@ end
 
     # Apply shear deformation to all points
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(position, i)
+        X = Peridynamics.get_vector(position, i, Peridynamics.dims(system))
         x = F_shear * X
         for d in 1:3
             position[d, i] = x[d]
@@ -154,7 +154,7 @@ end
 
     # Check that rotation matrices are orthogonal (R * R' = I)
     for i in Peridynamics.each_point_idx(chunk)
-        R = Peridynamics.get_tensor(storage.rotation, i)
+        R = Peridynamics.get_tensor(storage.rotation, i, Peridynamics.dims(system))
         RT_R = R' * R
         @test RT_R ≈ I_matrix atol=1e-12
 
@@ -164,7 +164,7 @@ end
 
     # Check that left stretch tensors are symmetric and positive definite
     for i in Peridynamics.each_point_idx(chunk)
-        V = Peridynamics.get_tensor(storage.left_stretch, i)
+        V = Peridynamics.get_tensor(storage.left_stretch, i, Peridynamics.dims(system))
 
         # Check symmetry: V = V'
         @test V ≈ V' atol=1e-12
@@ -177,7 +177,7 @@ end
     # Test 2: Combined rotation and stretch
     # Reset positions
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(ref_position, i)
+        X = Peridynamics.get_vector(ref_position, i, Peridynamics.dims(system))
         for d in 1:3
             position[d, i] = X[d]
         end
@@ -191,7 +191,7 @@ end
                            0.0            0.0            1.0]
 
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(position, i)
+        X = Peridynamics.get_vector(position, i, Peridynamics.dims(system))
         x = F_combined * X
         for d in 1:3
             position[d, i] = x[d]
@@ -203,7 +203,7 @@ end
 
     # Verify rotation matrices remain orthogonal
     for i in Peridynamics.each_point_idx(chunk)
-        R = Peridynamics.get_tensor(storage.rotation, i)
+        R = Peridynamics.get_tensor(storage.rotation, i, Peridynamics.dims(system))
         RT_R = R' * R
         @test RT_R ≈ I atol=1e-10
         @test abs(det(R) - 1.0) < 1e-10
@@ -211,7 +211,7 @@ end
 
     # Verify left stretch tensors remain symmetric and positive definite
     for i in Peridynamics.each_point_idx(chunk)
-        V = Peridynamics.get_tensor(storage.left_stretch, i)
+        V = Peridynamics.get_tensor(storage.left_stretch, i, Peridynamics.dims(system))
         @test V ≈ V' atol=1e-10
         eigenvals = eigvals(V)
         @test all(eigenvals .> 0)
@@ -220,7 +220,7 @@ end
     # Test 3: Large deformation to test robustness
     # Reset positions
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(ref_position, i)
+        X = Peridynamics.get_vector(ref_position, i, Peridynamics.dims(system))
         for d in 1:3
             position[d, i] = X[d]
         end
@@ -233,7 +233,7 @@ end
                               0.0 0.0      1.0]
 
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(position, i)
+        X = Peridynamics.get_vector(position, i, Peridynamics.dims(system))
         x = F_large_shear * X
         for d in 1:3
             position[d, i] = x[d]
@@ -245,8 +245,8 @@ end
 
     # Even for large deformations, the algorithm should maintain properties
     for i in Peridynamics.each_point_idx(chunk)
-        R = Peridynamics.get_tensor(storage.rotation, i)
-        V = Peridynamics.get_tensor(storage.left_stretch, i)
+        R = Peridynamics.get_tensor(storage.rotation, i, Peridynamics.dims(system))
+        V = Peridynamics.get_tensor(storage.left_stretch, i, Peridynamics.dims(system))
 
         # Rotation should still be orthogonal
         RT_R = R' * R
@@ -263,7 +263,7 @@ end
     # For a simple test, check that stress has the expected form
     # Reset to a simple extension case
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(ref_position, i)
+        X = Peridynamics.get_vector(ref_position, i, Peridynamics.dims(system))
         for d in 1:3
             position[d, i] = X[d]
         end
@@ -276,7 +276,7 @@ end
                           0.0       0.0 1.0]
 
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(position, i)
+        X = Peridynamics.get_vector(position, i, Peridynamics.dims(system))
         x = F_tension * X
         for d in 1:3
             position[d, i] = x[d]
@@ -324,7 +324,7 @@ end
 
     # Apply shear deformation to all points
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(position, i)
+        X = Peridynamics.get_vector(position, i, Peridynamics.dims(system))
         x = F_shear * X
         for d in 1:3
             position[d, i] = x[d]
@@ -339,7 +339,7 @@ end
     n_bonds = size(storage.rotation, 2)
     for bond_id in 1:n_bonds
         if storage.bond_active[bond_id]
-            R = Peridynamics.get_tensor(storage.rotation, bond_id)
+            R = Peridynamics.get_tensor(storage.rotation, bond_id, Peridynamics.dims(system))
             RT_R = R' * R
             I_matrix = @SMatrix [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
             @test RT_R ≈ I_matrix atol=1e-10
@@ -350,7 +350,7 @@ end
     # Check left stretch tensors for all bonds
     for bond_id in 1:n_bonds
         if storage.bond_active[bond_id]
-            V = Peridynamics.get_tensor(storage.left_stretch, bond_id)
+            V = Peridynamics.get_tensor(storage.left_stretch, bond_id, Peridynamics.dims(system))
             @test V ≈ V' atol=1e-10
             eigenvals = eigvals(V)
             @test all(eigenvals .> 0)
@@ -360,7 +360,7 @@ end
     # Test 2: Combined rotation and stretch
     # Reset positions
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(ref_position, i)
+        X = Peridynamics.get_vector(ref_position, i, Peridynamics.dims(system))
         for d in 1:3
             position[d, i] = X[d]
         end
@@ -374,7 +374,7 @@ end
                            0.0            0.0            1.0]
 
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(position, i)
+        X = Peridynamics.get_vector(position, i, Peridynamics.dims(system))
         x = F_combined * X
         for d in 1:3
             position[d, i] = x[d]
@@ -387,8 +387,8 @@ end
     # Verify properties for all active bonds
     for bond_id in 1:n_bonds
         if storage.bond_active[bond_id]
-            R = Peridynamics.get_tensor(storage.rotation, bond_id)
-            V = Peridynamics.get_tensor(storage.left_stretch, bond_id)
+            R = Peridynamics.get_tensor(storage.rotation, bond_id, Peridynamics.dims(system))
+            V = Peridynamics.get_tensor(storage.left_stretch, bond_id, Peridynamics.dims(system))
 
             # Rotation should be orthogonal
             RT_R = R' * R
@@ -406,7 +406,7 @@ end
     # Test 3: Verify deformation gradient calculation
     # Reset to uniaxial tension
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(ref_position, i)
+        X = Peridynamics.get_vector(ref_position, i, Peridynamics.dims(system))
         for d in 1:3
             position[d, i] = X[d]
         end
@@ -418,7 +418,7 @@ end
                           0.0       0.0 1.0]
 
     for i in Peridynamics.each_point_idx(chunk)
-        X = Peridynamics.get_vector(position, i)
+        X = Peridynamics.get_vector(position, i, Peridynamics.dims(system))
         x = F_tension * X
         for d in 1:3
             position[d, i] = x[d]
@@ -430,7 +430,7 @@ end
 
     # Check that deformation gradients are reasonable
     for i in Peridynamics.each_point_idx(chunk)
-        F = Peridynamics.get_tensor(storage.defgrad, i)
+        F = Peridynamics.get_tensor(storage.defgrad, i, Peridynamics.dims(system))
         # For uniaxial tension, F should be approximately diagonal
         @test F[1,1] > 1.0  # Stretch in x-direction
         @test abs(F[2,2] - 1.0) < 0.1  # Approximately unity in y
@@ -486,7 +486,7 @@ end
 
     # Apply to CRMaterial
     for i in Peridynamics.each_point_idx(chunk_cr)
-        X = Peridynamics.get_vector(chunk_cr.storage.position, i)
+        X = Peridynamics.get_vector(chunk_cr.storage.position, i, Peridynamics.dims(chunk_cr.system))
         x = F_shear * X
         for d in 1:3
             chunk_cr.storage.position[d, i] = x[d]
@@ -495,7 +495,7 @@ end
 
     # Apply to RKCRMaterial
     for i in Peridynamics.each_point_idx(chunk_rkcr)
-        X = Peridynamics.get_vector(chunk_rkcr.storage.position, i)
+        X = Peridynamics.get_vector(chunk_rkcr.storage.position, i, Peridynamics.dims(chunk_rkcr.system))
         x = F_shear * X
         for d in 1:3
             chunk_rkcr.storage.position[d, i] = x[d]
@@ -529,18 +529,18 @@ end
     using Peridynamics.StaticArrays
     body = Fixtures.tetra4(CRMaterial(model=LinearElastic()))
     c = Fixtures.chunk(body)
-    (; storage) = c
+    (; storage, system) = c
     F = @SMatrix [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     Ḟ = @SMatrix [0.1 0.0 0.0; 0.0 0.1 0.0; 0.0 0.0 0.1]
     D = Peridynamics.init_stress_rotation!(storage, F, Ḟ, 0.1, 1)
     @test D ≈ Ḟ
-    @test Peridynamics.get_tensor(storage.rotation, 1) ≈ F
+    @test Peridynamics.get_tensor(storage.rotation, 1, Peridynamics.dims(system)) ≈ F
     # F⁻¹ contains NaN for a singular F: the rotation and the stretch are zeroed, D is zero
     F = @SMatrix [1.0 0.0 0.0; 1.0 0.0 0.0; 1.0 0.0 0.0]
     D = Peridynamics.init_stress_rotation!(storage, F, Ḟ, 0.1, 1)
     @test iszero(D)
-    @test iszero(Peridynamics.get_tensor(storage.rotation, 1))
-    @test iszero(Peridynamics.get_tensor(storage.left_stretch, 1))
+    @test iszero(Peridynamics.get_tensor(storage.rotation, 1, Peridynamics.dims(system)))
+    @test iszero(Peridynamics.get_tensor(storage.left_stretch, 1, Peridynamics.dims(system)))
 end
 
 @testitem "sym_eigvals: closed-form eigenvalues of a symmetric tensor" begin

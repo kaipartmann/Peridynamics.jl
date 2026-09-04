@@ -10,9 +10,12 @@
     @test !contains(table, "Peridynamics.")
     @test contains(block_table(NewtonKrylovFields), "| `residual` | `DofVector` | degrees of freedom | – |")
 
-    # a storage type, also instantiated, has the table of all its fields
+    # a storage type, also instantiated, has the table of all its fields; the fracture
+    # bookkeeping is in the state of the damage model and has a table of its own
     table = block_table(storage_type(CMaterial()))
     @test contains(table, "| `b_int` | `PointVector` | points | halo → local |")
+    @test contains(table, "| `dmg_state` | `DamageState` | state of the damage model | – |")
+    table = block_table(Peridynamics.BondFracState)
     @test contains(table, "| `bond_active` | `BondScalar{Bool}` | bonds | – |")
     table = block_table(storage_type(BACMaterial()))
     @test contains(table, "| `bond_stress` | `Matrix{Float64}` | – | – |")

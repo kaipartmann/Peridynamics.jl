@@ -52,6 +52,8 @@ LIT_TUTORIALS_IN = [
     "tutorial_wave_interface.jl",
     "tutorial_brazilian_test.jl",
     "tutorial_custom_material.jl",
+    "tutorial_custom_damage_model.jl",
+    "tutorial_custom_constitutive_model.jl",
 ]
 LIT_TUTORIALS_IN .= joinpath.(@__DIR__, "src", "literate", LIT_TUTORIALS_IN)
 Literate.markdown.(LIT_TUTORIALS_IN, LIT_MD_OUT; credit=false)
@@ -82,10 +84,11 @@ function write_inheritable_blocks_page(path)
     # Blocks you can inherit
 
     [`@inherit`](@ref Peridynamics.@inherit) includes all declarations of another block into
-    a [`@params`](@ref Peridynamics.@params) or [`@storage`](@ref Peridynamics.@storage)
-    definition. This page lists everything the package ships that can be inherited. What a
-    block exposes is on its reference entry, and the same table is printed by
-    `Peridynamics.block_table(Block)` and by typing the name of a block at the REPL.
+    a [`@params`](@ref Peridynamics.@params), [`@storage`](@ref Peridynamics.@storage) or
+    [`@dmg_storage`](@ref Peridynamics.@dmg_storage) definition. This page lists everything
+    the package ships that can be inherited. What a block exposes is on its reference entry,
+    and the same table is printed by `Peridynamics.block_table(Block)` and by typing the
+    name of a block at the REPL.
 
     Two `@inherit`s may contribute the same name only if they declare it identically, and a
     declaration in the body overrides an inherited one in place.
@@ -106,8 +109,10 @@ function write_inheritable_blocks_page(path)
 
     ## Storage field blocks
 
-    A storage needs the block of the time solver it is used with. The others follow from the
-    system and the material family.
+    A storage needs the block of the time solver it is used with. The fracture bookkeeping
+    blocks belong to the damage model and are inherited inside a
+    [`@dmg_storage`](@ref Peridynamics.@dmg_storage) declaration. The others follow from
+    the system and the material family.
 
     $(block_links(Peridynamics.AbstractStorageFields))
 
@@ -159,6 +164,9 @@ makedocs(;
         # still catches something worth knowing.
         size_threshold_ignore = ["internals.md", "public_api_reference.md",
                                  "extension_api_reference.md"],
+        # the search index covers every internal docstring through `internals.md`, so it
+        # is larger than the default warn limit of 500 KiB; the hard limit stays at 1 MiB
+        search_size_threshold_warn = 768 * 2^10,
     ),
     draft = LIVE_MODE,
     pages = [
@@ -190,6 +198,8 @@ makedocs(;
         ],
         "Development" => [
             joinpath("generated", "tutorial_custom_material.md"),
+            joinpath("generated", "tutorial_custom_damage_model.md"),
+            joinpath("generated", "tutorial_custom_constitutive_model.md"),
             "dev_systems.md",
             "dev_materials.md",
             joinpath("generated", "inheritable_blocks.md"),

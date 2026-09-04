@@ -13,13 +13,12 @@
             @test Peridynamics.storage_type(mat) <: Peridynamics.AbstractStorage
             kwargs = Peridynamics.allowed_material_kwargs(mat)
             @test :horizon in kwargs && :rho in kwargs && :E in kwargs
-            # the type-level part of the contract is the fracture bookkeeping of the system,
-            # the rest is checked against the solver that is actually used
-            required = Peridynamics.required_fields(M)
-            @test :damage in required
+            # the fracture bookkeeping of the system family is provided by the state of the
+            # damage model, flat fields and state together answer every point data name
             S = Peridynamics.storage_type(mat)
-            @test Peridynamics.point_data_fields(S) ⊆ fieldnames(S)
-            @test all(hasfield(S, f) for f in required)
+            @test all(Peridynamics.has_storage_field(S, Val(f))
+                      for f in Peridynamics.point_data_fields(S))
+            @test Peridynamics.has_storage_field(S, Val(:damage))
             @test all(hasfield(S, f) for f in (:position, :displacement, :b_int))
             # a storage for every solver the material supports, with consistent halo queries:
             # the fields exchanged between chunks are declared halo fields and are point data
@@ -27,8 +26,11 @@
             for solver in (VelocityVerlet(steps=1), DynamicRelaxation(steps=1), NewtonKrylov(steps=1))
                 Fixtures.supports(solver, mat) || continue
                 @test isnothing(Peridynamics.check_storage_contract(mat, solver))
-                (; storage) = Fixtures.chunk(body, solver)
+                (; storage, system) = Fixtures.chunk(body, solver)
                 @test storage isa S
+                # the interface functions of the damage model read the pristine bookkeeping
+                @test Peridynamics.bond_is_active(storage, system, 1)
+                @test Peridynamics.get_damage(storage, 1) == 0
                 lth = Peridynamics.loc_to_halo_fields(storage)
                 htl = Peridynamics.halo_to_loc_fields(storage)
                 @test :position in lth
