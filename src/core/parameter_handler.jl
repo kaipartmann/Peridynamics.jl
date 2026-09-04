@@ -43,12 +43,6 @@ struct ParameterHandler{P<:AbstractPointParameters,PV<:AbstractVector{P},
     point_mapping::PM
 end
 
-function ParameterHandler(parameters::AbstractVector{P},
-                          point_mapping::AbstractVector{Int}) where {P}
-    PV, PM = typeof(parameters), typeof(point_mapping)
-    return ParameterHandler{P,PV,PM}(parameters, point_mapping)
-end
-
 function Adapt.adapt_structure(to, ph::ParameterHandler)
     return ParameterHandler(Adapt.adapt(to, ph.parameters),
                             Adapt.adapt(to, ph.point_mapping))

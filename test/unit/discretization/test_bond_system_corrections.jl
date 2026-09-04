@@ -237,3 +237,58 @@ end
     # the trigonometry of the correction factor has no two-dimensional form yet
     @test isnothing(check_scfactor_n_dim(chunk.system))
 end
+
+@testitem "EnergySurfaceCorrection: Adapt.adapt_structure moves both factor arrays" begin
+    # a minimal stand-in for the array type of another backend, see
+    # `test/unit/core/test_parameter_handler.jl`
+    struct BSCWrappedArray{T,N} <: AbstractArray{T,N}
+        a::Array{T,N}
+    end
+    Base.size(x::BSCWrappedArray) = size(x.a)
+    Base.getindex(x::BSCWrappedArray, i...) = getindex(x.a, i...)
+    Base.setindex!(x::BSCWrappedArray, v, i...) = setindex!(x.a, v, i...)
+    struct BSCWrappedBackend end
+    function Peridynamics.Adapt.adapt_storage(::BSCWrappedBackend, a::Array{T,N}) where {T,N}
+        return BSCWrappedArray{T,N}(a)
+    end
+
+    Δx = 0.25
+    pos, vol = uniform_box(1, 1, 1, Δx)
+    horizon = 3.01 * Δx
+    mat = BBMaterial{EnergySurfaceCorrection}()
+    body = Body(mat, pos, vol)
+    material!(body; horizon, rho=8000, E=210e9, nu=0.25)
+    ts = VelocityVerlet(steps=1)
+    dh = Peridynamics.threads_data_handler(body, ts, 1)
+    Peridynamics.initialize!(dh, ts)
+    correction = dh.chunks[1].system.correction
+    mfactor_before = copy(correction.mfactor)
+    scfactor_before = copy(correction.scfactor)
+
+    adapted = Peridynamics.Adapt.adapt(BSCWrappedBackend(), correction)
+    @test adapted isa Peridynamics.EnergySurfaceCorrection
+    @test adapted.mfactor isa BSCWrappedArray
+    @test adapted.scfactor isa BSCWrappedArray
+    @test adapted.mfactor == mfactor_before
+    @test adapted.scfactor == scfactor_before
+end
+
+@testitem "check_scfactor_n_dim: a two-dimensional system is not supported" begin
+    import Peridynamics: check_scfactor_n_dim
+
+    # `Body` always keeps a 3-row position matrix, so a genuinely two-dimensional system
+    # never reaches this check through the normal construction path; a minimal mock that
+    # only answers `get_n_dim` exercises the check directly instead
+    struct BSC2DSystem <: Peridynamics.AbstractSystem end
+    Peridynamics.get_n_dim(::BSC2DSystem) = 2
+
+    err = try
+        check_scfactor_n_dim(BSC2DSystem())
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    msg = sprint(showerror, err)
+    @test contains(msg, "EnergySurfaceCorrection")
+    @test contains(msg, "2")
+end

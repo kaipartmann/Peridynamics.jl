@@ -350,7 +350,8 @@ end
 end
 
 @testitem "typecheck_storage: fallbacks and missing fields" begin
-    import Peridynamics: typecheck_storage, typecheck_is_storage, typecheck_storage_fields
+    import Peridynamics: typecheck_storage, typecheck_is_storage, typecheck_storage_fields,
+                         typecheck_req_fields_missing, required_fields, AbstractMaterial
     struct NotAStorage end
 
     @test_throws ArgumentError typecheck_storage(BBMaterial, NotAStorage)
@@ -362,6 +363,21 @@ end
     @test typecheck_storage_fields(Peridynamics.BBStorage, (:position, :b_int)) === nothing
     @test_throws ArgumentError typecheck_storage_fields(Peridynamics.BBStorage,
                                                         (:position, :not_a_field))
+
+    # a material family can require fields from its type alone, and a storage that does not
+    # declare them is rejected while `@storage` is expanded
+    struct ReqFieldsMat <: AbstractMaterial end
+    Peridynamics.required_fields(::Type{ReqFieldsMat}) = (:position, :my_extra_field)
+    @test required_fields(ReqFieldsMat) === (:position, :my_extra_field)
+    @test typecheck_req_fields_missing(Peridynamics.BBStorage, (:position, :b_int)) === false
+    err = try
+        typecheck_req_fields_missing(Peridynamics.BBStorage, (:my_extra_field,))
+    catch e
+        e
+    end
+    @test err isa ErrorException
+    @test contains(err.msg, "required field my_extra_field not found")
+    @test_throws ErrorException typecheck_storage(ReqFieldsMat, Peridynamics.BBStorage)
 end
 
 @testitem "storage interface: halo field fallbacks and local point data" setup=[Fixtures] begin
@@ -467,6 +483,9 @@ end
     struct ManualStorage <: AbstractStorage end
     Peridynamics.storage_type(::ManualMat) = ManualStorage
     @test storage_type(ManualMat(), Float32) === ManualStorage
+    # ... and the number of spatial dimensions of the simulation as well
+    @test storage_type(ManualMat(), Float32, Val(2)) === ManualStorage
+    @test storage_type(ManualMat(), Float64, Val(3)) === ManualStorage
 
     # the hint of `init_field` only knows what to say for a `Val` field
     @test contains(init_field_hint(Val(:my_field)), "my_field::PointScalar")
@@ -563,4 +582,165 @@ end
     # the float type reaches the nested state as well
     S32 = storage_type(BBMaterial(), Float32, Val(2))
     @test fieldtype(S32, :dmg_state).parameters[2] === Float32
+end
+
+@testitem "macrocheck_input_system: the system a damage state is declared for" begin
+    import Peridynamics: macrocheck_input_system, damage_storage_type, system_type,
+                         AbstractDamageModel, BondSystem
+
+    # the system is named, either bare or qualified with the module it lives in
+    @test isnothing(macrocheck_input_system(:BondSystem))
+    @test isnothing(macrocheck_input_system(:(Peridynamics.BondSystem)))
+
+    # everything that cannot name a type is rejected
+    @test_throws ArgumentError macrocheck_input_system(1)
+    err = try
+        macrocheck_input_system(:(system_type(mat)))
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test contains(err.msg, "is not a valid system input")
+
+    # both accepted forms expand, and the state is declared for that system family only
+    struct QualifiedDmg <: AbstractDamageModel end
+    Peridynamics.@dmg_storage QualifiedDmg Peridynamics.BondSystem struct QualifiedDmgState
+        marker::BondScalar{Int}
+    end
+    struct BareDmg <: AbstractDamageModel end
+    Peridynamics.@dmg_storage BareDmg BondSystem struct BareDmgState
+        marker::BondScalar{Int}
+    end
+    for (model, State) in ((QualifiedDmg(), QualifiedDmgState), (BareDmg(), BareDmgState))
+        @test damage_storage_type(model, system_type(BBMaterial())) === State{3,Vector{Int}}
+        @test damage_storage_type(model, system_type(CKIMaterial())) === Nothing
+    end
+end
+
+@testitem "@dmg_storage: a damage state without derived type parameters" begin
+    import Peridynamics: AbstractDamageModel, AbstractDamageState, damage_storage_type,
+                         system_type, get_n_dim, Adapt
+
+    # a state without fields has nothing that could follow the float type or be moved to
+    # another array backend, so the dimension is the only parameter it carries and no
+    # `Adapt.adapt_structure` is generated for it
+    struct MarkerDmg <: AbstractDamageModel end
+    Peridynamics.@dmg_storage MarkerDmg struct MarkerDmgState end
+
+    @test MarkerDmgState isa UnionAll
+    @test MarkerDmgState <: AbstractDamageState
+    @test damage_storage_type(MarkerDmg(), system_type(BBMaterial())) === MarkerDmgState{3}
+    state = MarkerDmgState{3}()
+    @test get_n_dim(state) == 3
+    @test Adapt.adapt(Array, state) === state
+end
+
+@testitem "check_state_field_collisions: two nested states must not carry the same field" begin
+    import Peridynamics: check_state_field_collisions, storage_type,
+                         AbstractConstitutiveState, AbstractDamageState, AbstractStorage
+
+    # each state is free to name its own fields, but a name that both of them carry has no
+    # single home on the storage that reads them flat
+    struct TwinCMState <: AbstractConstitutiveState
+        damage::Vector{Float64}
+    end
+    struct TwinDmgState <: AbstractDamageState
+        damage::Vector{Float64}
+    end
+    struct TwinStorage <: AbstractStorage
+        cm_state::TwinCMState
+        dmg_state::TwinDmgState
+    end
+    err = try
+        check_state_field_collisions(TwinStorage)
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test contains(err.msg, "both nested states of the storage `TwinStorage`")
+    @test contains(err.msg, "`damage`")
+    @test contains(err.msg, "rename the field in one of the two models")
+
+    # a storage whose states have nothing in common passes
+    @test isnothing(check_state_field_collisions(storage_type(BBMaterial())))
+end
+
+@testitem "get_storage_property: a name that both nested states carry is ambiguous" begin
+    import Peridynamics: AbstractConstitutiveState, AbstractDamageState, AbstractStorage
+
+    # the backstop of `check_state_field_collisions` for a storage that is built without a
+    # `Job`: the flat read cannot decide which state the name belongs to
+    struct AmbiCMState <: AbstractConstitutiveState
+        damage::Vector{Float64}
+        plastic_strain::Vector{Float64}
+    end
+    struct AmbiDmgState <: AbstractDamageState
+        damage::Vector{Float64}
+    end
+    struct AmbiStorage <: AbstractStorage
+        cm_state::AmbiCMState
+        dmg_state::AmbiDmgState
+    end
+    s = AmbiStorage(AmbiCMState([0.0], [1.0]), AmbiDmgState([2.0]))
+
+    # a flat field and a name that only one state carries still read
+    @test s.cm_state === Base.getfield(s, :cm_state)
+    @test s.plastic_strain == [1.0]
+
+    err = try
+        s.damage
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test contains(err.msg, "`damage` exists in `cm_state` and `dmg_state`")
+end
+
+@testitem "point_data_field: a damage model without a state serves no point data" begin
+    import Peridynamics: AbstractBondSystemMaterial, NoCorrection, AbstractDamageModel,
+                         point_data_field, point_data_fields, nested_point_data_fields,
+                         damage_state, storage_type, get_storage
+
+    # `Nothing` is the state of a damage model that declares none: no point data at all,
+    # and a read that reaches it says why the field cannot be served
+    @test point_data_fields(Nothing) === ()
+    @test nested_point_data_fields(Nothing) === ()
+    err = try
+        point_data_field(nothing, Val(:damage))
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test contains(err.msg, "no point data field `damage`")
+
+    # a storage that declares `dmg_state` although its model has no state reaches exactly
+    # those methods, through the forwarding the macro generates for the marker
+    struct StatelessDmg <: AbstractDamageModel end
+    struct StatelessDmgMat{D} <: AbstractBondSystemMaterial{NoCorrection}
+        dmgmodel::D
+    end
+    StatelessDmgMat() = StatelessDmgMat(StatelessDmg())
+    Peridynamics.@params StatelessDmgMat struct StatelessDmgParams
+        @inherit StandardParameters
+    end
+    Peridynamics.@storage StatelessDmgMat struct StatelessDmgStorage
+        @inherit VelocityVerletFields
+        dmg_state::DamageState
+    end
+
+    mat = StatelessDmgMat()
+    @test fieldtype(storage_type(mat), :dmg_state) === Nothing
+    @test point_data_fields(storage_type(mat)) ===
+          (:position, :displacement, :velocity, :velocity_half, :acceleration, :b_int,
+           :b_ext)
+
+    pos, vol = uniform_box(1, 1, 1, 0.5)
+    body = Body(mat, pos, vol)
+    material!(body; horizon=0.8, rho=1, E=1, nu=0.25)
+    pd = Peridynamics.PointDecomposition(body, 1)
+    system = Peridynamics.get_system(body, pd, 1)
+    storage = get_storage(mat, VelocityVerlet(steps=1), system)
+    @test isnothing(damage_state(storage))
+    @test point_data_field(storage, Val(:position)) === Base.getfield(storage, :position)
+    @test_throws ArgumentError point_data_field(storage, Val(:damage))
 end

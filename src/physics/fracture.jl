@@ -343,7 +343,9 @@ function has_fracture(::AbstractDamageModel, params)
 end
 
 # a material without a damage model has nothing that could break a bond
-has_fracture(::Nothing, params) = false
+function has_fracture(::Nothing, params)
+    return false
+end
 
 """
     get_dmgmodel(mat::AbstractMaterial)

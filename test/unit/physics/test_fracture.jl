@@ -742,3 +742,32 @@ end
     @test isnothing(check_damage_model(BBMaterial()))
     @test isnothing(check_damage_model(CKIMaterial()))
 end
+
+@testitem "has_fracture / calc_failure! / calc_damage!: a material without a damage model" setup=[Fixtures] begin
+    import Peridynamics: has_fracture, calc_failure!, calc_damage!, get_dmgmodel
+
+    # a material that has no `dmgmodel` property at all: `get_dmgmodel` falls back to
+    # `nothing`, and everything downstream of it becomes a no-op
+    struct FFNoDmgModelMat <: Peridynamics.AbstractMaterial end
+    mat = FFNoDmgModelMat()
+    @test get_dmgmodel(mat) === nothing
+
+    # `has_fracture` of `nothing` is false regardless of the parameters, since there is no
+    # damage model to answer for them; a real point parameter set makes that concrete
+    body = Fixtures.cube()
+    chunk = Fixtures.chunk(body)
+    (; storage, system, paramsetup) = chunk
+    params = Peridynamics.get_params(paramsetup, 1)
+    @test has_fracture(nothing, params) == false
+    @test has_fracture(mat, params) == false
+
+    # `calc_failure!`/`calc_damage!` dispatched on `dmgmodel::Nothing` run and touch nothing:
+    # exercise them on the same chunk's storage and system and check both stay untouched
+    bond_active_before = copy(storage.bond_active)
+    damage_before = copy(storage.damage)
+    @test calc_failure!(storage, system, chunk.mat, nothing, paramsetup, 0.0, 1e-7, 1) ===
+          nothing
+    @test calc_damage!(storage, system, chunk.mat, nothing, paramsetup, 1) === nothing
+    @test storage.bond_active == bond_active_before
+    @test storage.damage == damage_before
+end

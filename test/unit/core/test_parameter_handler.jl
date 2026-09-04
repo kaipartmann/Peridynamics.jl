@@ -63,6 +63,13 @@ end
     P = Peridynamics.point_param_type(body.mat)
     @test paramsetup isa Peridynamics.ParameterHandler{P,Vector{P},Vector{Int}}
 
+    # the default outer constructor derives the type parameters from the containers it is
+    # given, so `Adapt` can rebuild the handler without spelling them out
+    direct = Peridynamics.ParameterHandler(paramsetup.parameters, paramsetup.point_mapping)
+    @test direct isa Peridynamics.ParameterHandler{P,Vector{P},Vector{Int}}
+    @test direct.parameters === paramsetup.parameters
+    @test direct.point_mapping === paramsetup.point_mapping
+
     # both containers move to the other backend and the parameters themselves are unchanged
     adapted = Peridynamics.Adapt.adapt(WrappedBackend(), paramsetup)
     @test adapted isa Peridynamics.ParameterHandler{P}

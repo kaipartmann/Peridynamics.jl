@@ -115,6 +115,18 @@ end
                                                              Val(2))
 end
 
+@testitem "voigt_pairs: only N = 2 or N = 3 have a Voigt order" begin
+    # the Voigt convention `get_sym_tensor`/`update_sym_tensor!` build on is only defined in
+    # two and three spatial dimensions
+    @test_throws ErrorException Peridynamics.voigt_pairs(1)
+    @test_throws ErrorException Peridynamics.voigt_pairs(4)
+
+    # `get_sym_tensor` fails the same way for any other dimension, since it calls
+    # `voigt_pairs` to lay out the field
+    M = zeros(10, 1)
+    @test_throws ErrorException Peridynamics.get_sym_tensor(M, 1, Val(4))
+end
+
 @testitem "get and update tensors" setup=[DimMocks] begin
     using Peridynamics.StaticArrays
     using Peridynamics: dims

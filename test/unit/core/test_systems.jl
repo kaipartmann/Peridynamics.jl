@@ -276,6 +276,17 @@ end
     struct NoSystemMaterial <: Peridynamics.AbstractMaterial end
     @test_throws Peridynamics.InterfaceError Peridynamics.system_type(NoSystemMaterial())
 
+    # a material that names no system cannot discretize a body either
+    struct NoSystemBody <: Peridynamics.AbstractBody{NoSystemMaterial} end
+    pd = Peridynamics.PointDecomposition([1:2])
+    err = try
+        Peridynamics.get_system(NoSystemBody(), pd, 1)
+    catch e
+        e
+    end
+    @test err isa ErrorException
+    @test contains(err.msg, "system for material")
+
     c = Fixtures.chunk(Fixtures.line10(); n_chunks=2, chunk_id=1)
     system, ch = c.system, c.system.chunk_handler
     @test Peridynamics.get_halo_points(system) == Peridynamics.get_halo_points(ch)
@@ -623,4 +634,74 @@ end
 
     # a system without a restriction accepts every material
     @test isnothing(check_system_compat(Peridynamics.AbstractSystem, BBMaterial()))
+end
+
+@testitem "surface_correction_factor: a system without a correction is not corrected" begin
+    import Peridynamics: @system, AbstractSystem, ChunkHandler, host_system_type,
+                         surface_correction_factor
+
+    # only a system that carries a correction asks it for the factor, every other one, e.g.
+    # the interaction system, weights its bonds with 1
+    @system struct UncorrectedSystem <: AbstractSystem
+        position::PointVector{Float64}
+        bond_length::BondScalar
+    end
+    S = host_system_type(UncorrectedSystem, Val(3), Float64)
+    ch = ChunkHandler(2, [1, 2], 1:2, Int[], Dict{Int,UnitRange{Int}}(),
+                      Dict(1 => 1, 2 => 2))
+    system = S(zeros(3, 2), [1.0], ch)
+    @test !hasfield(typeof(system), :correction)
+    @test surface_correction_factor(system, 1) == 1
+end
+
+@testitem "unique_param_name: a derived name that is already taken gets a suffix" begin
+    import Peridynamics: unique_param_name, @system, AbstractSystem
+
+    # the first free name wins, and the suffix counts up while the candidates are taken
+    @test unique_param_name(:V_FT, Set([:N, :FT])) === :V_FT
+    @test unique_param_name(:V_FT, Set([:V_FT])) === :V_FT_2
+    @test unique_param_name(:V_FT, Set([:V_FT, :V_FT_2])) === :V_FT_3
+
+    # the type parameters a system declares itself are taken, so a derived parameter that
+    # would collide with one of them is renamed
+    @system struct TakenNameSystem{V_FT,V_FT_2} <: AbstractSystem
+        position::PointVector{Float64}
+        volume::PointScalar
+    end
+    names = [p.name for p in Base.unwrap_unionall(TakenNameSystem).parameters]
+    @test :V_FT_3 in names
+    @test names == [:V_FT, :V_FT_2, :N, :FT, :CH, :M_F64, :V_FT_3]
+end
+
+@testitem "@system: a docstring is attached to the generated struct" begin
+    import Peridynamics: @system, AbstractSystem
+
+    """
+        DocumentedSystem
+
+    A system that documents itself.
+    """
+    @system struct DocumentedSystem <: AbstractSystem
+        position::PointVector{Float64}
+    end
+
+    @test contains(string(@doc DocumentedSystem), "A system that documents itself")
+end
+
+@testitem "field_n_dims_of: a field without a shape follows its declared type" begin
+    import Peridynamics: StorageFieldDecl, field_n_dims_of, PointVector
+
+    # a field with a shape is whatever the shape says
+    @test field_n_dims_of(StorageFieldDecl(:position, :none, PointVector, PointVector(),
+                                           nothing)) == 2
+
+    # without a shape only a concrete array type contributes dimensions, everything else
+    # is kept verbatim and counts as a scalar field
+    @test field_n_dims_of(StorageFieldDecl(:offsets, :none, Vector{Int}, nothing,
+                                           nothing)) == 1
+    @test field_n_dims_of(StorageFieldDecl(:weights, :none, Matrix{Float64}, nothing,
+                                           nothing)) == 2
+    @test field_n_dims_of(StorageFieldDecl(:n_neighbors, :none, Int, nothing, nothing)) == 0
+    @test field_n_dims_of(StorageFieldDecl(:anything, :none, Array, nothing, nothing)) == 0
+    @test field_n_dims_of(StorageFieldDecl(:handler, :none, :CH, nothing, nothing)) == 0
 end

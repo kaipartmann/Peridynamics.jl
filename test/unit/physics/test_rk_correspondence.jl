@@ -456,3 +456,29 @@ end
     @test all(>(0), sed)
     @test all(isfinite, sed)
 end
+
+@testitem "rkc_stress_integral!: a neighbor with zero weighted volume gets a zeroed bond stress" setup=[Fixtures] begin
+    import Peridynamics: rkc_stress_integral!, each_bond_idx, get_neighbor, get_params,
+                         get_tensor, dims
+
+    for mat in (RKCMaterial(), RKCRMaterial())
+        body = Fixtures.cube(mat; n=4)
+        dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+        chunk = dh.chunks[1]
+        (; storage, system, paramsetup) = chunk
+        Peridynamics.calc_weights_and_defgrad!(chunk, 0.0, 1e-7)
+        @test all(>(0), storage.weighted_volume)
+
+        i = 1
+        bond_id = first(each_bond_idx(system, i))
+        j = get_neighbor(system, bond_id)
+        storage.weighted_volume[j] = 0
+        # a stale bond stress from an earlier step must be overwritten, not skipped
+        storage.bond_first_piola_kirchhoff[:, bond_id] .= 1
+
+        params = get_params(paramsetup, i)
+        rkc_stress_integral!(storage, system, mat, params, 0.0, 1e-7, i) # must not error
+        P = get_tensor(storage.bond_first_piola_kirchhoff, bond_id, dims(system))
+        @test all(iszero, P)
+    end
+end
