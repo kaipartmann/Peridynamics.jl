@@ -114,25 +114,13 @@ end
 """
     BACPointParameters
 
-$(internal_api_warning())
+$(extension_api_note())
 
-Type containing the material parameters for a peridynamics model using the bond-associated
-correspondence formulation of Chen and Spencer.
+Point parameters of the bond-associated correspondence material: the discretization
+parameters, the bond horizon `δb`, the elastic parameters, the bond constant `bc` and the
+parameters of the constitutive model and of the damage model.
 
-# Fields
-
-- `δ::Float64`: Horizon.
-- `δb::Float64`: Bond-associated horizon.
-- `rho::Float64`: Density.
-- `E::Float64`: Young's modulus.
-- `nu::Float64`: Poisson's ratio.
-- `G::Float64`: Shear modulus.
-- `K::Float64`: Bulk modulus.
-- `λ::Float64`: 1st Lamé parameter.
-- `μ::Float64`: 2nd Lamé parameter.
-- `Gc::Float64`: Critical energy release rate.
-- `εc::Float64`: Critical strain.
-- `bc::Float64`: Bond constant.
+$(block_table(BACPointParameters))
 """
 @params BACMaterial struct BACPointParameters
     @inherit DiscretizationParameters BondHorizonParameters ElasticParameters
@@ -141,13 +129,24 @@ correspondence formulation of Chen and Spencer.
     dmg_params::DamageParameters
 end
 
+"""
+    BACStorage
+
+$(extension_api_note())
+
+Storage of [`BACMaterial`](@ref): the stress and the von Mises stress of every point, the
+state of the constitutive model, and a scratch matrix for the bond stresses of one point,
+which is allocated by an `init_field` method.
+
+$(block_table(BACStorage))
+"""
 @storage BACMaterial struct BACStorage
     @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
-    @inherit BondFracFields
     @htl b_int::PointVector
     stress::PointTensor
     von_mises_stress::PointScalar
     cm_state::ConstitutiveState
+    dmg_state::DamageState
     # scratch space for a single point, see `init_field` below
     bond_stress::Matrix{Float64}
 end
@@ -162,25 +161,27 @@ end
 # into forces. Same sum as writing the force of every family directly to all of its bonds,
 # but with a factor of the family size fewer scattered writes to `b_int`.
 function force_density_point!(storage::BACStorage, system::BondAssociatedSystem,
-                              mat::BACMaterial, params::BACPointParameters, t, Δt, i)
+                              mat::BACMaterial, paramsetup::AbstractParameterSetup, t, Δt, i)
+    params = get_params(paramsetup, i)
     bond_ids_of_i = each_bond_idx(system, i)
     for k in eachindex(bond_ids_of_i)
-        zero_tensor!(storage.bond_stress, k)
+        zero_tensor!(storage.bond_stress, k, dims(system))
     end
     for bond_idx in bond_ids_of_i
         collect_bond_stress!(storage, system, mat, params, t, Δt, i, bond_idx)
     end
-    # `intersection_bond_ids` indexes the bonds of a point from one, so this is the shift
-    # between that numbering and the bond indices of the chunk
+    # `bond_stress` is scratch space for one point, so its columns are numbered from one and
+    # this is the shift between that numbering and the bond indices of the chunk
     offset = first(bond_ids_of_i) - 1
     for k in eachindex(bond_ids_of_i)
         bond_idx = offset + k
-        storage.bond_active[bond_idx] || continue
-        j = system.bonds[bond_idx].neighbor
-        ΔXij = get_vector_diff(system.position, i, j)
-        tij = kernel(system, bond_idx) * (get_tensor(storage.bond_stress, k) * ΔXij)
-        update_add_vector!(storage.b_int, i, tij .* system.volume[j])
-        update_add_vector!(storage.b_int, j, -tij .* system.volume[i])
+        bond_is_active(storage, system, bond_idx) || continue
+        j = get_neighbor(system, bond_idx)
+        ΔXij = get_vector_diff(system.position, i, j, dims(system))
+        σk = get_tensor(storage.bond_stress, k, dims(system))
+        tij = kernel(system, bond_idx) * (σk * ΔXij)
+        update_add_vector!(storage.b_int, i, tij .* system.volume[j], dims(system))
+        update_add_vector!(storage.b_int, j, -tij .* system.volume[i], dims(system))
     end
     return nothing
 end
@@ -192,12 +193,12 @@ end
 function collect_bond_stress!(storage::BACStorage, system::BondAssociatedSystem,
                               mat::BACMaterial, params::BACPointParameters, t, Δt, i,
                               bond_idx)
-    if storage.damage[i] > mat.maxdmg
-        storage.bond_active[bond_idx] = false
+    if get_damage(storage, i) > mat.maxdmg
+        break_bond!(storage, system, get_dmgmodel(mat), i, bond_idx)
         return nothing
     end
     # a broken bond has no share of the energy, so its family is never needed
-    storage.bond_active[bond_idx] || return nothing
+    bond_is_active(storage, system, bond_idx) || return nothing
     defgrad_res = calc_deformation_gradient(storage, system, mat, params, i, bond_idx)
     (; F, too_damaged) = defgrad_res
     # without a usable deformation gradient there is no stress, but breaking the bond is
@@ -207,9 +208,9 @@ function collect_bond_stress!(storage::BACStorage, system::BondAssociatedSystem,
 
     wPKinv = volume_fraction_factor(system, i, bond_idx) * PKinv
     offset = first(each_bond_idx(system, i)) - 1
-    for k in system.intersection_bond_ids[bond_idx]
-        storage.bond_active[offset + k] || continue
-        update_add_tensor!(storage.bond_stress, k, wPKinv)
+    for bond_id in each_intersecting_bond_idx(system, i, bond_idx)
+        bond_is_active(storage, system, bond_id) || continue
+        update_add_tensor!(storage.bond_stress, bond_id - offset, wPKinv, dims(system))
     end
     return nothing
 end
@@ -230,17 +231,15 @@ const BA_MIN_SHAPE_QUALITY = 1e-3
 function calc_deformation_gradient(storage::BACStorage, system::BondAssociatedSystem,
                                    mat::BACMaterial, params::BACPointParameters, i,
                                    bond_idx)
-    (; bonds, volume, ba_hood_volume) = system
-    (; bond_active) = storage
+    (; volume, ba_hood_volume) = system
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     intact_volume = 0.0
     for bond_id in each_intersecting_bond_idx(system, i, bond_idx)
-        bond_active[bond_id] || continue
-        bond = bonds[bond_id]
-        j = bond.neighbor
-        ΔXij = get_vector_diff(system.position, i, j)
-        Δxij = get_vector_diff(storage.position, i, j)
+        bond_is_active(storage, system, bond_id) || continue
+        j = get_neighbor(system, bond_id)
+        ΔXij = get_vector_diff(system.position, i, j, dims(system))
+        Δxij = get_vector_diff(storage.position, i, j, dims(system))
         ωijV = kernel(system, bond_id) * volume[j]
         K += ωijV * (ΔXij * ΔXij')
         _F += ωijV * (Δxij * ΔXij')

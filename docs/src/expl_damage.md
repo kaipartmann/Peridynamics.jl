@@ -50,3 +50,16 @@ with the three-neighbor interaction failure quantity $d^{ijkl} \in \{0;1\}$.
 | Bond failure quantity |      $d^{ij} \in \{0;1\}$      | $[-]$ |
 | Two-neighbor interaction failure quantity |      $d^{ijk} \in \{0;1\}$      | $[-]$ |
 | Three-neighbor interaction failure quantity |      $d^{ijkl} \in \{0;1\}$      | $[-]$ |
+
+## Bond softening
+
+Instead of deleting a bond the moment it fails, a damage model can let it fade out. Damage
+then acts on a bond in two conceptually different ways, and a model answers them separately.
+
+| hook | scales |
+|:---|:---|
+| `bond_integrity` | the stress and the strain energy density the bond still carries, i.e. the continuity $1 - d$ of classical damage mechanics |
+| `kinematic_weight` | what the bond contributes to the moment matrix and the gradient weights, i.e. how much the motion of the neighbor can still be trusted |
+
+Both default to one, and the materials that honor them are [`RKCMaterial`](@ref) and
+[`RKCRMaterial`](@ref). See [Damage models](@ref) for how a model defines them.

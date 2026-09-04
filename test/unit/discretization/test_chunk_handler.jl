@@ -62,23 +62,23 @@ end
     @test loc_point_sets[:b] == Vector{Int}()
 end
 
-@testitem "localize!(Vector{Bonds}, ...)" setup=[Fixtures] begin
-    # change two bonds
-    bonds = [Peridynamics.Bond(100, 1.0, true), Peridynamics.Bond(101, 30.0, false)]
+@testitem "localize!(Vector{Int}, ...)" setup=[Fixtures] begin
+    # change two neighbors
+    neighbor = [100, 101]
     localizer = Dict(100 => 1, 101 => 2)
-    Peridynamics.localize!(bonds, localizer)
-    @test bonds == [Peridynamics.Bond(1, 1.0, true), Peridynamics.Bond(2, 30.0, false)]
+    Peridynamics.localize!(neighbor, localizer)
+    @test neighbor == [1, 2]
 
-    # do not change any bond
-    bonds = [Peridynamics.Bond(100, 1.0, true), Peridynamics.Bond(101, 30.0, false)]
+    # do not change any neighbor
+    neighbor = [100, 101]
     localizer = Dict(100 => 100, 101 => 101)
-    Peridynamics.localize!(bonds, localizer)
-    @test bonds == [Peridynamics.Bond(100, 1.0, true), Peridynamics.Bond(101, 30.0, false)]
+    Peridynamics.localize!(neighbor, localizer)
+    @test neighbor == [100, 101]
 
     # key not found error
-    bonds = [Peridynamics.Bond(100, 1.0, true)]
+    neighbor = [100]
     localizer = Dict(2 => 1)
-    @test_throws KeyError(100) Peridynamics.localize!(bonds, localizer)
+    @test_throws KeyError(100) Peridynamics.localize!(neighbor, localizer)
 end
 
 @testitem "ChunkHandler" setup=[Fixtures] begin
@@ -154,8 +154,8 @@ end
     decomp = Peridynamics.distribute_equally(body.n_points, n_chunks)
     pd = Peridynamics.PointDecomposition(decomp)
 
-    bonds1, n_neighbors1, bond_ids1, ch1 = Peridynamics.get_bond_data(body, pd, 1)
-    bonds2, n_neighbors2, bond_ids2, ch2 = Peridynamics.get_bond_data(body, pd, 2)
+    neighbor1, bond_length1, fail_permit1, n_neighbors1, bond_ids1, ch1 = Peridynamics.get_bond_data(body, pd, 1)
+    neighbor2, bond_length2, fail_permit2, n_neighbors2, bond_ids2, ch2 = Peridynamics.get_bond_data(body, pd, 2)
     rng = Fixtures.rng()
     v_float = rand(rng, N)
     m_float = rand(rng, 3, N)
@@ -216,9 +216,11 @@ end
 
     # chunk 1
     chunk_id = 1
-    _bonds1, _n_neighbors1 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
-    bonds1, n_neighbors1, bond_ids1, ch1 = Peridynamics.get_bond_data(body, pd, chunk_id)
-    @test _bonds1 == bonds1
+    _neighbor1, _bond_length1, _fail_permit1, _n_neighbors1 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
+    neighbor1, bond_length1, fail_permit1, n_neighbors1, bond_ids1, ch1 = Peridynamics.get_bond_data(body, pd, chunk_id)
+    @test _neighbor1 == neighbor1
+    @test _bond_length1 == bond_length1
+    @test _fail_permit1 == fail_permit1
     @test _n_neighbors1 == n_neighbors1
     @test ch1.n_loc_points == 5
     @test ch1.point_ids == [1, 2, 3, 4, 5, 6]
@@ -230,8 +232,8 @@ end
 
     # chunk 2
     chunk_id = 2
-    _bonds2, _n_neighbors2 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
-    bonds2, n_neighbors2, bond_ids2, ch2 = Peridynamics.get_bond_data(body, pd, chunk_id)
+    _neighbor2, _bond_length2, _fail_permit2, _n_neighbors2 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
+    neighbor2, bond_length2, fail_permit2, n_neighbors2, bond_ids2, ch2 = Peridynamics.get_bond_data(body, pd, chunk_id)
     @test ch2.n_loc_points == 5
     @test ch2.point_ids == [6, 7, 8, 9, 10, 5]
     @test ch2.loc_points == 6:10
@@ -255,16 +257,18 @@ end
 
     # chunk 1
     chunk_id = 1
-    _bonds1, _n_neighbors1 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
-    bonds1, n_neighbors1, bond_ids1, ch1 = Peridynamics.get_bond_data(body, pd, chunk_id)
-    __bonds1 = [
-        Peridynamics.Bond(2, 1.0, false)
-        Peridynamics.Bond(1, 1.0, false)
-        Peridynamics.Bond(3, 1.0, false)
-    ]
-    @test _bonds1 == __bonds1
-    Peridynamics.localize!(__bonds1, ch1.localizer)
-    @test _bonds1 == bonds1 == __bonds1
+    _neighbor1, _bond_length1, _fail_permit1, _n_neighbors1 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
+    neighbor1, bond_length1, fail_permit1, n_neighbors1, bond_ids1, ch1 = Peridynamics.get_bond_data(body, pd, chunk_id)
+    __neighbor1 = [2, 1, 3]
+    __bond_length1 = [1.0, 1.0, 1.0]
+    __fail_permit1 = [false, false, false]
+    @test _neighbor1 == __neighbor1
+    @test _bond_length1 == __bond_length1
+    @test _fail_permit1 == __fail_permit1
+    Peridynamics.localize!(__neighbor1, ch1.localizer)
+    @test _neighbor1 == neighbor1 == __neighbor1
+    @test bond_length1 == __bond_length1
+    @test fail_permit1 == __fail_permit1
     @test _n_neighbors1 == n_neighbors1 == [1, 2]
     @test ch1.n_loc_points == 2
     @test ch1.point_ids == [1, 2, 3]
@@ -276,17 +280,18 @@ end
 
     # chunk 2
     chunk_id = 2
-    _bonds2, _n_neighbors2 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
-    bonds2, n_neighbors2, bond_ids2, ch2 = Peridynamics.get_bond_data(body, pd, chunk_id)
-    __bonds2 = [
-        Peridynamics.Bond(2, 1.0, false)
-        Peridynamics.Bond(4, 1.0, false)
-        Peridynamics.Bond(3, 1.0, false)
-        Peridynamics.Bond(5, 1.0, false)
-    ]
-    @test _bonds2 == __bonds2
-    Peridynamics.localize!(__bonds2, ch2.localizer)
-    @test bonds2 == __bonds2
+    _neighbor2, _bond_length2, _fail_permit2, _n_neighbors2 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
+    neighbor2, bond_length2, fail_permit2, n_neighbors2, bond_ids2, ch2 = Peridynamics.get_bond_data(body, pd, chunk_id)
+    __neighbor2 = [2, 4, 3, 5]
+    __bond_length2 = [1.0, 1.0, 1.0, 1.0]
+    __fail_permit2 = [false, false, false, false]
+    @test _neighbor2 == __neighbor2
+    @test _bond_length2 == __bond_length2
+    @test _fail_permit2 == __fail_permit2
+    Peridynamics.localize!(__neighbor2, ch2.localizer)
+    @test neighbor2 == __neighbor2
+    @test bond_length2 == __bond_length2
+    @test fail_permit2 == __fail_permit2
     @test _n_neighbors2 == n_neighbors2 == [2, 2]
     @test ch2.n_loc_points == 2
     @test ch2.point_ids == [3, 4, 2, 5]
@@ -299,17 +304,18 @@ end
 
     # chunk 3
     chunk_id = 3
-    _bonds3, _n_neighbors3 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
-    bonds3, n_neighbors3, bond_ids3, ch3 = Peridynamics.get_bond_data(body, pd, chunk_id)
-    __bonds3 = [
-        Peridynamics.Bond(4, 1.0, false)
-        Peridynamics.Bond(6, 1.0, false)
-        Peridynamics.Bond(5, 1.0, false)
-        Peridynamics.Bond(7, 1.0, false)
-    ]
-    @test _bonds3 == __bonds3
-    Peridynamics.localize!(__bonds3, ch3.localizer)
-    @test bonds3 == __bonds3
+    _neighbor3, _bond_length3, _fail_permit3, _n_neighbors3 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
+    neighbor3, bond_length3, fail_permit3, n_neighbors3, bond_ids3, ch3 = Peridynamics.get_bond_data(body, pd, chunk_id)
+    __neighbor3 = [4, 6, 5, 7]
+    __bond_length3 = [1.0, 1.0, 1.0, 1.0]
+    __fail_permit3 = [false, false, false, false]
+    @test _neighbor3 == __neighbor3
+    @test _bond_length3 == __bond_length3
+    @test _fail_permit3 == __fail_permit3
+    Peridynamics.localize!(__neighbor3, ch3.localizer)
+    @test neighbor3 == __neighbor3
+    @test bond_length3 == __bond_length3
+    @test fail_permit3 == __fail_permit3
     @test _n_neighbors3 == n_neighbors3 == [2, 2]
     @test ch3.n_loc_points == 2
     @test ch3.point_ids == [5, 6, 4, 7]
@@ -322,17 +328,18 @@ end
 
     # chunk 4
     chunk_id = 4
-    _bonds4, _n_neighbors4 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
-    bonds4, n_neighbors4, bond_ids4, ch4 = Peridynamics.get_bond_data(body, pd, chunk_id)
-    __bonds4 = [
-        Peridynamics.Bond(6, 1.0, false)
-        Peridynamics.Bond(8, 1.0, false)
-        Peridynamics.Bond(7, 1.0, false)
-        Peridynamics.Bond(9, 1.0, false)
-    ]
-    @test _bonds4 == __bonds4
-    Peridynamics.localize!(__bonds4, ch4.localizer)
-    @test bonds4 == __bonds4
+    _neighbor4, _bond_length4, _fail_permit4, _n_neighbors4 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
+    neighbor4, bond_length4, fail_permit4, n_neighbors4, bond_ids4, ch4 = Peridynamics.get_bond_data(body, pd, chunk_id)
+    __neighbor4 = [6, 8, 7, 9]
+    __bond_length4 = [1.0, 1.0, 1.0, 1.0]
+    __fail_permit4 = [false, false, false, false]
+    @test _neighbor4 == __neighbor4
+    @test _bond_length4 == __bond_length4
+    @test _fail_permit4 == __fail_permit4
+    Peridynamics.localize!(__neighbor4, ch4.localizer)
+    @test neighbor4 == __neighbor4
+    @test bond_length4 == __bond_length4
+    @test fail_permit4 == __fail_permit4
     @test _n_neighbors4 == n_neighbors4 == [2, 2]
     @test ch4.n_loc_points == 2
     @test ch4.point_ids == [7, 8, 6, 9]
@@ -345,16 +352,18 @@ end
 
     # chunk 5
     chunk_id = 5
-    _bonds5, _n_neighbors5 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
-    bonds5, n_neighbors5, bond_ids5, ch5 = Peridynamics.get_bond_data(body, pd, chunk_id)
-    __bonds5 = [
-        Peridynamics.Bond(8, 1.0, false)
-        Peridynamics.Bond(10, 1.0, false)
-        Peridynamics.Bond(9, 1.0, false)
-    ]
-    @test _bonds5 == __bonds5
-    Peridynamics.localize!(__bonds5, ch5.localizer)
-    @test bonds5 == __bonds5
+    _neighbor5, _bond_length5, _fail_permit5, _n_neighbors5 = Peridynamics.find_bonds(body, pd.decomp[chunk_id])
+    neighbor5, bond_length5, fail_permit5, n_neighbors5, bond_ids5, ch5 = Peridynamics.get_bond_data(body, pd, chunk_id)
+    __neighbor5 = [8, 10, 9]
+    __bond_length5 = [1.0, 1.0, 1.0]
+    __fail_permit5 = [false, false, false]
+    @test _neighbor5 == __neighbor5
+    @test _bond_length5 == __bond_length5
+    @test _fail_permit5 == __fail_permit5
+    Peridynamics.localize!(__neighbor5, ch5.localizer)
+    @test neighbor5 == __neighbor5
+    @test bond_length5 == __bond_length5
+    @test fail_permit5 == __fail_permit5
     @test _n_neighbors5 == n_neighbors5 == [2, 1]
     @test ch5.n_loc_points == 2
     @test ch5.point_ids == [9, 10, 8]
@@ -363,4 +372,37 @@ end
     @test keys(ch5.hidxs_by_src) == Set([4])
     @test ch5.hidxs_by_src[4] == 3:3
     @test keys(ch5.localizer) == Set(8:10)
+end
+
+@testitem "DeviceChunkHandler: the point counts survive, the bookkeeping stays home" setup=[Fixtures] begin
+    # a minimal stand-in for the array type of another backend, see `test_storage_fields.jl`
+    struct WrappedArray{T,N} <: AbstractArray{T,N}
+        a::Array{T,N}
+    end
+    Base.size(x::WrappedArray) = size(x.a)
+    Base.getindex(x::WrappedArray, i...) = getindex(x.a, i...)
+    Base.setindex!(x::WrappedArray, v, i...) = setindex!(x.a, v, i...)
+    struct WrappedBackend end
+    function Peridynamics.Adapt.adapt_storage(::WrappedBackend, a::Array{T,N}) where {T,N}
+        return WrappedArray{T,N}(a)
+    end
+
+    body = Fixtures.tetra4()
+    chunk = Fixtures.chunk(body; n_chunks=2, chunk_id=1)
+    ch = chunk.system.chunk_handler
+    @test ch isa Peridynamics.ChunkHandler
+
+    dch = Peridynamics.Adapt.adapt(WrappedBackend(), ch)
+    @test dch isa Peridynamics.DeviceChunkHandler
+    @test Peridynamics.get_n_loc_points(dch) == Peridynamics.get_n_loc_points(ch)
+    @test Peridynamics.get_n_points(dch) == Peridynamics.get_n_points(ch)
+    @test Peridynamics.each_point_idx(dch) == Peridynamics.each_point_idx(ch)
+
+    # the local view of a field works on both, and it is the local points of the chunk
+    a = collect(1.0:Peridynamics.get_n_points(ch))
+    @test Peridynamics.get_loc_view(a, dch) == Peridynamics.get_loc_view(a, ch)
+
+    # a target that moves no array hands back the chunk handler it was given, so that the
+    # point ids, the halo bookkeeping and the localizer are not lost by an empty adapt
+    @test Peridynamics.Adapt.adapt(Array, ch) === ch
 end

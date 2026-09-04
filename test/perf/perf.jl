@@ -59,6 +59,47 @@ end
     end
 end
 
+@testitem "storage property forwarding" tags=[:perf] setup=[Fixtures] begin
+    # `storage.bond_active` reads a field that lives in the state of the damage model; the
+    # generated `getproperty` has to compile to a direct load, so a loop of flat reads
+    # allocates nothing and costs the same as reading a field
+    body = Fixtures.cube(BBMaterial(); n=4)
+    chunk = Fixtures.chunk(body)
+    (; storage, system) = chunk
+    function read_storage(storage, n)
+        s = 0.0
+        for i in 1:n
+            s += storage.bond_active[i] + storage.damage[1] + storage.b_int[1]
+        end
+        return s
+    end
+    read_storage(storage, 2)
+    bytes = @allocated read_storage(storage, 1000)
+    if VERSION ≥ v"1.12"
+        @test bytes == 0 # allocates in v1.10
+    end
+    # the nested access through `damage_state` compiles away as well
+    nested(storage, n) = sum(_ -> Peridynamics.damage_state(storage).bond_active[1], 1:n)
+    nested(storage, 2)
+    if VERSION ≥ v"1.12"
+        @test (@allocated nested(storage, 1000)) == 0 # allocates in v1.10
+    end
+    # the interface reads of the damage model are guarded generics whose `has_storage_field`
+    # branch must fold away, so they compile to the same direct loads
+    function read_interface(storage, system, n)
+        s = 0.0
+        for bond_id in 1:n
+            s += Peridynamics.bond_is_active(storage, system, bond_id) *
+                 Peridynamics.get_damage(storage, 1)
+        end
+        return s
+    end
+    read_interface(storage, system, 2)
+    if VERSION ≥ v"1.12"
+        @test (@allocated read_interface(storage, system, 1000)) == 0 # allocates in v1.10
+    end
+end
+
 @testitem "parameter property forwarding" tags=[:perf] setup=[Fixtures] begin
     # `params.Gc` reads a value that lives in the parameters of the damage model; the
     # generated `getproperty` has to compile to a direct load, so a loop of flat reads

@@ -170,8 +170,11 @@ Peridynamics.@params MyOtherMaterial MyPointParameters
 
 The generated constructor reads the material as `mat`, so the same type serves every
 material it is used for. Only point parameters defined with `@params` can be shared this
-way; a hand-written subtype of `AbstractPointParameters` defines `point_param_type`,
+way. A hand-written subtype of `AbstractPointParameters` defines `point_param_type`,
 `get_point_params` and `allowed_material_kwargs` itself.
+
+See also [`@params_fields`](@ref), [`@inherit`](@ref), [`@derived`](@ref),
+[`@cm_params`](@ref), [`@dmg_params`](@ref), [`@storage`](@ref).
 """
 macro params(args...)
     length(args) == 2 || throw(ArgumentError(params_forms_msg()))
@@ -195,7 +198,7 @@ function params_forms_msg()
 end
 
 # --------------------------------------------------------------------------------------
-# `@params material struct PointParameters ... end` -- define everything
+# `@params material struct PointParameters ... end`: define everything
 # --------------------------------------------------------------------------------------
 
 function __params_struct(material, params_expr, mod::Module)
@@ -267,7 +270,7 @@ end
 The generated constructor is the constructor that used to be written by hand, so nothing
 about the values it computes or the order in which it computes them changes. It accepts any
 material, because the point parameters of one material may be used for another one with the
-second form of `@params`; the declarations read the material as `mat`. `mat` and `p` are
+second form of `@params`. The declarations read the material as `mat`. `mat` and `p` are
 escaped, because the default and provider expressions of the declarations are escaped and
 have to see them.
 =#
@@ -351,7 +354,7 @@ function params_interface_exprs(material, type_expr, spec, sim_float)
 end
 
 # --------------------------------------------------------------------------------------
-# `@params material PointParameters` -- use the point parameters of another material
+# `@params material PointParameters`: use the point parameters of another material
 # --------------------------------------------------------------------------------------
 
 #=
@@ -524,8 +527,8 @@ $(extension_api_note())
 
 Parameter block of the parameters a standard peridynamics model needs: the discretization
 and the elastic parameters, the bond constant `bc`, and the marker field that holds
-whatever parameters the damage model of the material declares — with the standard
-[`CriticalStretch`](@ref), the fracture parameters `Gc` and `εc`. Materials that carry a
+whatever parameters the damage model of the material declares. With the standard
+[`CriticalStretch`](@ref) these are the fracture parameters `Gc` and `εc`. Materials that carry a
 constitutive model add `cm_params::ConstitutiveParameters` themselves, e.g.
 [`RKCPointParameters`](@ref). See [`@params_fields`](@ref),
 [`ConstitutiveParameters`](@ref), [`DamageParameters`](@ref).

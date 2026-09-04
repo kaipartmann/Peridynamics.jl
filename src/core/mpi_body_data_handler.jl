@@ -79,6 +79,9 @@ struct MPIBodyDataHandler{Sys,M,P,S,Bufs} <: AbstractMPIBodyDataHandler{Sys,M,P,
 end
 
 function mpi_data_handler(body::AbstractBody, solver::AbstractTimeSolver)
+    # the ranks are given from the outside, so a material that allows fewer chunks than
+    # there are ranks is an error here and not a clamp as under multithreading
+    check_max_n_chunks(body.mat, mpi_nranks())
     point_decomp = PointDecomposition(body, mpi_nranks())
     param_spec = get_param_spec(body)
     @timeit_debug TO "chop chunk" begin
@@ -438,6 +441,10 @@ end
     return Sys
 end
 
+@inline function first_chunk(dh::AbstractMPIBodyDataHandler)
+    return dh.chunk
+end
+
 @inline function get_body_name(dh::AbstractMPIBodyDataHandler)
-    return dh.chunk.body_name
+    return first_chunk(dh).body_name
 end

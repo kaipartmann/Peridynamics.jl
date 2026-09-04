@@ -44,8 +44,8 @@
 
         # apply deformation gradient F_a
         for i in Peridynamics.each_point_idx(system)
-            Xi = Peridynamics.get_vector(system.position, i)
-            Peridynamics.update_vector!(storage.position, i, F_a * Xi)
+            Xi = Peridynamics.get_vector(system.position, i, Peridynamics.dims(system))
+            Peridynamics.update_vector!(storage.position, i, F_a * Xi, Peridynamics.dims(system))
         end
         Peridynamics.calc_force_density!(dh, 0.0, 0.0)
 

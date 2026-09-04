@@ -276,6 +276,17 @@ end
     struct NoSystemMaterial <: Peridynamics.AbstractMaterial end
     @test_throws Peridynamics.InterfaceError Peridynamics.system_type(NoSystemMaterial())
 
+    # a material that names no system cannot discretize a body either
+    struct NoSystemBody <: Peridynamics.AbstractBody{NoSystemMaterial} end
+    pd = Peridynamics.PointDecomposition([1:2])
+    err = try
+        Peridynamics.get_system(NoSystemBody(), pd, 1)
+    catch e
+        e
+    end
+    @test err isa ErrorException
+    @test contains(err.msg, "system for material")
+
     c = Fixtures.chunk(Fixtures.line10(); n_chunks=2, chunk_id=1)
     system, ch = c.system, c.system.chunk_handler
     @test Peridynamics.get_halo_points(system) == Peridynamics.get_halo_points(ch)
@@ -284,4 +295,413 @@ end
     @test vec(collect(Peridynamics.each_dof(system, [1, 3]))) ==
           vec(collect(Peridynamics.each_dof(3, [1, 3])))
     @test vec(collect(Peridynamics.each_dof(system, [2]))) == [4, 5, 6]
+end
+
+@testitem "system_type(mat) matches the constructed system, N = 3" setup=[Fixtures] begin
+    # a bond-based, a bond-associated and an interaction-system material: `system_type`
+    # is what `body_chunk_type` uses to preallocate before any system is built, so it has
+    # to agree with what `get_system` actually returns, `N` included
+    for (mat, kwargs) in ((BBMaterial(), (;)),
+                          (BACMaterial(), (;)),
+                          (CKIMaterial(), Fixtures.cki_kwargs()))
+        c = Fixtures.chunk(Fixtures.cube(mat; n=3, kwargs...))
+        @test typeof(c.system) === Peridynamics.system_type(mat)
+        @test Peridynamics.get_n_dim(c.system) == 3
+    end
+end
+
+# --- the @system macro, the twin of test_storages.jl ---
+
+@testitem "@system: the generated header and the order of its type parameters" begin
+    import Peridynamics: @system, AbstractCorrection, AbstractSystem, get_n_dim, float_type,
+                         host_system_type, ChunkHandler, BondSystem
+
+    @system struct MacroSystem{Correction<:AbstractCorrection} <: AbstractSystem
+        position::PointVector{Float64}
+        volume::PointScalar
+        neighbor::BondScalar{Int}
+        bond_ids::PointScalar{UnitRange{Int}}
+        kernels::BondScalar
+        correction::Correction
+    end
+
+    # the declared parameters come first, then `N`, then `FT`, then `CH` for the injected
+    # chunk handler, then one parameter per distinct array type in the order in which the
+    # fields ask for them; `chunk_handler` itself is the last field, injected by the macro
+    @test MacroSystem.body.body.body.body.body.body.body.body isa DataType
+    @test fieldnames(MacroSystem) ===
+          (:position, :volume, :neighbor, :bond_ids, :kernels, :correction, :chunk_handler)
+
+    S = host_system_type(MacroSystem, NoCorrection, Val(3), Float64)
+    @test S === MacroSystem{NoCorrection,3,Float64,ChunkHandler,Matrix{Float64},
+                            Vector{Float64},Vector{Int},Vector{UnitRange{Int}}}
+    @test S.parameters[1] === NoCorrection
+    @test S.parameters[2] === 3
+    @test S.parameters[3] === Float64
+    @test S.parameters[4] === ChunkHandler
+
+    # the float type of the simulation reaches every field declared without an element type,
+    # and the pinned `position` keeps `Float64`
+    S32 = host_system_type(MacroSystem, NoCorrection, Val(2), Float32)
+    @test fieldtype(S32, :position) === Matrix{Float64}
+    @test fieldtype(S32, :volume) === Vector{Float32}
+    @test fieldtype(S32, :kernels) === Vector{Float32}
+    @test fieldtype(S32, :neighbor) === Vector{Int}
+    @test fieldtype(S32, :chunk_handler) === ChunkHandler
+
+    # `FT` defaults to the float type of the simulation
+    @test host_system_type(MacroSystem, NoCorrection, Val(3)) === S
+
+    # a `<:` pattern that names only the declared parameter still dispatches, which is what
+    # every dispatch on a system depends on
+    @test S <: MacroSystem{<:AbstractCorrection}
+    @test S <: MacroSystem{NoCorrection}
+
+    # the same header order holds for a system of this package, and `chunk_handler` is
+    # concrete after `host_system_type`
+    names = [p.name for p in Base.unwrap_unionall(BondSystem).parameters]
+    @test names == [:Correction, :N, :FT, :CH, names[5:end]...]
+    SBond = host_system_type(BondSystem, NoCorrection, Val(3), Float64)
+    @test fieldtype(SBond, :chunk_handler) === ChunkHandler
+    @test isconcretetype(fieldtype(SBond, :chunk_handler))
+end
+
+@testitem "@system: the generated constructor, accessors and Adapt" begin
+    import Peridynamics: @system, AbstractSystem, ChunkHandler, SystemSizes, alloc_field,
+                         BondScalar, PointScalar, LocalPoints, get_n_dim, float_type,
+                         get_n_bonds, get_n_points, get_n_loc_points, host_system_type,
+                         storage_fields_expr
+
+    @system struct CtorSystem <: AbstractSystem
+        position::PointVector{Float64}
+        volume::PointScalar
+        neighbor::BondScalar{Int}
+    end
+
+    pos, vol = uniform_box(1, 1, 1, 0.5)
+    body = Body(BBMaterial(), pos, vol)
+    material!(body; horizon=0.8, rho=1, E=1, nu=0.25, Gc=1)
+    pd = Peridynamics.PointDecomposition(body, 1)
+    ch = Peridynamics.get_system(body, pd, 1).chunk_handler
+
+    system = CtorSystem{3,Float64}(pos, vol, [1, 2, 3, 4], ch)
+
+    # the array parameters and `CH` are inferred from the values, `N` and `FT` are the ones
+    # named
+    @test system isa CtorSystem{3,Float64,ChunkHandler,Matrix{Float64},Vector{Float64},
+                                Vector{Int}}
+    @test get_n_dim(system) == 3
+    @test get_n_dim(typeof(system)) == 3
+    @test float_type(system) === Float64
+    @test get_n_bonds(system) == 4
+    # the point counts come from the chunk handler through the `AbstractSystem` forwarding
+    @test get_n_loc_points(system) == get_n_loc_points(ch)
+    @test get_n_points(system) == get_n_points(ch)
+
+    # the declarations are registered, so `block_table` can read them, and the injected
+    # `chunk_handler` shows up last
+    @test [d.name for d in storage_fields_expr(CtorSystem)] ==
+          [:position, :volume, :neighbor, :chunk_handler]
+
+    # `position` and `N` cannot disagree
+    @test_throws DimensionMismatch CtorSystem{2,Float64}(pos, vol, [1, 2, 3, 4], ch)
+
+    # moving a system to another array backend moves every field, including the chunk
+    # handler, and keeps `N` and `FT`
+    struct SysWrappedArray{T,N} <: AbstractArray{T,N}
+        a::Array{T,N}
+    end
+    Base.size(x::SysWrappedArray) = size(x.a)
+    Base.getindex(x::SysWrappedArray, i...) = getindex(x.a, i...)
+    struct SysWrappedBackend end
+    function Peridynamics.Adapt.adapt_storage(::SysWrappedBackend,
+                                              a::Array{T,N}) where {T,N}
+        return SysWrappedArray{T,N}(a)
+    end
+
+    moved = Peridynamics.Adapt.adapt(SysWrappedBackend(), system)
+    @test moved isa CtorSystem{3,Float64}
+    @test moved.position isa SysWrappedArray{Float64,2}
+    @test moved.neighbor isa SysWrappedArray{Int,1}
+    @test get_n_dim(moved) == 3
+    @test float_type(moved) === Float64
+    @test get_n_bonds(moved) == 4
+
+    # nothing moves when the backend is the one the system already lives on
+    @test Peridynamics.Adapt.adapt(Array, system) === system
+end
+
+@testitem "@system: a system without bonds and a field kept verbatim" begin
+    import Peridynamics: @system, AbstractSystem, get_n_bonds, host_system_type,
+                         ChunkHandler, SVector
+
+    struct GridOffset
+        offset::NTuple{3,Int}
+    end
+
+    @system struct GridSystem <: AbstractSystem
+        position::PointVector{Float64}
+        grid_idx::PointScalar{Int}
+        offsets::Vector{GridOffset}
+        origin::SVector{3,Float64}
+        n_neighbors::Int
+    end
+
+    S = host_system_type(GridSystem, Val(3), Float64)
+    # a concrete `Array` field takes part in the parameters, an isbits field does not
+    @test fieldtype(S, :offsets) === Vector{GridOffset}
+    @test fieldtype(S, :origin) === SVector{3,Float64}
+    @test fieldtype(S, :n_neighbors) === Int
+    @test fieldtype(S, :grid_idx) === Vector{Int}
+    @test fieldtype(S, :chunk_handler) === ChunkHandler
+
+    # no field has a bond shape, so the macro generates no `get_n_bonds` for this system
+    # and only the generic fallback is left, which fails with the native no-field error
+    @test which(get_n_bonds, Tuple{GridSystem}).sig ===
+          Tuple{typeof(get_n_bonds),Peridynamics.AbstractSystem}
+    @test_throws Exception get_n_bonds(S(zeros(3, 2), [1, 2], GridOffset[],
+                                        SVector{3,Float64}(0, 0, 0), 0,
+                                        Peridynamics.ChunkHandler(2, [1, 2], 1:2, Int[],
+                                                                  Dict{Int,UnitRange{Int}}(),
+                                                                  Dict(1 => 1, 2 => 2))))
+end
+
+@testitem "@system: what a system may not declare" begin
+    import Peridynamics: get_system_header, user_param_name, macrocheck_input_system_struct
+
+    # a system may declare type parameters of its own, unlike a storage
+    name, params, super = get_system_header(:(struct MySys{P<:Real} <: MySuper end))
+    @test name === :MySys
+    @test params == Any[:(P <: Real)]
+    @test super === :MySuper
+    @test user_param_name(params[1]) === :P
+    name, params, super = get_system_header(:(struct MySys end))
+    @test name === :MySys
+    @test isempty(params)
+    @test super == :(Peridynamics.AbstractSystem)
+    @test_throws ArgumentError get_system_header(:(struct (a + b) end))
+    @test_throws ArgumentError user_param_name(:(P <: Real <: Q))
+
+    @test isnothing(macrocheck_input_system_struct(:(struct S
+                                                         a::Int
+                                                     end)))
+    @test_throws ArgumentError macrocheck_input_system_struct(:(MySystem))
+
+    # the macro provides `chunk_handler` itself, declaring it is an error
+    err = try
+        @eval Peridynamics.@system struct HandlerSystem <: Peridynamics.AbstractSystem
+            position::PointVector{Float64}
+            chunk_handler::Peridynamics.AbstractChunkHandler
+        end
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test contains(err.error.msg, "provides this field itself")
+
+    # reusable field blocks exist only for a storage
+    err = try
+        @eval Peridynamics.@system struct InheritSystem <: Peridynamics.AbstractSystem
+            @inherit Peridynamics.VelocityVerletFields
+            position::PointVector{Float64}
+        end
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test contains(err.error.msg, "blocks exist only for storages")
+
+    # a field declared with an abstract type is an error, unlike before
+    err = try
+        @eval Peridynamics.@system struct AbstractFieldSystem <: Peridynamics.AbstractSystem
+            position::PointVector{Float64}
+            correction::Peridynamics.AbstractCorrection
+        end
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test contains(err.error.msg, "abstract type")
+
+    # `N`, `FT` and `CH` are reserved for the macro
+    err = try
+        @eval Peridynamics.@system struct ReservedParamSystem{CH} <: Peridynamics.AbstractSystem
+            position::PointVector{Float64}
+        end
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test contains(err.error.msg, "collides with the parameter")
+
+    # the constructor of a system fills every field, so an initial value would never be read
+    err = try
+        @eval Peridynamics.@system struct InitSystem <: Peridynamics.AbstractSystem
+            position::PointVector{Float64}
+            volume::PointScalar = 1.0
+        end
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test contains(err.error.msg, "specifies the initial value")
+
+    # a system is never exchanged between chunks
+    err = try
+        @eval Peridynamics.@system struct HaloSystem <: Peridynamics.AbstractSystem
+            @lth position::PointVector{Float64}
+        end
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test contains(err.error.msg, "is annotated with")
+
+    # model state belongs into the storage of the material
+    err = try
+        @eval Peridynamics.@system struct StateSystem <: Peridynamics.AbstractSystem
+            position::PointVector{Float64}
+            dmg_state::DamageState
+        end
+    catch e
+        e
+    end
+    @test err isa LoadError
+    @test contains(err.error.msg, "carries no model state")
+end
+
+@testitem "SystemSizes: what a constructor allocates against" begin
+    import Peridynamics: SystemSizes, alloc_field, PointScalar, PointVector, BondScalar,
+                         LocalPoints, HaloPoints, get_n_dim, float_type, get_n_bonds,
+                         get_n_loc_points, get_n_points
+
+    pos, vol = uniform_box(1, 1, 1, 0.5)
+    body = Body(BBMaterial(), pos, vol)
+    material!(body; horizon=0.8, rho=1, E=1, nu=0.25, Gc=1)
+    pd = Peridynamics.PointDecomposition(body, 2)
+    ch = Peridynamics.get_system(body, pd, 1).chunk_handler
+
+    sizes = SystemSizes{2,Float32}(ch, 17)
+    @test get_n_dim(sizes) == 2
+    @test float_type(sizes) === Float32
+    @test get_n_bonds(sizes) == 17
+    @test get_n_loc_points(sizes) == get_n_loc_points(ch)
+    @test get_n_points(sizes) == get_n_points(ch)
+
+    # every shape of a storage field works on it, which is what replaces `zeros(3, n)`
+    @test size(alloc_field(PointVector(), sizes, LocalPoints())) ==
+          (2, get_n_loc_points(ch))
+    @test size(alloc_field(PointVector(), sizes, HaloPoints())) == (2, get_n_points(ch))
+    @test size(alloc_field(BondScalar(), sizes, LocalPoints())) == (17,)
+    @test eltype(alloc_field(PointScalar(), sizes, LocalPoints())) === Float32
+    @test all(isone, alloc_field(BondScalar(), sizes, LocalPoints(), 1))
+end
+
+@testitem "system_type and check_system_compat of the three systems" begin
+    import Peridynamics: system_type, check_system_compat, host_system_type, get_n_dim,
+                         float_type, BondSystem, BondAssociatedSystem, InteractionSystem,
+                         NoCorrection, EnergySurfaceCorrection, ChunkHandler, InterfaceError,
+                         AbstractMaterial
+
+    # one line per system family, with the float type and the dimension of the simulation
+    @test system_type(BBMaterial()) ===
+          host_system_type(BondSystem, NoCorrection, Val(3), Float64)
+    @test system_type(BACMaterial()) === host_system_type(BondAssociatedSystem, Val(3),
+                                                          Float64)
+    @test system_type(CKIMaterial()) === host_system_type(InteractionSystem, Val(3),
+                                                          Float64)
+
+    S2 = system_type(BBMaterial(), Float32, Val(2))
+    @test get_n_dim(S2) == 2
+    @test S2 <: BondSystem{NoCorrection,2,Float32}
+
+    # the correction is a host type as well, so a simulation in `Float32` gets `Float32`
+    # correction arrays
+    SE = system_type(BBMaterial{EnergySurfaceCorrection}(), Float32, Val(3))
+    @test SE <: BondSystem{EnergySurfaceCorrection{Matrix{Float32},Vector{Float32}}}
+
+    # a material without a system says so
+    struct NoSystemMat <: AbstractMaterial end
+    @test_throws InterfaceError system_type(NoSystemMat())
+
+    # one function instead of the three `check_*_compat` of before
+    @test isnothing(check_system_compat(BondSystem, BBMaterial()))
+    @test isnothing(check_system_compat(BondAssociatedSystem, BACMaterial()))
+    @test isnothing(check_system_compat(InteractionSystem, CKIMaterial()))
+    @test_throws ArgumentError check_system_compat(BondSystem, CKIMaterial())
+    @test_throws ArgumentError check_system_compat(BondAssociatedSystem, BBMaterial())
+    @test_throws ArgumentError check_system_compat(InteractionSystem, BBMaterial())
+
+    # a system without a restriction accepts every material
+    @test isnothing(check_system_compat(Peridynamics.AbstractSystem, BBMaterial()))
+end
+
+@testitem "surface_correction_factor: a system without a correction is not corrected" begin
+    import Peridynamics: @system, AbstractSystem, ChunkHandler, host_system_type,
+                         surface_correction_factor
+
+    # only a system that carries a correction asks it for the factor, every other one, e.g.
+    # the interaction system, weights its bonds with 1
+    @system struct UncorrectedSystem <: AbstractSystem
+        position::PointVector{Float64}
+        bond_length::BondScalar
+    end
+    S = host_system_type(UncorrectedSystem, Val(3), Float64)
+    ch = ChunkHandler(2, [1, 2], 1:2, Int[], Dict{Int,UnitRange{Int}}(),
+                      Dict(1 => 1, 2 => 2))
+    system = S(zeros(3, 2), [1.0], ch)
+    @test !hasfield(typeof(system), :correction)
+    @test surface_correction_factor(system, 1) == 1
+end
+
+@testitem "unique_param_name: a derived name that is already taken gets a suffix" begin
+    import Peridynamics: unique_param_name, @system, AbstractSystem
+
+    # the first free name wins, and the suffix counts up while the candidates are taken
+    @test unique_param_name(:V_FT, Set([:N, :FT])) === :V_FT
+    @test unique_param_name(:V_FT, Set([:V_FT])) === :V_FT_2
+    @test unique_param_name(:V_FT, Set([:V_FT, :V_FT_2])) === :V_FT_3
+
+    # the type parameters a system declares itself are taken, so a derived parameter that
+    # would collide with one of them is renamed
+    @system struct TakenNameSystem{V_FT,V_FT_2} <: AbstractSystem
+        position::PointVector{Float64}
+        volume::PointScalar
+    end
+    names = [p.name for p in Base.unwrap_unionall(TakenNameSystem).parameters]
+    @test :V_FT_3 in names
+    @test names == [:V_FT, :V_FT_2, :N, :FT, :CH, :M_F64, :V_FT_3]
+end
+
+@testitem "@system: a docstring is attached to the generated struct" begin
+    import Peridynamics: @system, AbstractSystem
+
+    """
+        DocumentedSystem
+
+    A system that documents itself.
+    """
+    @system struct DocumentedSystem <: AbstractSystem
+        position::PointVector{Float64}
+    end
+
+    @test contains(string(@doc DocumentedSystem), "A system that documents itself")
+end
+
+@testitem "field_n_dims_of: a field without a shape follows its declared type" begin
+    import Peridynamics: StorageFieldDecl, field_n_dims_of, PointVector
+
+    # a field with a shape is whatever the shape says
+    @test field_n_dims_of(StorageFieldDecl(:position, :none, PointVector, PointVector(),
+                                           nothing)) == 2
+
+    # without a shape only a concrete array type contributes dimensions, everything else
+    # is kept verbatim and counts as a scalar field
+    @test field_n_dims_of(StorageFieldDecl(:offsets, :none, Vector{Int}, nothing,
+                                           nothing)) == 1
+    @test field_n_dims_of(StorageFieldDecl(:weights, :none, Matrix{Float64}, nothing,
+                                           nothing)) == 2
+    @test field_n_dims_of(StorageFieldDecl(:n_neighbors, :none, Int, nothing, nothing)) == 0
+    @test field_n_dims_of(StorageFieldDecl(:anything, :none, Array, nothing, nothing)) == 0
+    @test field_n_dims_of(StorageFieldDecl(:handler, :none, :CH, nothing, nothing)) == 0
 end

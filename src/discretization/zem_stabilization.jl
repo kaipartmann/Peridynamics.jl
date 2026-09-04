@@ -1,5 +1,7 @@
+# a zero-energy mode stabilization holds no arrays, so it is its own host type and there is
+# nothing to allocate against the system sizes
 function get_correction(mat::AbstractBondSystemMaterial{<:AbstractZEMStabilization},
-                        ::Int, ::Int, ::Int)
+                        ::SystemSizes)
     return mat.zem
 end
 

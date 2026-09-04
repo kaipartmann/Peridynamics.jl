@@ -384,7 +384,7 @@ their completion status yet.
 
 # MPI Behavior
 - By default (`only_root=false`), the processing function `f` is called on **all MPI ranks**
-- With `only_root=true`, `f` runs only on root rank; non-root ranks use `default_result`
+- With `only_root=true`, `f` runs only on the root rank, and the other ranks use `default_result`
 - Error handling includes automatic MPI barrier synchronization across all ranks
 
 !!! danger "Using `process_each_job` inside `@mpiroot` calls"

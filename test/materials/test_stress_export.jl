@@ -14,12 +14,12 @@
         Peridynamics.initialize!(dh, ts)
         (; mat, system, storage, paramsetup) = dh.chunks[1]
         for i in Peridynamics.each_point_idx(system)
-            Xi = Peridynamics.get_vector(system.position, i)
+            Xi = Peridynamics.get_vector(system.position, i, Peridynamics.dims(system))
             xi = F * Xi
-            Peridynamics.update_vector!(storage.position, i, xi)
+            Peridynamics.update_vector!(storage.position, i, xi, Peridynamics.dims(system))
             vi = (xi - Xi) / ts.Δt
-            Peridynamics.update_vector!(storage.velocity, i, vi)
-            Peridynamics.update_vector!(storage.velocity_half, i, vi)
+            Peridynamics.update_vector!(storage.velocity, i, vi, Peridynamics.dims(system))
+            Peridynamics.update_vector!(storage.velocity_half, i, vi, Peridynamics.dims(system))
         end
         Peridynamics.calc_force_density!(dh, ts.Δt, ts.Δt)
         return Peridynamics.export_field(Val(field), mat, system, storage, paramsetup, 0.0)
@@ -29,7 +29,8 @@
     function mean_tensor(qty)
         s = zero(SMatrix{3,3,eltype(qty),9})
         for i in axes(qty, 2)
-            s += Peridynamics.get_tensor(qty, i)
+            # no system in scope here, and this test is 3D
+            s += Peridynamics.get_tensor(qty, i, Val(3))
         end
         return s / size(qty, 2)
     end
