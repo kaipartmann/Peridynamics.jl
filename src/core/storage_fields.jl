@@ -574,6 +574,8 @@ concrete whichever model is used. The state is reached with [`constitutive_state
 A storage may declare at most one such field, and it cannot be annotated with
 [`@lth`](@ref) or [`@htl`](@ref), because the halo exchange does not descend into a nested
 field.
+
+See also [`@cm_storage`](@ref), [`constitutive_state`](@ref), [`DamageState`](@ref).
 """
 struct ConstitutiveState end
 
@@ -609,12 +611,14 @@ and inside the methods of the model its fields are read flat off the storage, e.
 e.g. [`bond_is_active`](@ref).
 
 A material that declares this field supports **every** damage model without knowing any of
-them: a model brings the fracture bookkeeping of the system family and every per-bond
-variable of its own itself instead of the material having to allocate them for it.
+them, because a model brings the fracture bookkeeping of the system family and every
+per-bond variable of its own itself.
 
 A storage may declare at most one such field, and it cannot be annotated with
 [`@lth`](@ref) or [`@htl`](@ref), because the halo exchange does not descend into a nested
 field.
+
+See also [`@dmg_storage`](@ref), [`damage_state`](@ref), [`ConstitutiveState`](@ref).
 """
 struct DamageState end
 
@@ -760,6 +764,8 @@ with [`storage_fields_expr`](@ref).
     b_ext::PointVector
 end
 ```
+
+See also [`@inherit`](@ref), [`@storage`](@ref).
 """
 macro storage_fields(name, block)
     macrocheck_input_storage_fields_name(name)
@@ -810,6 +816,8 @@ Peridynamics.@storage MyMaterial struct MyStorage
     my_bond_field::BondScalar
 end
 ```
+
+See also [`@storage_fields`](@ref), [`@storage`](@ref), [`block_table`](@ref).
 """
 macro inherit(exprs...)
     return macro_outside_storage_error("@inherit")

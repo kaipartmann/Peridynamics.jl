@@ -172,6 +172,9 @@ The generated constructor reads the material as `mat`, so the same type serves e
 material it is used for. Only point parameters defined with `@params` can be shared this
 way. A hand-written subtype of `AbstractPointParameters` defines `point_param_type`,
 `get_point_params` and `allowed_material_kwargs` itself.
+
+See also [`@params_fields`](@ref), [`@inherit`](@ref), [`@derived`](@ref),
+[`@cm_params`](@ref), [`@dmg_params`](@ref), [`@storage`](@ref).
 """
 macro params(args...)
     length(args) == 2 || throw(ArgumentError(params_forms_msg()))

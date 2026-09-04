@@ -1,8 +1,8 @@
 # Systems
 
 A system is the discretization of a body chunk: its points, their volumes and their
-neighborhood relations. It is built once during setup and never changes during a
-simulation, which is what separates it from the storage.
+neighborhood relations. It is built once during setup and never changes during a simulation,
+which is what separates it from the storage.
 
 !!! warning "Writing a new system is an internal interface"
     [`BondSystem`](@ref Peridynamics.BondSystem) and
@@ -14,60 +14,35 @@ simulation, which is what separates it from the storage.
 
 ## The systems of this package
 
-### BondSystem
+| system | neighborhood relation | materials | supertype of the materials |
+|:---|:---|:---|:---|
+| `BondSystem` | a bond between two points | [`BBMaterial`](@ref), [`DHBBMaterial`](@ref), [`GBBMaterial`](@ref), [`OSBMaterial`](@ref), [`CMaterial`](@ref), [`CRMaterial`](@ref), [`RKCMaterial`](@ref), [`RKCRMaterial`](@ref) | [`AbstractBondSystemMaterial`](@ref Peridynamics.AbstractBondSystemMaterial) |
+| `BondAssociatedSystem` | a bond, plus the bond-associated neighborhood | [`BACMaterial`](@ref) | [`AbstractBondAssociatedSystemMaterial`](@ref Peridynamics.AbstractBondAssociatedSystemMaterial) |
+| `InteractionSystem` | one-, two- and three-neighbor interactions | [`CKIMaterial`](@ref) | [`AbstractInteractionSystemMaterial`](@ref Peridynamics.AbstractInteractionSystemMaterial) |
 
-The standard system, in which the neighborhood relation is a bond between two points. It is
-used by the bond-based ([`BBMaterial`](@ref), [`DHBBMaterial`](@ref), [`GBBMaterial`](@ref)),
-the ordinary state-based ([`OSBMaterial`](@ref)), the correspondence ([`CMaterial`](@ref),
-[`CRMaterial`](@ref)) and the reproducing kernel ([`RKCMaterial`](@ref),
-[`RKCRMaterial`](@ref)) materials. Materials are subtypes of
-[`AbstractBondSystemMaterial`](@ref Peridynamics.AbstractBondSystemMaterial).
-
-### BondAssociatedSystem
-
-A bond system that additionally carries the bond-associated neighborhoods used by the
-correspondence model of Chen and Spencer ([`BACMaterial`](@ref)). Materials are subtypes of
-[`AbstractBondAssociatedSystemMaterial`](@ref Peridynamics.AbstractBondAssociatedSystemMaterial).
-The family of a bond is walked with `each_intersecting_bond_idx(system, i, bond_id)`, which
-gives the bond indices of the chunk, so the same bond fields are addressed inside and
-outside the family.
-
-### InteractionSystem
-
-A system built on one-, two- and three-neighbor interactions instead of bonds, used by the
-continuum-kinematics-inspired material ([`CKIMaterial`](@ref)). Materials are subtypes of
-[`AbstractInteractionSystemMaterial`](@ref Peridynamics.AbstractInteractionSystemMaterial).
+The family of a bond of a `BondAssociatedSystem` is walked with
+`each_intersecting_bond_idx(system, i, bond_id)`, which gives bond indices of the chunk, so
+the same bond fields are addressed inside and outside the family.
 
 ## Local points, halo points and the field extents
 
 A body is decomposed into chunks, one per thread or per MPI rank. Each chunk owns its
 **local points** and integrates their equation of motion. To do that it needs the current
-state of some points of other chunks, its **halo points**, which are exchanged before and
-after the force density calculation.
+state of some points of other chunks, its **halo points**.
 
-This is the whole reason a storage field declares an extent:
+| a storage field with ... | entries | exchange |
+|:---|:---|:---|
+| no annotation, i.e. [`LocalPoints`](@ref Peridynamics.LocalPoints) | `get_n_loc_points(system)` | none |
+| [`@lth`](@ref Peridynamics.@lth) | `get_n_points(system)` | the local entries of the owner are copied into the halo entries of its neighbors, which is what `position` needs |
+| [`@htl`](@ref Peridynamics.@htl) | `get_n_points(system)` | the halo entries are added back into the local entries of the owner, which is what `@htl b_int::PointVector` needs |
 
-* a field with the default extent [`LocalPoints`](@ref Peridynamics.LocalPoints) has
-  `get_n_loc_points(system)` entries,
-* a field annotated with [`@lth`](@ref Peridynamics.@lth) or
-  [`@htl`](@ref Peridynamics.@htl) has `get_n_points(system)` entries, so it has halo
-  entries and is exchanged.
-
-`@lth` copies the local entries of the owning chunk into the halo entries of its neighbors,
-which is what `position` needs. `@htl` adds the halo entries back into the local entries of
-the owner, which is what a material that accumulates a force density into its neighbors
-needs (`@htl b_int::PointVector`).
-
-A material never has to do anything for this beyond the annotation. The exchange is the
-same code under multithreading and under MPI.
+A material never has to do anything for this beyond the annotation. The exchange is the same
+code under multithreading and under MPI.
 
 ## Reading a system in a kernel
 
 Whatever a system is built from, a material reads it through functions and never by field
-name. The points of a chunk are walked with
-[`each_point_idx`](@ref Peridynamics.each_point_idx), the bonds of a point with
-[`each_bond_idx`](@ref Peridynamics.each_bond_idx), and a bond is read one quantity at a
-time, each of them a single array load:
+name. Each of these is a single array load:
 
 ```julia
 for i in each_point_idx(system)                         # the local points of this chunk
@@ -86,7 +61,8 @@ end
 reading a `fail_permit` field, and
 [`current_bond_length`](@ref Peridynamics.current_bond_length) and
 [`bond_stretch`](@ref Peridynamics.bond_stretch) are how the deformed length is read, so
-that a system with a length cache and one without behave the same.
+that a system with a length cache and one without behave the same. The full list is in
+[Materials](@ref).
 
 The last argument of every accessor of a storage or system field is the number of spatial
 dimensions as a `Val`, which [`dims`](@ref Peridynamics.dims) produces from whatever is in
@@ -139,55 +115,43 @@ Peridynamics.@system struct MySystem <: Peridynamics.AbstractSystem
 end
 ```
 
-A system has no reusable field blocks: `@storage_fields` and `@inherit` are for a storage,
-and writing `@inherit` inside `@system` is an error. A system lists every one of its fields
-directly, so the three systems of this package (`BondSystem`, `BondAssociatedSystem`,
-`InteractionSystem`) each repeat the bond fields `position`, `volume`, `neighbor`,
-`bond_length`, `fail_permit`, `n_neighbors` and `bond_ids` at the top of their declaration.
-
 Two rules decide what a declaration becomes:
 
-* a field declared with a **field shape** gets the container, the element type and the
+- a field declared with a **field shape** gets the container, the element type and the
   number of entries of that shape, so `volume::PointScalar` is a vector of the float type
   with one entry per point and `neighbor::BondScalar{Int}` is a vector of `Int` with one
   entry per bond,
-* every other declared type is kept as it is. An isbits scalar or a struct of the system,
-  e.g. `lattice::FastLattice`, is left alone by `Adapt` and is not a parameter unless it is
-  a concrete `Array` type, which is treated like a shaped field. A field declared with an
-  **abstract type** is an error: give it a concrete type, or declare a type parameter of
+- every other declared type is kept as it is. An isbits scalar or a struct of the system,
+  e.g. `lattice::FastLattice`, is left alone by `Adapt` and is not a type parameter unless
+  it is a concrete `Array` type, which is treated like a shaped field. A field declared with
+  an **abstract type** is an error: give it a concrete type, or declare a type parameter of
   the system bounded by that abstract type and use that for the field.
 
-Unlike a storage field, a system field never declares an initial value with `= value`. The
-constructor of the system fills every field, so an initial value would be written and never
-read.
+What is not allowed:
 
-A system never declares a `chunk_handler` field itself, doing so is an error. The macro
-injects it as the last field of the struct, which is what answers the point counts and the
-halo bookkeeping of the section above.
+- `@inherit` and `@storage_fields`, because a system has no reusable field blocks. The three
+  systems of this package each list `position`, `volume`, `neighbor`, `bond_length`,
+  `fail_permit`, `n_neighbors` and `bond_ids` directly.
+- an initial value `= value`, because the constructor fills every field.
+- a `chunk_handler` field, because the macro injects it as the last field of the struct.
+- a user type parameter named `N`, `FT` or `CH`, because the macro fills those in itself.
 
 ### What the macro generates
 
 The type parameters of the generated struct are the ones the system declares itself, then
 `N` for the number of spatial dimensions, then `FT` for the float type of the simulation,
 then `CH` for the type of the injected chunk handler, then one parameter per distinct array
-type of its fields. The declared parameters come first so that a pattern like
+type of its fields. The declared parameters come first, so that a pattern like
 `BondSystem{<:EnergySurfaceCorrection}` keeps selecting a method after `N`, `FT`, `CH` and
-the array parameters were appended behind it. A user type parameter named `N`, `FT` or `CH`
-is an error, because the macro fills those in itself.
+the array parameters were appended behind it.
 
-The macro generates
-
-* the positional constructor `MySystem{N,FT}(fields...,chunk_handler)`, which takes the
-  declared fields in the order they were declared and the chunk handler last, and infers
-  `CH` and the array parameters from the values given, and checks that `position` really
-  has `N` rows,
-* `Adapt.adapt_structure`,
-* [`host_system_type`](@ref Peridynamics.host_system_type), the instantiation whose arrays
-  live on the CPU,
-* [`get_n_dim`](@ref Peridynamics.get_n_dim) and
-  [`float_type`](@ref Peridynamics.float_type), which read `N` and `FT` off the type,
-* [`get_n_bonds`](@ref Peridynamics.get_n_bonds), but only for a system that declares a
-  bond shaped field, so a system without bonds never gets one.
+| generated | what it is |
+|:---|:---|
+| `MySystem{user...,N,FT}(fields..., chunk_handler)` | the positional constructor, taking the declared fields in declaration order and the chunk handler last. It infers `CH` and the array parameters from the values given and checks that `position` really has `N` rows |
+| `Adapt.adapt_structure` | how a system moves to another array backend |
+| [`host_system_type`](@ref Peridynamics.host_system_type) | the instantiation whose arrays live on the CPU |
+| [`get_n_dim`](@ref Peridynamics.get_n_dim), [`float_type`](@ref Peridynamics.float_type) | read `N` and `FT` off the type |
+| [`get_n_bonds`](@ref Peridynamics.get_n_bonds) | only for a system that declares a bond shaped field |
 
 The system is the authority on `N` and `FT`. A storage is built with the `N` of its system,
 so the two can never disagree.
@@ -195,9 +159,9 @@ so the two can never disagree.
 ### Allocating the fields
 
 A constructor allocates against [`SystemSizes`](@ref Peridynamics.SystemSizes), which is
-what a system looks like before it exists. It answers the questions the shape layer asks,
-the dimension, the float type, the point counts and the number of bonds, and nothing else,
-so `alloc_field` sizes a system field exactly as it sizes a storage field:
+what a system looks like before it exists. It answers the dimension, the float type, the
+point counts and the number of bonds, and nothing else, so `alloc_field` sizes a system
+field exactly as it sizes a storage field:
 
 ```julia
 sizes = Peridynamics.SystemSizes{N,FT}(chunk_handler, length(neighbor))
@@ -219,33 +183,29 @@ what makes `BondSystem{<:EnergySurfaceCorrection}` readable.
 ## Moving a chunk to another array backend
 
 Every array of a system is behind a type parameter, so a whole body chunk moves with
-`Adapt.adapt`:
+`Adapt.adapt(CuArray, chunk)`.
 
-```julia
-device_chunk = Adapt.adapt(CuArray, chunk)
-```
-
-The system, the parameter setup and the storage move. The material, the conditions and the
-export cells stay as they are, because they are host data that no kernel reads. The
-`ChunkHandler` becomes a `DeviceChunkHandler`, which keeps the two point counts and leaves
-the point ids, the halo bookkeeping and the localizer on the host where the halo exchange
-and the export read them. `get_n_dim` and `float_type` of the moved system answer exactly
-what they answered before, and a target that moves no array at all, e.g.
-`Adapt.adapt(Array, chunk)` on the host, gives the chunk back unchanged.
+| what | happens |
+|:---|:---|
+| the system, the parameter setup, the storage | move to the backend |
+| the material, the conditions, the export cells | stay as they are, they are host data no kernel reads |
+| the `ChunkHandler` | becomes a `DeviceChunkHandler`, which keeps the two point counts and leaves the point ids, the halo bookkeeping and the localizer on the host |
+| `get_n_dim` and `float_type` | answer exactly what they answered before |
+| a target that moves no array, e.g. `Adapt.adapt(Array, chunk)` on the host | gives the chunk back unchanged |
 
 ## A system that cannot be decomposed
 
-Some systems exist once per body, for example one that transforms the whole body at once
-and therefore needs every point of it in one place. Such a system says so with
+Some systems exist once per body, for example one that transforms the whole body at once and
+therefore needs every point of it in one place. Such a system says so with
 [`max_n_chunks`](@ref Peridynamics.max_n_chunks) on its material:
 
 ```julia
 Peridynamics.max_n_chunks(::MyMaterial) = 1
 ```
 
-A threaded run clamps the number of chunks to this value, so nothing has to be configured
-by the user. An MPI run throws instead, because the number of ranks comes from the outside
-and cannot be clamped away. Where such a system needs its one chunk, for example in
+A threaded run clamps the number of chunks to this value, so nothing has to be configured by
+the user. An MPI run throws instead, because the number of ranks comes from the outside and
+cannot be clamped away. Where such a system needs its one chunk, for example in
 `log_system`, it reads it with [`first_chunk`](@ref Peridynamics.first_chunk), which both
 data handlers provide.
 
@@ -253,25 +213,24 @@ data handlers provide.
 
 Beyond the declaration, a new system needs
 
-* an abstract type `AbstractMySystemMaterial` that every material using this system is a
-  subtype of,
-* the constructor `MySystem(body, pd, chunk_id)`, which allocates its fields against a
-  [`SystemSizes`](@ref Peridynamics.SystemSizes) as shown above,
-* `Peridynamics.get_system(body::AbstractBody{Material}, pd::PointDecomposition, chunk_id::Int)`
-  for `Material <: AbstractMySystemMaterial`,
-* [`Peridynamics.system_type`](@ref Peridynamics.system_type), one line over
-  [`host_system_type`](@ref Peridynamics.host_system_type):
+| what | notes |
+|:---|:---|
+| `AbstractMySystemMaterial` | the abstract type every material using this system is a subtype of |
+| `MySystem(body, pd, chunk_id)` | the constructor, allocating against a `SystemSizes` as shown above |
+| `Peridynamics.get_system(body::AbstractBody{Material}, pd::PointDecomposition, chunk_id::Int)` | for `Material <: AbstractMySystemMaterial` |
+| [`Peridynamics.system_type`](@ref Peridynamics.system_type) | one line over [`host_system_type`](@ref Peridynamics.host_system_type), see below |
+| [`Peridynamics.check_system_compat`](@ref Peridynamics.check_system_compat) | only if the system accepts one family of materials |
+| `Peridynamics.calc_timestep_point(system::MySystem, params, point_id::Int)` | the stable time step of one point |
+| `Peridynamics.calc_force_density!(chunk::AbstractBodyChunk{<:MySystem}, t, Δt)` | the loop over the local points |
+| `Peridynamics.log_system(::Type{<:MySystem}, options, dh)` | the simulation log |
 
-  ```julia
-  function Peridynamics.system_type(mat::AbstractMySystemMaterial,
-                                    ::Type{FT}=Peridynamics.default_float_type(),
-                                    ::Val{N}=Val(3)) where {FT,N}
-      return Peridynamics.host_system_type(MySystem, Val(N), FT)
-  end
-  ```
+```julia
+function Peridynamics.system_type(mat::AbstractMySystemMaterial,
+                                  ::Type{FT}=Peridynamics.default_float_type(),
+                                  ::Val{N}=Val(3)) where {FT,N}
+    return Peridynamics.host_system_type(MySystem, Val(N), FT)
+end
+```
 
-* [`Peridynamics.check_system_compat`](@ref Peridynamics.check_system_compat), if the system
-  accepts only one family of materials,
-* `Peridynamics.calc_timestep_point(system::MySystem, params, point_id::Int)`,
-* `Peridynamics.calc_force_density!(chunk::AbstractBodyChunk{<:MySystem}, t, Δt)`,
-* `Peridynamics.log_system(::Type{<:MySystem}, options, dh)`.
+See also [Materials](@ref), [Storages](@ref), [Time solvers](@ref),
+[Extension API](@ref).

@@ -1207,8 +1207,8 @@ end
 Inside the block the model instance is available as `model` and the material as `mat`,
 and a declaration can read every material parameter declared above the marker field, e.g.
 the horizon `δ` or the bulk modulus `K`. A material whose point parameters carry the marker
-`cm_params::ConstitutiveParameters` supports the model; its parameters are read flat, e.g.
-`params.sigma_y`, or through the marker field, e.g. `params.cm_params.sigma_y`.
+`cm_params::ConstitutiveParameters` supports the model, and its parameters are read flat,
+e.g. `params.sigma_y`, or through the marker field, e.g. `params.cm_params.sigma_y`.
 
 See also [`@dmg_params`](@ref), [`ConstitutiveParameters`](@ref), [`@params`](@ref).
 """

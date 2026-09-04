@@ -34,14 +34,13 @@ To install `Peridynamics.jl`, follow these steps:
 - [Visualize results with ParaView](@ref visualization)
 
 ## Extending the package
+- [Extending Peridynamics.jl](@ref): the index of the developer documentation.
 - [Writing your own material](@ref tutorial_custom_material): a bond-based material with a
   micro-modulus of your own, step by step.
 - [Writing your own damage model](@ref tutorial_custom_damage_model): a failure criterion
   with a state and a parameter of its own.
 - [Writing your own constitutive model](@ref tutorial_custom_constitutive_model): a
   hyperelastic model and J2 plasticity for the correspondence materials.
-- [Materials](@ref): the manual of the declaration language.
-- [API stability](@ref): what the three API tiers promise.
 
 ## Tutorials
 

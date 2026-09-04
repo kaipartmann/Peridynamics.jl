@@ -1,21 +1,15 @@
 # # [Writing your own damage model](@id tutorial_custom_damage_model)
 
 # A damage model decides when a bond fails. The built-in [`CriticalStretch`](@ref) breaks a
-# bond the moment its stretch exceeds the critical value ``\varepsilon_c``. Many materials do
-# not fail that abruptly: a bond that is overstretched for a short moment survives, one that
-# stays overstretched breaks. That is a failure criterion with a delay, in the spirit of the
-# time-integrated criteria used for spallation, and it needs two things the built-in model
-# does not have: a state per bond, and the time step.
-#
-# We let a bond accumulate damage ``D`` while it is stretched beyond ``\varepsilon_c``,
+# bond once its stretch exceeds ``\varepsilon_c``. Here a bond instead accumulates damage
+# ``D``,
 #
 # ```math
 # \dot{D} = \frac{1}{\tau} \left( \frac{\varepsilon}{\varepsilon_c} - 1 \right)_+ ,
 # ```
 #
-# and break it once ``D \geq 1``. The delay ``\tau`` is a new material parameter. With
-# ``\tau \to 0`` the model turns into `CriticalStretch`. Everything here is written against
-# the [Extension API](@ref), and the model works with every material of the package.
+# and breaks once ``D \geq 1``, with the delay ``\tau`` a new material parameter, written
+# against the [Extension API](@ref).
 
 using Peridynamics
 using Peridynamics: BondSystem, each_bond_idx, get_params, get_n_loc_points, damage_state,
@@ -24,45 +18,32 @@ using Peridynamics: BondSystem, each_bond_idx, get_params, get_n_loc_points, dam
 # ## The type
 #
 # A damage model is a subtype of
-# [`AbstractDamageModel`](@ref Peridynamics.AbstractDamageModel). It has no fields of its own
-# here, because its parameters belong to the point parameters, where they can differ between
-# point sets and appear in the simulation log.
+# [`AbstractDamageModel`](@ref Peridynamics.AbstractDamageModel), with no fields of its own,
+# its parameters living in the point parameters instead.
 
 struct DelayedFailure <: Peridynamics.AbstractDamageModel end
 
 # ## The parameters
 #
-# A damage model owns its parameters and declares them with
-# [`@dmg_params`](@ref Peridynamics.@dmg_params), in the same language as the point
-# parameters of a material. Inheriting [`FractureParameters`](@ref Peridynamics.FractureParameters)
-# brings the standard pair `Gc` and `εc`, including the conversion between them that the
-# material provides, so `material!(...; Gc)` and `material!(...; epsilon_c)` both work. The
-# delay is a keyword of its own, `tau`, stored as `τ`.
+# A damage model declares its parameters with [`@dmg_params`](@ref Peridynamics.@dmg_params).
+# Inheriting [`FractureParameters`](@ref Peridynamics.FractureParameters) brings `Gc` and
+# `εc`, and the delay is its own keyword, `tau`, stored as `τ`.
 
 Peridynamics.@dmg_params DelayedFailure struct DelayedFailureParameters
     @inherit FractureParameters
     @log "failure delay" @kwarg tau τ
 end
 
-# Every material whose point parameters carry the marker `dmg_params::DamageParameters`
-# accepts these keywords now, and all materials of the package do. The parameters are read
-# flat off the point parameters, e.g. `params.τ`, next to the parameters of the material.
-# Whether fracture is enabled follows from `Gc` and `εc` by default, so there is nothing to
-# define for that either.
+# Every material whose point parameters carry `dmg_params::DamageParameters` accepts these
+# keywords now, read flat as `params.τ`, and fracture is enabled by default from `Gc`/`εc`.
 
 # ## The state
 #
 # A damage model owns the fracture bookkeeping. Inheriting
-# [`BondFracFields`](@ref Peridynamics.BondFracFields) brings `bond_active`,
-# `n_active_bonds` and `damage`, the fields every model that deletes bonds maintains, and
-# with them every default of the interface functions, e.g.
-# [`bond_is_active`](@ref Peridynamics.bond_is_active), which is how the materials read the
-# flag. Inside the methods of the model itself the fields are read flat off the storage, as
-# if the material had declared them, because there they are its own data. The accumulated
-# damage of every bond is a field of our own next to them, declared with the field shapes
-# of [`@storage`](@ref Peridynamics.@storage). The state is allocated with the storage of
-# whatever material the model is attached to, moves with it to another array backend and is
-# never exchanged between chunks, because a bond belongs to one point.
+# [`BondFracFields`](@ref Peridynamics.BondFracFields) brings `bond_active`, `n_active_bonds`
+# and `damage`, plus the defaults of [`bond_is_active`](@ref Peridynamics.bond_is_active) and
+# the rest of the interface. The accumulated damage per bond is a field of our own, declared
+# with [`@storage`](@ref Peridynamics.@storage), never exchanged between chunks.
 
 Peridynamics.@dmg_storage DelayedFailure struct DelayedFailureState
     @inherit BondFracFields
@@ -71,21 +52,13 @@ end
 
 # ## The criterion
 #
-# This is the one method a damage model has to define. It is called once per local point and
-# per time step, right before the force density, and it receives the time and the time step.
-# Its contract is short: reset the count of the point, deactivate the bonds that fail, count
-# the ones that are still active in `n_active_bonds`, and never break a bond whose
-# `fail_permit` is `false`, because that is how [`no_failure!`](@ref) and the pre-cracks are
-# honored.
-#
-# The state is reached with [`damage_state`](@ref Peridynamics.damage_state). The bonds are
-# read exactly as in a force density: `each_bond_idx` and, for whether a bond is allowed to
-# fail, `bond_may_fail(system, bond_id)`. The
-# stretch of the bond is read with [`bond_stretch`](@ref Peridynamics.bond_stretch) and never
-# computed here. A material that caches bond lengths has the cache refilled right before this
-# runs, one that does not gets the distance computed, and which of the two it is follows from
-# the material at compile time. The model therefore costs no more than the one of the package,
-# on every material.
+# This is the one method a damage model has to define, run once per local point per time
+# step, right before the force density: reset the point's bond count, deactivate failing
+# bonds, count the active ones in `n_active_bonds`, and never break a bond for which
+# [`bond_may_fail`](@ref Peridynamics.bond_may_fail) is `false`, honoring
+# [`no_failure!`](@ref) and pre-cracks. The state is reached with
+# [`damage_state`](@ref Peridynamics.damage_state), the stretch with
+# [`bond_stretch`](@ref Peridynamics.bond_stretch).
 
 function Peridynamics.calc_failure!(storage, system::BondSystem, mat, ::DelayedFailure,
                                     paramsetup, t, Δt, i)
@@ -105,18 +78,15 @@ function Peridynamics.calc_failure!(storage, system::BondSystem, mat, ::DelayedF
     return nothing
 end
 
-# The damage of a point, the fraction of its bonds that failed, is computed by the package
-# right after this, so a model that deletes bonds does not define
-# [`calc_damage!`](@ref Peridynamics.calc_damage!). A model that softens bonds instead of
-# deleting them does, and it also defines
-# [`bond_integrity`](@ref Peridynamics.bond_integrity) and
-# [`kinematic_weight`](@ref Peridynamics.kinematic_weight), see the [Extension API](@ref).
+# The package computes the damage of a point right after this, so a model that deletes bonds
+# does not define [`calc_damage!`](@ref Peridynamics.calc_damage!). A model that softens
+# bonds instead also defines [`bond_integrity`](@ref Peridynamics.bond_integrity) and
+# [`kinematic_weight`](@ref Peridynamics.kinematic_weight).
 
 # ## Exporting the accumulated damage
 #
-# `bond_damage` lives per bond. To look at it, it is reduced to one value per point, the
-# maximum over the bonds of a point, and announced with
-# [`custom_field`](@ref Peridynamics.custom_field), so that a `Job` accepts the name.
+# `bond_damage` lives per bond, reduced to one value per point, the maximum over its bonds,
+# and announced with [`custom_field`](@ref Peridynamics.custom_field) so a `Job` accepts it.
 
 Peridynamics.custom_field(::Type{<:Peridynamics.AbstractStorage}, ::Val{:bond_damage}) = true
 
@@ -155,8 +125,7 @@ job = Job(body, VelocityVerlet(steps=400);
 #md # ```
 
 # No bond breaks in the step it is first overstretched now, and the exported field records
-# how far every point is from losing its most loaded bond. The same file runs with
-# `julia -t 6` and under `mpiexec` unchanged.
+# how far a point is from losing its most loaded bond.
 
 # ## Where to go next
 #

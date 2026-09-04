@@ -102,15 +102,16 @@ $(extension_api_note())
 
 Return the critical stretch `εc` that belongs to the critical energy release rate `Gc`, for
 the damage model `dmgmodel` of the material `mat` with the horizon `δ` and the bulk modulus
-`K`. The default is the relation of the constant micro-modulus of bond-based peridynamics,
-`εc = sqrt(5 Gc / (9 K δ))`.
+`K`.
 
-The relation follows from the micro-modulus, so it belongs to the material, and it is the
-damage model that decides what `εc` means, so it belongs to the model as well. Both are
-therefore dispatched on. A material with another micro-modulus defines this method **and**
+# Default
+
+`εc = sqrt(5 Gc / (9 K δ))`, the relation of the constant micro-modulus of bond-based
+peridynamics. A material with another micro-modulus defines this method **and**
 [`energy_release_rate`](@ref), always both, so that `Gc` and `epsilon_c` keep converting
-into each other. From then on `material!(...; Gc)` and `material!(...; epsilon_c)` are
-correct for it:
+into each other.
+
+# Example
 
 ```julia
 Peridynamics.critical_stretch(::CriticalStretch, ::MyMaterial, δ, K, Gc) =
@@ -119,10 +120,7 @@ Peridynamics.energy_release_rate(::CriticalStretch, ::MyMaterial, δ, K, εc) =
     1.5 * K * δ * εc^2
 ```
 
-Dispatching on the model as well is what lets a damage model bring its own relation, and it
-lets a method be written for one pairing only, e.g. `(::MyDamage, ::MyMaterial, ...)`.
-
-See also [`get_frac_params`](@ref).
+See also [`energy_release_rate`](@ref), [`get_frac_params`](@ref).
 """
 critical_stretch(dmgmodel, mat, δ, K, Gc) = sqrt(5.0 * Gc / (9.0 * K * δ))
 
@@ -132,9 +130,15 @@ critical_stretch(dmgmodel, mat, δ, K, Gc) = sqrt(5.0 * Gc / (9.0 * K * δ))
 $(extension_api_note())
 
 Return the critical energy release rate `Gc` that belongs to the critical stretch `εc`, the
-inverse of [`critical_stretch`](@ref). The default is `Gc = 9/5 K δ εc^2`, the relation of
-the constant micro-modulus. Whoever defines one of the two defines the other, so that `Gc`
-and `epsilon_c` stay consistent whichever one the user gives.
+inverse of [`critical_stretch`](@ref).
+
+# Default
+
+`Gc = 9/5 K δ εc^2`, the relation of the constant micro-modulus. Whoever defines one of the
+two defines the other, so that `Gc` and `epsilon_c` stay consistent whichever one the user
+gives.
+
+See also [`critical_stretch`](@ref), [`get_frac_params`](@ref).
 """
 energy_release_rate(dmgmodel, mat, δ, K, εc) = 9.0 / 5.0 * K * δ * εc^2
 
@@ -145,23 +149,9 @@ $(extension_api_note())
 
 Return the fracture parameters `Gc` and `εc` of a damage model as a `NamedTuple`, resolved
 from the fracture keywords of [`material!`](@ref). This is the provider of the
-[`FractureParameters`](@ref) block, and the default serves every damage model that inherits
-the block: `Gc` and `epsilon_c` are converted into each other with
-[`critical_stretch`](@ref) and [`energy_release_rate`](@ref), giving both is an error, and
-giving neither switches fracture off with `Gc = εc = 0`. **A damage model with the standard
-fracture keywords therefore defines nothing here**, and a material with another
-micro-modulus defines the two conversion hooks rather than this method.
-
-A method of its own is for a model that reads *other* keywords. Every fracture keyword
-arrives as a keyword argument, and one the user did not give arrives as `nothing`, which is
-how a method decides what it accepts:
-
-```julia
-function Peridynamics.get_frac_params(::MyDamage, mat, δ, K; sigma_c=nothing, kwargs...)
-    isnothing(sigma_c) && return (; Gc=0.0, εc=0.0, σc=0.0)
-    ...
-end
-```
+[`FractureParameters`](@ref) block. A method of its own is only for a model that reads
+*other* keywords, and a material with another micro-modulus defines the two conversion
+hooks rather than this method.
 
 # Arguments
 
@@ -174,6 +164,27 @@ end
 
 - `Gc`: The critical energy release rate, or `nothing` if not given.
 - `epsilon_c`: The critical stretch, or `nothing` if not given.
+
+# Default
+
+`Gc` and `epsilon_c` are converted into each other with [`critical_stretch`](@ref) and
+[`energy_release_rate`](@ref). Giving both is an error, giving neither switches fracture
+off with `Gc = εc = 0`. A damage model with the standard fracture keywords therefore
+defines nothing here.
+
+# Example
+
+Every fracture keyword arrives as a keyword argument, and one the user did not give arrives
+as `nothing`, which is how a method decides what it accepts.
+
+```julia
+function Peridynamics.get_frac_params(::MyDamage, mat, δ, K; tau_c=nothing, kwargs...)
+    isnothing(tau_c) && return (; Gc=0.0, εc=0.0, τc=0.0)
+    ...
+end
+```
+
+See also [`critical_stretch`](@ref), [`energy_release_rate`](@ref).
 """
 function get_frac_params(dmgmodel::AbstractDamageModel, mat, δ, K; Gc=nothing,
                          epsilon_c=nothing, kwargs...)
@@ -222,21 +233,18 @@ per local point and per time step, right before [`force_density_point!`](@ref).
 
 The bookkeeping lives in the state of the model itself, declared with
 [`@dmg_storage`](@ref) by inheriting the block of the system family, e.g.
-[`BondFracFields`](@ref), and read flat off the storage. A method starts by resetting the
-count of the point with `storage.n_active_bonds[i] = 0`, then sets
-`storage.bond_active[bond_id] = false` for every bond that fails and adds every bond that
-is still active to `storage.n_active_bonds[i]`, because that count is what
-[`calc_damage!`](@ref) turns into the damage of the point. A bond whose `fail_permit` is
-`false` must never fail, which is how [`no_failure!`](@ref) and the pre-cracks are honored.
-A model with extra state of its own reaches it the same flat way, or with
-[`damage_state`](@ref).
+[`BondFracFields`](@ref), and read flat off the storage or with [`damage_state`](@ref).
 
-The stretch of a bond is read with [`bond_stretch`](@ref) and its current length with
-[`current_bond_length`](@ref), never by gathering the two positions and taking the norm. A
-material that caches bond lengths has the cache refilled right before this runs, and one that
-does not gets the distance computed, both decided at compile time. A model written this way
-is as fast as [`CriticalStretch`](@ref) on every material, and the same code runs on a bond
-system and on an [`InteractionSystem`](@ref).
+Rules a method has to follow:
+
+- Reset the count of the point with `storage.n_active_bonds[i] = 0`, set
+  `storage.bond_active[bond_id] = false` for every bond that fails and add every bond that
+  is still active to `storage.n_active_bonds[i]`, because that count is what
+  [`calc_damage!`](@ref) turns into the damage of the point.
+- A bond for which [`bond_may_fail`](@ref) is `false` must never fail, which is how
+  [`no_failure!`](@ref) and the pre-cracks are honored.
+- Read the stretch of a bond with [`bond_stretch`](@ref) and its current length with
+  [`current_bond_length`](@ref), never by gathering the two positions and taking the norm.
 
 # Arguments
 
@@ -248,6 +256,10 @@ system and on an [`InteractionSystem`](@ref).
 - `t::Real`: The current simulation time.
 - `Δt::Real`: The current time step.
 - `i::Int`: The index of the local point that is evaluated.
+
+# Default
+
+An [`InterfaceError`](@ref) that asks for a method of the damage model.
 
 # Example
 
@@ -269,7 +281,7 @@ function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup
 end
 ```
 
-The tutorial on custom damage models builds a model with a state of its own on this.
+See also [`calc_damage!`](@ref), [`bond_stretch`](@ref), [`@dmg_storage`](@ref).
 """
 function calc_failure!(storage, system, mat, dmgmodel::AbstractDamageModel, paramsetup, t, Δt,
                        i)
@@ -292,15 +304,6 @@ scalar written to `storage.damage` and exported as the `:damage` field. It is ca
 per local point and per time step, directly after [`calc_failure!`](@ref), and
 [`get_damage`](@ref) is the reading counterpart.
 
-The default is the fraction of broken bonds, `1 - n_active_bonds[i] / n_neighbors[i]`,
-which is what a model that deletes bonds wants. It is written for the standard bookkeeping
-and does nothing when the storage does not carry it, so a model that inherits
-[`BondFracFields`](@ref) needs no method of its own and any other model defines one
-dispatching on its model type. A model that degrades a bond continuously instead of
-deleting it defines its own method, so that a partially damaged bond is counted with its
-degree of damage rather than as intact, see [`kinematic_weight`](@ref) and
-[`bond_integrity`](@ref).
-
 # Arguments
 
 - `storage`: The storage of the body chunk. A stateful damage model reaches its own bond
@@ -311,8 +314,16 @@ degree of damage rather than as intact, see [`kinematic_weight`](@ref) and
 - `paramsetup`: The parameters of the body chunk. Resolve them with [`get_params`](@ref).
 - `i::Int`: The index of the local point that is evaluated.
 
-See also [`calc_failure!`](@ref), [`get_damage`](@ref), [`@dmg_storage`](@ref),
-`AbstractDamageModel`.
+# Default
+
+The fraction of broken bonds, `1 - n_active_bonds[i] / n_neighbors[i]`, written for the
+standard bookkeeping and a no-op when the storage does not carry it. A model that inherits
+[`BondFracFields`](@ref) therefore needs no method of its own. A model that degrades a bond
+continuously instead of deleting it defines one, so that a partially damaged bond is
+counted with its degree of damage rather than as intact.
+
+See also [`calc_failure!`](@ref), [`get_damage`](@ref), [`bond_integrity`](@ref),
+[`kinematic_weight`](@ref), [`@dmg_storage`](@ref).
 """
 function calc_damage! end
 
@@ -323,15 +334,23 @@ function calc_damage! end
 $(extension_api_note())
 
 Return whether the point parameters `params` enable fracture, which decides whether the
-bonds of the points that [`material!`](@ref) assigns them to may fail. The default reads
-the standard fracture parameters: fracture is enabled when `params` carry `Gc` and `εc` and
-both are nonzero, which is the case for every damage model that inherits
-[`FractureParameters`](@ref) as soon as the user gives `Gc` or `epsilon_c`. A model whose
-own parameters are the fracture parameters answers for itself:
+bonds of the points that [`material!`](@ref) assigns them to may fail.
+
+# Default
+
+Fracture is enabled when `params` carry `Gc` and `εc` and both are nonzero, which is the
+case for every damage model that inherits [`FractureParameters`](@ref) as soon as the user
+gives `Gc` or `epsilon_c`.
+
+# Example
+
+A model whose own parameters are the fracture parameters answers for itself.
 
 ```julia
 Peridynamics.has_fracture(::MyDamage, params) = true
 ```
+
+See also [`get_frac_params`](@ref), [`FractureParameters`](@ref).
 """
 function has_fracture(mat::AbstractMaterial, params::AbstractPointParameters)
     return has_fracture(get_dmgmodel(mat), params)
@@ -394,13 +413,17 @@ end
 $(extension_api_note())
 
 Return the type of the state a damage model carries on the system family `System`,
-instantiated for the float type `FT` of the simulation, or `Nothing` for a model without
-state. This method is generated by [`@dmg_storage`](@ref) and is the damage-model analogue
-of [`storage_type`](@ref). The system type is dispatched on because the fracture
-bookkeeping is named by the system family, e.g. [`CriticalStretch`](@ref) carries
-[`BondFracFields`](@ref) on a bond system and [`InteractionFracFields`](@ref) on an
-[`InteractionSystem`](@ref). Note that [`constitutive_storage_type`](@ref) takes no system,
-the state of a constitutive model is the same on every system.
+instantiated for the float type `FT` of the simulation. This method is generated by
+[`@dmg_storage`](@ref), so a model declared with that macro needs nothing here. The system
+type is dispatched on because the fracture bookkeeping is named by the system family, e.g.
+[`CriticalStretch`](@ref) carries [`BondFracFields`](@ref) on a bond system and
+[`InteractionFracFields`](@ref) on an [`InteractionSystem`](@ref).
+
+# Default
+
+`Nothing`, the answer for a damage model without state.
+
+See also [`@dmg_storage`](@ref), [`damage_state`](@ref), [`storage_type`](@ref).
 """
 function damage_storage_type end
 
@@ -490,17 +513,18 @@ $(extension_api_note())
 
 Return whether bond `bond_id` is intact. This is what a force density multiplies into the
 influence function or branches on, and on an [`InteractionSystem`](@ref) `bond_id` is the
-index of a one-neighbor interaction. Materials, corrections and every other consumer ask
-this function instead of reading a storage field, which is what makes them work with any
-damage model, including one that carries no bookkeeping at all.
+index of a one-neighbor interaction. Everything outside the damage model asks this function
+instead of reading a storage field.
 
-The call is resolved through the state of the damage model, see [`damage_state`](@ref).
-A model with its own notion of a broken bond overrides
-`bond_is_active(state::MyState, storage, system, bond_id)` on its state type. The default
-reads `storage.bond_active` on a bond system and `storage.one_ni_active` on an interaction
-system when the storage provides the field, flat or inside a state, and returns `true`
-otherwise. A model that inherits [`BondFracFields`](@ref) therefore needs no method of its
-own.
+The call is resolved through the state of the damage model, see [`damage_state`](@ref). A
+model with its own notion of a broken bond overrides
+`bond_is_active(state::MyState, storage, system, bond_id)` on its state type.
+
+# Default
+
+`storage.bond_active` on a bond system and `storage.one_ni_active` on an interaction system
+when the storage provides the field, flat or inside a state, and `true` otherwise. A model
+that inherits [`BondFracFields`](@ref) therefore needs no method of its own.
 
 # Example
 
@@ -510,6 +534,8 @@ for bond_id in Peridynamics.each_bond_idx(system, i)
         Peridynamics.surface_correction_factor(system, bond_id)
 end
 ```
+
+See also [`get_damage`](@ref), [`break_bond!`](@ref), [`damage_state`](@ref).
 """
 @inline function bond_is_active(storage::AbstractStorage, system::AbstractSystem,
                                 bond_id::Int)
@@ -523,14 +549,18 @@ $(extension_api_note())
 
 Return the damage of point `i`, the scalar that [`calc_damage!`](@ref) writes once per
 point and time step. Everything outside the damage model reads the damage through this
-function, e.g. the `maxdmg` mechanism of [`CMaterial`](@ref) and the gradient update
-decision of [`RKCMaterial`](@ref).
+function.
 
-The call is resolved through the state of the damage model, see [`damage_state`](@ref).
-A model that stores its damage differently overrides
-`get_damage(state::MyState, storage, i)` on its state type. The default reads
-`storage.damage` when the storage provides the field, flat or inside a state, and returns
-`0.0` otherwise.
+The call is resolved through the state of the damage model, see [`damage_state`](@ref). A
+model that stores its damage differently overrides
+`get_damage(state::MyState, storage, i)` on its state type.
+
+# Default
+
+`storage.damage` when the storage provides the field, flat or inside a state, and `0.0`
+otherwise.
+
+See also [`calc_damage!`](@ref), [`bond_is_active`](@ref), [`damage_state`](@ref).
 """
 @inline function get_damage(storage::AbstractStorage, i::Int)
     return get_damage(damage_state(storage), storage, i)
@@ -542,13 +572,17 @@ end
 $(extension_api_note())
 
 Mark bond `bond_id` of point `i` as failed. This is how code outside the damage model
-breaks a single bond, e.g. [`BACMaterial`](@ref) when a bond-associated family cannot
-carry stress anymore. The count of active bonds is deliberately left alone, the next
-[`calc_failure!`](@ref) recomputes it. A damage model with bookkeeping of its own defines
-a method dispatching on its model type. The default writes the standard bookkeeping when
-the storage provides it and does nothing otherwise.
+breaks a single bond, e.g. [`BACMaterial`](@ref) when a bond-associated family cannot carry
+stress anymore. The count of active bonds is left alone, the next [`calc_failure!`](@ref)
+recomputes it. A damage model with bookkeeping of its own defines a method dispatching on
+its model type.
 
-See also [`break_bonds!`](@ref), [`bond_is_active`](@ref).
+# Default
+
+Writes the standard fracture bookkeeping when the storage provides it, and is a no-op
+otherwise.
+
+See also [`break_bonds!`](@ref), [`bond_is_active`](@ref), [`calc_failure!`](@ref).
 """
 function break_bond! end
 
@@ -557,13 +591,17 @@ function break_bond! end
 
 $(extension_api_note())
 
-Mark every bond of point `i` as failed and zero its count of active bonds. This is how
-code outside the damage model removes a whole point from the force calculation, e.g. the
+Mark every bond of point `i` as failed and zero its count of active bonds. This is how code
+outside the damage model removes a whole point from the force calculation, e.g. the
 `maxdmg` mechanism of [`CMaterial`](@ref). A damage model with bookkeeping of its own
-defines a method dispatching on its model type. The default writes the standard
-bookkeeping when the storage provides it and does nothing otherwise.
+defines a method dispatching on its model type.
 
-See also [`break_bond!`](@ref), [`bond_is_active`](@ref).
+# Default
+
+Writes the standard fracture bookkeeping when the storage provides it, and is a no-op
+otherwise.
+
+See also [`break_bond!`](@ref), [`bond_is_active`](@ref), [`calc_failure!`](@ref).
 """
 function break_bonds! end
 
@@ -577,13 +615,10 @@ function break_bonds! end
 $(extension_api_note())
 
 Parameter block of the critical energy release rate `Gc` and the critical stretch `εc`,
-resolved by [`get_frac_params`](@ref) of the damage model, which decides which of the
-fracture keywords it reads and how it converts them into each other. The block belongs to
-the damage model, so it is inherited inside a [`@dmg_params`](@ref) declaration: this is
-how [`CriticalStretch`](@ref) declares its parameters, and a custom damage model that
-wants the standard fracture keywords inherits it the same way. It reads the material
-`mat`, so that the conversion can depend on its micro-modulus, and the horizon `δ` and the
-bulk modulus `K` of the material parameters declared above the
+resolved by [`get_frac_params`](@ref) of the damage model. The block belongs to the damage
+model, so it is inherited inside a [`@dmg_params`](@ref) declaration, which is how
+[`CriticalStretch`](@ref) declares its parameters. It reads the material `mat` and the
+horizon `δ` and the bulk modulus `K` of the material parameters declared above the
 `dmg_params::DamageParameters` marker. See [`@params_fields`](@ref).
 
 $(block_table(FractureParameters))
@@ -627,16 +662,22 @@ end
 $(extension_api_note())
 
 Return the integrity of bond `bond_id`: the fraction in `[0, 1]` of its undamaged
-load-carrying capacity that the bond retains. An intact bond has integrity `1`, a bond
-that stores and transmits nothing has integrity `0`. This is the continuity `1 - d` of
-classical damage mechanics, evaluated per bond: the free energy of a damaged bond is its
-undamaged free energy scaled by the integrity, and since the stress follows from the free
-energy, the stress the bond transmits is scaled with it.
+load-carrying capacity that the bond retains. An intact bond has integrity `1`, a bond that
+stores and transmits nothing has integrity `0`. A damage model that softens bonds instead
+of deleting them defines a method that reads its own state.
 
-The default is `1.0` for every damage model. A model that deletes bonds knows only intact
-bonds, because a failed bond is excluded through `bond_active` before the integrity is
-ever asked, so the default costs nothing. A model that softens bonds defines a method
-that reads its own state, see [`@dmg_storage`](@ref) and [`damage_state`](@ref), e.g.
+The integrity is honored by the materials that evaluate their constitutive model per bond,
+i.e. [`RKCMaterial`](@ref) and [`RKCRMaterial`](@ref), where the stress and the strain
+energy density of every bond are scaled by it. Combining a model that defines this method
+with a material that ignores it fails once when the [`Job`](@ref) is created, see
+[`supports_bond_integrity`](@ref).
+
+# Default
+
+`1.0` for every damage model. A failed bond is excluded through `bond_active` before the
+integrity is ever asked, so a model that deletes bonds needs no method of its own.
+
+# Example
 
 ```julia
 @inline function Peridynamics.bond_integrity(::MyDamage,
@@ -647,17 +688,8 @@ that reads its own state, see [`@dmg_storage`](@ref) and [`damage_state`](@ref),
 end
 ```
 
-The integrity is honored by the materials that evaluate their constitutive model per
-bond, i.e. [`RKCMaterial`](@ref) and [`RKCRMaterial`](@ref): the stress and the strain
-energy density of every bond are scaled by it. One scalar per bond is the isotropic
-damage of classical damage mechanics. A model that degrades anisotropically, e.g. only
-the tensile part of the stress, instead specializes the stress computation of the
-material family for its damage model type. Combining a model that defines this method
-with a material that ignores it fails once when the [`Job`](@ref) is created, see
-[`supports_bond_integrity`](@ref).
-
 See also [`kinematic_weight`](@ref), [`supports_bond_integrity`](@ref),
-[`calc_failure!`](@ref), [`@dmg_storage`](@ref).
+[`damage_state`](@ref), [`@dmg_storage`](@ref).
 """
 function bond_integrity end
 
@@ -674,30 +706,25 @@ Return the weight in `[0, 1]` with which bond `bond_id` enters the reconstructio
 deformation gradient, i.e. the moment matrix and the gradient weights of
 [`RKCMaterial`](@ref) and [`RKCRMaterial`](@ref).
 
-The reconstruction is a weighted least-squares fit over the family, and every bond
-contributes the motion of its neighbor as data. The kinematic weight states how much of
-that data survives the damage of the bond: while a crack forms between two points, the
-neighbor turns into a point on the other side of a discontinuity, and a deformation
-gradient fitted through the jump produces spurious deformation and stress. Taking the
-weight back smoothly keeps the moment matrix a continuous function of the damage, where
-deleting the bond is a jump. That is what keeps fragmentation stable.
-
-The kinematic weight is deliberately not the [`bond_integrity`](@ref): the integrity
-states how much load a bond carries, the kinematic weight whether its neighbor still
-moves with the point. A softened bond can remain perfectly valid data. The default is
-therefore `1.0` for every damage model. A failed bond is excluded from the fit through
-`bond_active`, so a model that deletes bonds needs nothing else. Combining a model that
-defines this method with a material that ignores it fails once when the [`Job`](@ref) is
-created, see [`supports_kinematic_weight`](@ref).
+The kinematic weight is not the [`bond_integrity`](@ref). The integrity states how much
+load a bond carries, the kinematic weight whether the motion of its neighbor can still be
+trusted as data of the least-squares fit. A softened bond can remain perfectly valid data.
+Combining a model that defines this method with a material that ignores it fails once when
+the [`Job`](@ref) is created, see [`supports_kinematic_weight`](@ref).
 
 !!! note
-    The gradient weights are cached and recomputed only for points whose damage grew, see
-    [`calc_damage!`](@ref). A damage model whose kinematic weights evolve continuously
-    has to set `storage.update_gradients[i] = true` for the affected points in its own
+    The gradient weights are cached and recomputed only for points whose damage grew. A
+    damage model whose kinematic weights evolve continuously has to set
+    `storage.update_gradients[i] = true` for the affected points in its own
     [`calc_damage!`](@ref) method.
 
+# Default
+
+`1.0` for every damage model. A failed bond is excluded from the fit through `bond_active`,
+so a model that deletes bonds needs no method of its own.
+
 See also [`bond_integrity`](@ref), [`supports_kinematic_weight`](@ref),
-[`calc_failure!`](@ref), [`@dmg_storage`](@ref).
+[`damage_state`](@ref), [`@dmg_storage`](@ref).
 """
 function kinematic_weight end
 
@@ -709,17 +736,23 @@ function kinematic_weight end
 $(extension_api_note())
 
 Return whether the force path of a material scales the stress and the strain energy
-density of every bond with its [`bond_integrity`](@ref). Defaults to `false`;
-[`RKCMaterial`](@ref) and [`RKCRMaterial`](@ref) declare `true`. A custom material that
-applies the integrity in its own force routines declares it the same way:
+density of every bond with its [`bond_integrity`](@ref). [`RKCMaterial`](@ref) and
+[`RKCRMaterial`](@ref) declare `true`, and a custom material that applies the integrity in
+its own force routines declares it the same way.
+
+The declaration is checked once when a [`Job`](@ref) is created, see
+[`check_damage_model`](@ref). A damage model that defines [`bond_integrity`](@ref)
+combined with a material that ignores it fails there instead of silently not softening.
+
+# Default
+
+`false`.
+
+# Example
 
 ```julia
 Peridynamics.supports_bond_integrity(::MyMaterial) = true
 ```
-
-The declaration is checked once when a [`Job`](@ref) is created, see
-[`check_damage_model`](@ref): a damage model that defines [`bond_integrity`](@ref)
-combined with a material that ignores it fails there instead of silently not softening.
 
 See also [`supports_kinematic_weight`](@ref), [`bond_integrity`](@ref).
 """
@@ -733,17 +766,23 @@ supports_bond_integrity(::AbstractMaterial) = false
 $(extension_api_note())
 
 Return whether a material weights the bonds with their [`kinematic_weight`](@ref) when it
-reconstructs the deformation gradient. Defaults to `false`; [`RKCMaterial`](@ref) and
-[`RKCRMaterial`](@ref) declare `true`. A custom material that applies the weight in its
-own gradient reconstruction declares it the same way:
+reconstructs the deformation gradient. [`RKCMaterial`](@ref) and [`RKCRMaterial`](@ref)
+declare `true`, and a custom material that applies the weight in its own gradient
+reconstruction declares it the same way.
+
+The declaration is checked once when a [`Job`](@ref) is created, see
+[`check_damage_model`](@ref). A damage model that defines [`kinematic_weight`](@ref)
+combined with a material that ignores it fails there instead of silently not softening.
+
+# Default
+
+`false`.
+
+# Example
 
 ```julia
 Peridynamics.supports_kinematic_weight(::MyMaterial) = true
 ```
-
-The declaration is checked once when a [`Job`](@ref) is created, see
-[`check_damage_model`](@ref): a damage model that defines [`kinematic_weight`](@ref)
-combined with a material that ignores it fails there instead of silently not softening.
 
 See also [`supports_bond_integrity`](@ref), [`kinematic_weight`](@ref).
 """

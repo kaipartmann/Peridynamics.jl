@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="100%">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a8a8a"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4f8fd6"/>
+    </marker>
+  </defs>
+
+  <style>
+    text { font-family: system-ui, sans-serif; font-size: 14px; fill: #8a8a8a; }
+    .title { font-size: 15px; font-weight: 600; }
+    .mono { font-family: ui-monospace, monospace; font-size: 13px; }
+    .small { font-size: 12px; }
+    .box { fill: none; stroke: #8a8a8a; stroke-width: 1.5; }
+    .accentbox { fill: #4f8fd6; fill-opacity: 0.2; stroke: #4f8fd6; stroke-width: 1.5; }
+    .arrow { stroke: #8a8a8a; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+    .arrow-accent { stroke: #4f8fd6; stroke-width: 1.5; fill: none; marker-end: url(#arrow-accent); }
+  </style>
+
+  <text x="450" y="24" text-anchor="middle" class="title">What a body chunk consists of and where your code plugs in</text>
+
+  <!-- Body -->
+  <rect x="14" y="150" width="72" height="46" rx="4" class="box"/>
+  <text x="50" y="178" text-anchor="middle" class="mono">Body</text>
+
+  <text x="122" y="160" text-anchor="middle" class="small">split into chunks</text>
+  <text x="122" y="173" text-anchor="middle" class="small">(1 / thread or rank)</text>
+  <line x1="86" y1="188" x2="160" y2="188" class="arrow"/>
+
+  <!-- BodyChunk outer -->
+  <rect x="160" y="46" width="330" height="330" rx="6" class="box"/>
+  <text x="325" y="66" text-anchor="middle" class="mono">BodyChunk</text>
+
+  <!-- System box -->
+  <rect x="176" y="80" width="298" height="80" rx="4" class="box"/>
+  <text x="186" y="98" class="mono" font-weight="600">System</text>
+  <text x="186" y="115" class="mono small">position, volume, neighbor,</text>
+  <text x="186" y="130" class="mono small">bond_length, fail_permit, bond_ids, ...</text>
+  <text x="186" y="147" class="small">declared with @system (internal tier)</text>
+
+  <!-- Storage box -->
+  <rect x="176" y="176" width="298" height="100" rx="4" class="box"/>
+  <text x="186" y="194" class="mono" font-weight="600">Storage (@storage)</text>
+  <text x="186" y="211" class="small">solver blocks: VelocityVerletFields,</text>
+  <text x="186" y="225" class="small">DynamicRelaxationFields, NewtonKrylovFields</text>
+  <text x="186" y="240" class="small">own fields</text>
+  <rect x="186" y="248" width="130" height="20" rx="3" class="box"/>
+  <text x="251" y="262" text-anchor="middle" class="mono small">cm_state</text>
+  <rect x="330" y="248" width="130" height="20" rx="3" class="box"/>
+  <text x="395" y="262" text-anchor="middle" class="mono small">dmg_state</text>
+
+  <!-- Point parameters box -->
+  <rect x="176" y="292" width="298" height="100" rx="4" class="box"/>
+  <text x="186" y="310" class="mono" font-weight="600">Point parameters (@params)</text>
+  <text x="186" y="327" class="small">@inherit StandardParameters</text>
+  <text x="186" y="342" class="small">own parameters</text>
+  <rect x="186" y="350" width="130" height="20" rx="3" class="box"/>
+  <text x="251" y="364" text-anchor="middle" class="mono small">cm_params</text>
+  <rect x="330" y="350" width="130" height="20" rx="3" class="box"/>
+  <text x="395" y="364" text-anchor="middle" class="mono small">dmg_params</text>
+
+  <!-- Constitutive model plug-in box -->
+  <rect x="560" y="80" width="326" height="76" rx="4" class="accentbox"/>
+  <text x="572" y="99" class="mono" font-weight="600">Constitutive model</text>
+  <text x="572" y="116" class="mono small">first_piola_kirchhoff</text>
+  <text x="572" y="131" class="mono small">@cm_params</text>
+  <text x="572" y="146" class="mono small">@cm_storage</text>
+
+  <!-- Damage model plug-in box -->
+  <rect x="560" y="176" width="326" height="76" rx="4" class="accentbox"/>
+  <text x="572" y="195" class="mono" font-weight="600">Damage model</text>
+  <text x="572" y="212" class="mono small">calc_failure!</text>
+  <text x="572" y="227" class="mono small">@dmg_params</text>
+  <text x="572" y="242" class="mono small">@dmg_storage</text>
+
+  <!-- Material plug-in box -->
+  <rect x="560" y="272" width="326" height="76" rx="4" class="accentbox"/>
+  <text x="572" y="291" class="mono" font-weight="600">Material</text>
+  <text x="572" y="308" class="mono small">force_density_point!</text>
+  <text x="572" y="323" class="mono small">@params</text>
+  <text x="572" y="338" class="mono small">@storage</text>
+
+  <!-- Arrows: constitutive model -> cm_state, cm_params -->
+  <path d="M560,110 C520,110 470,180 460,255" class="arrow-accent"/>
+  <path d="M560,118 C500,118 400,250 390,358" class="arrow-accent"/>
+
+  <!-- Arrows: damage model -> dmg_state, dmg_params -->
+  <path d="M560,208 C520,208 480,220 460,257" class="arrow-accent"/>
+  <path d="M560,220 C480,220 400,300 390,358" class="arrow-accent"/>
+
+  <!-- Arrows: material -> Storage, Point parameters -->
+  <path d="M560,296 C500,296 450,270 400,266" class="arrow-accent"/>
+  <path d="M560,320 C480,320 420,330 400,340" class="arrow-accent"/>
+
+  <!-- Legend -->
+  <rect x="176" y="400" width="16" height="12" class="accentbox"/>
+  <text x="198" y="410" class="small">you write this</text>
+  <rect x="330" y="400" width="16" height="12" class="box"/>
+  <text x="352" y="410" class="small">generated or provided</text>
+</svg>

@@ -91,7 +91,7 @@ public max_n_chunks, first_chunk
 
 # The errors the interfaces throw. Catch them in tests, or throw them from your own
 # interface.
-public InterfaceError, StorageContractError, HistoryDependenceError
+public InterfaceError, StorageContractError, HistoryDependenceError, SofteningSupportError
 
 # The material interface.
 public storage_type, init_field, force_density_point!

@@ -84,11 +84,15 @@ function write_inheritable_blocks_page(path)
     # Blocks you can inherit
 
     [`@inherit`](@ref Peridynamics.@inherit) includes all declarations of another block into
-    a [`@params`](@ref Peridynamics.@params), [`@storage`](@ref Peridynamics.@storage) or
-    [`@dmg_storage`](@ref Peridynamics.@dmg_storage) definition. This page lists everything
-    the package ships that can be inherited. What a block exposes is on its reference entry,
-    and the same table is printed by `Peridynamics.block_table(Block)` and by typing the
-    name of a block at the REPL.
+    any of the declaration macros: [`@params`](@ref Peridynamics.@params),
+    [`@params_fields`](@ref Peridynamics.@params_fields),
+    [`@storage`](@ref Peridynamics.@storage),
+    [`@storage_fields`](@ref Peridynamics.@storage_fields),
+    [`@cm_params`](@ref Peridynamics.@cm_params), [`@cm_storage`](@ref Peridynamics.@cm_storage)
+    and [`@dmg_storage`](@ref Peridynamics.@dmg_storage). This page lists everything the
+    package ships that can be inherited. What a block exposes is on its reference entry, and
+    the same table is printed by `Peridynamics.block_table(Block)` and by typing the name of
+    a block at the REPL.
 
     Two `@inherit`s may contribute the same name only if they declare it identically, and a
     declaration in the body overrides an inherited one in place.
@@ -197,12 +201,17 @@ makedocs(;
             joinpath("generated", "tutorial_brazilian_test.md"),
         ],
         "Development" => [
+            "dev_overview.md",
             joinpath("generated", "tutorial_custom_material.md"),
             joinpath("generated", "tutorial_custom_damage_model.md"),
             joinpath("generated", "tutorial_custom_constitutive_model.md"),
-            "dev_systems.md",
             "dev_materials.md",
+            "dev_parameters.md",
+            "dev_storages.md",
+            "dev_damage_models.md",
+            "dev_constitutive_models.md",
             joinpath("generated", "inheritable_blocks.md"),
+            "dev_systems.md",
             "dev_solvers.md",
             "dev_multithreading_mpi.md",
         ],

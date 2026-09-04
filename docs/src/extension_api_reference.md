@@ -1,24 +1,12 @@
 # Extension API
 
 The names on this page are what you need to add a material, a constitutive model, a damage
-model or a set of point parameters of your own. They are not exported, so write them as
-`Peridynamics.<name>` or import them explicitly.
+model or a set of point parameters of your own. They are declared `public` in
+`src/public_api.jl`, are not exported and are stable within a minor release.
 
-They are declared `public` in `src/public_api.jl` and are stable within a minor release. See
-[API stability](@ref) for what exactly that promises and which parts of the package are
-deliberately left out of it. The tutorials [Writing your own material](@ref
-tutorial_custom_material), [Writing your own damage model](@ref
-tutorial_custom_damage_model) and [Writing your own constitutive model](@ref
-tutorial_custom_constitutive_model) show them in use, and [Materials](@ref) is the manual
-of the declaration language.
-
-The names follow four rules, so that a name you have not seen yet still tells you what it
-does. `get_*` pulls something that is already stored out of a container, as
-`get_params` and `get_vector_diff` do. `each_*_idx` returns what a loop iterates over.
-`update_*!` writes in place. Everything else is a bare noun, either a physical quantity that
-is computed on the spot, as `kernel`, `surface_correction_factor`, `current_bond_length` and
-`bond_stretch` are, or a question asked of a material or a model, as `damage_state` and
-`storage_type` are.
+[Extending Peridynamics.jl](@ref) is the index of the developer documentation, with the rule
+the names are built by and the page for each extension point. See [API stability](@ref) for
+what the tier promises.
 
 ```@meta
 CollapsedDocStrings = true
@@ -31,17 +19,9 @@ Depth = 2:2
 
 ## Declaration macros
 
-The parts of a material are declared, not written by hand: the point parameters with
-[`@params`](@ref Peridynamics.@params), the storage with
-[`@storage`](@ref Peridynamics.@storage), the parameters a constitutive or damage model owns
-with [`@cm_params`](@ref Peridynamics.@cm_params) and
-[`@dmg_params`](@ref Peridynamics.@dmg_params), the state of a model with
-[`@cm_storage`](@ref Peridynamics.@cm_storage) and
-[`@dmg_storage`](@ref Peridynamics.@dmg_storage), and reusable blocks of declarations with
-[`@params_fields`](@ref Peridynamics.@params_fields) and
-[`@storage_fields`](@ref Peridynamics.@storage_fields). A system is declared the same way,
-with [`@system`](@ref Peridynamics.@system), but has no reusable field blocks of its own: a
-system lists every one of its fields directly.
+The parts of a material are declared, not written by hand.
+See [Point parameters](@ref), [Storages](@ref) and [Systems](@ref) for the declaration
+language.
 
 ```@docs
 Peridynamics.@params
@@ -69,7 +49,7 @@ Peridynamics.@log
 ## Field shapes
 
 A storage field is declared with a field shape, which decides how many entries it has, what
-its element type is and how it is allocated.
+its element type is and how it is allocated. The table of shapes is in [Storages](@ref).
 
 ```@docs
 Peridynamics.PointScalar
@@ -200,24 +180,18 @@ Peridynamics.AbstractBondSystem
 Peridynamics.AbstractTimeSolver
 ```
 
-## Systems
+## System types
 
-The discretization of a body chunk. A material dispatches on it to say which discretization
-it is written for. The fields of a system are internal, a material reads it through the
-accessors under [Accessing a system and its parameters](@ref), one accessor per quantity of
-a bond.
+The discretization of a body chunk, which a material dispatches on. Its fields are internal,
+a material reads it through the accessors under
+[Accessing a system and its parameters](@ref). See [Systems](@ref).
 
 ```@docs
 Peridynamics.BondSystem
 Peridynamics.InteractionSystem
 ```
 
-Which system a material is discretized with is answered by `system_type`, and
-`check_system_compat` is what a system checks its materials with.
-`SystemSizes` is what the constructor of a system allocates its fields against, and
-`host_system_type` returns the instantiation of a system whose arrays live on the CPU.
-A system that cannot be decomposed says so with `max_n_chunks` and reads its one chunk with
-`first_chunk`.
+The rest of the system interface, which is internal beyond the two types above:
 
 ```@docs
 Peridynamics.system_type
@@ -230,6 +204,8 @@ Peridynamics.first_chunk
 
 ## The material interface
 
+What a material defines, see [Materials](@ref).
+
 ```@docs
 Peridynamics.force_density_point!
 Peridynamics.storage_type
@@ -239,7 +215,8 @@ Peridynamics.init_field
 ## The constitutive model interface
 
 A constitutive model does not depend on the material family that evaluates it, so the same
-model runs on `CMaterial`, `RKCMaterial` and `BACMaterial`.
+model runs on `CMaterial`, `RKCMaterial` and `BACMaterial`. See
+[Constitutive models](@ref).
 
 ```@docs
 Peridynamics.get_constitutive_model
@@ -253,23 +230,8 @@ Peridynamics.supports_history_dependence
 
 ## The damage model interface
 
-A damage model decides which bonds fail, and it may carry per-bond state of its own. It is
-a plug-in box: everything outside of it reads the fracture bookkeeping through
-[`bond_is_active`](@ref Peridynamics.bond_is_active) and
-[`get_damage`](@ref Peridynamics.get_damage) and never by field name, and a material that
-kills bonds writes through [`break_bond!`](@ref Peridynamics.break_bond!) and
-[`break_bonds!`](@ref Peridynamics.break_bonds!). The relation between the critical energy
-release rate `Gc` and the critical stretch `εc` depends on the micro-modulus, so a material
-with a non-constant one defines
-[`critical_stretch`](@ref Peridynamics.critical_stretch) and
-[`energy_release_rate`](@ref Peridynamics.energy_release_rate). A model that softens a bond
-instead of deleting it does so through
-[`bond_integrity`](@ref Peridynamics.bond_integrity) for the load the bond still carries and
-[`kinematic_weight`](@ref Peridynamics.kinematic_weight) for what it contributes to the
-deformation gradient. A material says with
-[`supports_bond_integrity`](@ref Peridynamics.supports_bond_integrity) and
-[`supports_kinematic_weight`](@ref Peridynamics.supports_kinematic_weight) whether its force
-path honors them.
+A damage model decides which bonds fail, and it may carry per-bond state of its own. It is a
+plug-in box, and these names are its walls. See [Damage models](@ref).
 
 ```@docs
 Peridynamics.calc_failure!
@@ -295,15 +257,8 @@ Peridynamics.supports_kinematic_weight
 
 ## Accessing a system and its parameters
 
-What a force density or a failure criterion reads: the points and bonds of the chunk
-through the iterators, a bond through `get_neighbor`, `reference_bond_length` and
-`bond_may_fail`, one accessor per quantity, and the parameters of a point through
-`get_params` from the parameter setup the kernel receives.
-
-The current length of a bond and its stretch are read with `current_bond_length` and
-`bond_stretch` and never by gathering the two positions and taking the norm. Some materials
-keep a cache of the bond lengths and others do not, and these two functions are what makes
-the same code as fast as it can be on either.
+What a force density or a failure criterion reads, one accessor per quantity of a bond. The
+lookup table is in [Materials](@ref).
 
 ```@docs
 Peridynamics.get_params
@@ -326,10 +281,9 @@ Peridynamics.float_type
 
 ## Reading and writing storage fields
 
-Every storage field is one array with the quantity of a point or a bond in its columns.
-These functions read and write a column as a static vector or tensor, without allocating.
-Each of them takes the number of spatial dimensions as its last argument, a `Val{N}` that
-`dims` produces from a system, a storage or a nested model state.
+Every storage field is one array with the quantity of a point or a bond in its columns, and
+these functions read and write a column as a static vector or tensor without allocating. See
+[Storages](@ref).
 
 ```@docs
 Peridynamics.dims
@@ -368,4 +322,5 @@ The errors the interfaces throw when something is missing. They say which method
 Peridynamics.InterfaceError
 Peridynamics.StorageContractError
 Peridynamics.HistoryDependenceError
+Peridynamics.SofteningSupportError
 ```
