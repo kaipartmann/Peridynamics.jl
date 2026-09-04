@@ -1,3 +1,23 @@
+# The Voigt order used by `get_sym_tensor`/`update_sym_tensor!`: the diagonal first, then the
+# off-diagonal pairs in the order the 3D convention `(11,22,33,23,13,12)` implies, i.e. the
+# pair missing index `m` for `m` from 1 to `N` (only well-defined for `N` in (2, 3)).
+function voigt_pairs(N::Int)
+    if N == 2
+        return ((1, 1), (2, 2), (1, 2))
+    elseif N == 3
+        return ((1, 1), (2, 2), (3, 3), (2, 3), (1, 3), (1, 2))
+    else
+        error("`get_sym_tensor`/`update_sym_tensor!` support N = 2 or N = 3, got N = $(N)!")
+    end
+end
+
+# Voigt row index for every entry of the full `N × N` tensor, i.e. the inverse mapping of
+# `voigt_pairs`, used to mirror the symmetric tensor back out in `get_sym_tensor`.
+function voigt_rows(N::Int)
+    pairs = voigt_pairs(N)
+    return ntuple(r -> ntuple(c -> findfirst(==(minmax(r, c)), pairs), N), N)
+end
+
 """
     get_tensor(M, i, ::Val{N})
 
@@ -243,33 +263,6 @@ See also [`get_vector`](@ref), [`dims`](@ref).
         @inline
         SVector{N,T}($(entries...))
     end
-end
-
-# The Voigt order used by `get_sym_tensor`/`update_sym_tensor!`: the diagonal first, then the
-# off-diagonal pairs in the order the 3D convention `(11,22,33,23,13,12)` implies, i.e. the
-# pair missing index `m` for `m` from 1 to `N` (only well-defined for `N` in (2, 3)).
-function voigt_pairs(N::Int)
-    diag = [(d, d) for d in 1:N]
-    if N == 3
-        offdiag = [(2, 3), (1, 3), (1, 2)]
-    elseif N == 2
-        offdiag = [(1, 2)]
-    else
-        error("`get_sym_tensor`/`update_sym_tensor!` support N = 2 or N = 3, got N = $(N)!")
-    end
-    return vcat(diag, offdiag)
-end
-
-# Voigt row index for every entry of the full `N × N` tensor, i.e. the inverse mapping of
-# `voigt_pairs`, used to mirror the symmetric tensor back out in `get_sym_tensor`.
-function voigt_rows(N::Int)
-    pairs = voigt_pairs(N)
-    rows = [zeros(Int, N) for _ in 1:N]
-    for (k, (r, c)) in enumerate(pairs)
-        rows[r][c] = k
-        rows[c][r] = k
-    end
-    return rows
 end
 
 """
