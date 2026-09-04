@@ -137,15 +137,15 @@ function force_density_point_one_ni!(storage::CKIStorage, system::InteractionSys
                                      i)
     params_i = get_params(paramsetup, i)
     for one_ni_id in each_one_ni_idx(system, i)
-        one_ni = system.one_nis[one_ni_id]
-        j, L = one_ni.neighbor, one_ni.length
-        Δxij = get_vector_diff(storage.position, i, j)
+        j = get_neighbor(system, one_ni_id)
+        L = reference_bond_length(system, one_ni_id)
+        Δxij = get_vector_diff(storage.position, i, j, dims(system))
         l = current_bond_length(storage, system, i, one_ni_id)
         params_j = get_params(paramsetup, j)
         b_int = bond_is_active(storage, system, one_ni_id) *
                 (params_i.C1 + params_j.C1) / 2 *
                 (1 / L - 1 / l) * system.volume_one_nis[i] .* Δxij
-        update_add_vector!(storage.b_int, i, b_int)
+        update_add_vector!(storage.b_int, i, b_int, dims(system))
     end
     return nothing
 end
@@ -157,8 +157,8 @@ function force_density_point_two_ni!(storage::CKIStorage, system::InteractionSys
     for two_ni_id in each_two_ni_idx(system, i)
         two_ni = system.two_nis[two_ni_id]
         oni_j_id, oni_k_id, surface_ref = two_ni.oni_j, two_ni.oni_k, two_ni.surface
-        j = system.one_nis[oni_j_id].neighbor
-        k = system.one_nis[oni_k_id].neighbor
+        j = get_neighbor(system, oni_j_id)
+        k = get_neighbor(system, oni_k_id)
         Δxijx = storage.position[1, j] - storage.position[1, i]
         Δxijy = storage.position[2, j] - storage.position[2, i]
         Δxijz = storage.position[3, j] - storage.position[3, i]
@@ -205,9 +205,9 @@ function force_density_point_three_ni!(storage::CKIStorage, system::InteractionS
         oni_k_id = three_ni.oni_k
         oni_l_id = three_ni.oni_l
         volume_ref = three_ni.volume
-        j = system.one_nis[oni_j_id].neighbor
-        k = system.one_nis[oni_k_id].neighbor
-        l = system.one_nis[oni_l_id].neighbor
+        j = get_neighbor(system, oni_j_id)
+        k = get_neighbor(system, oni_k_id)
+        l = get_neighbor(system, oni_l_id)
         Δxijx = storage.position[1, j] - storage.position[1, i]
         Δxijy = storage.position[2, j] - storage.position[2, i]
         Δxijz = storage.position[3, j] - storage.position[3, i]
@@ -278,8 +278,7 @@ function strain_energy_density_point_one_ni!(storage::CKIStorage, system::Intera
                                              ::CKIMaterial, params::CKIPointParameters, i)
     Ψ = 0.0
     for one_ni_id in each_one_ni_idx(system, i)
-        one_ni = system.one_nis[one_ni_id]
-        L = one_ni.length
+        L = reference_bond_length(system, one_ni_id)
         εl = bond_stretch(storage, system, i, one_ni_id)
         ψij = 0.5 * params.C1 * εl * εl * L
         failure = bond_is_active(storage, system, one_ni_id)
@@ -295,8 +294,8 @@ function strain_energy_density_point_two_ni!(storage::CKIStorage, system::Intera
     for two_ni_id in each_two_ni_idx(system, i)
         two_ni = system.two_nis[two_ni_id]
         oni_j_id, oni_k_id, surface_ref = two_ni.oni_j, two_ni.oni_k, two_ni.surface
-        j = system.one_nis[oni_j_id].neighbor
-        k = system.one_nis[oni_k_id].neighbor
+        j = get_neighbor(system, oni_j_id)
+        k = get_neighbor(system, oni_k_id)
         Δxijx = storage.position[1, j] - storage.position[1, i]
         Δxijy = storage.position[2, j] - storage.position[2, i]
         Δxijz = storage.position[3, j] - storage.position[3, i]
@@ -327,9 +326,9 @@ function strain_energy_density_point_three_ni!(storage::CKIStorage,
         oni_k_id = three_ni.oni_k
         oni_l_id = three_ni.oni_l
         volume_ref = three_ni.volume
-        j = system.one_nis[oni_j_id].neighbor
-        k = system.one_nis[oni_k_id].neighbor
-        l = system.one_nis[oni_l_id].neighbor
+        j = get_neighbor(system, oni_j_id)
+        k = get_neighbor(system, oni_k_id)
+        l = get_neighbor(system, oni_l_id)
         Δxijx = storage.position[1, j] - storage.position[1, i]
         Δxijy = storage.position[2, j] - storage.position[2, i]
         Δxijz = storage.position[3, j] - storage.position[3, i]

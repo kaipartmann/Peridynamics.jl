@@ -1,216 +1,275 @@
 """
-    get_tensor(M, i)
+    get_tensor(M, i, ::Val{N})
 
 $(extension_api_note())
 
-Return column `i` of the storage field `M` as a `SMatrix{3,3}`, e.g. the deformation gradient
-of point or bond `i` of a `PointTensor` or `BondTensor` field. The column is
-read in column-major order, which is how [`update_tensor!`](@ref) writes it.
+Return column `i` of the storage field `M` as a `SMatrix{N,N}`, e.g. the deformation
+gradient of point or bond `i` of a `PointTensor` or `BondTensor` field. The column is read
+in column-major order, which is how [`update_tensor!`](@ref) writes it.
+
+The number of spatial dimensions `N` is named by the `Val` of the last argument. It is
+produced by [`dims`](@ref) from whatever is in scope, a system inside a force density kernel
+and a storage inside a constitutive model hook.
 
 # Example
 
 ```julia
-F = Peridynamics.get_tensor(storage.defgrad, i)
+F = Peridynamics.get_tensor(storage.defgrad, i, Peridynamics.dims(system))
 ```
 
-See also [`update_tensor!`](@ref), [`get_vector`](@ref).
+See also [`update_tensor!`](@ref), [`get_vector`](@ref), [`dims`](@ref).
 """
-@inline function get_tensor(Mₙ::AbstractMatrix{T}, i::Int) where {T}
-    tensor = SMatrix{3,3,T,9}(Mₙ[1, i], Mₙ[2, i], Mₙ[3, i], Mₙ[4, i], Mₙ[5, i], Mₙ[6, i],
-                              Mₙ[7, i], Mₙ[8, i], Mₙ[9, i])
-    return tensor
+@generated function get_tensor(M::AbstractMatrix{T}, i::Int, ::Val{N}) where {T,N}
+    entries = [:(M[$d, i]) for d in 1:(N * N)]
+    return quote
+        @inline
+        SMatrix{N,N,T,N * N}($(entries...))
+    end
 end
 
 """
-    update_tensor!(M, i, T)
+    update_tensor!(M, i, A, ::Val{N})
 
 $(extension_api_note())
 
-Write the `SMatrix{3,3}` `T` into column `i` of the storage field `M`, in column-major order.
-The inverse of [`get_tensor`](@ref).
+Write the `SMatrix{N,N}` `A` into column `i` of the storage field `M`, in column-major
+order. The inverse of [`get_tensor`](@ref). A value that is not a `StaticMatrix{N,N}` of the
+`N` of the last argument is a `MethodError`, so a write can never disagree with the
+dimension it names.
 
 # Example
 
 ```julia
-Peridynamics.update_tensor!(storage.defgrad, i, F)
+Peridynamics.update_tensor!(storage.defgrad, i, F, Peridynamics.dims(system))
 ```
+
+See also [`get_tensor`](@ref), [`dims`](@ref).
 """
-@inline function update_tensor!(Mₙ::AbstractMatrix{T}, i::Int,
-                                Tₙ₊₁::StaticMatrix{3,3,T}) where {T}
-    Mₙ[1, i] = Tₙ₊₁[1]
-    Mₙ[2, i] = Tₙ₊₁[2]
-    Mₙ[3, i] = Tₙ₊₁[3]
-    Mₙ[4, i] = Tₙ₊₁[4]
-    Mₙ[5, i] = Tₙ₊₁[5]
-    Mₙ[6, i] = Tₙ₊₁[6]
-    Mₙ[7, i] = Tₙ₊₁[7]
-    Mₙ[8, i] = Tₙ₊₁[8]
-    Mₙ[9, i] = Tₙ₊₁[9]
-    return nothing
+@generated function update_tensor!(Mₙ::AbstractMatrix{T}, i::Int,
+                                   Aₙ₊₁::StaticMatrix{N,N,T}, ::Val{N}) where {T,N}
+    stores = [:(Mₙ[$d, i] = Aₙ₊₁[$d]) for d in 1:(N * N)]
+    return quote
+        @inline
+        $(stores...)
+        return nothing
+    end
 end
 
-@inline function update_add_tensor!(Mₙ::AbstractMatrix{T}, i::Int,
-                                    Tₙ₊₁::StaticMatrix{3,3,T}) where {T}
-    Mₙ[1, i] += Tₙ₊₁[1]
-    Mₙ[2, i] += Tₙ₊₁[2]
-    Mₙ[3, i] += Tₙ₊₁[3]
-    Mₙ[4, i] += Tₙ₊₁[4]
-    Mₙ[5, i] += Tₙ₊₁[5]
-    Mₙ[6, i] += Tₙ₊₁[6]
-    Mₙ[7, i] += Tₙ₊₁[7]
-    Mₙ[8, i] += Tₙ₊₁[8]
-    Mₙ[9, i] += Tₙ₊₁[9]
-    return nothing
+@generated function update_add_tensor!(Mₙ::AbstractMatrix{T}, i::Int,
+                                       Aₙ₊₁::StaticMatrix{N,N,T}, ::Val{N}) where {T,N}
+    stores = [:(Mₙ[$d, i] += Aₙ₊₁[$d]) for d in 1:(N * N)]
+    return quote
+        @inline
+        $(stores...)
+        return nothing
+    end
 end
 
-@inline function zero_tensor!(Mₙ::AbstractMatrix{T}, i::Int) where {T}
-    Mₙ[1, i] = zero(T)
-    Mₙ[2, i] = zero(T)
-    Mₙ[3, i] = zero(T)
-    Mₙ[4, i] = zero(T)
-    Mₙ[5, i] = zero(T)
-    Mₙ[6, i] = zero(T)
-    Mₙ[7, i] = zero(T)
-    Mₙ[8, i] = zero(T)
-    Mₙ[9, i] = zero(T)
-    return nothing
+@generated function zero_tensor!(Mₙ::AbstractMatrix{T}, i::Int, ::Val{N}) where {T,N}
+    stores = [:(Mₙ[$d, i] = zero(T)) for d in 1:(N * N)]
+    return quote
+        @inline
+        $(stores...)
+        return nothing
+    end
 end
 
 """
-    get_sym_tensor(M, i)
+    get_sym_tensor(M, i, ::Val{N})
 
 $(extension_api_note())
 
-Return column `i` of the storage field `M` as a symmetric `SMatrix{3,3}`, e.g. the plastic
-strain of point or bond `i` of a `PointSymTensor` or `BondSymTensor` field.
-The column holds the six independent components in Voigt order,
-`(11, 22, 33, 23, 13, 12)`, which is how [`update_sym_tensor!`](@ref) writes it.
+Return column `i` of the storage field `M` as a symmetric `SMatrix{N,N}`, e.g. the plastic
+strain of point or bond `i` of a `PointSymTensor` or `BondSymTensor` field. The column holds
+the independent components in Voigt order, the diagonal first and then the off-diagonals in
+the order the 3D convention implies, `(11, 22, 33, 23, 13, 12)` for `N = 3` and
+`(11, 22, 12)` for `N = 2`, which is how [`update_sym_tensor!`](@ref) writes it.
 
-Note that a symmetric field has six rows, not nine, so [`get_tensor`](@ref) must not be used
-on it.
+Note that a symmetric field has as many rows as there are independent components, not `N*N`,
+so [`get_tensor`](@ref) must not be used on it.
+
+The number of spatial dimensions `N` is named by the `Val` of the last argument, which
+[`dims`](@ref) produces from whatever is in scope.
 
 # Example
 
 ```julia
-εᵖ = Peridynamics.get_sym_tensor(state.bond_plastic_strain, idx)
+εᵖ = Peridynamics.get_sym_tensor(state.bond_plastic_strain, idx, Peridynamics.dims(storage))
 ```
 
-See also [`update_sym_tensor!`](@ref), [`get_tensor`](@ref).
+See also [`update_sym_tensor!`](@ref), [`get_tensor`](@ref), [`dims`](@ref).
 """
-@inline function get_sym_tensor(Mₙ::AbstractMatrix{T}, i::Int) where {T}
-    tensor = SMatrix{3,3,T,9}(Mₙ[1, i], Mₙ[6, i], Mₙ[5, i],
-                              Mₙ[6, i], Mₙ[2, i], Mₙ[4, i],
-                              Mₙ[5, i], Mₙ[4, i], Mₙ[3, i])
-    return tensor
+@generated function get_sym_tensor(Mₙ::AbstractMatrix{T}, i::Int, ::Val{N}) where {T,N}
+    rows = voigt_rows(N)
+    entries = [:(Mₙ[$(rows[r][c]), i]) for c in 1:N for r in 1:N]
+    return quote
+        @inline
+        SMatrix{N,N,T,N * N}($(entries...))
+    end
 end
 
 """
-    update_sym_tensor!(M, i, T)
+    update_sym_tensor!(M, i, A, ::Val{N})
 
 $(extension_api_note())
 
-Write the symmetric `SMatrix{3,3}` `T` into column `i` of the storage field `M`, as the six
-independent components in Voigt order, `(11, 22, 33, 23, 13, 12)`. The inverse of
-[`get_sym_tensor`](@ref).
+Write the symmetric `SMatrix{N,N}` `A` into column `i` of the storage field `M`, as the
+independent components in Voigt order, see [`get_sym_tensor`](@ref) for the order. The
+inverse of [`get_sym_tensor`](@ref).
 
-Only the upper triangle of `T` is read, and [`get_sym_tensor`](@ref) mirrors it back. A tensor
+Only the upper triangle of `A` is read, and [`get_sym_tensor`](@ref) mirrors it back. A tensor
 that is symmetric only up to round-off therefore comes back changed by that round-off, and a
 tensor with a real skew part is not symmetrized. Its lower triangle is silently discarded.
 
 # Example
 
 ```julia
-Peridynamics.update_sym_tensor!(state.bond_plastic_strain, idx, εᵖ + Δεᵖ)
+Peridynamics.update_sym_tensor!(state.bond_plastic_strain, idx, εᵖ + Δεᵖ,
+                                Peridynamics.dims(storage))
 ```
+
+See also [`get_sym_tensor`](@ref), [`dims`](@ref).
 """
-@inline function update_sym_tensor!(Mₙ::AbstractMatrix{T}, i::Int,
-                                    Tₙ₊₁::StaticMatrix{3,3,T}) where {T}
-    Mₙ[1, i] = Tₙ₊₁[1, 1]
-    Mₙ[2, i] = Tₙ₊₁[2, 2]
-    Mₙ[3, i] = Tₙ₊₁[3, 3]
-    Mₙ[4, i] = Tₙ₊₁[2, 3]
-    Mₙ[5, i] = Tₙ₊₁[1, 3]
-    Mₙ[6, i] = Tₙ₊₁[1, 2]
-    return nothing
+@generated function update_sym_tensor!(Mₙ::AbstractMatrix{T}, i::Int,
+                                       Aₙ₊₁::StaticMatrix{N,N,T}, ::Val{N}) where {T,N}
+    pairs = voigt_pairs(N)
+    stores = [:(Mₙ[$k, i] = Aₙ₊₁[$r, $c]) for (k, (r, c)) in enumerate(pairs)]
+    return quote
+        @inline
+        $(stores...)
+        return nothing
+    end
 end
 
 """
-    get_vector(M, i)
+    get_vector(M, i, ::Val{N})
 
 $(extension_api_note())
 
-Return column `i` of the storage field `M` as a `SVector{3}`, e.g. the position of point `i`
+Return column `i` of the storage field `M` as a `SVector{N}`, e.g. the position of point `i`
 of a `PointVector` field.
+
+The number of spatial dimensions `N` is named by the `Val` of the last argument, which
+[`dims`](@ref) produces from whatever is in scope.
 
 # Example
 
 ```julia
-u = Peridynamics.get_vector(storage.displacement, i)
+u = Peridynamics.get_vector(storage.displacement, i, Peridynamics.dims(system))
 ```
 
-See also [`update_vector!`](@ref), [`get_vector_diff`](@ref).
+See also [`update_vector!`](@ref), [`get_vector_diff`](@ref), [`dims`](@ref).
 """
-@inline function get_vector(M::AbstractMatrix{T}, i::Int) where {T}
-    return SVector{3,T}(M[1, i], M[2, i], M[3, i])
+@generated function get_vector(M::AbstractMatrix{T}, i::Int, ::Val{N}) where {T,N}
+    entries = [:(M[$d, i]) for d in 1:N]
+    return quote
+        @inline
+        SVector{N,T}($(entries...))
+    end
 end
 
 """
-    update_vector!(M, i, V)
+    update_vector!(M, i, V, ::Val{N})
 
 $(extension_api_note())
 
-Write the `SVector{3}` `V` into column `i` of the storage field `M`, overwriting what is
-there. The inverse of [`get_vector`](@ref).
+Write the `SVector{N}` `V` into column `i` of the storage field `M`, overwriting what is
+there. The inverse of [`get_vector`](@ref). A value that is not a `StaticVector{N}` of the
+`N` of the last argument is a `MethodError`.
 
 Note that a force density is accumulated over the bonds of a point, so it is written with
 [`update_add_vector!`](@ref) and not with this function.
+
+See also [`get_vector`](@ref), [`dims`](@ref).
 """
-@inline function update_vector!(Mₙ::AbstractMatrix{T}, i::Int,
-                                Vₙ₊₁::StaticVector{3,T}) where {T}
-    Mₙ[1, i] = Vₙ₊₁[1]
-    Mₙ[2, i] = Vₙ₊₁[2]
-    Mₙ[3, i] = Vₙ₊₁[3]
-    return nothing
+@generated function update_vector!(Mₙ::AbstractMatrix{T}, i::Int,
+                                   Vₙ₊₁::StaticVector{N,T}, ::Val{N}) where {N,T}
+    stores = [:(Mₙ[$d, i] = Vₙ₊₁[$d]) for d in 1:N]
+    return quote
+        @inline
+        $(stores...)
+        return nothing
+    end
 end
 
 """
-    update_add_vector!(M, i, V)
+    update_add_vector!(M, i, V, ::Val{N})
 
 $(extension_api_note())
 
-Add the `SVector{3}` `V` to column `i` of the storage field `M`. This is how a force density
-is accumulated inside `force_density_point!`, where every bond of a point contributes
-a share.
+Add the `SVector{N}` `V` to column `i` of the storage field `M`. This is how a force density
+is accumulated inside `force_density_point!`, where every bond of a point contributes a
+share.
 
 # Example
 
 ```julia
-Peridynamics.update_add_vector!(storage.b_int, i, b)
+Peridynamics.update_add_vector!(storage.b_int, i, b, Peridynamics.dims(system))
 ```
+
+See also [`update_vector!`](@ref), [`dims`](@ref).
 """
-@inline function update_add_vector!(Mₙ::AbstractMatrix{T}, i::Int,
-                                    Vₙ₊₁::StaticVector{3,T}) where {T}
-    Mₙ[1, i] += Vₙ₊₁[1]
-    Mₙ[2, i] += Vₙ₊₁[2]
-    Mₙ[3, i] += Vₙ₊₁[3]
-    return nothing
+@generated function update_add_vector!(Mₙ::AbstractMatrix{T}, i::Int,
+                                       Vₙ₊₁::StaticVector{N,T}, ::Val{N}) where {N,T}
+    stores = [:(Mₙ[$d, i] += Vₙ₊₁[$d]) for d in 1:N]
+    return quote
+        @inline
+        $(stores...)
+        return nothing
+    end
 end
 
 """
-    get_vector_diff(M, i, j)
+    get_vector_diff(M, i, j, ::Val{N})
 
 $(extension_api_note())
 
-Return `column j - column i` of the storage field `M` as a `SVector{3}`, without building the
-two columns first. This is the bond vector of a bond from point `i` to point `j`:
+Return `column j - column i` of the storage field `M` as a `SVector{N}`, without building
+the two columns first. This is the bond vector of a bond from point `i` to point `j`:
 
 ```julia
-ΔXij = Peridynamics.get_vector_diff(system.position, i, j)  # initial bond vector
-Δxij = Peridynamics.get_vector_diff(storage.position, i, j) # current bond vector
+# initial bond vector
+ΔXij = Peridynamics.get_vector_diff(system.position, i, j, Peridynamics.dims(system))
+# current bond vector
+Δxij = Peridynamics.get_vector_diff(storage.position, i, j, Peridynamics.dims(system))
 ```
+
+See also [`get_vector`](@ref), [`dims`](@ref).
 """
-@inline function get_vector_diff(M::AbstractMatrix{T}, i::Int, j::Int) where {T}
-    return SVector{3,T}(M[1, j] - M[1, i], M[2, j] - M[2, i], M[3, j] - M[3, i])
+@generated function get_vector_diff(M::AbstractMatrix{T}, i::Int, j::Int,
+                                    ::Val{N}) where {T,N}
+    entries = [:(M[$d, j] - M[$d, i]) for d in 1:N]
+    return quote
+        @inline
+        SVector{N,T}($(entries...))
+    end
+end
+
+# The Voigt order used by `get_sym_tensor`/`update_sym_tensor!`: the diagonal first, then the
+# off-diagonal pairs in the order the 3D convention `(11,22,33,23,13,12)` implies, i.e. the
+# pair missing index `m` for `m` from 1 to `N` (only well-defined for `N` in (2, 3)).
+function voigt_pairs(N::Int)
+    diag = [(d, d) for d in 1:N]
+    if N == 3
+        offdiag = [(2, 3), (1, 3), (1, 2)]
+    elseif N == 2
+        offdiag = [(1, 2)]
+    else
+        error("`get_sym_tensor`/`update_sym_tensor!` support N = 2 or N = 3, got N = $(N)!")
+    end
+    return vcat(diag, offdiag)
+end
+
+# Voigt row index for every entry of the full `N × N` tensor, i.e. the inverse mapping of
+# `voigt_pairs`, used to mirror the symmetric tensor back out in `get_sym_tensor`.
+function voigt_rows(N::Int)
+    pairs = voigt_pairs(N)
+    rows = [zeros(Int, N) for _ in 1:N]
+    for (k, (r, c)) in enumerate(pairs)
+        rows[r][c] = k
+        rows[c][r] = k
+    end
+    return rows
 end
 
 """

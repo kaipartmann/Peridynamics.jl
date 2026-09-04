@@ -395,6 +395,14 @@ Supertype of the systems whose neighborhood relation is a bond, that is
 
 The points of such a system are iterated with [`each_point_idx`](@ref) and the bonds of
 point `i` with [`each_bond_idx`](@ref).
+
+A bond is not a record but three arrays, one per quantity, and a kernel reads each of them
+through one accessor: [`get_neighbor`](@ref), [`reference_bond_length`](@ref) and
+[`bond_may_fail`](@ref).
+
+`bond_length` is the length of a bond in the reference configuration. `system.position` is
+the reference position and `storage.position` the current one, so the owner of the field
+says which configuration it belongs to, see [`current_bond_length`](@ref).
 """
 abstract type AbstractBondSystem <: AbstractSystem end
 

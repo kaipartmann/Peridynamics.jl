@@ -12,7 +12,6 @@
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     chunk = dh.chunks[1]
     (; position, b_int) = chunk.storage
-    (; bonds) = chunk.system
 
     @test position == ref_position
     @test b_int == zeros(3, 2)
@@ -41,7 +40,6 @@ end
     Peridynamics.initialize!(dh, ts)
     chunk = dh.chunks[1]
     (; position, b_int) = chunk.storage
-    (; bonds) = chunk.system
 
     @test position == ref_position
     @test b_int == zeros(3, 2)
@@ -76,7 +74,6 @@ end
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     chunk = dh.chunks[1]
     (; position, b_int) = chunk.storage
-    (; bonds) = chunk.system
 
     @test position == ref_position
     @test b_int == zeros(3, 2)

@@ -568,8 +568,8 @@ This is not a field shape: the field is not an array, it is whatever the constit
 of the material declares with [`@cm_storage`](@ref), and `nothing` for a model without
 state. The generated storage gets one extra type parameter `CMS` for it, which
 [`storage_type`](@ref) fills with
-`constitutive_storage_type(get_constitutive_model(mat), FT)`, so the storage stays concrete
-whichever model is used. The state is reached with [`constitutive_state`](@ref).
+`constitutive_storage_type(get_constitutive_model(mat), FT, Val(N))`, so the storage stays
+concrete whichever model is used. The state is reached with [`constitutive_state`](@ref).
 
 A storage may declare at most one such field, and it cannot be annotated with
 [`@lth`](@ref) or [`@htl`](@ref), because the halo exchange does not descend into a nested
@@ -1019,6 +1019,14 @@ and contributes no parameter.
 =#
 
 const FLOAT_TYPE_PARAM = :FT
+
+#=
+The number of spatial dimensions is the one parameter that no field type answers, because
+every shaped field is a plain matrix whose row count is a number and not a type. It comes
+first, so that a pattern that names it stays short, and it is always there, so that
+`get_n_dim` works on every storage and on every nested model state.
+=#
+const DIM_TYPE_PARAM = :N
 
 """
     StorageTypeParam

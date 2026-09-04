@@ -19,7 +19,7 @@
 
 using Peridynamics
 using Peridynamics: BondSystem, each_bond_idx, get_params, get_n_loc_points, damage_state,
-                    bond_stretch
+                    bond_stretch, bond_may_fail
 
 # ## The type
 #
@@ -79,7 +79,8 @@ end
 # honored.
 #
 # The state is reached with [`damage_state`](@ref Peridynamics.damage_state). The bonds are
-# read exactly as in a force density: `each_bond_idx` and `system.bonds[bond_id]`. The
+# read exactly as in a force density: `each_bond_idx` and, for whether a bond is allowed to
+# fail, `bond_may_fail(system, bond_id)`. The
 # stretch of the bond is read with [`bond_stretch`](@ref Peridynamics.bond_stretch) and never
 # computed here. A material that caches bond lengths has the cache refilled right before this
 # runs, one that does not gets the distance computed, and which of the two it is follows from
@@ -92,9 +93,8 @@ function Peridynamics.calc_failure!(storage, system::BondSystem, mat, ::DelayedF
     (; bond_damage) = damage_state(storage)
     storage.n_active_bonds[i] = 0
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
         ε = bond_stretch(storage, system, i, bond_id)
-        if storage.bond_active[bond_id] && bond.fail_permit && ε > εc
+        if storage.bond_active[bond_id] && bond_may_fail(system, bond_id) && ε > εc
             bond_damage[bond_id] += (ε / εc - 1) * Δt / τ
             if bond_damage[bond_id] ≥ 1
                 storage.bond_active[bond_id] = false

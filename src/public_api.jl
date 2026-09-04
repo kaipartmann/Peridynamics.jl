@@ -81,9 +81,13 @@ public AbstractDamageModel, AbstractDamageState
 public AbstractStorage, AbstractPointParameters, AbstractParameterSetup
 public AbstractSystem, AbstractBondSystem, AbstractTimeSolver
 
-# The systems a material is dispatched on. A bond is an immutable record, so its fields are
-# the API.
-public BondSystem, InteractionSystem, Bond
+# The systems a material is dispatched on, and what it takes to write one: the declaration
+# macros, the sizes a constructor allocates against and the two functions that say which
+# system a material gets and which materials a system accepts.
+public BondSystem, InteractionSystem
+public @system
+public SystemSizes, system_type, host_system_type, check_system_compat
+public max_n_chunks, first_chunk
 
 # The errors the interfaces throw. Catch them in tests, or throw them from your own
 # interface.
@@ -114,15 +118,16 @@ public supports_bond_integrity, supports_kinematic_weight
 
 # Accessing a system, its points and its bonds from inside a force density calculation.
 public get_params, each_point_idx, each_bond_idx
-public get_n_points, get_n_loc_points, get_n_bonds
+public get_n_points, get_n_loc_points, get_n_bonds, get_n_dim
 public kernel, surface_correction_factor, float_type
 # The kinematics of a bond. Read the current length and the stretch of a bond with these and
 # never by gathering the two positions, then a material with a bond length cache and one
 # without it both run at full speed.
 public current_bond_length, bond_stretch, update_bond_lengths!
+public get_neighbor, reference_bond_length, bond_may_fail
 
 # Reading and writing the columns of a storage field as static vectors and tensors.
-public get_vector, get_vector_diff, update_vector!, update_add_vector!
+public dims, get_vector, get_vector_diff, update_vector!, update_add_vector!
 public get_tensor, update_tensor!, get_sym_tensor, update_sym_tensor!
 
 # Strain measures a finite strain constitutive model needs, evaluated in closed form.

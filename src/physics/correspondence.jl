@@ -201,14 +201,13 @@ end
 
 function calc_deformation_gradient!(storage::CStorage, system::BondSystem, ::CMaterial,
                                     ::CPointParameters, i)
-    (; bonds, volume) = system
+    (; volume) = system
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
-        ΔXij = get_vector_diff(system.position, i, j)
-        Δxij = get_vector_diff(storage.position, i, j)
+        j = get_neighbor(system, bond_id)
+        ΔXij = get_vector_diff(system.position, i, j, dims(system))
+        Δxij = get_vector_diff(storage.position, i, j, dims(system))
         ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id)
         temp = ωij * volume[j]
         ΔXijt = ΔXij'
@@ -217,7 +216,7 @@ function calc_deformation_gradient!(storage::CStorage, system::BondSystem, ::CMa
     end
     Kinv = inv(K)
     F = _F * Kinv
-    Peridynamics.update_tensor!(storage.defgrad, i, F)
+    Peridynamics.update_tensor!(storage.defgrad, i, F, dims(system))
     return (; F, Kinv)
 end
 
@@ -227,22 +226,21 @@ function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
     P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F, i, Δt)
     PKinv = P * Kinv
     σ = cauchy_stress(P, F)
-    update_tensor!(storage.cauchy_stress, i, σ)
+    update_tensor!(storage.cauchy_stress, i, σ, dims(storage))
     return PKinv
 end
 
 function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
                           ::AbstractCorrespondenceMaterial, params::AbstractPointParameters,
                           zem_correction::ZEMSilling, PKinv, defgrad_res, i)
-    (; bonds, volume) = system
+    (; volume) = system
     (; F) = defgrad_res
     (; Cs) = zem_correction
     β = Cs * params.bc / params.δ
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
-        ΔXij = get_vector_diff(system.position, i, j)
-        Δxij = get_vector_diff(storage.position, i, j)
+        j = get_neighbor(system, bond_id)
+        ΔXij = get_vector_diff(system.position, i, j, dims(system))
+        Δxij = get_vector_diff(storage.position, i, j, dims(system))
 
         # stabilization
         ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id)
@@ -251,8 +249,8 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
 
         # update of force density
         tij = ωij * PKinv * ΔXij + tzem
-        update_add_vector!(storage.b_int, i, tij .* volume[j])
-        update_add_vector!(storage.b_int, j, -tij .* volume[i])
+        update_add_vector!(storage.b_int, i, tij .* volume[j], dims(system))
+        update_add_vector!(storage.b_int, j, -tij .* volume[i], dims(system))
     end
     return nothing
 end
@@ -261,14 +259,13 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
                           mat::AbstractCorrespondenceMaterial,
                           params::AbstractPointParameters, zem::ZEMWan, PKinv, defgrad_res,
                           i)
-    (; bonds, volume) = system
+    (; volume) = system
     (; F) = defgrad_res
     C_1 = calc_zem_stiffness_tensor!(storage, system, mat, params, zem, defgrad_res, i)
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j = bond.neighbor
-        ΔXij = get_vector_diff(system.position, i, j)
-        Δxij = get_vector_diff(storage.position, i, j)
+        j = get_neighbor(system, bond_id)
+        ΔXij = get_vector_diff(system.position, i, j, dims(system))
+        Δxij = get_vector_diff(storage.position, i, j, dims(system))
 
         # improved stabilization from this article:
         # https://doi.org/10.1007/s10409-019-00873-y
@@ -278,8 +275,8 @@ function c_force_density!(storage::AbstractStorage, system::AbstractSystem,
 
         # update of force density
         tij = ωij * PKinv * ΔXij + tzem
-        update_add_vector!(storage.b_int, i, tij .* volume[j])
-        update_add_vector!(storage.b_int, j, -tij .* volume[i])
+        update_add_vector!(storage.b_int, i, tij .* volume[j], dims(system))
+        update_add_vector!(storage.b_int, j, -tij .* volume[i], dims(system))
     end
     return nothing
 end
@@ -307,7 +304,7 @@ function export_field(::Val{:von_mises_stress}, ::CMaterial,
                       system::BondSystem, storage::AbstractStorage,
                       ::AbstractParameterSetup, t)
     for i in each_point_idx(system)
-        σ = get_tensor(storage.cauchy_stress, i)
+        σ = get_tensor(storage.cauchy_stress, i, dims(system))
         storage.von_mises_stress[i] = von_mises_stress(σ)
     end
     return storage.von_mises_stress
@@ -318,7 +315,7 @@ end
 function export_field(::Val{:hydrostatic_stress}, ::CMaterial,
                       system::BondSystem, storage::CStorage, ::AbstractParameterSetup, t)
     for i in each_point_idx(system)
-        σ = get_tensor(storage.cauchy_stress, i)
+        σ = get_tensor(storage.cauchy_stress, i, dims(system))
         storage.von_mises_stress[i] = 1/3 * (σ[1,1] + σ[2,2] + σ[3,3])
     end
     return storage.von_mises_stress
@@ -331,7 +328,7 @@ function export_field(::Val{:strain_energy_density}, mat::CMaterial, system::Bon
     model = mat.constitutive_model
     for i in each_point_idx(system)
         params = get_params(paramsetup, i)
-        F = get_tensor(storage.defgrad, i)
+        F = get_tensor(storage.defgrad, i, dims(system))
         storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F,
                                                                  i)
     end

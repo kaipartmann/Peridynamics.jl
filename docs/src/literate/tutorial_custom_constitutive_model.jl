@@ -9,7 +9,7 @@
 
 using Peridynamics
 using Peridynamics: constitutive_state, get_sym_tensor, update_sym_tensor!,
-                    hencky_and_invstretch, each_bond_idx, get_n_loc_points
+                    hencky_and_invstretch, each_bond_idx, get_n_loc_points, dims
 using Peridynamics.LinearAlgebra: norm, tr, det, inv, I
 
 # ## A hyperelastic model
@@ -132,7 +132,8 @@ function Peridynamics.first_piola_kirchhoff(::J2Plasticity, storage, params, F, 
 
     ## elastic predictor in logarithmic strain space
     ε, Uinv = hencky_and_invstretch(F' * F)
-    εp = get_sym_tensor(state.bond_plastic_strain, idx)
+    ## the constitutive model API has no system in scope, and this tutorial is 3D
+    εp = get_sym_tensor(state.bond_plastic_strain, idx, dims(storage))
     εe = ε - εp
     τ_trial = λ * tr(εe) * I + 2 * μ * εe
 
@@ -148,7 +149,7 @@ function Peridynamics.first_piola_kirchhoff(::J2Plasticity, storage, params, F, 
     Δγ = (q - σy) / (3 * μ + H)
     Δεp = sqrt(1.5) * Δγ * (s / norm(s))
     τ = τ_trial - 2 * μ * Δεp
-    update_sym_tensor!(state.bond_plastic_strain, idx, εp + Δεp)
+    update_sym_tensor!(state.bond_plastic_strain, idx, εp + Δεp, dims(storage))
     state.bond_eqps[idx] = eqps + Δγ
     return F * (Uinv * τ * Uinv)
 end
@@ -161,7 +162,7 @@ end
 function Peridynamics.strain_energy_density(::J2Plasticity, storage, params, F, idx)
     state = constitutive_state(storage)
     ε, _ = hencky_and_invstretch(F' * F)
-    εe = ε - get_sym_tensor(state.bond_plastic_strain, idx)
+    εe = ε - get_sym_tensor(state.bond_plastic_strain, idx, dims(storage))
     return 0.5 * params.λ * tr(εe)^2 + params.μ * tr(εe * εe)
 end
 

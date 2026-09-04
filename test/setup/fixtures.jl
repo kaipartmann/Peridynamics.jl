@@ -149,12 +149,12 @@ corresponding increment over `Δt`, i.e. a homogeneous deformation with deformat
 function apply_deformation!(chunk, F, Δt)
     (; system, storage) = chunk
     for i in Peridynamics.each_point_idx(system)
-        Xi = Peridynamics.get_vector(system.position, i)
+        Xi = Peridynamics.get_vector(system.position, i, Peridynamics.dims(system))
         xi = F * Xi
-        Peridynamics.update_vector!(storage.position, i, xi)
+        Peridynamics.update_vector!(storage.position, i, xi, Peridynamics.dims(system))
         vi = (xi - Xi) / Δt
-        Peridynamics.update_vector!(storage.velocity, i, vi)
-        Peridynamics.update_vector!(storage.velocity_half, i, vi)
+        Peridynamics.update_vector!(storage.velocity, i, vi, Peridynamics.dims(system))
+        Peridynamics.update_vector!(storage.velocity_half, i, vi, Peridynamics.dims(system))
     end
     return chunk
 end

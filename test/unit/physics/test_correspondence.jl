@@ -91,7 +91,7 @@ end
     # σ = 100 everywhere: the deviator has no diagonal and the von Mises stress is √3 ⋅ 100 ⋅ √3
     σ = @SMatrix fill(100.0, 3, 3)
     for i in 1:2
-        Peridynamics.update_tensor!(storage.cauchy_stress, i, σ)
+        Peridynamics.update_tensor!(storage.cauchy_stress, i, σ, Peridynamics.dims(system))
     end
     σvm = Peridynamics.export_field(Val(:von_mises_stress), mat, system, storage, paramsetup, 0.0)
     @test all(σvm .≈ 300.0)

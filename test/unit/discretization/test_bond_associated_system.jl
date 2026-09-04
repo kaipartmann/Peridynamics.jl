@@ -14,20 +14,9 @@
 
     @test system.position == position
     @test system.volume == volume
-    @test system.bonds == [
-        Peridynamics.Bond(2, 1.0, true),
-        Peridynamics.Bond(3, 1.0, true),
-        Peridynamics.Bond(4, 1.0, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(3, √2, true),
-        Peridynamics.Bond(4, √2, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(2, √2, true),
-        Peridynamics.Bond(4, √2, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(2, √2, true),
-        Peridynamics.Bond(3, √2, true),
-    ]
+    @test system.neighbor == [2, 3, 4, 1, 3, 4, 1, 2, 4, 1, 2, 3]
+    @test system.bond_length == [1.0, 1.0, 1.0, 1.0, √2, √2, 1.0, √2, √2, 1.0, √2, √2]
+    @test system.fail_permit == [true, true, true, true, true, true, true, true, true, true, true, true]
     @test system.n_neighbors == [3, 3, 3, 3]
     @test system.bond_ids == [1:3, 4:6, 7:9, 10:12]
 
@@ -41,34 +30,28 @@ end
     pd = Peridynamics.PointDecomposition(body, 1)
 
     bas = Peridynamics.get_system(body, pd, 1)
-    (; bonds, bond_ids, intersection_bond_ids) = bas
+    (; neighbor, bond_length, fail_permit, bond_ids, intersection_bond_ids,
+       intersection_ids) = bas
 
-    @test bonds == [
-        Peridynamics.Bond(2, 0.25, true)
-        Peridynamics.Bond(3, 0.5, true)
-        Peridynamics.Bond(1, 0.25, true)
-        Peridynamics.Bond(3, 0.25, true)
-        Peridynamics.Bond(4, 0.5, true)
-        Peridynamics.Bond(1, 0.5, true)
-        Peridynamics.Bond(2, 0.25, true)
-        Peridynamics.Bond(4, 0.25, true)
-        Peridynamics.Bond(2, 0.5, true)
-        Peridynamics.Bond(3, 0.25, true)
-    ]
+    @test neighbor == [2, 3, 1, 3, 4, 1, 2, 4, 2, 3]
+    @test bond_length == [0.25, 0.5, 0.25, 0.25, 0.5, 0.5, 0.25, 0.25, 0.5, 0.25]
+    @test fail_permit == fill(true, 10)
     @test bond_ids == [1:2, 3:5, 6:8, 9:10]
-    i_bond_ids = [[1, 2], [1, 2], [1], [2, 3], [2, 3], [1, 2], [1, 2], [3], [1, 2], [1, 2]]
-    @test intersection_bond_ids == i_bond_ids
 
-    # for i in Peridynamics.each_point_idx(system)
-    #     for bond_idx in Peridynamics.each_bond_idx(system, i)
-    #         # bond = bonds[bond_idx]
-    #         # j = bond.neighbor
-    #         for babond_idx in Peridynamics.each_intersecting_bond_idx(system, i, bond_idx)
+    # the families are stored flat: `intersection_bond_ids` holds the bond indices of the
+    # chunk of all families one after the other, `intersection_ids[bond_id]` is the range of
+    # that vector which belongs to `bond_id`
+    @test intersection_bond_ids == [1, 2, 1, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 8, 9, 10, 9, 10]
+    @test intersection_ids == [1:2, 3:4, 5:5, 6:7, 8:9, 10:11, 12:13, 14:14, 15:16, 17:18]
 
-    #         end
-    #     end
-    # end
-
+    # the family of a bond is a family of the bonds of its own point
+    for i in Peridynamics.each_point_idx(bas)
+        for bond_idx in Peridynamics.each_bond_idx(bas, i)
+            family = Peridynamics.each_intersecting_bond_idx(bas, i, bond_idx)
+            @test issubset(family, Peridynamics.each_bond_idx(bas, i))
+            @test in(bond_idx, family)
+        end
+    end
 end
 
 @testitem "bond-associated linear momentum consistency" begin
@@ -100,7 +83,7 @@ end
         Peridynamics.initialize!(dh, solver)
         chunk = dh.chunks[1]
         system = chunk.system
-        (; bonds, volume) = system
+        (; volume) = system
 
         worst_weights, worst_operator = 0.0, 0.0
         for i in 1:Peridynamics.get_n_loc_points(chunk)
@@ -109,16 +92,16 @@ end
             for bond_idx in Peridynamics.each_bond_idx(system, i)
                 K = zero(SMatrix{3,3,Float64,9})
                 for bond_id in Peridynamics.each_intersecting_bond_idx(system, i, bond_idx)
-                    jj = bonds[bond_id].neighbor
-                    ΔX = Peridynamics.get_vector_diff(system.position, i, jj)
+                    jj = Peridynamics.get_neighbor(system, bond_id)
+                    ΔX = Peridynamics.get_vector_diff(system.position, i, jj, Peridynamics.dims(system))
                     K += Peridynamics.kernel(system, bond_id) * volume[jj] * (ΔX * ΔX')
                 end
                 Kinv = inv(K)
                 w = Peridynamics.volume_fraction_factor(system, i, bond_idx)
                 weights += w
                 for bond_id in Peridynamics.each_intersecting_bond_idx(system, i, bond_idx)
-                    j = bonds[bond_id].neighbor
-                    ΔX = Peridynamics.get_vector_diff(system.position, i, j)
+                    j = Peridynamics.get_neighbor(system, bond_id)
+                    ΔX = Peridynamics.get_vector_diff(system.position, i, j, Peridynamics.dims(system))
                     ω = Peridynamics.kernel(system, bond_id)
                     A += w * ω * volume[j] * (Kinv * (ΔX * ΔX'))
                 end
@@ -163,9 +146,9 @@ end
                 K = zero(SMatrix{3,3,Float64,9})
                 _F = zero(SMatrix{3,3,Float64,9})
                 for bond_id in Peridynamics.each_intersecting_bond_idx(system, i, bond_idx)
-                    j = system.bonds[bond_id].neighbor
-                    ΔX = Peridynamics.get_vector_diff(system.position, i, j)
-                    Δx_ = Peridynamics.get_vector_diff(storage.position, i, j)
+                    j = Peridynamics.get_neighbor(system, bond_id)
+                    ΔX = Peridynamics.get_vector_diff(system.position, i, j, Peridynamics.dims(system))
+                    Δx_ = Peridynamics.get_vector_diff(storage.position, i, j, Peridynamics.dims(system))
                     ωV = Peridynamics.kernel(system, bond_id) * system.volume[j]
                     K += ωV * (ΔX * ΔX')
                     _F += ωV * (Δx_ * ΔX')
@@ -221,7 +204,8 @@ end
     # setup
     pos, vol = uniform_box(1, 0.25, 0.25, 0.25)
     body = Body(BBMaterial(), pos, vol)
-    @test_throws ArgumentError Peridynamics.check_bond_associated_system_compat(body.mat)
+    @test_throws ArgumentError Peridynamics.check_system_compat(Peridynamics.BondAssociatedSystem,
+                                                                body.mat)
 end
 
 @testitem "bond-associated required parameters" begin

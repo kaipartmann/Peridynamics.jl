@@ -191,3 +191,49 @@ end
     @test lame[1] ≈ params10.λ
     @test lame[2] ≈ params10.μ
 end
+
+@testitem "EnergySurfaceCorrection: the correction dispatch still selects initialize!" begin
+    import Peridynamics: BondSystem, EnergySurfaceCorrection, NoCorrection, initialize!,
+                         calc_mfactor!, host_type, system_type, AbstractTimeSolver,
+                         AbstractThreadsBodyDataHandler, AbstractBodyChunk,
+                         threads_data_handler, check_scfactor_n_dim
+
+    # Both `N` and the array parameters of the correction sit behind `Correction` in the
+    # type of the system, so `initialize!` and `calc_mfactor!` only keep matching while
+    # every pattern is written with `<:`. Nothing else catches a pattern that silently
+    # stopped matching: the fallback method is type stable too, and the correction would
+    # simply never be computed.
+    pos, vol = uniform_box(1, 1, 1, 0.5)
+    esc_body = Body(BBMaterial{EnergySurfaceCorrection}(), pos, vol)
+    material!(esc_body; horizon=0.8, rho=1, E=1, nu=0.25, Gc=1)
+    ts = VelocityVerlet(steps=1)
+    dh = threads_data_handler(esc_body, ts, 1)
+    chunk = dh.chunks[1]
+
+    Sys = system_type(BBMaterial{EnergySurfaceCorrection}())
+    @test Sys <: BondSystem{<:EnergySurfaceCorrection}
+    @test host_type(EnergySurfaceCorrection, Val(3), Float64) ===
+          EnergySurfaceCorrection{Matrix{Float64},Vector{Float64}}
+
+    # the correction methods of `bond_system_corrections.jl` and not the generic fallbacks
+    m_init = which(initialize!, Tuple{typeof(dh),AbstractTimeSolver})
+    @test m_init.sig <: Tuple{Any,AbstractThreadsBodyDataHandler{<:BondSystem{<:EnergySurfaceCorrection}},
+                              AbstractTimeSolver}
+    m_mfactor = which(calc_mfactor!, Tuple{typeof(chunk)})
+    @test m_mfactor.sig <: Tuple{Any,AbstractBodyChunk{<:BondSystem{<:EnergySurfaceCorrection}}}
+
+    # a body without the correction picks the generic `initialize!` instead
+    plain_body = Body(BBMaterial(), pos, vol)
+    material!(plain_body; horizon=0.8, rho=1, E=1, nu=0.25, Gc=1)
+    dh_plain = threads_data_handler(plain_body, ts, 1)
+    m_plain = which(initialize!, Tuple{typeof(dh_plain),AbstractTimeSolver})
+    @test m_plain !== m_init
+
+    # the correction really runs and fills both of its arrays
+    Peridynamics.initialize!(dh, ts)
+    @test all(>(0), chunk.system.correction.mfactor)
+    @test !all(isone, chunk.system.correction.scfactor)
+
+    # the trigonometry of the correction factor has no two-dimensional form yet
+    @test isnothing(check_scfactor_n_dim(chunk.system))
+end

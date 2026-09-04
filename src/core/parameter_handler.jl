@@ -26,16 +26,32 @@ A type used to manage multiple point parameters defined for the same body. It is
 # Type Parameters
 
 - `P<:AbstractPointParameters`: Point parameter type.
+- `PV<:AbstractVector{P}`: Container of the parameter sets.
+- `PM<:AbstractVector{Int}`: Container of the point mapping.
+
+The two containers are type parameters so that a parameter handler can be moved to another
+array backend together with the chunk that holds it, see `Adapt.adapt`.
 
 # Fields
 
-- `parameters::Vector{P}`: All parameter sets defined in the simulation.
-- `point_mapping::Vector{Int}`: Vector assigning the related parameter set to each
-    material point.
+- `parameters::PV`: All parameter sets defined in the simulation.
+- `point_mapping::PM`: Vector assigning the related parameter set to each material point.
 """
-struct ParameterHandler{P<:AbstractPointParameters} <: AbstractParameterHandler
-    parameters::Vector{P}
-    point_mapping::Vector{Int}
+struct ParameterHandler{P<:AbstractPointParameters,PV<:AbstractVector{P},
+                        PM<:AbstractVector{Int}} <: AbstractParameterHandler
+    parameters::PV
+    point_mapping::PM
+end
+
+function ParameterHandler(parameters::AbstractVector{P},
+                          point_mapping::AbstractVector{Int}) where {P}
+    PV, PM = typeof(parameters), typeof(point_mapping)
+    return ParameterHandler{P,PV,PM}(parameters, point_mapping)
+end
+
+function Adapt.adapt_structure(to, ph::ParameterHandler)
+    return ParameterHandler(Adapt.adapt(to, ph.parameters),
+                            Adapt.adapt(to, ph.point_mapping))
 end
 
 function ParameterHandler(body::AbstractBody, ch::AbstractChunkHandler)
@@ -82,7 +98,7 @@ averages a parameter across a bond reads the set of the neighbor inside it:
 ```julia
 params_i = get_params(paramsetup, i)
 for bond_id in each_bond_idx(system, i)
-    j = system.bonds[bond_id].neighbor
+    j = get_neighbor(system, bond_id)
     params_j = get_params(paramsetup, j)
     ...
 end
@@ -105,7 +121,7 @@ end
 end
 
 @inline function parameter_setup_type(::Body{M,P}, ::MultiParamChunk) where {M,P}
-    return ParameterHandler{P}
+    return ParameterHandler{P,Vector{P},Vector{Int}}
 end
 
 @inline function get_param_spec(body::AbstractBody)

@@ -94,12 +94,10 @@ function calc_failure!(storage::AbstractStorage, system::AbstractBondSystem,
                        paramsetup::AbstractParameterSetup, t, Δt, i)
     (; εc) = get_params(paramsetup, i)
     (; n_active_bonds, bond_active) = storage
-    (; bonds) = system
     n_active_bonds[i] = 0
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
         ε = bond_stretch(storage, system, i, bond_id)
-        if ε > εc && bond.fail_permit
+        if ε > εc && bond_may_fail(system, bond_id)
             bond_active[bond_id] = false
         end
         n_active_bonds[i] += bond_active[bond_id]
@@ -112,12 +110,10 @@ function calc_failure!(storage::AbstractStorage, system::InteractionSystem,
                        paramsetup::AbstractParameterSetup, t, Δt, i)
     (; εc) = get_params(paramsetup, i)
     (; n_active_one_nis, one_ni_active) = storage
-    (; one_nis) = system
     n_active_one_nis[i] = 0
     for bond_id in each_one_ni_idx(system, i)
-        one_ni = one_nis[bond_id]
         ε = bond_stretch(storage, system, i, bond_id)
-        if ε > εc && one_ni.fail_permit
+        if ε > εc && bond_may_fail(system, bond_id)
             one_ni_active[bond_id] = false
         end
         n_active_one_nis[i] += one_ni_active[bond_id]
@@ -143,7 +139,7 @@ function calc_damage!(storage::AbstractStorage, system::InteractionSystem,
                       dmgmodel::AbstractDamageModel, paramsetup::AbstractParameterSetup, i)
     S = typeof(storage)
     if has_storage_field(S, Val(:damage)) && has_storage_field(S, Val(:n_active_one_nis))
-        @inbounds storage.damage[i] = 1 - storage.n_active_one_nis[i] / system.n_one_nis[i]
+        @inbounds storage.damage[i] = 1 - storage.n_active_one_nis[i] / system.n_neighbors[i]
     end
     return nothing
 end
@@ -252,12 +248,10 @@ function failure_by_sets!(storage, system::AbstractBondSystem,
                           dmgmodel::AbstractDamageModel, set_a, set_b)
     check_precrack_bookkeeping(storage, dmgmodel, Val(:bond_active), Val(:n_active_bonds))
     (; n_active_bonds, bond_active) = storage
-    (; bonds) = system
     n_active_bonds .= 0
     for i in each_point_idx(system)
         for bond_id in each_bond_idx(system, i)
-            bond = bonds[bond_id]
-            neighbor_id = bond.neighbor
+            neighbor_id = get_neighbor(system, bond_id)
             point_in_a = in(i, set_a)
             point_in_b = in(i, set_b)
             neigh_in_a = in(neighbor_id, set_a)
@@ -278,8 +272,7 @@ function failure_by_sets!(storage, system::InteractionSystem,
     storage.n_active_one_nis .= 0
     for point_id in each_point_idx(system)
         for bond_id in each_one_ni_idx(system, point_id)
-            bond = system.one_nis[bond_id]
-            neighbor_id = bond.neighbor
+            neighbor_id = get_neighbor(system, bond_id)
             point_in_a = in(point_id, set_a)
             point_in_b = in(point_id, set_b)
             neigh_in_a = in(neighbor_id, set_a)

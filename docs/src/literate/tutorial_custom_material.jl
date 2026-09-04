@@ -15,7 +15,8 @@
 using Peridynamics
 using Peridynamics: BondSystem, each_bond_idx, get_params, get_n_loc_points,
                     get_vector_diff, update_add_vector!, surface_correction_factor,
-                    current_bond_length, bond_is_active
+                    current_bond_length, bond_is_active, get_neighbor,
+                    reference_bond_length, dims
 
 # ## The material
 #
@@ -145,11 +146,12 @@ end
 #
 # What a force density may use is small and worth knowing by heart:
 #
-# - **The system**: `each_bond_idx(system, i)` iterates the bonds of a point and
-#   `system.bonds[bond_id]` is the bond itself, with its neighbor `neighbor` and its initial
-#   length `length`. `system.volume[j]` is the volume of a point, `system.position` the
-#   reference positions, `kernel(system, bond_id)` the influence function and
-#   `surface_correction_factor(system.correction, bond_id)` the surface correction.
+# - **The system**: `each_bond_idx(system, i)` iterates the bonds of a point,
+#   `get_neighbor(system, bond_id)` is the point at the other end of a bond and
+#   `reference_bond_length(system, bond_id)` its initial length. `system.volume[j]` is the
+#   volume of a point, `system.position` the reference positions, `kernel(system, bond_id)`
+#   the influence function and `surface_correction_factor(system, bond_id)` the surface
+#   correction.
 # - **The kinematics of a bond**: `current_bond_length(storage, system, i, bond_id)` is the
 #   distance of the two points of the bond right now. Read it this way and never by gathering
 #   the two positions yourself, then the same line is as fast as it can be on a material that
@@ -168,14 +170,14 @@ end
 
 function Peridynamics.force_density_point!(storage::ConicalBBStorage, system::BondSystem,
                                            mat::ConicalBBMaterial, paramsetup, t, Δt, i)
-    (; bonds, correction, volume) = system
+    (; volume) = system
     params = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        j = get_neighbor(system, bond_id)
+        L = reference_bond_length(system, bond_id)
 
         ## the current bond vector, the current length and the stretch of the bond
-        Δxij = get_vector_diff(storage.position, i, j)
+        Δxij = get_vector_diff(storage.position, i, j, dims(system))
         l = current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
         storage.stretch[bond_id] = ε
@@ -185,11 +187,11 @@ function Peridynamics.force_density_point!(storage::ConicalBBStorage, system::Bo
 
         ## a broken bond carries no force, and the surface correction is 1 for `NoCorrection`
         ω = bond_is_active(storage, system, bond_id) *
-            surface_correction_factor(correction, bond_id)
+            surface_correction_factor(system, bond_id)
 
         ## the bond force, accumulated into point `i`
         b = ω * c * ε * volume[j] / l .* Δxij
-        update_add_vector!(storage.b_int, i, b)
+        update_add_vector!(storage.b_int, i, b, dims(system))
     end
     return nothing
 end
@@ -260,7 +262,7 @@ function Peridynamics.export_field(::Val{:weighted_stretch}, mat, system,
         (; δ) = get_params(paramsetup, i)
         num, den = 0.0, 0.0
         for bond_id in each_bond_idx(system, i)
-            L = system.bonds[bond_id].length
+            L = reference_bond_length(system, bond_id)
             c = 1 - L / δ
             num += c * storage.stretch[bond_id]
             den += c

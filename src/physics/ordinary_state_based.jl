@@ -133,20 +133,20 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, mat, params_i, wvol, i)
     (; position, b_int) = storage
-    (; bonds, correction, volume) = system
+    (; volume) = system
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
+        j = get_neighbor(system, bond_id)
+        L = reference_bond_length(system, bond_id)
+        Δxij = get_vector_diff(position, i, j, dims(system))
         l = current_bond_length(storage, system, i, bond_id)
         params_j = get_params(paramsetup, j)
         c1 = 15.0 * (params_i.G + params_j.G) / (2 * wvol)
         c2 = dil * (3.0 * (params_i.K + params_j.K) / (2 * wvol) - c1 / 3.0)
         ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id)
-        β = surface_correction_factor(correction, bond_id)
+        β = surface_correction_factor(system, bond_id)
         p = ωij * β * (c2 * L + c1 * (l - L)) / l .* Δxij
-        update_add_vector!(b_int, i, p .* volume[j])
-        update_add_vector!(b_int, j, -p .* volume[i])
+        update_add_vector!(b_int, i, p .* volume[j], dims(system))
+        update_add_vector!(b_int, j, -p .* volume[i], dims(system))
     end
     return nothing
 end
@@ -155,12 +155,11 @@ function calc_weighted_volume(storage::AbstractStorage, system::BondSystem, mat:
                               params::OSBPointParameters, i)
     wvol = 0.0
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j = bond.neighbor
-        ΔXij = get_vector_diff(system.position, i, j)
+        j = get_neighbor(system, bond_id)
+        ΔXij = get_vector_diff(system.position, i, j, dims(system))
         ΔXij_sq = dot(ΔXij, ΔXij)
         ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id)
-        β = surface_correction_factor(system.correction, bond_id)
+        β = surface_correction_factor(system, bond_id)
         wvol += ωij * β * ΔXij_sq * system.volume[j]
     end
     return wvol
@@ -171,11 +170,11 @@ function calc_dilatation(storage::AbstractStorage, system::BondSystem, mat::OSBM
     dil = 0.0
     c1 = 3.0 / wvol
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        j = get_neighbor(system, bond_id)
+        L = reference_bond_length(system, bond_id)
         l = current_bond_length(storage, system, i, bond_id)
         ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id)
-        β = surface_correction_factor(system.correction, bond_id)
+        β = surface_correction_factor(system, bond_id)
         dil += ωij * β * c1 * L * (l - L) * system.volume[j]
     end
     return dil
@@ -185,7 +184,7 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
                                       mat::OSBMaterial, paramsetup::AbstractParameterSetup,
                                       i)
     (; strain_energy_density) = storage
-    (; bonds, correction, volume) = system
+    (; volume) = system
     update_bond_lengths!(storage, system, i)
     params_i = get_params(paramsetup, i)
     wvol = calc_weighted_volume(storage, system, mat, params_i, i)
@@ -194,13 +193,13 @@ function strain_energy_density_point!(storage::AbstractStorage, system::BondSyst
     Ψvol = 0.5 * params_i.K * dil^2
     Ψdev = 0.0
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        j = get_neighbor(system, bond_id)
+        L = reference_bond_length(system, bond_id)
         l = current_bond_length(storage, system, i, bond_id)
         e = l - L
         edev = e - 1/3 * dil * L
         ωij = kernel(system, bond_id) * bond_is_active(storage, system, bond_id)
-        β = surface_correction_factor(correction, bond_id)
+        β = surface_correction_factor(system, bond_id)
         params_j = get_params(paramsetup, j)
         G = (params_i.G + params_j.G) / 2
         cdev = 15.0 * G / (2 * wvol)

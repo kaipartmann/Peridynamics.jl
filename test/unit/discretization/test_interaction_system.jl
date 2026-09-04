@@ -14,15 +14,11 @@
 
     @test Peridynamics.has_two_nis(body,1) == true
 
-    @test system.one_nis == [
-        Peridynamics.Bond(2, 1.0, true),
-        Peridynamics.Bond(3, 1.0, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(3, √2, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(2, √2, true)]
-    @test system.n_one_nis == [2, 2, 2]
-    @test system.one_ni_idxs == [1:2, 3:4, 5:6]
+    @test system.neighbor == [2, 3, 1, 3, 1, 2]
+    @test system.bond_length == [1.0, 1.0, 1.0, √2, 1.0, √2]
+    @test system.fail_permit == [true, true, true, true, true, true]
+    @test system.n_neighbors == [2, 2, 2]
+    @test system.bond_ids == [1:2, 3:4, 5:6]
     @test system.two_nis == [
         Peridynamics.TwoNeighborInteraction(1, 2, 1.0),
         Peridynamics.TwoNeighborInteraction(3, 4, 1.0),
@@ -59,21 +55,11 @@ end
 
     @test Peridynamics.has_three_nis(body,1) == true
 
-    @test system.one_nis == [
-    Peridynamics.Bond(2, 1.0, true),
-    Peridynamics.Bond(3, 1.0, true),
-    Peridynamics.Bond(4, 1.0, true),
-    Peridynamics.Bond(1, 1.0, true),
-    Peridynamics.Bond(3, √2, true),
-    Peridynamics.Bond(4, √2, true),
-    Peridynamics.Bond(1, 1.0, true),
-    Peridynamics.Bond(2, √2, true),
-    Peridynamics.Bond(4, √2, true),
-    Peridynamics.Bond(1, 1.0, true),
-    Peridynamics.Bond(2, √2, true),
-    Peridynamics.Bond(3, √2, true)]
-    @test system.n_one_nis == [3, 3, 3, 3]
-    @test system.one_ni_idxs == [1:3, 4:6, 7:9, 10:12]
+    @test system.neighbor == [2, 3, 4, 1, 3, 4, 1, 2, 4, 1, 2, 3]
+    @test system.bond_length == [1.0, 1.0, 1.0, 1.0, √2, √2, 1.0, √2, √2, 1.0, √2, √2]
+    @test system.fail_permit == [true, true, true, true, true, true, true, true, true, true, true, true]
+    @test system.n_neighbors == [3, 3, 3, 3]
+    @test system.bond_ids == [1:3, 4:6, 7:9, 10:12]
     @test system.two_nis == Vector{Peridynamics.TwoNeighborInteraction}()
     @test system.n_two_nis == Vector{Int}()
     @test system.two_ni_idxs == Vector{UnitRange{Int}}()
@@ -105,21 +91,11 @@ end
 
     system = Peridynamics.InteractionSystem(body, pd, 1)
 
-    @test system.one_nis == [
-        Peridynamics.Bond(2, 1.0, true),
-        Peridynamics.Bond(3, 1.0, true),
-        Peridynamics.Bond(4, 1.0, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(3, √2, true),
-        Peridynamics.Bond(4, √2, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(2, √2, true),
-        Peridynamics.Bond(4, √2, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(2, √2, true),
-        Peridynamics.Bond(3, √2, true)]
-    @test system.n_one_nis == [3, 3, 3, 3, 0]
-    @test system.one_ni_idxs == [1:3, 4:6, 7:9, 10:12, 13:12]
+    @test system.neighbor == [2, 3, 4, 1, 3, 4, 1, 2, 4, 1, 2, 3]
+    @test system.bond_length == [1.0, 1.0, 1.0, 1.0, √2, √2, 1.0, √2, √2, 1.0, √2, √2]
+    @test system.fail_permit == [true, true, true, true, true, true, true, true, true, true, true, true]
+    @test system.n_neighbors == [3, 3, 3, 3, 0]
+    @test system.bond_ids == [1:3, 4:6, 7:9, 10:12, 13:12]
     @test system.two_nis == [
         Peridynamics.TwoNeighborInteraction(1, 2, 1.0),
         Peridynamics.TwoNeighborInteraction(1, 3, 1.0),
@@ -155,21 +131,11 @@ end
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     is = dh.chunks[1].system
 
-    @test is.one_nis == [
-        Peridynamics.Bond(2, 1.0, true),
-        Peridynamics.Bond(3, 1.0, true),
-        Peridynamics.Bond(4, 1.0, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(3, √2, true),
-        Peridynamics.Bond(4, √2, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(2, √2, true),
-        Peridynamics.Bond(4, √2, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(2, √2, true),
-        Peridynamics.Bond(3, √2, true)]
-    @test is.n_one_nis == [3, 3, 3, 3, 0]
-    @test is.one_ni_idxs == [1:3, 4:6, 7:9, 10:12, 13:12]
+    @test is.neighbor == [2, 3, 4, 1, 3, 4, 1, 2, 4, 1, 2, 3]
+    @test is.bond_length == [1.0, 1.0, 1.0, 1.0, √2, √2, 1.0, √2, √2, 1.0, √2, √2]
+    @test is.fail_permit == [true, true, true, true, true, true, true, true, true, true, true, true]
+    @test is.n_neighbors == [3, 3, 3, 3, 0]
+    @test is.bond_ids == [1:3, 4:6, 7:9, 10:12, 13:12]
     @test is.two_nis == [
         Peridynamics.TwoNeighborInteraction(1, 2, 1.0),
         Peridynamics.TwoNeighborInteraction(1, 3, 1.0),
@@ -201,7 +167,8 @@ end
     # setup
     pos, vol = uniform_box(1, 0.25, 0.25, 0.25)
     body = Body(BBMaterial(), pos, vol)
-    @test_throws ArgumentError Peridynamics.check_interaction_system_compat(body.mat)
+    @test_throws ArgumentError Peridynamics.check_system_compat(Peridynamics.InteractionSystem,
+                                                                body.mat)
 end
 
 @testitem "interaction counts of a uniform cube" setup=[Fixtures] begin
@@ -220,11 +187,11 @@ end
     pd = Peridynamics.PointDecomposition(body, 1)
     system = Peridynamics.get_system(body, pd, 1)
     @test n_points(body) == 64
-    @test length(system.one_nis) == 1128
+    @test Peridynamics.get_n_one_nis(system) == 1128
     @test length(system.two_nis) == 5400
     @test length(system.three_nis) == 9144
     # every interaction count is consistent with the per-point bookkeeping
-    @test sum(system.n_one_nis) == length(system.one_nis)
+    @test sum(system.n_neighbors) == Peridynamics.get_n_one_nis(system)
     @test sum(system.n_two_nis) == length(system.two_nis)
     @test sum(system.n_three_nis) == length(system.three_nis)
 end
@@ -239,7 +206,7 @@ end
     @test all(storage.one_ni_active)
     Peridynamics.apply_precracks!(c, body)
     left, right = body.point_sets[:left], body.point_sets[:right]
-    crossing = [(i in left) != (system.one_nis[bid].neighbor in left)
+    crossing = [(i in left) != (Peridynamics.get_neighbor(system, bid) in left)
                 for i in Peridynamics.each_point_idx(system)
                 for bid in Peridynamics.each_one_ni_idx(system, i)]
     @test any(crossing)
@@ -278,8 +245,8 @@ end
         # the bond iterator of the interaction system is its one-neighbor interactions
         @test each_bond_idx(system, i) == each_one_ni_idx(system, i)
         for one_ni_id in each_one_ni_idx(system, i)
-            one_ni = system.one_nis[one_ni_id]
-            j, L = one_ni.neighbor, one_ni.length
+            j = Peridynamics.get_neighbor(system, one_ni_id)
+            L = Peridynamics.reference_bond_length(system, one_ni_id)
             Δx = storage.position[:, j] .- storage.position[:, i]
             l = sqrt(Δx[1]^2 + Δx[2]^2 + Δx[3]^2)
             @test current_bond_length(storage, system, i, one_ni_id) ≈ l

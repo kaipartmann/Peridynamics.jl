@@ -165,19 +165,19 @@ end
 function force_density_point!(storage::BBStorage, system::BondSystem, ::BBMaterial,
                               paramsetup::AbstractParameterSetup, t, Δt, i)
     (; position, b_int) = storage
-    (; bonds, correction, volume) = system
+    (; volume) = system
     params_i = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(position, i, j)
+        j = get_neighbor(system, bond_id)
+        L = reference_bond_length(system, bond_id)
+        Δxij = get_vector_diff(position, i, j, dims(system))
         l = current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
         params_j = get_params(paramsetup, j)
         ω = bond_is_active(storage, system, bond_id) *
-            surface_correction_factor(correction, bond_id)
+            surface_correction_factor(system, bond_id)
         b = ω * (params_i.bc + params_j.bc) / 2 * ε * volume[j] .* Δxij / l
-        update_add_vector!(b_int, i, b)
+        update_add_vector!(b_int, i, b, dims(system))
     end
     return nothing
 end
@@ -185,17 +185,17 @@ end
 function strain_energy_density_point!(storage::AbstractStorage, system::BondSystem,
                                       ::BBMaterial, paramsetup::AbstractParameterSetup, i)
     (; strain_energy_density) = storage
-    (; bonds, correction, volume) = system
+    (; volume) = system
     update_bond_lengths!(storage, system, i)
     params_i = get_params(paramsetup, i)
     Ψ = 0.0
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
+        j = get_neighbor(system, bond_id)
+        L = reference_bond_length(system, bond_id)
         ε = bond_stretch(storage, system, i, bond_id)
         params_j = get_params(paramsetup, j)
         ωij = bond_is_active(storage, system, bond_id) *
-              surface_correction_factor(correction, bond_id)
+              surface_correction_factor(system, bond_id)
         bc = (params_i.bc + params_j.bc) / 2
         Ψ += 0.25 * ωij * bc * ε * ε * L * volume[j]
     end

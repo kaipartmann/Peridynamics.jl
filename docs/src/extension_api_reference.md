@@ -39,7 +39,9 @@ with [`@cm_params`](@ref Peridynamics.@cm_params) and
 [`@cm_storage`](@ref Peridynamics.@cm_storage) and
 [`@dmg_storage`](@ref Peridynamics.@dmg_storage), and reusable blocks of declarations with
 [`@params_fields`](@ref Peridynamics.@params_fields) and
-[`@storage_fields`](@ref Peridynamics.@storage_fields).
+[`@storage_fields`](@ref Peridynamics.@storage_fields). A system is declared the same way,
+with [`@system`](@ref Peridynamics.@system), but has no reusable field blocks of its own: a
+system lists every one of its fields directly.
 
 ```@docs
 Peridynamics.@params
@@ -50,6 +52,7 @@ Peridynamics.@storage
 Peridynamics.@storage_fields
 Peridynamics.@cm_storage
 Peridynamics.@dmg_storage
+Peridynamics.@system
 ```
 
 These are recognized inside the body of the macros above and are never called on their own:
@@ -201,13 +204,28 @@ Peridynamics.AbstractTimeSolver
 
 The discretization of a body chunk. A material dispatches on it to say which discretization
 it is written for. The fields of a system are internal, a material reads it through the
-accessors under [Accessing a system and its parameters](@ref). A bond is an immutable
-record, so its fields are the API.
+accessors under [Accessing a system and its parameters](@ref), one accessor per quantity of
+a bond.
 
 ```@docs
 Peridynamics.BondSystem
 Peridynamics.InteractionSystem
-Peridynamics.Bond
+```
+
+Which system a material is discretized with is answered by `system_type`, and
+`check_system_compat` is what a system checks its materials with.
+`SystemSizes` is what the constructor of a system allocates its fields against, and
+`host_system_type` returns the instantiation of a system whose arrays live on the CPU.
+A system that cannot be decomposed says so with `max_n_chunks` and reads its one chunk with
+`first_chunk`.
+
+```@docs
+Peridynamics.system_type
+Peridynamics.check_system_compat
+Peridynamics.SystemSizes
+Peridynamics.host_system_type
+Peridynamics.max_n_chunks
+Peridynamics.first_chunk
 ```
 
 ## The material interface
@@ -278,8 +296,9 @@ Peridynamics.supports_kinematic_weight
 ## Accessing a system and its parameters
 
 What a force density or a failure criterion reads: the points and bonds of the chunk
-through the iterators, a bond through `system.bonds[bond_id]`, and the parameters of a
-point through `get_params` from the parameter setup the kernel receives.
+through the iterators, a bond through `get_neighbor`, `reference_bond_length` and
+`bond_may_fail`, one accessor per quantity, and the parameters of a point through
+`get_params` from the parameter setup the kernel receives.
 
 The current length of a bond and its stretch are read with `current_bond_length` and
 `bond_stretch` and never by gathering the two positions and taking the norm. Some materials
@@ -290,12 +309,16 @@ the same code as fast as it can be on either.
 Peridynamics.get_params
 Peridynamics.each_point_idx
 Peridynamics.each_bond_idx
+Peridynamics.get_neighbor
+Peridynamics.reference_bond_length
+Peridynamics.bond_may_fail
 Peridynamics.current_bond_length
 Peridynamics.bond_stretch
 Peridynamics.update_bond_lengths!
 Peridynamics.get_n_points
 Peridynamics.get_n_loc_points
 Peridynamics.get_n_bonds
+Peridynamics.get_n_dim
 Peridynamics.kernel
 Peridynamics.surface_correction_factor
 Peridynamics.float_type
@@ -305,8 +328,11 @@ Peridynamics.float_type
 
 Every storage field is one array with the quantity of a point or a bond in its columns.
 These functions read and write a column as a static vector or tensor, without allocating.
+Each of them takes the number of spatial dimensions as its last argument, a `Val{N}` that
+`dims` produces from a system, a storage or a nested model state.
 
 ```@docs
+Peridynamics.dims
 Peridynamics.get_vector
 Peridynamics.get_vector_diff
 Peridynamics.update_vector!

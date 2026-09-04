@@ -259,9 +259,8 @@ function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup
     (; εc) = Peridynamics.get_params(paramsetup, i)
     storage.n_active_bonds[i] = 0
     for bond_id in Peridynamics.each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
         ε = Peridynamics.bond_stretch(storage, system, i, bond_id)
-        if ε > εc && bond.fail_permit
+        if ε > εc && Peridynamics.bond_may_fail(system, bond_id)
             storage.bond_active[bond_id] = false
         end
         storage.n_active_bonds[i] += storage.bond_active[bond_id]
@@ -506,7 +505,7 @@ own.
 ```julia
 for bond_id in Peridynamics.each_bond_idx(system, i)
     ω = Peridynamics.bond_is_active(storage, system, bond_id) *
-        Peridynamics.surface_correction_factor(system.correction, bond_id)
+        Peridynamics.surface_correction_factor(system, bond_id)
 end
 ```
 """

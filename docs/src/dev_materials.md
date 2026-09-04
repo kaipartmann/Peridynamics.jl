@@ -35,25 +35,26 @@ A material needs four things:
 
 Everything these need is part of the [Extension API](@ref), so it is written as
 `Peridynamics.<name>` or imported explicitly. Inside the force density a material walks the
-bonds of a point with [`each_bond_idx`](@ref Peridynamics.each_bond_idx), reads the bond off
-`system.bonds`, and reads the storage through the fields of the blocks it inherited and its
-own fields:
+bonds of a point with [`each_bond_idx`](@ref Peridynamics.each_bond_idx), reads a bond one
+quantity at a time with [`get_neighbor`](@ref Peridynamics.get_neighbor) and
+[`reference_bond_length`](@ref Peridynamics.reference_bond_length), and reads the storage
+through the fields of the blocks it inherited and its own fields:
 
 ```julia
 function Peridynamics.force_density_point!(storage::MyStorage, system::BondSystem,
                                            mat::MyMaterial, paramsetup, t, Δt, i)
-    (; bonds, correction, volume) = system
+    (; volume) = system
     params = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
-        bond = bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = get_vector_diff(storage.position, i, j)
+        j = get_neighbor(system, bond_id)
+        L = reference_bond_length(system, bond_id)
+        Δxij = get_vector_diff(storage.position, i, j, dims(system))
         l = current_bond_length(storage, system, i, bond_id)
         ε = (l - L) / L
         ω = bond_is_active(storage, system, bond_id) *
-            surface_correction_factor(correction, bond_id)
+            surface_correction_factor(system, bond_id)
         b = ω * params.bc * ε * volume[j] / l .* Δxij
-        update_add_vector!(storage.b_int, i, b)
+        update_add_vector!(storage.b_int, i, b, dims(system))
     end
     return nothing
 end
@@ -90,7 +91,7 @@ function Peridynamics.force_density_point!(storage::MyStorage, system::BondSyste
                                            mat::MyMaterial, paramsetup, t, Δt, i)
     params_i = get_params(paramsetup, i)
     for bond_id in each_bond_idx(system, i)
-        j = system.bonds[bond_id].neighbor
+        j = get_neighbor(system, bond_id)
         params_j = get_params(paramsetup, j)
         bc = (params_i.bc + params_j.bc) / 2
         ...
@@ -346,13 +347,44 @@ An `init_field` method is also the escape hatch for a shaped field. It is more s
 than the generic fallback and therefore wins, so a field can keep its shape, and with it
 its type, its size and its export status, while being filled by hand.
 
-### The generated type
+### Reading and writing a field
 
-The generated struct is parametric in the array type of every field and generic in the
-float type of the simulation:
+A shaped field is one plain matrix with the quantity of a point or a bond in its columns, so
+a kernel reads and writes whole columns as static vectors and tensors:
+
+| function | what it does |
+|:---|:---|
+| [`get_vector`](@ref Peridynamics.get_vector) | column `i` as an `SVector{N}` |
+| [`get_vector_diff`](@ref Peridynamics.get_vector_diff) | column `j` minus column `i`, the bond vector |
+| [`update_vector!`](@ref Peridynamics.update_vector!) | overwrite column `i` |
+| [`update_add_vector!`](@ref Peridynamics.update_add_vector!) | add to column `i`, how a force density accumulates |
+| [`get_tensor`](@ref Peridynamics.get_tensor) | column `i` as an `SMatrix{N,N}`, in column-major order |
+| [`update_tensor!`](@ref Peridynamics.update_tensor!) | write an `SMatrix{N,N}` into column `i` |
+| [`get_sym_tensor`](@ref Peridynamics.get_sym_tensor) | column `i` of a symmetric shape, in Voigt order |
+| [`update_sym_tensor!`](@ref Peridynamics.update_sym_tensor!) | write a symmetric `SMatrix{N,N}` into column `i` |
+
+Every one of them takes the number of spatial dimensions as its last argument, a `Val{N}`,
+so that a kernel names the dimension it works in instead of assuming three.
+[`dims`](@ref Peridynamics.dims) produces it from whatever is in scope, a system inside a
+force density and a storage inside a constitutive model hook:
 
 ```julia
-struct BBStorage{FT<:Real,M_F64<:AbstractMatrix{Float64},M_FT<:AbstractMatrix{FT},
+Δxij = get_vector_diff(storage.position, i, j, dims(system))
+update_add_vector!(storage.b_int, i, b, dims(system))
+εp = get_sym_tensor(state.bond_plastic_strain, idx, dims(storage))
+```
+
+The dimension is a type parameter of both, so the `Val` is a compile time constant and the
+call folds into plain indexing. A value written back has to be a static vector or tensor of
+that same `N`, anything else is a `MethodError`.
+
+### The generated type
+
+The generated struct carries the number of spatial dimensions of the simulation, is generic
+in its float type and is parametric in the array type of every field:
+
+```julia
+struct BBStorage{N,FT<:Real,M_F64<:AbstractMatrix{Float64},M_FT<:AbstractMatrix{FT},
                  V_FT<:AbstractVector{FT},V_Int<:AbstractVector{Int},
                  V_Bool<:AbstractVector{Bool}} <: AbstractStorage
     position::M_F64
@@ -362,10 +394,17 @@ end
 ```
 
 The macro derives these parameters from the field declarations, one per distinct
-combination of element type and number of dimensions, so a storage must not declare type
-parameters of its own. `Peridynamics.storage_type(mat)` returns the instantiation with the
-arrays of the CPU, `Peridynamics.storage_type(mat, Float32)` the one with `Float32` arrays,
-and `Adapt.adapt(backend, storage)` moves a whole storage to another array backend.
+combination of element type and number of array dimensions, so a storage must not declare
+type parameters of its own. `Peridynamics.storage_type(mat)` returns the instantiation with
+the arrays of the CPU, `Peridynamics.storage_type(mat, Float32)` the one with `Float32`
+arrays, `Peridynamics.storage_type(mat, Float64, Val(2))` the two-dimensional one, and
+`Adapt.adapt(backend, storage)` moves a whole storage to another array backend.
+
+`N` comes first and is always there, so
+[`get_n_dim`](@ref Peridynamics.get_n_dim) and with it
+[`dims`](@ref Peridynamics.dims) work on a storage exactly as they do on a system. The
+storage of a body chunk is built with the `N` of its system, so the two can never disagree,
+which is what lets a constitutive model hook name its dimension without a system in scope.
 
 Dispatch on the storage *type* therefore has to be written `::Type{<:MyStorage}` instead of
 `::Type{MyStorage}`, while dispatch on a storage *value*, e.g. `::MyStorage`, is unchanged.
@@ -554,7 +593,6 @@ function Peridynamics.calc_failure!(storage, system, mat, ::MyDamage, paramsetup
     (; εc) = get_params(paramsetup, i)
     storage.n_active_bonds[i] = 0
     for bond_id in each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
         ε = bond_stretch(storage, system, i, bond_id)
         ...
         storage.n_active_bonds[i] += storage.bond_active[bond_id]

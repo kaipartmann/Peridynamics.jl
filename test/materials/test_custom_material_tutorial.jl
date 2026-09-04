@@ -146,9 +146,9 @@ end
     b_ref = zeros(3)
     b_const = zeros(3)
     for bond_id in Peridynamics.each_bond_idx(system, i)
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
+        j = Peridynamics.get_neighbor(system, bond_id)
+        L = Peridynamics.reference_bond_length(system, bond_id)
+        Δxij = Peridynamics.get_vector_diff(storage.position, i, j, Peridynamics.dims(system))
         len = T.norm(Δxij)
         ε = (len - L) / L
         Vj = system.volume[j]

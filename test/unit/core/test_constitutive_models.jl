@@ -28,7 +28,8 @@
     function record!(evals, time, defgrad, idx, F, Δt)
         evals[idx] += 1
         time[idx] += Δt
-        update_tensor!(defgrad, idx, F)
+        # the constitutive model callback has no system in scope, and this test is 3D
+        update_tensor!(defgrad, idx, F, Val(3))
         return nothing
     end
 
@@ -70,18 +71,19 @@ end
 
     cm = BondRecorder()
 
-    # the state is a parametric struct, exactly like a storage: the float type of the
-    # simulation first, then one parameter per array, in declaration order
+    # the state is a parametric struct, exactly like a storage: the number of spatial
+    # dimensions first, then the float type of the simulation, then one parameter per array,
+    # in declaration order
     @test BondRecorderState isa UnionAll
     @test BondRecorderState <: Peridynamics.AbstractConstitutiveState
     @test fieldnames(BondRecorderState) == (:bond_evals, :bond_time, :bond_defgrad)
     @test constitutive_storage_type(cm) ===
-          BondRecorderState{Float64,Vector{Int},Vector{Float64},Matrix{Float64}}
+          BondRecorderState{3,Float64,Vector{Int},Vector{Float64},Matrix{Float64}}
     @test constitutive_storage_type(cm, Float32) ===
-          BondRecorderState{Float32,Vector{Int},Vector{Float32},Matrix{Float32}}
+          BondRecorderState{3,Float32,Vector{Int},Vector{Float32},Matrix{Float32}}
     @test isconcretetype(constitutive_storage_type(cm))
     @test constitutive_storage_type(PointRecorder()) ===
-          PointRecorderState{Float64,Vector{Int},Vector{Float64},Matrix{Float64}}
+          PointRecorderState{3,Float64,Vector{Int},Vector{Float64},Matrix{Float64}}
 
     # declaring a state makes the model history-dependent
     @test is_history_dependent(cm)
@@ -103,16 +105,16 @@ end
     Peridynamics.@cm_storage CounterModel struct CounterState
         bond_evals::BondScalar{Int}
     end
-    @test constitutive_storage_type(CounterModel()) === CounterState{Vector{Int}}
-    @test constitutive_storage_type(CounterModel(), Float32) === CounterState{Vector{Int}}
+    @test constitutive_storage_type(CounterModel()) === CounterState{3,Vector{Int}}
+    @test constitutive_storage_type(CounterModel(), Float32) === CounterState{3,Vector{Int}}
     @test is_history_dependent(CounterModel())
 
-    # a state without fields has no type parameters at all, but still marks the model as
-    # history-dependent by declaration
+    # a state without fields still carries the dimension, so `get_n_dim` works on it, and
+    # it marks the model as history-dependent by declaration
     struct EmptyStateModel <: Peridynamics.AbstractConstitutiveModel end
     Peridynamics.@cm_storage EmptyStateModel struct EmptyState end
-    @test constitutive_storage_type(EmptyStateModel()) === EmptyState
-    @test !(EmptyState isa UnionAll)
+    @test constitutive_storage_type(EmptyStateModel()) === EmptyState{3}
+    @test EmptyState isa UnionAll
     @test is_history_dependent(EmptyStateModel())
 end
 
@@ -179,13 +181,13 @@ end
     # the storage stays concrete whichever model is used, and the model fills the parameter
     for (mat, CMS) in ((RKCMaterial(), Nothing),
                        (RKCMaterial(; model=BondRecorder()),
-                        BondRecorderState{Float64,Vector{Int},Vector{Float64},
+                        BondRecorderState{3,Float64,Vector{Int},Vector{Float64},
                                           Matrix{Float64}}),
                        (CMaterial(; model=PointRecorder()),
-                        PointRecorderState{Float64,Vector{Int},Vector{Float64},
+                        PointRecorderState{3,Float64,Vector{Int},Vector{Float64},
                                            Matrix{Float64}}),
                        (BACMaterial(; model=BondRecorder()),
-                        BondRecorderState{Float64,Vector{Int},Vector{Float64},
+                        BondRecorderState{3,Float64,Vector{Int},Vector{Float64},
                                           Matrix{Float64}}))
         S = storage_type(mat)
         @test isconcretetype(S)
@@ -198,7 +200,7 @@ end
     # the state follows the float type of the simulation
     S32 = storage_type(RKCMaterial(; model=BondRecorder()), Float32)
     @test fieldtype(S32, :cm_state) ===
-          BondRecorderState{Float32,Vector{Int},Vector{Float32},Matrix{Float32}}
+          BondRecorderState{3,Float32,Vector{Int},Vector{Float32},Matrix{Float32}}
 
     # every material family with a constitutive model carries its state
     for mat in (CMaterial(), BACMaterial())
@@ -314,8 +316,8 @@ end
         # ... and the recorded deformation gradient is the one of the last step: the stress
         # the material stored in that step is the stress of the recorded gradient
         @test all(1:get_n_bonds(chunk.system)) do bond_id
-            Fij = get_tensor(state.bond_defgrad, bond_id)
-            Pij = get_tensor(chunk.storage.bond_first_piola_kirchhoff, bond_id)
+            Fij = get_tensor(state.bond_defgrad, bond_id, Peridynamics.dims(chunk.system))
+            Pij = get_tensor(chunk.storage.bond_first_piola_kirchhoff, bond_id, Peridynamics.dims(chunk.system))
             return Pij ≈ first_piola_kirchhoff(svk, chunk.storage, params, Fij)
         end
     end

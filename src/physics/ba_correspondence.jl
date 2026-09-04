@@ -165,22 +165,23 @@ function force_density_point!(storage::BACStorage, system::BondAssociatedSystem,
     params = get_params(paramsetup, i)
     bond_ids_of_i = each_bond_idx(system, i)
     for k in eachindex(bond_ids_of_i)
-        zero_tensor!(storage.bond_stress, k)
+        zero_tensor!(storage.bond_stress, k, dims(system))
     end
     for bond_idx in bond_ids_of_i
         collect_bond_stress!(storage, system, mat, params, t, Δt, i, bond_idx)
     end
-    # `intersection_bond_ids` indexes the bonds of a point from one, so this is the shift
-    # between that numbering and the bond indices of the chunk
+    # `bond_stress` is scratch space for one point, so its columns are numbered from one and
+    # this is the shift between that numbering and the bond indices of the chunk
     offset = first(bond_ids_of_i) - 1
     for k in eachindex(bond_ids_of_i)
         bond_idx = offset + k
         bond_is_active(storage, system, bond_idx) || continue
-        j = system.bonds[bond_idx].neighbor
-        ΔXij = get_vector_diff(system.position, i, j)
-        tij = kernel(system, bond_idx) * (get_tensor(storage.bond_stress, k) * ΔXij)
-        update_add_vector!(storage.b_int, i, tij .* system.volume[j])
-        update_add_vector!(storage.b_int, j, -tij .* system.volume[i])
+        j = get_neighbor(system, bond_idx)
+        ΔXij = get_vector_diff(system.position, i, j, dims(system))
+        σk = get_tensor(storage.bond_stress, k, dims(system))
+        tij = kernel(system, bond_idx) * (σk * ΔXij)
+        update_add_vector!(storage.b_int, i, tij .* system.volume[j], dims(system))
+        update_add_vector!(storage.b_int, j, -tij .* system.volume[i], dims(system))
     end
     return nothing
 end
@@ -207,9 +208,9 @@ function collect_bond_stress!(storage::BACStorage, system::BondAssociatedSystem,
 
     wPKinv = volume_fraction_factor(system, i, bond_idx) * PKinv
     offset = first(each_bond_idx(system, i)) - 1
-    for k in system.intersection_bond_ids[bond_idx]
-        bond_is_active(storage, system, offset + k) || continue
-        update_add_tensor!(storage.bond_stress, k, wPKinv)
+    for bond_id in each_intersecting_bond_idx(system, i, bond_idx)
+        bond_is_active(storage, system, bond_id) || continue
+        update_add_tensor!(storage.bond_stress, bond_id - offset, wPKinv, dims(system))
     end
     return nothing
 end
@@ -230,16 +231,15 @@ const BA_MIN_SHAPE_QUALITY = 1e-3
 function calc_deformation_gradient(storage::BACStorage, system::BondAssociatedSystem,
                                    mat::BACMaterial, params::BACPointParameters, i,
                                    bond_idx)
-    (; bonds, volume, ba_hood_volume) = system
+    (; volume, ba_hood_volume) = system
     K = zero(SMatrix{3,3,Float64,9})
     _F = zero(SMatrix{3,3,Float64,9})
     intact_volume = 0.0
     for bond_id in each_intersecting_bond_idx(system, i, bond_idx)
         bond_is_active(storage, system, bond_id) || continue
-        bond = bonds[bond_id]
-        j = bond.neighbor
-        ΔXij = get_vector_diff(system.position, i, j)
-        Δxij = get_vector_diff(storage.position, i, j)
+        j = get_neighbor(system, bond_id)
+        ΔXij = get_vector_diff(system.position, i, j, dims(system))
+        Δxij = get_vector_diff(storage.position, i, j, dims(system))
         ωijV = kernel(system, bond_id) * volume[j]
         K += ωijV * (ΔXij * ΔXij')
         _F += ωijV * (Δxij * ΔXij')

@@ -62,6 +62,7 @@ function block_spec(::Type{T}) where {T}
     T <: AbstractConstitutiveParameters && return param_fields_expr(T)
     T <: AbstractDamageParameters && return param_fields_expr(T)
     T <: AbstractStorageFields && return storage_fields_expr(T)
+    T <: AbstractSystem && return storage_fields_expr(T)
     T <: AbstractStorage && return storage_fields_expr(T)
     # the nested states declare their fields the same way a storage does, so they render
     # the same table

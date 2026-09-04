@@ -80,7 +80,7 @@ end
     τ = params.λ * T.tr(ε) * T.I + 2 * params.μ * ε
     @test P ≈ F * (Uinv * τ * Uinv)
     @test state.bond_eqps[idx] == 0
-    @test all(iszero, Peridynamics.get_sym_tensor(state.bond_plastic_strain, idx))
+    @test all(iszero, Peridynamics.get_sym_tensor(state.bond_plastic_strain, idx, Val(3)))
 
     # above the yield stress the stress is returned onto the yield surface and the plastic
     # strain accumulates, isochoric
@@ -89,7 +89,7 @@ end
     P = Peridynamics.first_piola_kirchhoff(T.J2Plasticity(), storage, params, F, idx, 1e-6)
     eqps = state.bond_eqps[idx]
     @test eqps > 0
-    εp = Peridynamics.get_sym_tensor(state.bond_plastic_strain, idx)
+    εp = Peridynamics.get_sym_tensor(state.bond_plastic_strain, idx, Val(3))
     @test isapprox(T.tr(εp), 0; atol=1e-12)
     # the Kirchhoff stress that belongs to the returned P lies on the yield surface
     ε, Uinv = Peridynamics.hencky_and_invstretch(F' * F)

@@ -36,15 +36,15 @@
                                                t, Δt, i)
         params = Peridynamics.get_params(paramsetup, i)
         for bond_id in Peridynamics.each_bond_idx(system, i)
-            bond = system.bonds[bond_id]
-            j, L = bond.neighbor, bond.length
-            Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
+            j = Peridynamics.get_neighbor(system, bond_id)
+            L = Peridynamics.reference_bond_length(system, bond_id)
+            Δxij = Peridynamics.get_vector_diff(storage.position, i, j, Peridynamics.dims(system))
             l = Peridynamics.LinearAlgebra.norm(Δxij)
             ε = (l - L) / L
             b_int = storage.bond_active[bond_id] *
-                    Peridynamics.surface_correction_factor(system.correction, bond_id) *
+                    Peridynamics.surface_correction_factor(system, bond_id) *
                     params.bc * ε / l * system.volume[j] .* Δxij
-            Peridynamics.update_add_vector!(storage.b_int, i, b_int)
+            Peridynamics.update_add_vector!(storage.b_int, i, b_int, Peridynamics.dims(system))
         end
         return nothing
     end

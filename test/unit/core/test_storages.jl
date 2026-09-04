@@ -437,9 +437,11 @@ end
     end
     Peridynamics.init_field(::StaticMat, ::AbstractTimeSolver, ::AbstractSystem, ::Val{:counter}) = 0
 
-    @test !(StaticStorage isa UnionAll)
-    @test storage_type(StaticMat()) === StaticStorage
-    @test storage_type(StaticMat(), Float32) === StaticStorage
+    # the number of spatial dimensions is the one parameter every storage carries
+    @test StaticStorage isa UnionAll
+    @test storage_type(StaticMat()) === StaticStorage{3}
+    @test storage_type(StaticMat(), Float32) === StaticStorage{3}
+    @test storage_type(StaticMat(), Float64, Val(2)) === StaticStorage{2}
 
     position = zeros(3, 4)
     position[1, :] = 0.0:3.0
@@ -449,7 +451,8 @@ end
     ps = Peridynamics.get_param_spec(body)
     system = Peridynamics.BodyChunk(body, VelocityVerlet(steps=1), pd, 1, ps).system
     s = get_storage(StaticMat(), VelocityVerlet(steps=1), system)
-    @test s isa StaticStorage
+    @test s isa StaticStorage{3}
+    @test Peridynamics.get_n_dim(s) == Peridynamics.get_n_dim(system)
     @test iszero(s.tensor) && s.counter == 0
     # no `Adapt.adapt_structure` method is generated, so `adapt` passes the storage through
     @test Peridynamics.Adapt.adapt(Array, s) === s
@@ -536,4 +539,28 @@ end
     @test err isa ArgumentError
     @test contains(err.msg, "CollStorage")
     @test contains(err.msg, "Remove the flat declaration")
+end
+
+@testitem "storage_type: the nested damage state follows the dimension of the storage" begin
+    import Peridynamics: storage_type, system_type, damage_storage_type, get_n_dim,
+                         get_dmgmodel, BondSystem, InteractionSystem
+
+    # `storage_type` asks `system_type` for the system the damage state is declared for, and
+    # it asks with the same `FT` and `N` it was asked with itself, so a two-dimensional
+    # storage can never carry a three-dimensional damage state
+    for mat in (BBMaterial(), OSBMaterial(), CMaterial(), CKIMaterial())
+        S3 = storage_type(mat, Float64, Val(3))
+        S2 = storage_type(mat, Float64, Val(2))
+        @test S3.parameters[1] === 3
+        @test S2.parameters[1] === 2
+        @test fieldtype(S3, :dmg_state) ===
+              damage_storage_type(get_dmgmodel(mat), system_type(mat, Float64, Val(3)),
+                                  Float64)
+        @test fieldtype(S2, :dmg_state).parameters[1] === 2
+        @test fieldtype(S3, :dmg_state).parameters[1] === 3
+    end
+
+    # the float type reaches the nested state as well
+    S32 = storage_type(BBMaterial(), Float32, Val(2))
+    @test fieldtype(S32, :dmg_state).parameters[2] === Float32
 end

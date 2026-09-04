@@ -57,13 +57,14 @@ end
 
     # the model brought a state with the inherited bookkeeping and its own field, and the
     # storage of the material carries it concretely
-    @test Peridynamics.damage_storage_type(T.DelayedFailure(), Peridynamics.BondSystem) <:
+    @test Peridynamics.damage_storage_type(T.DelayedFailure(),
+                                          Peridynamics.system_type(mat)) <:
           Peridynamics.AbstractDamageState
     S = Peridynamics.storage_type(mat)
     @test isconcretetype(S)
     @test Peridynamics.has_damage_state(S)
     @test fieldtype(S, :dmg_state) ===
-          T.DelayedFailureState{Float64,Vector{Float64},Vector{Int},Vector{Bool}}
+          T.DelayedFailureState{3,Float64,Vector{Float64},Vector{Int},Vector{Bool}}
 
     # one entry per bond of the chunk, starting undamaged
     body = T.bar(mat; Gc=100, tau=2e-6)
@@ -102,9 +103,9 @@ end
     @test maximum(state.bond_damage[bond_ids]) ≈ 1.5 * Δt / τ
     # a bond that is not overstretched accumulates nothing
     for bond_id in bond_ids
-        bond = system.bonds[bond_id]
-        j, L = bond.neighbor, bond.length
-        ε = (Peridynamics.LinearAlgebra.norm(Peridynamics.get_vector_diff(storage.position, i, j)) - L) / L
+        j = Peridynamics.get_neighbor(system, bond_id)
+        L = Peridynamics.reference_bond_length(system, bond_id)
+        ε = (Peridynamics.LinearAlgebra.norm(Peridynamics.get_vector_diff(storage.position, i, j, Peridynamics.dims(system))) - L) / L
         ε > εc || @test state.bond_damage[bond_id] == 0
     end
 

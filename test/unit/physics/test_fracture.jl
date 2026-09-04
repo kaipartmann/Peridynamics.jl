@@ -17,7 +17,7 @@
     @test !has_storage_field(S, Val(:not_a_field))
 
     # pristine bookkeeping: every bond active, no damage
-    @test all(bond_is_active(storage, system, b) for b in eachindex(system.bonds))
+    @test all(bond_is_active(storage, system, b) for b in eachindex(system.neighbor))
     @test get_damage(storage, 1) == 0.0
 
     # the write hooks maintain the standard bookkeeping: `break_bond!` flips one flag and
@@ -153,13 +153,19 @@ end
 
     # the state of the model is the fracture bookkeeping of the system family
     BondFracState = Peridynamics.BondFracState
-    BFS = BondFracState{Float64,Vector{Float64},Vector{Int},Vector{Bool}}
-    @test damage_storage_type(dmg, Peridynamics.BondSystem) === BFS
-    @test damage_storage_type(dmg, Peridynamics.BondAssociatedSystem) === BFS
-    @test damage_storage_type(dmg, Peridynamics.BondSystem, Float32) ===
-          BondFracState{Float32,Vector{Float32},Vector{Int},Vector{Bool}}
-    @test damage_storage_type(dmg, Peridynamics.InteractionSystem) ===
-          Peridynamics.InteractionFracState{Float64,Vector{Float64},Vector{Int},
+    # the system type says how many spatial dimensions the state has
+    BS = Peridynamics.BondSystem{Peridynamics.NoCorrection,3}
+    BAS = Peridynamics.BondAssociatedSystem{3}
+    IS = Peridynamics.InteractionSystem{3}
+    BFS = BondFracState{3,Float64,Vector{Float64},Vector{Int},Vector{Bool}}
+    @test damage_storage_type(dmg, BS) === BFS
+    @test damage_storage_type(dmg, BAS) === BFS
+    @test damage_storage_type(dmg, BS, Float32) ===
+          BondFracState{3,Float32,Vector{Float32},Vector{Int},Vector{Bool}}
+    @test damage_storage_type(dmg, Peridynamics.BondSystem{Peridynamics.NoCorrection,2}) ===
+          BondFracState{2,Float64,Vector{Float64},Vector{Int},Vector{Bool}}
+    @test damage_storage_type(dmg, IS) ===
+          Peridynamics.InteractionFracState{3,Float64,Vector{Float64},Vector{Int},
                                             Vector{Bool}}
     # an unknown system family means no state
     struct HooksUnknownSystem <: Peridynamics.AbstractSystem end
@@ -220,10 +226,10 @@ end
         (; bond_exceedances) = damage_state(storage)
         storage.n_active_bonds[i] = 0
         for bond_id in each_bond_idx(system, i)
-            bond = system.bonds[bond_id]
-            j, L = bond.neighbor, bond.length
-            ε = (norm(get_vector_diff(storage.position, i, j)) - L) / L
-            if ε > εc && bond.fail_permit
+            j = Peridynamics.get_neighbor(system, bond_id)
+            L = Peridynamics.reference_bond_length(system, bond_id)
+            ε = (norm(get_vector_diff(storage.position, i, j, Peridynamics.dims(system))) - L) / L
+            if ε > εc && Peridynamics.bond_may_fail(system, bond_id)
                 bond_exceedances[bond_id] += 1
                 if bond_exceedances[bond_id] >= dmg.n_cycles
                     storage.bond_active[bond_id] = false
@@ -259,11 +265,12 @@ end
     @test FatigueState <: Peridynamics.AbstractDamageState
     @test fieldnames(FatigueState) ==
           (:damage, :n_active_bonds, :bond_active, :bond_exceedances, :bond_weight)
-    FS = FatigueState{Float64,Vector{Float64},Vector{Int},Vector{Bool}}
-    @test damage_storage_type(dmg, Peridynamics.BondSystem) === FS
-    @test damage_storage_type(dmg, Peridynamics.BondSystem, Float32) ===
-          FatigueState{Float32,Vector{Float32},Vector{Int},Vector{Bool}}
-    @test isconcretetype(damage_storage_type(dmg, Peridynamics.BondSystem))
+    BS = Peridynamics.BondSystem{Peridynamics.NoCorrection,3}
+    FS = FatigueState{3,Float64,Vector{Float64},Vector{Int},Vector{Bool}}
+    @test damage_storage_type(dmg, BS) === FS
+    @test damage_storage_type(dmg, BS, Float32) ===
+          FatigueState{3,Float32,Vector{Float32},Vector{Int},Vector{Bool}}
+    @test isconcretetype(damage_storage_type(dmg, BS))
     @test [d.name for d in storage_fields_expr(FatigueState)] ==
           [:damage, :n_active_bonds, :bond_active, :bond_exceedances, :bond_weight]
 
@@ -317,10 +324,10 @@ end
 
     # the storage stays concrete whichever model is used, and the model fills the parameter
     for (mat, DMS) in ((RKCMaterial(),
-                        Peridynamics.BondFracState{Float64,Vector{Float64},Vector{Int},
+                        Peridynamics.BondFracState{3,Float64,Vector{Float64},Vector{Int},
                                                    Vector{Bool}}),
                        (RKCMaterial(; dmgmodel=FatigueDamage()),
-                        FatigueState{Float64,Vector{Float64},Vector{Int},Vector{Bool}}))
+                        FatigueState{3,Float64,Vector{Float64},Vector{Int},Vector{Bool}}))
         S = storage_type(mat)
         @test isconcretetype(S)
         @test has_damage_state(S)
@@ -643,9 +650,8 @@ end
         (; εc) = get_params(paramsetup, i)
         storage.n_active_bonds[i] = 0
         for bond_id in each_bond_idx(system, i)
-            bond = system.bonds[bond_id]
             ε = bond_stretch(storage, system, i, bond_id)
-            if ε > εc && bond.fail_permit
+            if ε > εc && Peridynamics.bond_may_fail(system, bond_id)
                 storage.bond_active[bond_id] = false
             end
             storage.n_active_bonds[i] += storage.bond_active[bond_id]
@@ -714,7 +720,7 @@ end
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     (; storage, system) = dh.chunks[1]
     @test isnothing(Peridynamics.damage_state(storage))
-    @test all(bond_is_active(storage, system, b) for b in eachindex(system.bonds))
+    @test all(bond_is_active(storage, system, b) for b in eachindex(system.neighbor))
     @test get_damage(storage, 1) == 0.0
     Peridynamics.calc_force_density!(dh.chunks[1], 0.0, 1e-7)
     @test !any(isnan, storage.b_int)

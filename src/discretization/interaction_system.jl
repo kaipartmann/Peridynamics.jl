@@ -46,81 +46,72 @@ $(extension_api_note())
 A peridynamic system type that is mainly designed for continuum-kinematics-inspired
 peridynamics [Javili2019](@cite).
 
+Its one-neighbor interactions are the bonds of the shared bond API, so `neighbor`,
+`bond_length`, `fail_permit`, `n_neighbors` and `bond_ids` describe them and
+[`each_bond_idx`](@ref), [`get_neighbor`](@ref) and [`reference_bond_length`](@ref) read
+them. `each_one_ni_idx` and `get_n_one_nis` are the names of the same two functions in the
+vocabulary of this system.
+
+`two_nis` and `three_nis` hold the two- and three-neighbor interactions, `n_two_nis` and
+`n_three_nis` their number per point, `two_ni_idxs` and `three_ni_idxs` the range of each
+point in those vectors, and the three `volume_*_nis` their effective volumes.
+
 # Fields
 
-- `position::Matrix{Float64}`: Positions of all points of the system.
-- `one_nis::Vector{Bond}`: Vector containing all one-neighbor interactions (bonds) of the
-    system.
-- `two_nis::Vector{TwoNeighborInteraction}`: Vector containing all two-neighbor
-    interactions of the system.
-- `three_nis::Vector{ThreeNeighborInteraction}`: Vector containing all three-neighbor
-    interactions of the system.
-- `volume::Vector{Float64}`: Volumes of the points of the system.
-- `volume_one_nis::Vector{Float64}`: Effective volumes of one-neighbor interactions.
-- `volume_two_nis::Vector{Float64}`: Effective volumes of two-neighbor interactions.
-- `volume_three_nis::Vector{Float64}`: Effective volumes of three-neighbor interactions.
-- `n_one_nis::Vector{Int}`: Number of one-neighbor interactions for each point of the
-    system.
-- `n_two_nis::Vector{Int}`: Number of two-neighbor interactions for each point of the
-    system.
-- `n_three_nis::Vector{Int}`: Number of three-neighbor interactions for each point of the
-    system.
-- `one_ni_idxs::Vector{UnitRange{Int}}`: Range of the one-neighbor interactions vector
-    containing interactions of considered point.
-- `two_ni_idxs::Vector{UnitRange{Int}}`: Range of the two-neighbor interactions vector
-    containing interactions of considered point.
-- `three_ni_idxs::Vector{UnitRange{Int}}`: Range of the three-neighbor interactions vector
-    containing interactions of considered point.
-- `chunk_handler::ChunkHandler`: Type to handle the chunks for the simulation.
-    See [`ChunkHandler`](@ref).
+$(block_table(InteractionSystem))
+
 """
-struct InteractionSystem <: AbstractSystem
-    position::Matrix{Float64}
-    one_nis::Vector{Bond}
+@system struct InteractionSystem <: AbstractSystem
+    position::PointVector{Float64}
+    volume::PointScalar
+    neighbor::BondScalar{Int}
+    bond_length::BondScalar
+    fail_permit::BondScalar{Bool}
+    n_neighbors::PointScalar{Int}
+    bond_ids::PointScalar{UnitRange{Int}}
     two_nis::Vector{TwoNeighborInteraction}
     three_nis::Vector{ThreeNeighborInteraction}
-    volume::Vector{Float64}
-    volume_one_nis::Vector{Float64}
-    volume_two_nis::Vector{Float64}
-    volume_three_nis::Vector{Float64}
-    n_one_nis::Vector{Int}
-    n_two_nis::Vector{Int}
-    n_three_nis::Vector{Int}
-    one_ni_idxs::Vector{UnitRange{Int}}
-    two_ni_idxs::Vector{UnitRange{Int}}
-    three_ni_idxs::Vector{UnitRange{Int}}
-    chunk_handler::ChunkHandler
+    volume_one_nis::PointScalar
+    volume_two_nis::PointScalar
+    volume_three_nis::PointScalar
+    n_two_nis::PointScalar{Int}
+    n_three_nis::PointScalar{Int}
+    two_ni_idxs::PointScalar{UnitRange{Int}}
+    three_ni_idxs::PointScalar{UnitRange{Int}}
 end
 
 function InteractionSystem(body::AbstractBody, pd::PointDecomposition, chunk_id::Int)
-    check_interaction_system_compat(body.mat)
+    check_system_compat(InteractionSystem, body.mat)
     loc_points = pd.decomp[chunk_id]
-    bonds, n_one_nis, one_ni_idxs, chunk_handler = get_bond_data(body, pd, chunk_id)
-    volume_one_nis = zeros(length(n_one_nis))
+    neighbor, bond_length, fail_permit, n_neighbors, bond_ids, chunk_handler = get_bond_data(body, pd, chunk_id)
+    position, volume = get_pos_and_vol_chunk(body, chunk_handler.point_ids)
+    N, FT = size(position, 1), default_float_type()
+    sizes = SystemSizes{N,FT}(chunk_handler, length(neighbor))
+    volume_one_nis = alloc_field(PointScalar(), sizes, LocalPoints())
     if has_two_nis(body)
-        two_nis, n_two_nis, two_ni_idxs = find_two_nis(body, loc_points, bonds, one_ni_idxs)
-        volume_two_nis = zeros(length(n_two_nis))
+        two_nis, n_two_nis, two_ni_idxs = find_two_nis(body, loc_points, neighbor, bond_ids)
+        volume_two_nis = alloc_field(PointScalar(), sizes, LocalPoints())
     else
         two_nis = Vector{TwoNeighborInteraction}()
-        n_two_nis = Vector{Float64}()
-        volume_two_nis = Vector{Float64}()
+        n_two_nis = Vector{Int}()
+        volume_two_nis = Vector{FT}()
         two_ni_idxs = Vector{UnitRange{Int}}()
     end
     if has_three_nis(body)
-        three_nis, n_three_nis, three_ni_idxs = find_three_nis(body, loc_points, bonds,
-                                                               one_ni_idxs)
-        volume_three_nis = zeros(length(n_three_nis))
+        three_nis, n_three_nis, three_ni_idxs = find_three_nis(body, loc_points, neighbor,
+                                                               bond_ids)
+        volume_three_nis = alloc_field(PointScalar(), sizes, LocalPoints())
     else
         three_nis = Vector{ThreeNeighborInteraction}()
-        n_three_nis = Vector{Float64}()
-        volume_three_nis = Vector{Float64}()
+        n_three_nis = Vector{Int}()
+        volume_three_nis = Vector{FT}()
         three_ni_idxs = Vector{UnitRange{Int}}()
     end
-    position, volume = get_pos_and_vol_chunk(body, chunk_handler.point_ids)
-    system = InteractionSystem(position, bonds, two_nis, three_nis, volume, volume_one_nis,
-                               volume_two_nis, volume_three_nis, n_one_nis, n_two_nis,
-                               n_three_nis, one_ni_idxs, two_ni_idxs, three_ni_idxs,
-                               chunk_handler)
+    system = InteractionSystem{N,FT}(position, volume, neighbor, bond_length, fail_permit,
+                                     n_neighbors, bond_ids, two_nis, three_nis,
+                                     volume_one_nis, volume_two_nis, volume_three_nis,
+                                     n_two_nis, n_three_nis, two_ni_idxs, three_ni_idxs,
+                                     chunk_handler)
     return system
 end
 
@@ -129,17 +120,21 @@ function get_system(body::AbstractBody{Material}, pd::PointDecomposition,
     return InteractionSystem(body, pd, chunk_id)
 end
 
-@inline function system_type(::AbstractInteractionSystemMaterial)
-    return InteractionSystem
+@inline function system_type(::AbstractInteractionSystemMaterial,
+                             ::Type{FT}=default_float_type(),
+                             ::Val{N}=Val(3)) where {FT,N}
+    return host_system_type(InteractionSystem, Val(N), FT)
 end
 
-function check_interaction_system_compat(::M) where {M<:AbstractMaterial}
+function check_system_compat(::Type{S},
+                             ::M) where {S<:InteractionSystem,M<:AbstractMaterial}
     msg = "body with material `$(M)` incompatible to `InteractionSystem`!\n"
     msg *= "The material has to be a subtype of `AbstractInteractionSystemMaterial`!\n"
     return throw(ArgumentError(msg))
 end
 
-function check_interaction_system_compat(::AbstractInteractionSystemMaterial)
+function check_system_compat(::Type{<:InteractionSystem},
+                             ::AbstractInteractionSystemMaterial)
     return nothing
 end
 
@@ -160,7 +155,7 @@ function has_two_nis(body::AbstractBody)
     return false
 end
 
-@inline function has_two_nis(chunk::AbstractBodyChunk{InteractionSystem})
+@inline function has_two_nis(chunk::AbstractBodyChunk{<:InteractionSystem})
     return has_two_nis(chunk.paramsetup)
 end
 
@@ -188,7 +183,7 @@ function has_three_nis(body::AbstractBody)
     return false
 end
 
-@inline function has_three_nis(chunk::AbstractBodyChunk{InteractionSystem})
+@inline function has_three_nis(chunk::AbstractBodyChunk{<:InteractionSystem})
     return has_three_nis(chunk.paramsetup)
 end
 
@@ -209,10 +204,10 @@ end
     return false
 end
 
-function find_two_nis(body, loc_points, bonds, bond_ids)
+function find_two_nis(body, loc_points, neighbor, bond_ids)
     two_nis = Vector{TwoNeighborInteraction}()
     sizehint!(two_nis, n_points(body) * 1000)
-    n_two_nis = zeros(length(loc_points))
+    n_two_nis = zeros(Int, length(loc_points))
     two_ni_idxs = fill(0:-1, length(loc_points))
     two_ni_idx_start, two_ni_idx_end = 1, 0
     position = body.position
@@ -221,7 +216,7 @@ function find_two_nis(body, loc_points, bonds, bond_ids)
         δ = get_point_param(body, :δ, i)
         jk_seen = Set{Tuple{Int,Int}}()
         for oni_j in bond_ids[li], oni_k in bond_ids[li]
-            j, k = bonds[oni_j].neighbor, bonds[oni_k].neighbor
+            j, k = neighbor[oni_j], neighbor[oni_k]
             if k !== j && !in((j, k), jk_seen)
                 Ξijx = position[1, j] - position[1, i]
                 Ξijy = position[2, j] - position[2, i]
@@ -255,10 +250,10 @@ end
                 (ξijx * ξiky - ξijy * ξikx)^2)
 end
 
-function find_three_nis(body, loc_points, bonds, bond_ids)
+function find_three_nis(body, loc_points, neighbor, bond_ids)
     three_nis = Vector{ThreeNeighborInteraction}()
     sizehint!(three_nis, n_points(body) * 1000)
-    n_three_nis = zeros(length(loc_points))
+    n_three_nis = zeros(Int, length(loc_points))
     three_ni_idxs = fill(0:-1, length(loc_points))
     three_ni_idx_start, three_ni_idx_end = 1, 0
     position = body.position
@@ -267,9 +262,9 @@ function find_three_nis(body, loc_points, bonds, bond_ids)
         δ = get_point_param(body, :δ, i)
         jkl_seen = Set{Tuple{Int,Int,Int}}()
         for oni_j in bond_ids[li], oni_k in bond_ids[li], oni_l in bond_ids[li]
-            j = bonds[oni_j].neighbor
-            k = bonds[oni_k].neighbor
-            l = bonds[oni_l].neighbor
+            j = neighbor[oni_j]
+            k = neighbor[oni_k]
+            l = neighbor[oni_l]
             if k !== j && l !== j && l !== k && !in((j, k, l), jkl_seen)
                 Ξijx = position[1, j] - position[1, i]
                 Ξijy = position[2, j] - position[2, i]
@@ -316,39 +311,24 @@ function find_three_nis(body, loc_points, bonds, bond_ids)
     return three_nis, n_three_nis, three_ni_idxs
 end
 
-@inline each_one_ni_idx(is::InteractionSystem, point_id::Int) = is.one_ni_idxs[point_id]
-@inline each_bond_idx(is::InteractionSystem, point_id::Int) = each_one_ni_idx(is, point_id)
-
-# The bond kinematics of the interaction system, so that a damage model reads the length and
-# the stretch of a one-neighbor interaction with the same two functions it uses on a bond
-# system. No material of this system caches lengths and no loop of this system fills such a
-# cache, so a storage field named `bond_length` must not be trusted here and the distance is
-# always computed.
-@inline function current_bond_length(storage::AbstractStorage, system::InteractionSystem, i,
-                                     bond_id)
-    j = @inbounds system.one_nis[bond_id].neighbor
-    return norm(get_vector_diff(storage.position, i, j))
-end
-
-@inline function bond_stretch(storage::AbstractStorage, system::InteractionSystem, i, bond_id)
-    L = @inbounds system.one_nis[bond_id].length
-    return (current_bond_length(storage, system, i, bond_id) - L) / L
-end
-
-# Nothing to fill, but a damage model that is unit tested outside of `calc_force_density!`
-# calls this before the criterion on every system, and so does a custom entry point that
-# walks the interactions itself.
-@inline update_bond_lengths!(::AbstractStorage, ::InteractionSystem, i) = nothing
+# `each_one_ni_idx` and `get_n_one_nis` are the interaction-system names of the shared bond
+# accessors `each_bond_idx` and `get_n_bonds`, kept as aliases because the one-neighbor
+# interactions of this system are addressed as one-neighbor interactions in its own API and
+# as bonds by the shared kinematics of `current_bond_length`, `bond_stretch` and
+# `update_bond_lengths!`. No material of this system inherits `BondLengthCache`, so those
+# shared methods always compute the distance here, exactly as the dedicated methods used to.
+@inline each_one_ni_idx(is::InteractionSystem, point_id::Int) = each_bond_idx(is, point_id)
+@inline get_n_one_nis(is::InteractionSystem) = get_n_bonds(is)
 
 @inline each_two_ni_idx(is::InteractionSystem, point_id::Int) = is.two_ni_idxs[point_id]
 @inline each_three_ni_idx(is::InteractionSystem, point_id::Int) = is.three_ni_idxs[point_id]
 
-function initialize!(chunk::AbstractBodyChunk{InteractionSystem})
+function initialize!(chunk::AbstractBodyChunk{<:InteractionSystem})
     update_volumes!(chunk)
     return nothing
 end
 
-function update_volumes!(chunk::AbstractBodyChunk{InteractionSystem})
+function update_volumes!(chunk::AbstractBodyChunk{<:InteractionSystem})
     volume_hood = get_neighborhood_volume(chunk)
     update_volume_one_nis!(chunk.system, volume_hood)
     has_two_nis(chunk) && update_volume_two_nis!(chunk.system, volume_hood)
@@ -356,7 +336,7 @@ function update_volumes!(chunk::AbstractBodyChunk{InteractionSystem})
     return nothing
 end
 
-@inline function get_neighborhood_volume(chunk::AbstractBodyChunk{InteractionSystem})
+@inline function get_neighborhood_volume(chunk::AbstractBodyChunk{<:InteractionSystem})
     system = chunk.system
     δ = [get_params(chunk, i).δ for i in each_point_idx(chunk)]
     full_volume_hoods = 4 / 3 * π .* δ .^ 3
@@ -364,8 +344,7 @@ end
     for i in each_point_idx(chunk)
         volume_hood_point = system.volume[i]
         for bond_id in each_one_ni_idx(system, i)
-            one_ni = system.one_nis[bond_id]
-            j = one_ni.neighbor
+            j = get_neighbor(system, bond_id)
             volume_hood_point += system.volume[j]
         end
         discrete_volume_hoods[i] = volume_hood_point
@@ -376,8 +355,8 @@ end
 end
 
 function update_volume_one_nis!(system, volume_hood)
-    (; volume_one_nis, n_one_nis) = system
-    for (i, n) in enumerate(n_one_nis)
+    (; volume_one_nis, n_neighbors) = system
+    for (i, n) in enumerate(n_neighbors)
         if n > 0
             volume_one_nis[i] = volume_hood[i] / n
         end
@@ -409,8 +388,9 @@ function calc_timestep_point(system::InteractionSystem, params::AbstractPointPar
                              point_id::Int)
     dtsum = 0.0
     for bond_id in each_one_ni_idx(system, point_id)
-        one_ni = system.one_nis[bond_id]
-        dtsum += system.volume[one_ni.neighbor] * params.C1 / one_ni.length
+        j = get_neighbor(system, bond_id)
+        L = reference_bond_length(system, bond_id)
+        dtsum += system.volume[j] * params.C1 / L
     end
     return sqrt(2 * params.rho / dtsum)
 end
@@ -469,8 +449,8 @@ function calc_n_interactions(dh::AbstractThreadsBodyDataHandler)
     n_two_nis = 0
     n_three_nis = 0
     for chunk in dh.chunks
-        (; one_nis, two_nis, three_nis) = chunk.system
-        n_one_nis += length(one_nis)
+        (; two_nis, three_nis) = chunk.system
+        n_one_nis += get_n_one_nis(chunk.system)
         n_two_nis += length(two_nis)
         n_three_nis += length(three_nis)
     end
@@ -478,7 +458,7 @@ function calc_n_interactions(dh::AbstractThreadsBodyDataHandler)
 end
 
 function calc_n_interactions(dh::AbstractMPIBodyDataHandler)
-    n_one_nis = MPI.Reduce(length(dh.chunk.system.one_nis), MPI.SUM, mpi_comm())
+    n_one_nis = MPI.Reduce(get_n_one_nis(dh.chunk.system), MPI.SUM, mpi_comm())
     n_two_nis = MPI.Reduce(length(dh.chunk.system.two_nis), MPI.SUM, mpi_comm())
     n_three_nis = MPI.Reduce(length(dh.chunk.system.three_nis), MPI.SUM, mpi_comm())
     return n_one_nis, n_two_nis, n_three_nis
@@ -488,7 +468,7 @@ end
 # a damage state and as a flat storage field alike; `one_ni_active` and `damage` need no
 # hook, their initial values follow from the declarations of `InteractionFracFields`
 function init_field_system(system::InteractionSystem, ::Val{:n_active_one_nis})
-    return copy(system.n_one_nis)
+    return copy(system.n_neighbors)
 end
 
 function required_point_parameters(::Type{<:AbstractInteractionSystemMaterial})
@@ -514,12 +494,6 @@ function get_interaction_parameters(mat::AbstractInteractionSystemMaterial, para
 
     return (; C1=_C1, C2=_C2, C3=_C3)
 end
-
-@inline get_n_one_nis(system::InteractionSystem) = length(system.one_nis)
-
-# the bond-shaped fields of an interaction system are the one-neighbor interactions, so
-# `BondScalar` and its siblings allocate with one entry per one-neighbor interaction
-@inline get_n_bonds(system::InteractionSystem) = get_n_one_nis(system)
 
 function log_material_property(::Val{:dmgmodel}, mat::AbstractInteractionSystemMaterial;
                                indentation::Int=2)
