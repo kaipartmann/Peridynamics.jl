@@ -148,7 +148,7 @@ end
 """
     monomial(mat::AbstractRKCMaterial)
 
-$(extension_api_note())
+$(internal_api_warning())
 
 The symbol of the monomial basis of a material of the reproducing kernel correspondence
 family (`:C1`, `:RK1`, `:RK2` or `:PD2`). It is the last type parameter of the material, so
@@ -399,7 +399,7 @@ end
 """
     rkc_weights!(storage, system, mat, params, t, Δt, i)
 
-$(extension_api_note())
+$(internal_api_warning())
 
 Computes the weighted volume and the gradient weights `Φ` of every bond of point `i` from the
 moment matrix of its family. The monomial basis is the type parameter of `mat`, see

@@ -42,7 +42,7 @@ julia> Body(BBMaterial(), rand(3, 10), rand(10))
 
 ---
 
-!!! warning "Internal use only"
+!!! warning "Fields are internal"
     Please note that the fields are intended for internal use only. They are *not* part of
     the public API of Peridynamics.jl, and thus can be altered (or removed) at any time
     without it being considered a breaking change.

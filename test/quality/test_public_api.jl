@@ -130,6 +130,34 @@ end
     end
 end
 
+@testitem "public API: every docstring carries the marker of its tier" tags=[:lint] begin
+    # the rendered docstring is where a reader learns the tier of a name, so the marker has
+    # to follow the declaration in `src/public_api.jl`. A name demoted or promoted without
+    # touching its docstring would otherwise promise the wrong thing.
+    if VERSION >= v"1.11"
+        public_marker = "!!! note \"Extension API\""
+        internal_marker = "!!! warning \"Internal use only\""
+        for (binding, multidoc) in Base.Docs.meta(Peridynamics)
+            # a docstring added here to a function of another module is not a name of ours
+            binding.mod === Peridynamics || continue
+            name = binding.var
+            text = join((join(string.(doc.text)) for doc in values(multidoc.docs)), "\n")
+            @testset "$name" begin
+                if Base.isexported(Peridynamics, name)
+                    @test !occursin(public_marker, text)
+                    @test !occursin(internal_marker, text)
+                elseif Base.ispublic(Peridynamics, name)
+                    @test occursin(public_marker, text)
+                    @test !occursin(internal_marker, text)
+                else
+                    @test occursin(internal_marker, text)
+                    @test !occursin(public_marker, text)
+                end
+            end
+        end
+    end
+end
+
 @testitem "public API: the tiers do not overlap" tags=[:lint] setup=[APISnapshot] begin
     @test isempty(intersect(APISnapshot.EXPORTED, APISnapshot.PUBLIC))
     # a public name is reachable as `Peridynamics.<name>` but must not leak into scope
