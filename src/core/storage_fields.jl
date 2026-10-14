@@ -26,7 +26,7 @@ material family whose contract they express.
 """
     LocalPoints
 
-$(extension_api_note())
+$(internal_api_warning())
 
 Marker for fields that have one entry per local point of a chunk. This is the extent of
 every field that is not annotated for halo exchange.
@@ -36,7 +36,7 @@ struct LocalPoints end
 """
     HaloPoints
 
-$(extension_api_note())
+$(internal_api_warning())
 
 Marker for fields that have one entry per local *and* halo point of a chunk. This is the
 extent of every field annotated with [`@lth`](@ref) or [`@htl`](@ref), because
@@ -51,7 +51,7 @@ struct HaloPoints end
 """
     SimFloat
 
-$(extension_api_note())
+$(internal_api_warning())
 
 Placeholder element type of a field shape that is written without one, e.g. `PointVector`
 instead of `PointVector{Float64}`. It is resolved to `float_type(system)` when the field is
@@ -487,7 +487,7 @@ leaves the allocation to the field shape the storage declared, see `init_field`.
     FullField()
     FullField(extent)
 
-$(extension_api_note())
+$(internal_api_warning())
 
 The answer of a time solver that needs a storage field: allocate it from its field shape.
 Without an argument the field gets the extent it is declared with, which is
@@ -505,7 +505,7 @@ FullField() = FullField(nothing)
 """
     EmptyField()
 
-$(extension_api_note())
+$(internal_api_warning())
 
 The answer of a time solver that does not need a storage field: allocate it as the
 zero-sized array of the type it has in the storage, see [`alloc_empty_field`](@ref).

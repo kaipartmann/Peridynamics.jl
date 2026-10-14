@@ -20,8 +20,7 @@ Depth = 2:2
 ## Declaration macros
 
 The parts of a material are declared, not written by hand.
-See [Point parameters](@ref), [Storages](@ref) and [Systems](@ref) for the declaration
-language.
+See [Point parameters](@ref) and [Storages](@ref) for the declaration language.
 
 ```@docs
 Peridynamics.@params
@@ -32,7 +31,6 @@ Peridynamics.@storage
 Peridynamics.@storage_fields
 Peridynamics.@cm_storage
 Peridynamics.@dmg_storage
-Peridynamics.@system
 ```
 
 These are recognized inside the body of the macros above and are never called on their own:
@@ -65,14 +63,12 @@ Peridynamics.BondField
 Peridynamics.DofVector
 ```
 
-## Field shape modifiers and markers
+## Model markers
+
+The fields that give the state and the parameters of a constitutive or a damage model a place
+in a storage and in a set of point parameters.
 
 ```@docs
-Peridynamics.SimFloat
-Peridynamics.LocalPoints
-Peridynamics.HaloPoints
-Peridynamics.FullField
-Peridynamics.EmptyField
 Peridynamics.ConstitutiveState
 Peridynamics.DamageState
 Peridynamics.ConstitutiveParameters
@@ -191,16 +187,7 @@ Peridynamics.BondSystem
 Peridynamics.InteractionSystem
 ```
 
-The rest of the system interface, which is internal beyond the two types above:
-
-```@docs
-Peridynamics.system_type
-Peridynamics.check_system_compat
-Peridynamics.SystemSizes
-Peridynamics.host_system_type
-Peridynamics.max_n_chunks
-Peridynamics.first_chunk
-```
+Writing a new system is internal, see [Systems](@ref).
 
 ## The material interface
 

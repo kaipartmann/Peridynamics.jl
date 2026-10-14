@@ -382,6 +382,8 @@ Supertype of every system. A system is the discretization of a body chunk: the p
 volumes and their neighborhood relations. It is created once during setup and never changes.
 
 [`BondSystem`](@ref) and [`InteractionSystem`](@ref) are the systems of this package.
+Writing a new one is an internal interface at the moment and is not covered by the extension
+API.
 """
 abstract type AbstractSystem end
 

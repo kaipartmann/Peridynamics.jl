@@ -61,9 +61,11 @@ Some things are documented but internal on purpose, because they are expected to
 - **The parallelization layer**: the data handlers, the chunk handler, the body chunk and
   the halo exchange. This is what makes multithreading and MPI work without you doing
   anything, and it has to stay free to change for a GPU backend.
-- **The time solver and system interfaces.** Writing a new time solver or a new system is
-  possible, but those interfaces are not settled yet and will be stabilized in a later
-  release.
+- **The time solver and system interfaces**, e.g. `@system`, `system_type` and
+  `max_n_chunks`, and with them the field extents `LocalPoints` and `HaloPoints` and the
+  answers `FullField` and `EmptyField` of a time solver. Writing a new time solver or a new
+  system is possible, but those interfaces are not settled yet and will be stabilized in a
+  later release.
 
 If you find yourself needing one of these, please open an issue. Adding a name to the
 extension API is not a breaking change, so it can be done in a patch release. Removing one

@@ -24,7 +24,9 @@
 #  `rkc_stress_integral!`, `monomial`, ...), everything that `@storage` and `@params`
 #  generate for you (`allowed_material_kwargs`, `req_storage_fields`, `point_param_type`,
 #  ...), all macro expansion machinery, the whole parallelization layer, and the solver and
-#  system extension paths.
+#  system extension paths (`@system`, `system_type`, `SystemSizes`, `max_n_chunks`, ...)
+#  together with the field extents and the answers of a time solver (`LocalPoints`,
+#  `HaloPoints`, `FullField`, `EmptyField`, `SimFloat`).
 #
 #  Adding a name here is not breaking, removing one is. Start narrow, grow on demand.
 #  `test/quality/test_public_api.jl` holds a snapshot of this list, so nothing is promoted
@@ -43,8 +45,8 @@ public PointScalar, PointVector, PointTensor, PointSymTensor, PointField
 public BondScalar, BondVector, BondTensor, BondSymTensor, BondField
 public DofVector
 
-# Field shape modifiers and the markers of a storage and a point parameter definition.
-public SimFloat, LocalPoints, HaloPoints, FullField, EmptyField
+# The markers that give the state and the parameters of a constitutive or a damage model a
+# place in a storage and in a point parameter definition.
 public ConstitutiveState, DamageState
 public ConstitutiveParameters, DamageParameters
 
@@ -81,13 +83,8 @@ public AbstractDamageModel, AbstractDamageState
 public AbstractStorage, AbstractPointParameters, AbstractParameterSetup
 public AbstractSystem, AbstractBondSystem, AbstractTimeSolver
 
-# The systems a material is dispatched on, and what it takes to write one: the declaration
-# macros, the sizes a constructor allocates against and the two functions that say which
-# system a material gets and which materials a system accepts.
+# The systems a material dispatches on. Writing a new system is internal, see above.
 public BondSystem, InteractionSystem
-public @system
-public SystemSizes, system_type, host_system_type, check_system_compat
-public max_n_chunks, first_chunk
 
 # The errors the interfaces throw. Catch them in tests, or throw them from your own
 # interface.

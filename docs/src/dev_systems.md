@@ -8,9 +8,9 @@ which is what separates it from the storage.
     [`BondSystem`](@ref Peridynamics.BondSystem) and
     [`InteractionSystem`](@ref Peridynamics.InteractionSystem) are part of the
     [Extension API](@ref), because a material has to dispatch on them. The interface for
-    adding a new system is not. The names in the last sections can change in any release.
-    It will be stabilized in a later release, so if you are writing one, please open an
-    issue.
+    adding a new system is not. Everything from [The system contract](@ref) on is internal
+    and can change in any release. It will be stabilized in a later release, so if you are
+    writing a system, please open an issue.
 
 ## The systems of this package
 

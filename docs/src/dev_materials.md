@@ -33,7 +33,6 @@ the lookup table.
 | a field of your own in the VTK output | [`custom_field(::Type{<:MyStorage}, ::Val{:name})`](@ref Peridynamics.custom_field) and [`export_field(::Val{:name}, mat, system, storage, paramsetup, t)`](@ref Peridynamics.export_field) | only for a derived quantity | every point field of the storage is exported as it is |
 | another micro-modulus | [`critical_stretch(dmgmodel, mat, δ, K, Gc)`](@ref Peridynamics.critical_stretch) and [`energy_release_rate(dmgmodel, mat, δ, K, εc)`](@ref Peridynamics.energy_release_rate), always both | only with a non-constant micro-modulus | the relation of the constant micro-modulus |
 | that the force path softens bonds | [`supports_bond_integrity(mat)`](@ref Peridynamics.supports_bond_integrity), [`supports_kinematic_weight(mat)`](@ref Peridynamics.supports_kinematic_weight) | no | `false` |
-| that the system cannot be decomposed | [`max_n_chunks(mat)`](@ref Peridynamics.max_n_chunks) | no | `typemax(Int)` |
 
 The supertype is what says which system a material is discretized on:
 
