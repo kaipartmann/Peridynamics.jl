@@ -1,5 +1,10 @@
 # Public API
 
+Everything on this page is exported, so `using Peridynamics` brings it into scope. This is
+the API a simulation script is written with. See [API stability](@ref) for what that
+promises, and the [Extension API](@ref) for the names needed to add a material or a model of
+your own.
+
 ```@meta
 CollapsedDocStrings = true
 ```

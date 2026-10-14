@@ -65,3 +65,27 @@ end
     @test b_int[:,4] ≈ [2.2486557523099208e8, 1.543065203537848e8, -7.794353024117153e8]
     @test b_int[:,5] ≈ [0.0, 0.0, 0.0]
 end
+
+@testitem "standard_break_bond! / standard_break_bonds!: the InteractionSystem path" setup=[Fixtures] begin
+    import Peridynamics: break_bond!, break_bonds!, each_one_ni_idx, bond_is_active
+
+    body = Fixtures.cube(CKIMaterial(); n=4, m=2.015)
+    chunk = Fixtures.chunk(body)
+    (; storage, system, mat) = chunk
+    dmg = Peridynamics.get_dmgmodel(mat)
+
+    @test all(storage.one_ni_active)
+
+    # breaking one one-neighbor interaction of point 1 flips only that flag
+    one_ni_id = first(each_one_ni_idx(system, 1))
+    break_bond!(storage, system, dmg, 1, one_ni_id)
+    @test storage.one_ni_active[one_ni_id] == false
+    @test bond_is_active(storage, system, one_ni_id) == false
+    @test count(!, storage.one_ni_active) == 1
+
+    # breaking all one-neighbor interactions of another point kills the whole point
+    i = 2
+    break_bonds!(storage, system, dmg, i)
+    @test all(!bond_is_active(storage, system, id) for id in each_one_ni_idx(system, i))
+    @test storage.n_active_one_nis[i] == 0
+end

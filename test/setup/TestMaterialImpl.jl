@@ -1,7 +1,7 @@
 # A minimal custom material that implements only the documented material interface: a material
 # struct, a point parameter struct registered with `@params`, a storage registered with
-# `@storage` (inheriting the field blocks of the solvers and the system, with `b_int`
-# accumulated into the halo) and `force_density_point!`. It is the fixture for the
+# `@storage` (inheriting the field blocks of the solvers, carrying the damage state and
+# accumulating `b_int` into the halo) and `force_density_point!`. It is the fixture for the
 # interface conformance tests in `test/materials/test_material_interface.jl`.
 #
 # This is a `@testmodule` of its own (and not part of `Fixtures`) because it defines types and
@@ -25,23 +25,26 @@
     end
 
     Peridynamics.@storage TestMaterial struct TestStorage <: Peridynamics.AbstractStorage
-        @inherit VelocityVerletFields DynamicRelaxationFields BondFracFields
+        @inherit VelocityVerletFields DynamicRelaxationFields
         @htl b_int::PointVector
+        dmg_state::DamageState
     end
 
     function Peridynamics.force_density_point!(storage::TestStorage,
                                                system::Peridynamics.BondSystem, ::TestMaterial,
-                                               params::TestPointParameters, t, Δt, i)
+                                               paramsetup::Peridynamics.AbstractParameterSetup,
+                                               t, Δt, i)
+        params = Peridynamics.get_params(paramsetup, i)
         for bond_id in Peridynamics.each_bond_idx(system, i)
-            bond = system.bonds[bond_id]
-            j, L = bond.neighbor, bond.length
-            Δxij = Peridynamics.get_vector_diff(storage.position, i, j)
+            j = Peridynamics.get_neighbor(system, bond_id)
+            L = Peridynamics.reference_bond_length(system, bond_id)
+            Δxij = Peridynamics.get_vector_diff(storage.position, i, j, Peridynamics.dims(system))
             l = Peridynamics.LinearAlgebra.norm(Δxij)
             ε = (l - L) / L
             b_int = storage.bond_active[bond_id] *
-                    Peridynamics.surface_correction_factor(system.correction, bond_id) *
+                    Peridynamics.surface_correction_factor(system, bond_id) *
                     params.bc * ε / l * system.volume[j] .* Δxij
-            Peridynamics.update_add_vector!(storage.b_int, i, b_int)
+            Peridynamics.update_add_vector!(storage.b_int, i, b_int, Peridynamics.dims(system))
         end
         return nothing
     end

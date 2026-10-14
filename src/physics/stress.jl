@@ -121,13 +121,13 @@ function first_piola_kirchhoff(σ, F)
     return P
 end
 
-function init_stress_rotation!(storage::AbstractStorage, F, Ḟ, Δt, i)
+function init_stress_rotation!(storage::AbstractStorage, F, Ḟ, Δt, i)
     # inverse of the deformation gradient
     F⁻¹ = inv(F)
     if containsnan(F⁻¹)
         OTensor = zero(SMatrix{3,3,Float64,9})
-        update_tensor!(storage.rotation, i, OTensor)
-        update_tensor!(storage.left_stretch, i, OTensor)
+        update_tensor!(storage.rotation, i, OTensor, dims(storage))
+        update_tensor!(storage.left_stretch, i, OTensor, dims(storage))
         return OTensor
     end
 
@@ -141,7 +141,7 @@ function init_stress_rotation!(storage::AbstractStorage, F, Ḟ, Δt, i)
     W = 0.5 .* (L - L')
 
     # left stretch V
-    V = get_tensor(storage.left_stretch, i)
+    V = get_tensor(storage.left_stretch, i, dims(storage))
 
     # vector z [FT87, eq. (13)]
     z_x = - V[1,3] * D[2,1] - V[2,3] * D[2,2] -
@@ -180,7 +180,7 @@ function init_stress_rotation!(storage::AbstractStorage, F, Ḟ, Δt, i)
     end
 
     # compute Rotation of new step [FT87, eq. (36)]
-    R = get_tensor(storage.rotation, i)
+    R = get_tensor(storage.rotation, i, dims(storage))
     Rₙ₊₁ = Q * R
 
     # compute step 4 of [FT87]
@@ -193,13 +193,13 @@ function init_stress_rotation!(storage::AbstractStorage, F, Ḟ, Δt, i)
     Dᵣ = Rₙ₊₁' * D * Rₙ₊₁
 
     # update rotation and left stretch
-    update_tensor!(storage.rotation, i, Rₙ₊₁)
-    update_tensor!(storage.left_stretch, i, Vₙ₊₁)
+    update_tensor!(storage.rotation, i, Rₙ₊₁, dims(storage))
+    update_tensor!(storage.left_stretch, i, Vₙ₊₁, dims(storage))
     return Dᵣ
 end
 
 function rotate_stress(storage::AbstractStorage, σ, i)
-    R = get_tensor(storage.rotation, i)
+    R = get_tensor(storage.rotation, i, dims(storage))
     T = R * σ * R'
     return T
 end

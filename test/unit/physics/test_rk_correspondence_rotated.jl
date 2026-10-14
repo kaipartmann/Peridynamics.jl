@@ -50,18 +50,19 @@ end
     body = Body(RKCRMaterial(), pos, vol)
     material!(body; horizon=0.76, rho=1, E=210e9, nu=0.25, Gc=1.0)
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
-    (; storage) = dh.chunks[1]
+    (; storage, system) = dh.chunks[1]
     (; position, defgrad, defgrad_dot, velocity_half) = storage
     # no displacement: the identity
     Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-    @test all(isapprox(Peridynamics.get_tensor(defgrad, i), I; atol=1e-12) for i in eachindex(vol))
+    @test all(isapprox(Peridynamics.get_tensor(defgrad, i, Peridynamics.dims(system)), I; atol=1e-12) for i in eachindex(vol))
     # a small uniform stretch in x
     F_a = @SMatrix [1.00001 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     for i in eachindex(vol)
-        Peridynamics.update_vector!(position, i, F_a * Peridynamics.get_vector(position, i))
+        xi = Peridynamics.get_vector(position, i, Peridynamics.dims(system))
+        Peridynamics.update_vector!(position, i, F_a * xi, Peridynamics.dims(system))
     end
     Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-    @test all(isapprox(Peridynamics.get_tensor(defgrad, i), F_a; atol=1e-5) for i in eachindex(vol))
+    @test all(isapprox(Peridynamics.get_tensor(defgrad, i, Peridynamics.dims(system)), F_a; atol=1e-5) for i in eachindex(vol))
     # a velocity field v = 0.1 x e₁ has the rate Ḟ = 0.1 F₁₁ e₁ ⊗ e₁, nothing else
     velocity_half .= 0.0
     for i in eachindex(vol)
@@ -69,7 +70,7 @@ end
     end
     Peridynamics.calc_force_density!(dh, 0.0, 0.0)
     @test all(eachindex(vol)) do i
-        F_dot = Peridynamics.get_tensor(defgrad_dot, i)
+        F_dot = Peridynamics.get_tensor(defgrad_dot, i, Peridynamics.dims(system))
         F_dot[1, 1] > 0 && abs(F_dot[2, 2]) < 1e-14 && abs(F_dot[3, 3]) < 1e-14
     end
 end

@@ -1,22 +1,13 @@
-@testitem "internal_api_warning" begin
-    if VERSION < v"1.11"
-        @test !isempty(Peridynamics.internal_api_warning())
-    else
-        @test isempty(Peridynamics.internal_api_warning())
-    end
+@testitem "api tier markers: every tier has its own marker" begin
+    # every docstring carries the marker of its tier, on every supported Julia version
+    @test occursin("Internal use only", Peridynamics.internal_api_warning())
+    @test occursin("Extension API", Peridynamics.extension_api_note())
+    @test occursin("Peridynamics.<name>", Peridynamics.extension_api_note())
+    @test occursin("Experimental feature", Peridynamics.experimental_api_warning())
 end
 
-@testitem "experimental_api_warning" begin
-    msg = Peridynamics.experimental_api_warning()
-    @test contains(msg, "Experimental feature")
-    @test contains(msg, "not") && contains(msg, "public API")
-end
-
-@testitem "extension_api_note: marks the extension tier" begin
-    msg = Peridynamics.extension_api_note()
-    @test contains(msg, "Extension API")
-    @test contains(msg, "Peridynamics.<name>")
-    # the tiers must not be confusable with each other
-    @test !contains(msg, "Internal use only")
-    @test !contains(Peridynamics.internal_api_warning(), "Extension API")
+@testitem "api tier markers: the tiers are not confusable" begin
+    @test !occursin("Extension API", Peridynamics.internal_api_warning())
+    @test !occursin("Internal use only", Peridynamics.extension_api_note())
+    @test !occursin("Experimental feature", Peridynamics.extension_api_note())
 end

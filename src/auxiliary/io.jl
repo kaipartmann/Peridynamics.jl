@@ -1,9 +1,18 @@
 @inline default_export_fields() = [:displacement, :damage]
 
+# the default list is filtered to what the storage can provide, so a body whose material
+# has no damage model exports only the displacement instead of erroring on `:damage`;
+# a list the user gave is never filtered, a typo there has to fail loudly
+function default_export_fields(body::AbstractBody)
+    S = storage_type(body)
+    return [f for f in default_export_fields() if in(f, point_data_fields(S)) ||
+            custom_field(S, f)]
+end
+
 @inline function default_fields_spec(ms::AbstractMultibodySetup)
     fields_spec = Dict{Symbol,Vector{Symbol}}()
     for body_name in each_body_name(ms)
-        fields_spec[body_name] = default_export_fields()
+        fields_spec[body_name] = default_export_fields(get_body(ms, body_name))
     end
     return fields_spec
 end
@@ -13,7 +22,7 @@ function get_export_fields(body::AbstractBody, solver::AbstractTimeSolver,
     if haskey(o, :fields)
         fields = extract_export_fields(o[:fields])
     else
-        fields = default_export_fields()
+        fields = default_export_fields(body)
     end
 
     check_export_fields(body, solver, fields)
@@ -57,7 +66,7 @@ end
     fields_spec::Dict{Symbol,Vector{Symbol}} = _extract_fields_spec(ms, o)
     for body_name in each_body_name(ms)
         if !haskey(fields_spec, body_name)
-            fields_spec[body_name] = default_export_fields()
+            fields_spec[body_name] = default_export_fields(get_body(ms, body_name))
         end
     end
     return fields_spec
@@ -125,7 +134,9 @@ Return `true` for every field name that a storage exports but that is not one of
 field names, e.g. a quantity that [`export_field`](@ref) derives on the fly. Without this,
 naming the field in `Job(...; fields=(...,))` is rejected as a typo.
 
-Defaults to `false`, so a field that *is* a field of the storage needs nothing.
+# Default
+
+`false`, so a field that *is* a field of the storage needs no method.
 
 # Example
 
@@ -197,15 +208,17 @@ end
 
 $(extension_api_note())
 
-Return the point data that is written to the VTK file for `field`. The default returns the
-local points of the storage field of that name, so a field of the storage is exported without
-any further work.
-
-Specialize it to derive a quantity that is not a storage field, or to reduce a bond field to
-a point field. A derived name also has to be announced with [`custom_field`](@ref).
+Return the point data that is written to the VTK file for `field`. Specialize it to derive
+a quantity that is not a storage field, or to reduce a bond field to a point field. A
+derived name also has to be announced with [`custom_field`](@ref).
 
 The returned array must have one column per *local* point, i.e. `get_n_loc_points(system)`
-of them; halo entries are owned by another chunk and must not be exported twice.
+of them. Halo entries are owned by another chunk and must not be exported twice.
+
+# Default
+
+The local points of the storage field of that name, so a field of the storage is exported
+without any further work.
 
 # Example
 
@@ -223,6 +236,8 @@ function Peridynamics.export_field(::Val{:bond_damage_avg}, mat, system, storage
     return out
 end
 ```
+
+See also [`custom_field`](@ref), [`get_n_loc_points`](@ref), [`each_bond_idx`](@ref).
 """
 function export_field(::Val{field}, mat, system, storage, paramsetup, t) where {field}
     return get_loc_point_data(storage, system, field)

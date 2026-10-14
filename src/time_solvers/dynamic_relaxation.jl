@@ -166,7 +166,7 @@ end
                                       system::InteractionSystem,
                                       params::AbstractPointParameters,
                                       dr::DynamicRelaxation, i::Int)
-    n_one_nis = system.n_one_nis[i]
+    n_one_nis = system.n_neighbors[i]
     k = 5π * params.δ^2 * params.C1
     Λ = dr.Λ * 1 / 4 * dr.Δt^2 * n_one_nis * k
     for dim in each_dim(system)

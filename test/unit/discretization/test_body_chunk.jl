@@ -21,14 +21,9 @@
     @test chunk.system isa Peridynamics.BondSystem
     @test chunk.system.position == position
     @test chunk.system.volume == volume
-    @test chunk.system.bonds == [
-        Peridynamics.Bond(2, 1.0, true),
-        Peridynamics.Bond(3, 1.0, true),
-        Peridynamics.Bond(4, 1.0, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(3, √2, true),
-        Peridynamics.Bond(4, √2, true),
-    ]
+    @test chunk.system.neighbor == [2, 3, 4, 1, 3, 4]
+    @test chunk.system.bond_length == [1.0, 1.0, 1.0, 1.0, √2, √2]
+    @test chunk.system.fail_permit == [true, true, true, true, true, true]
     @test chunk.system.n_neighbors == [3, 3]
     @test chunk.system.bond_ids == [1:3, 4:6]
 
@@ -65,17 +60,9 @@ end
     point_ids1 = [1, 2, 3, 4, 5, 6]
     @test chunk.system.position == position[:, point_ids1]
     @test chunk.system.volume == volume[point_ids1]
-    @test chunk.system.bonds == [
-        Peridynamics.Bond(2, 1.0, false),
-        Peridynamics.Bond(1, 1.0, false),
-        Peridynamics.Bond(3, 1.0, false),
-        Peridynamics.Bond(2, 1.0, false),
-        Peridynamics.Bond(4, 1.0, false),
-        Peridynamics.Bond(3, 1.0, false),
-        Peridynamics.Bond(5, 1.0, false),
-        Peridynamics.Bond(4, 1.0, false),
-        Peridynamics.Bond(6, 1.0, false),
-    ]
+    @test chunk.system.neighbor == [2, 1, 3, 2, 4, 3, 5, 4, 6]
+    @test chunk.system.bond_length == [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    @test chunk.system.fail_permit == [false, false, false, false, false, false, false, false, false]
     @test chunk.system.n_neighbors == [1, 2, 2, 2, 2]
     @test chunk.system.bond_ids == [1:1, 2:3, 4:5, 6:7, 8:9]
 
@@ -111,17 +98,9 @@ end
     point_ids2 = [6, 7, 8, 9, 10, 5]
     @test chunk.system.position == position[:, point_ids2]
     @test chunk.system.volume == volume[point_ids2]
-    @test chunk.system.bonds == [
-        Peridynamics.Bond(6, 1.0, false),
-        Peridynamics.Bond(2, 1.0, false),
-        Peridynamics.Bond(1, 1.0, false),
-        Peridynamics.Bond(3, 1.0, false),
-        Peridynamics.Bond(2, 1.0, false),
-        Peridynamics.Bond(4, 1.0, false),
-        Peridynamics.Bond(3, 1.0, false),
-        Peridynamics.Bond(5, 1.0, false),
-        Peridynamics.Bond(4, 1.0, false),
-    ]
+    @test chunk.system.neighbor == [6, 2, 1, 3, 2, 4, 3, 5, 4]
+    @test chunk.system.bond_length == [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    @test chunk.system.fail_permit == [false, false, false, false, false, false, false, false, false]
     @test chunk.system.n_neighbors == [2, 2, 2, 2, 1]
     @test chunk.system.bond_ids == [1:2, 3:4, 5:6, 7:8, 9:9]
 
@@ -203,10 +182,10 @@ end
                 neighbors_of_loc = Set{Int}()
                 for (li, i) in enumerate(ch.loc_points)
                     for bond_id in Peridynamics.each_bond_idx(system, li)
-                        j = ch.point_ids[system.bonds[bond_id].neighbor]
+                        j = ch.point_ids[Peridynamics.get_neighbor(system, bond_id)]
                         push!(neighbors_of_loc, j)
                         # the bond length is the distance of the points of the body
-                        @test system.bonds[bond_id].length ≈ abs(position[1, i] - position[1, j])
+                        @test Peridynamics.reference_bond_length(system, bond_id) ≈ abs(position[1, i] - position[1, j])
                     end
                 end
                 @test Set(halo) == setdiff(neighbors_of_loc, ch.loc_points)
@@ -247,4 +226,55 @@ end
     @test Peridynamics.free_dofs(c) == Peridynamics.free_dofs(condhandler)
     @test Peridynamics.constrained_dofs(c) == Peridynamics.constrained_dofs(condhandler)
     @test Peridynamics.initialize!(c) === nothing
+end
+
+@testitem "BodyChunk: Adapt moves the system, the parameters and the storage" setup=[Fixtures] begin
+    # a minimal stand-in for the array type of another backend, see `test_storage_fields.jl`
+    struct WrappedArray{T,N} <: AbstractArray{T,N}
+        a::Array{T,N}
+    end
+    Base.size(x::WrappedArray) = size(x.a)
+    Base.getindex(x::WrappedArray, i...) = getindex(x.a, i...)
+    Base.setindex!(x::WrappedArray, v, i...) = setindex!(x.a, v, i...)
+    struct WrappedBackend end
+    function Peridynamics.Adapt.adapt_storage(::WrappedBackend, a::Array{T,N}) where {T,N}
+        return WrappedArray{T,N}(a)
+    end
+
+    body = Fixtures.tetra4()
+    point_set!(body, :a, 1:2)
+    material!(body, :a; horizon=2, rho=2, E=2, Gc=2)
+    velocity_bc!(t -> t, body, :a, :x)
+    chunk = Fixtures.chunk(body; n_chunks=2, chunk_id=1)
+    @test chunk.paramsetup isa Peridynamics.ParameterHandler
+
+    adapted = Peridynamics.Adapt.adapt(WrappedBackend(), chunk)
+    @test adapted isa Peridynamics.BodyChunk
+
+    # the system, the parameter setup and the storage move
+    @test adapted.system.position isa WrappedArray{Float64,2}
+    @test adapted.system.neighbor isa WrappedArray{Int,1}
+    @test adapted.system.chunk_handler isa Peridynamics.DeviceChunkHandler
+    @test adapted.paramsetup.point_mapping isa WrappedArray{Int,1}
+    @test adapted.storage.position isa WrappedArray{Float64,2}
+
+    # the material, the conditions and the export cells are host data and stay as they are
+    @test adapted.body_name === chunk.body_name
+    @test adapted.mat === chunk.mat
+    @test adapted.condhandler === chunk.condhandler
+    @test adapted.cells === chunk.cells
+
+    # the system is still the same system: it answers the same dimension and float type,
+    # and the counts of the shape layer are unchanged
+    @test Peridynamics.get_n_dim(adapted.system) == Peridynamics.get_n_dim(chunk.system)
+    @test Peridynamics.float_type(adapted.system) === Peridynamics.float_type(chunk.system)
+    @test Peridynamics.dims(adapted.system) === Peridynamics.dims(chunk.system)
+    @test Peridynamics.get_n_loc_points(adapted) == Peridynamics.get_n_loc_points(chunk)
+    @test Peridynamics.get_n_points(adapted) == Peridynamics.get_n_points(chunk)
+    @test Peridynamics.get_n_bonds(adapted.system) == Peridynamics.get_n_bonds(chunk.system)
+    @test Peridynamics.each_point_idx(adapted) == Peridynamics.each_point_idx(chunk)
+
+    # a target that moves no array rebuilds every field with what it was given, so the whole
+    # chunk comes back identical
+    @test Peridynamics.Adapt.adapt(Array, chunk) === chunk
 end

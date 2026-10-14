@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 420" width="100%">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a8a8a"/>
+    </marker>
+  </defs>
+
+  <style>
+    text { font-family: system-ui, sans-serif; font-size: 14px; fill: #8a8a8a; }
+    .title { font-size: 15px; font-weight: 600; }
+    .mono { font-family: ui-monospace, monospace; font-size: 13px; }
+    .small { font-size: 12px; }
+    .box { fill: none; stroke: #8a8a8a; stroke-width: 1.5; }
+    .accentbox { fill: #4f8fd6; fill-opacity: 0.2; stroke: #4f8fd6; stroke-width: 1.5; }
+    .dashedaccent { fill: none; stroke: #4f8fd6; stroke-width: 1.5; stroke-dasharray: 5 4; }
+    .arrow { stroke: #8a8a8a; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+  </style>
+
+  <text x="470" y="24" text-anchor="middle" class="title">One time step for one local point i</text>
+
+  <!-- Box 1: update_bond_lengths! -->
+  <rect x="6" y="120" width="160" height="80" rx="4" class="box"/>
+  <text x="86" y="145" text-anchor="middle" class="mono small">update_bond_lengths!</text>
+  <text x="86" y="163" text-anchor="middle" class="small">only if storage</text>
+  <text x="86" y="177" text-anchor="middle" class="small">inherits BondLengthCache</text>
+
+  <line x1="166" y1="160" x2="190" y2="160" class="arrow"/>
+
+  <!-- Box 2: calc_failure! -->
+  <rect x="190" y="120" width="130" height="80" rx="4" class="accentbox"/>
+  <text x="255" y="150" text-anchor="middle" class="mono small">calc_failure!</text>
+  <text x="255" y="168" text-anchor="middle" class="small">damage model</text>
+
+  <line x1="320" y1="160" x2="344" y2="160" class="arrow"/>
+
+  <!-- Box 3: calc_damage! -->
+  <rect x="344" y="120" width="130" height="80" rx="4" class="box dashedaccent"/>
+  <text x="409" y="145" text-anchor="middle" class="mono small">calc_damage!</text>
+  <text x="409" y="163" text-anchor="middle" class="small">damage model,</text>
+  <text x="409" y="177" text-anchor="middle" class="small">default provided</text>
+
+  <line x1="474" y1="160" x2="498" y2="160" class="arrow"/>
+
+  <!-- Box 4: force_density_point! (with sub-box) -->
+  <rect x="498" y="90" width="220" height="140" rx="4" class="accentbox"/>
+  <text x="608" y="112" text-anchor="middle" class="mono small">force_density_point!</text>
+  <text x="608" y="128" text-anchor="middle" class="small">material</text>
+  <rect x="508" y="146" width="200" height="72" rx="4" class="accentbox"/>
+  <text x="608" y="164" text-anchor="middle" class="small">correspondence families</text>
+  <text x="608" y="178" text-anchor="middle" class="small">ask</text>
+  <text x="608" y="194" text-anchor="middle" class="mono small">first_piola_kirchhoff</text>
+  <text x="608" y="208" text-anchor="middle" class="small">(constitutive model)</text>
+
+  <line x1="718" y1="160" x2="742" y2="160" class="arrow"/>
+
+  <!-- Box 5: halo exchange -->
+  <rect x="742" y="120" width="110" height="80" rx="4" class="box"/>
+  <text x="797" y="145" text-anchor="middle" class="mono small">halo exchange</text>
+  <text x="797" y="162" text-anchor="middle" class="mono small">@lth / @htl</text>
+  <text x="797" y="180" text-anchor="middle" class="small">automatic,</text>
+  <text x="797" y="193" text-anchor="middle" class="small">threads and MPI</text>
+
+  <line x1="852" y1="160" x2="864" y2="160" class="arrow"/>
+  <path d="M864,160 L864,262 L852,262" class="arrow"/>
+
+  <!-- Box 6: solver update -->
+  <rect x="708" y="242" width="148" height="60" rx="4" class="box"/>
+  <text x="782" y="266" text-anchor="middle" class="mono small">solver update</text>
+  <text x="782" y="284" text-anchor="middle" class="small">VelocityVerlet / DynRelax /</text>
+  <text x="782" y="296" text-anchor="middle" class="small">NewtonKrylov</text>
+
+  <!-- explanatory text -->
+  <text x="470" y="350" text-anchor="middle" class="small">The loop over i runs on every thread and every MPI rank. Boxes 2 to 4 only write columns of point i.</text>
+
+  <!-- Legend -->
+  <rect x="360" y="392" width="16" height="12" class="accentbox"/>
+  <text x="382" y="402" class="small">you write this</text>
+  <rect x="500" y="392" width="16" height="12" class="box"/>
+  <text x="522" y="402" class="small">generated or provided</text>
+</svg>

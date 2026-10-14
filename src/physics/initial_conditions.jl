@@ -75,7 +75,7 @@ function apply_ic!(chunk::AbstractBodyChunk, ic::PosDepSingleDimIC)
     (; loc_point_sets) = condhandler
     field = get_point_data(storage, ic.field)
     @simd for i in loc_point_sets[ic.point_set]
-        value = ic(get_vector(system.position, i))
+        value = ic(get_vector(system.position, i, dims(system)))
         if !isnan(value)
             @inbounds setindex!(field, value, ic.dim, i)
         end

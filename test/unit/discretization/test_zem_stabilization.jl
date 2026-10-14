@@ -7,7 +7,11 @@
     @test ZEMWan() isa Peridynamics.AbstractZEMStabilization
     # the stabilization is the `correction` of a correspondence material
     mat = CMaterial(zem=ZEMWan())
-    @test Peridynamics.get_correction(mat, 1, 1, 1) === mat.zem
+    # a stabilization holds no arrays, so it ignores the sizes of the system it is built for
+    ch = Peridynamics.ChunkHandler(1, [1], 1:1, Int[], Dict{Int,UnitRange{Int}}(),
+                                   Dict(1 => 1))
+    sizes = Peridynamics.SystemSizes{3,Float64}(ch, 1)
+    @test Peridynamics.get_correction(mat, sizes) === mat.zem
     @test CMaterial().zem isa ZEMSilling
 end
 

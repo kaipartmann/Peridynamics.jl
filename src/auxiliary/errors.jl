@@ -129,7 +129,7 @@ end
 """
     SofteningSupportError
 
-$(internal_api_warning())
+$(extension_api_note())
 
 A type for a customized error that is thrown when a damage model defines
 [`bond_integrity`](@ref) or [`kinematic_weight`](@ref), but is combined with a material

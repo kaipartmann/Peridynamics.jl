@@ -126,6 +126,7 @@ end
     # a shape with an explicit element type keeps it for every simulation
     struct Float32System <: Peridynamics.AbstractSystem end
     Peridynamics.float_type(::Float32System) = Float32
+    Peridynamics.get_n_dim(::Float32System) = 3
     Peridynamics.get_n_loc_points(::Float32System) = 5
     Peridynamics.get_n_points(::Float32System) = 7
     system = Float32System()
@@ -149,6 +150,7 @@ end
                          DofVector, alloc_solver_field, alloc_empty_field, alloc_empty_array
 
     struct MarkerSystem <: Peridynamics.AbstractSystem end
+    Peridynamics.get_n_dim(::MarkerSystem) = 3
     Peridynamics.get_n_loc_points(::MarkerSystem) = 5
     Peridynamics.get_n_points(::MarkerSystem) = 7
     system = MarkerSystem()
@@ -217,6 +219,27 @@ end
     R = alloc_field(BondTensor{Float64}(), system, LocalPoints(), I)
     @test all(isone, R[[1, 4], :])
     @test sum(R) == 2 * 11
+
+    # a whole storage follows the dimension of the system it is built for: `N` is its
+    # leading type parameter, every shaped field has the matching number of rows, and
+    # `dims` of the storage answers what `dims` of the system answers
+    struct Dim2Mat <: Peridynamics.AbstractMaterial end
+    Peridynamics.@storage Dim2Mat struct Dim2Storage
+        b_int::PointVector
+        defgrad::PointTensor
+        bond_stress::BondTensor
+    end
+    @test Peridynamics.storage_type(Dim2Mat()) === Dim2Storage{3,Float64,Matrix{Float64}}
+    @test Peridynamics.storage_type(Dim2Mat(), Float32, Val(2)) ===
+          Dim2Storage{2,Float32,Matrix{Float32}}
+
+    storage = Peridynamics.get_storage(Dim2Mat(), VelocityVerlet(steps=1), system)
+    @test storage isa Dim2Storage{2}
+    @test get_n_dim(storage) == get_n_dim(system)
+    @test Peridynamics.dims(storage) === Val(2)
+    @test size(storage.b_int) == (2, 5)
+    @test size(storage.defgrad) == (4, 5)
+    @test size(storage.bond_stress) == (4, 11)
 end
 
 @testitem "@storage_fields / @inherit: blocks are merged in declaration order" begin
@@ -419,6 +442,13 @@ end
         return zeros(get_n_bonds(system))
     end
 
+    # `bond_active` is declared with a container type here, so nothing knows how to
+    # allocate it and an `init_field` method is needed, exactly like for `my_own_field`
+    function Peridynamics.init_field(::LegacyMat, ::AbstractTimeSolver, system::BondSystem,
+                                     ::Val{:bond_active})
+        return ones(Bool, get_n_bonds(system))
+    end
+
     function Peridynamics.force_density_point!(storage::LegacyStorage, system, ::LegacyMat,
                                                params, t, Δt, i)
         return nothing
@@ -614,6 +644,10 @@ end
     # `position` is pinned to `Float64` for every float type, everything else follows it
     S64, S32 = storage_type(AdaptMat()), storage_type(AdaptMat(), Float32)
     @test S64 <: AdaptStorage && S32 <: AdaptStorage
+    # `N` is the leading parameter, `FT` the one after it
+    @test S64.parameters[1] === 3 && S64.parameters[2] === Float64
+    @test S32.parameters[1] === 3 && S32.parameters[2] === Float32
+    @test storage_type(AdaptMat(), Float32, Val(2)).parameters[1] === 2
     @test fieldtype(S64, :displacement) === Matrix{Float64}
     @test fieldtype(S32, :displacement) === Matrix{Float32}
     @test fieldtype(S32, :damage) === Vector{Float32}
@@ -634,9 +668,14 @@ end
     @test typeof(chunk.storage) === S64
     @test (@inferred get_storage(mat, solver, system)) isa AdaptStorage
 
+    # the storage takes its dimension from the system, so the two can never disagree
+    @test Peridynamics.get_n_dim(chunk.storage) == Peridynamics.get_n_dim(system)
+    @test Peridynamics.dims(chunk.storage) === Peridynamics.dims(system)
+
     # ... and the parametric struct makes the storage movable to another backend
     adapted = Peridynamics.Adapt.adapt(WrappedBackend(), chunk.storage)
     @test adapted isa AdaptStorage
+    @test Peridynamics.get_n_dim(adapted) == 3
     @test adapted.position isa WrappedArray{Float64,2}
     @test adapted.damage isa WrappedArray{Float64,1}
     @test adapted.bond_active isa WrappedArray{Bool,1}
@@ -759,7 +798,9 @@ end
                                  cm_state_field, dmg_state_field)
     @test header.head === :(<:) && header.args[2] === :AbstractStorage
     @test header.args[1].args[1] === :MyStorage
-    @test header.args[1].args[2] == Expr(:(<:), :FT, Real)
+    # `N` comes first, then `FT`, then the derived array parameters, then the states
+    @test header.args[1].args[2] === :N
+    @test header.args[1].args[3] == Expr(:(<:), :FT, Real)
     @test header.args[1].args[end - 1:end] == [:CMS, :DMS]
 
     # each state at most once ...

@@ -24,7 +24,7 @@
                     F ≈ F_a
                 end
             elseif mat isa Peridynamics.AbstractRKCMaterial
-                @test all(Peridynamics.get_tensor(storage.defgrad, i) ≈ F_a
+                @test all(Peridynamics.get_tensor(storage.defgrad, i, Peridynamics.dims(system)) ≈ F_a
                           for i in Peridynamics.each_point_idx(chunk))
             else # bond-associated: one deformation gradient per bond
                 params = Peridynamics.get_params(paramsetup, 1)

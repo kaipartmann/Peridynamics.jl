@@ -38,6 +38,18 @@ struct BodyChunk{System<:AbstractSystem,
     cells::Vector{MeshCell{VTKCellType,Tuple{Int64}}}
 end
 
+#=
+Move the system, the parameter setup and the storage of a chunk to another array backend,
+e.g. `Adapt.adapt(CuArray, chunk)`. The conditions and the export cells stay as they are:
+they are host data that no kernel reads. A target that moves no array returns every field
+unchanged, so the rebuilt chunk is `===` to the one it was given.
+=#
+function Adapt.adapt_structure(to, chunk::BodyChunk)
+    return BodyChunk(chunk.body_name, Adapt.adapt(to, chunk.system), chunk.mat,
+                     Adapt.adapt(to, chunk.paramsetup), Adapt.adapt(to, chunk.storage),
+                     chunk.condhandler, chunk.cells)
+end
+
 function BodyChunk(body::AbstractBody, solver::AbstractTimeSolver, pd::PointDecomposition,
                    chunk_id::Int, param_spec::AbstractParamSpec)
     body_name = get_name(body)

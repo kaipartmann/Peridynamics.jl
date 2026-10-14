@@ -149,12 +149,12 @@ corresponding increment over `Δt`, i.e. a homogeneous deformation with deformat
 function apply_deformation!(chunk, F, Δt)
     (; system, storage) = chunk
     for i in Peridynamics.each_point_idx(system)
-        Xi = Peridynamics.get_vector(system.position, i)
+        Xi = Peridynamics.get_vector(system.position, i, Peridynamics.dims(system))
         xi = F * Xi
-        Peridynamics.update_vector!(storage.position, i, xi)
+        Peridynamics.update_vector!(storage.position, i, xi, Peridynamics.dims(system))
         vi = (xi - Xi) / Δt
-        Peridynamics.update_vector!(storage.velocity, i, vi)
-        Peridynamics.update_vector!(storage.velocity_half, i, vi)
+        Peridynamics.update_vector!(storage.velocity, i, vi, Peridynamics.dims(system))
+        Peridynamics.update_vector!(storage.velocity_half, i, vi, Peridynamics.dims(system))
     end
     return chunk
 end
@@ -188,8 +188,9 @@ end
 Recompute the gradient weights of a reproducing kernel material for every point of `fixture`.
 
 [`force_density!`](@ref) does not reach this. The weights are only recomputed where damage has
-just grown, and `calc_damage!` rewrites the `update_gradients` flag at the start of every force
-calculation, so an undamaged body never enters it and the cost stays invisible.
+just grown, and the RKC force path rewrites the `update_gradients` flag at the start of every
+force calculation from the damage before and after `calc_damage!`, so an undamaged body never
+enters it and the cost stays invisible.
 """
 gradient_weights!(fixture) = Peridynamics.initialize!(fixture.chunk)
 
@@ -271,4 +272,28 @@ function run_mpi_script(script::AbstractString, args...; nranks::Int=2, expect_s
         @error "unexpected exit status of MPI script" script expect_success ok output=String(take!(log))
     end
     return ok == expect_success
+end
+
+"""
+    whole_body(dh, field)
+
+A point field of a finished threads simulation for the whole body, assembled from the local
+entries of every chunk in the point order of the body. With several threads `dh.chunks[1]`
+holds one chunk only, so this is what a check on the body as a whole reads.
+"""
+function whole_body(dh, field::Symbol)
+    n = sum(Peridynamics.get_n_loc_points(c.system) for c in dh.chunks)
+    c1 = first(dh.chunks)
+    sample = Peridynamics.get_loc_point_data(c1.storage, c1.system, field)
+    out = sample isa AbstractMatrix ? zeros(size(sample, 1), n) : zeros(n)
+    for c in dh.chunks
+        ids = Peridynamics.get_loc_points(c.system)
+        data = Peridynamics.get_loc_point_data(c.storage, c.system, field)
+        if data isa AbstractMatrix
+            out[:, ids] .= data
+        else
+            out[ids] .= data
+        end
+    end
+    return out
 end

@@ -201,20 +201,18 @@ end
     body = Body(RKCMaterial(kernel=cubic_b_spline_kernel_norm), pos, vol)
     material!(body; horizon=0.76, rho=1, E=210e9, nu=0.25, Gc=1.0)
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
-    (; storage) = dh.chunks[1]
+    (; storage, system) = dh.chunks[1]
     (; position, defgrad) = storage
     # no displacement: the identity
     Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-    @test all(isapprox(Peridynamics.get_tensor(defgrad, i), I; atol=1e-12) for i in eachindex(vol))
+    @test all(isapprox(Peridynamics.get_tensor(defgrad, i, Peridynamics.dims(system)), I; atol=1e-12) for i in eachindex(vol))
     # a small uniform stretch in x
     F_a = @SMatrix [1.00001 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     for i in eachindex(vol)
         position[:, i] = F_a * position[:, i]
     end
     Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-    @test all(isapprox(Peridynamics.get_tensor(defgrad, i), F_a; atol=1e-5) for i in eachindex(vol))
-end
-
+    @test all(isapprox(Peridynamics.get_tensor(defgrad, i, Peridynamics.dims(system)), F_a; atol=1e-5) for i in eachindex(vol))
 end
 
 @testitem "damage model integration with RKCMaterial" begin
@@ -425,19 +423,19 @@ end
     material!(body; horizon=1.5, rho=1, E=210e9, nu=0.25, epsilon_c=0.1)
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     (; storage, system) = dh.chunks[1]
-    Φ = [Peridynamics.get_vector(storage.gradient_weight, b)
+    Φ = [Peridynamics.get_vector(storage.gradient_weight, b, Peridynamics.dims(system))
          for b in Peridynamics.each_bond_idx(system, 1)]
     @test all(v -> all(isfinite, v), Φ)
     # a bond along x contributes only to ∂/∂x, the singular directions get no weight
     @test all(v -> v[2] == 0 && v[3] == 0, Φ)
     # the reproducing condition Σ Φ ⊗ ΔX = I holds in the resolved direction
-    ΔX = [Peridynamics.get_vector_diff(system.position, 1, system.bonds[b].neighbor)
+    ΔX = [Peridynamics.get_vector_diff(system.position, 1, Peridynamics.get_neighbor(system, b), Peridynamics.dims(system))
           for b in Peridynamics.each_bond_idx(system, 1)]
     @test sum(Φ[k][1] * ΔX[k][1] for k in eachindex(Φ)) ≈ 1
     # the deformation gradient of a uniform stretch in x is recovered without `NaN`
     storage.position[1, :] .*= 1.01
     Peridynamics.calc_force_density!(dh, 0.0, 0.0)
-    F = Peridynamics.get_tensor(storage.defgrad, 1)
+    F = Peridynamics.get_tensor(storage.defgrad, 1, Peridynamics.dims(system))
     @test !Peridynamics.containsnan(F)
     @test F[1, 1] ≈ 1.01
     @test all(isfinite, storage.b_int)
@@ -457,4 +455,30 @@ end
     sed = chunk.storage.strain_energy_density
     @test all(>(0), sed)
     @test all(isfinite, sed)
+end
+
+@testitem "rkc_stress_integral!: a neighbor with zero weighted volume gets a zeroed bond stress" setup=[Fixtures] begin
+    import Peridynamics: rkc_stress_integral!, each_bond_idx, get_neighbor, get_params,
+                         get_tensor, dims
+
+    for mat in (RKCMaterial(), RKCRMaterial())
+        body = Fixtures.cube(mat; n=4)
+        dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
+        chunk = dh.chunks[1]
+        (; storage, system, paramsetup) = chunk
+        Peridynamics.calc_weights_and_defgrad!(chunk, 0.0, 1e-7)
+        @test all(>(0), storage.weighted_volume)
+
+        i = 1
+        bond_id = first(each_bond_idx(system, i))
+        j = get_neighbor(system, bond_id)
+        storage.weighted_volume[j] = 0
+        # a stale bond stress from an earlier step must be overwritten, not skipped
+        storage.bond_first_piola_kirchhoff[:, bond_id] .= 1
+
+        params = get_params(paramsetup, i)
+        rkc_stress_integral!(storage, system, mat, params, 0.0, 1e-7, i) # must not error
+        P = get_tensor(storage.bond_first_piola_kirchhoff, bond_id, dims(system))
+        @test all(iszero, P)
+    end
 end

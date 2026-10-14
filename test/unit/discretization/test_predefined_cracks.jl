@@ -55,14 +55,9 @@ end
     @test b1.system isa Peridynamics.BondSystem
     @test b1.system.position == position
     @test b1.system.volume == volume
-    @test b1.system.bonds == [
-        Peridynamics.Bond(2, 1.0, true),
-        Peridynamics.Bond(3, 1.0, true),
-        Peridynamics.Bond(4, 1.0, true),
-        Peridynamics.Bond(1, 1.0, true),
-        Peridynamics.Bond(3, √2, true),
-        Peridynamics.Bond(4, √2, true),
-    ]
+    @test b1.system.neighbor == [2, 3, 4, 1, 3, 4]
+    @test b1.system.bond_length == [1.0, 1.0, 1.0, 1.0, √2, √2]
+    @test b1.system.fail_permit == [true, true, true, true, true, true]
     @test b1.system.n_neighbors == [3, 3]
     @test b1.system.bond_ids == [1:3, 4:6]
 
@@ -92,14 +87,9 @@ end
     @test b2.system isa Peridynamics.BondSystem
     @test b2.system.position == position[:, [3, 4, 1, 2]]
     @test b2.system.volume == volume[[3, 4, 1, 2]]
-    @test b2.system.bonds == [
-        Peridynamics.Bond(3, 1.0, true),
-        Peridynamics.Bond(4, √2, true),
-        Peridynamics.Bond(2, √2, true),
-        Peridynamics.Bond(3, 1.0, true),
-        Peridynamics.Bond(4, √2, true),
-        Peridynamics.Bond(1, √2, true),
-    ]
+    @test b2.system.neighbor == [3, 4, 2, 3, 4, 1]
+    @test b2.system.bond_length == [1.0, √2, √2, 1.0, √2, √2]
+    @test b2.system.fail_permit == [true, true, true, true, true, true]
     @test b2.system.n_neighbors == [3, 3]
     @test b2.system.bond_ids == [1:3, 4:6]
 
@@ -148,10 +138,9 @@ end
     @test b1.system isa Peridynamics.BondSystem
     @test b1.system.position == position[:, 1:2]
     @test b1.system.volume == volume[1:2]
-    @test b1.system.bonds == [
-        Peridynamics.Bond(2, 1.0, true),
-        Peridynamics.Bond(1, 1.0, true),
-    ]
+    @test b1.system.neighbor == [2, 1]
+    @test b1.system.bond_length == [1.0, 1.0]
+    @test b1.system.fail_permit == [true, true]
     @test b1.system.n_neighbors == [1, 1]
     @test b1.system.bond_ids == [1:1, 2:2]
 
@@ -181,10 +170,9 @@ end
     @test b2.system isa Peridynamics.BondSystem
     @test b2.system.position == position[:, 3:4]
     @test b2.system.volume == volume[3:4]
-    @test b2.system.bonds == [
-        Peridynamics.Bond(2, √2, true),
-        Peridynamics.Bond(1, √2, true),
-    ]
+    @test b2.system.neighbor == [2, 1]
+    @test b2.system.bond_length == [√2, √2]
+    @test b2.system.fail_permit == [true, true]
     @test b2.system.n_neighbors == [1, 1]
     @test b2.system.bond_ids == [1:1, 2:2]
 
@@ -227,10 +215,9 @@ end
 
     @test system.position == position[:, 1:2]
     @test system.volume == volume[1:2]
-    @test system.bonds == [
-        Peridynamics.Bond(2, 1.0, true),
-        Peridynamics.Bond(1, 1.0, true),
-    ]
+    @test system.neighbor == [2, 1]
+    @test system.bond_length == [1.0, 1.0]
+    @test system.fail_permit == [true, true]
     @test system.n_neighbors == [1, 1]
     @test system.bond_ids == [1:1, 2:2]
 
@@ -249,10 +236,9 @@ end
 
     @test system.position == position[:, 3:4]
     @test system.volume == volume[3:4]
-    @test system.bonds == [
-        Peridynamics.Bond(2, √2, true),
-        Peridynamics.Bond(1, √2, true),
-    ]
+    @test system.neighbor == [2, 1]
+    @test system.bond_length == [√2, √2]
+    @test system.fail_permit == [true, true]
     @test system.n_neighbors == [1, 1]
     @test system.bond_ids == [1:1, 2:2]
 
@@ -284,12 +270,11 @@ end
 
     @test system.position == position[:, 1:2]
     @test system.volume == volume[1:2]
-    @test system.one_nis == [
-        Peridynamics.Bond(2, 1.0, true),
-        Peridynamics.Bond(1, 1.0, true),
-    ]
-    @test system.n_one_nis == [1, 1]
-    @test system.one_ni_idxs == [1:1, 2:2]
+    @test system.neighbor == [2, 1]
+    @test system.bond_length == [1.0, 1.0]
+    @test system.fail_permit == [true, true]
+    @test system.n_neighbors == [1, 1]
+    @test system.bond_ids == [1:1, 2:2]
 
     ch = system.chunk_handler
     @test ch.point_ids == [1, 2]
@@ -305,12 +290,11 @@ end
 
     @test system.position == position[:, 3:4]
     @test system.volume == volume[3:4]
-    @test system.one_nis == [
-        Peridynamics.Bond(2, √2, true),
-        Peridynamics.Bond(1, √2, true),
-    ]
-    @test system.n_one_nis == [1, 1]
-    @test system.one_ni_idxs == [1:1, 2:2]
+    @test system.neighbor == [2, 1]
+    @test system.bond_length == [√2, √2]
+    @test system.fail_permit == [true, true]
+    @test system.n_neighbors == [1, 1]
+    @test system.bond_ids == [1:1, 2:2]
 
     ch = system.chunk_handler
     @test ch.point_ids == [3, 4]
@@ -339,26 +323,21 @@ end
         return first(Peridynamics.chop_body_threads(body, VelocityVerlet(steps=10), pd, ps))
     end
 
-    # the default damage model tracks the crack with `bond_active` and carries no state
+    # the default damage model tracks the crack with the `bond_active` of its state
     b1 = chunk_with_precrack(RKCMaterial())
     @test b1.storage.bond_active == [1, 0, 0, 1, 0, 0]
     @test b1.storage.n_active_bonds == [1, 1]
-    @test isnothing(damage_state(b1.storage))
+    @test damage_state(b1.storage) isa Peridynamics.BondFracState
     @test b1.storage.damage ≈ [2 / 3, 2 / 3]
 
-    # a damage model with a state of its own writes the crack into that state as well
+    # a damage model with extra state of its own writes the crack into that state as well
     struct MarkedDamage <: Peridynamics.AbstractDamageModel end
     Peridynamics.@dmg_storage MarkedDamage struct MarkedState
+        @inherit BondFracFields
         bond_marked::BondScalar{Bool}
     end
     Peridynamics.@dmg_params MarkedDamage struct MarkedDamageParameters
         @inherit FractureParameters
-    end
-    function Peridynamics.get_frac_params(::MarkedDamage, δ, K; kwargs...)
-        return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
-    end
-    function Peridynamics.has_fracture(::MarkedDamage, params)
-        return Peridynamics.has_fracture(CriticalStretch(), params)
     end
     function Peridynamics.failure_by_sets!(storage, system::Peridynamics.AbstractBondSystem,
                                            ::MarkedDamage, set_a, set_b)

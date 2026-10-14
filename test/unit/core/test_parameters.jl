@@ -93,15 +93,10 @@ end
         @inherit FractureParameters
         @log "stretch scale" stretch_scale = 1.0
     end
-    function Peridynamics.get_frac_params(::PMDamage, δ, K; kwargs...)
-        return Peridynamics.get_frac_params(CriticalStretch(), δ, K; kwargs...)
-    end
-    function Peridynamics.has_fracture(::PMDamage, params)
-        return Peridynamics.has_fracture(CriticalStretch(), params)
-    end
-    function Peridynamics.calc_failure!(storage, system, mat, ::PMDamage, paramsetup, i)
+    function Peridynamics.calc_failure!(storage, system, mat, ::PMDamage, paramsetup, t, Δt,
+                                        i)
         return Peridynamics.calc_failure!(storage, system, mat, CriticalStretch(),
-                                          paramsetup, i)
+                                          paramsetup, t, Δt, i)
     end
 end
 
@@ -353,7 +348,7 @@ end
 
     # the constructor sees the material parameters declared above the marker
     p = Dict{Symbol,Any}(:sigma_y => 300.0, :hardening_modulus => 1.0)
-    mp = get_cm_params(PMScaledSVK(), Float64, (; μ=2.0), p)
+    mp = get_cm_params(PMScaledSVK(), Float64, CMaterial(), (; μ=2.0), p)
     @test mp isa PMScaledSVKParameters{Float64}
     @test mp.sigma_y == 300.0
     @test mp.H == 1.0
@@ -361,11 +356,12 @@ end
     @test mp.stiffness_scale == 1.0
 
     # a keyword without default is required
-    @test_throws UndefKeywordError get_cm_params(PMScaledSVK(), Float64, (; μ=2.0),
+    @test_throws UndefKeywordError get_cm_params(PMScaledSVK(), Float64, CMaterial(), (; μ=2.0),
                                                  Dict{Symbol,Any}())
     # a missing material-level parameter names the model and the parameter
     err = try
-        get_cm_params(PMScaledSVK(), Float64, (;), Dict{Symbol,Any}(:sigma_y => 1.0))
+        get_cm_params(PMScaledSVK(), Float64, CMaterial(), (;),
+                      Dict{Symbol,Any}(:sigma_y => 1.0))
     catch e
         e
     end
@@ -438,10 +434,6 @@ end
         dmg_params::Peridynamics.DamageParameters
     end
 
-    # `mat` is not available inside a model parameter block
-    @test_throws LoadError @eval Peridynamics.@dmg_params PMDamage struct PMMatRead
-        @derived x = float(mat.n_cycles)
-    end
 
     # the struct takes no supertype and no type parameters, and needs declarations
     @test_throws LoadError @eval Peridynamics.@cm_params PMScaledSVK struct PMSuper <:
@@ -536,4 +528,20 @@ end
     @test point_param_type(PFPinnedMat2(), Float32) === PFPinnedParams
     @test get_point_params(PFPinnedMat2(), Dict{Symbol,Any}(:n_substeps => 3)) ===
           PFPinnedParams(3)
+end
+
+@testitem "@dmg_params: a model parameter block reads the material as `mat`" begin
+    # the conversion of a fracture parameter can depend on the material, which is why the
+    # model instance `model` and the material `mat` are both in scope of a model block
+    struct PMMatDamage <: Peridynamics.AbstractDamageModel end
+    Peridynamics.@dmg_params PMMatDamage struct PMMatDamageParameters
+        @derived correction_name::Symbol = nameof(typeof(mat).parameters[1])
+        @derived scaled = 2 * δ
+    end
+    pos, vol = uniform_box(1.0, 1.0, 1.0, 0.5)
+    body = Body(BBMaterial(; dmgmodel=PMMatDamage()), pos, vol)
+    material!(body; horizon=1.5, rho=8e-6, E=2.1e5)
+    params = only(body.point_params)
+    @test params.correction_name === :NoCorrection
+    @test params.scaled == 3.0
 end

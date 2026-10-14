@@ -19,7 +19,7 @@ julia -t 2 -e 'using Pkg; Pkg.test()'                 # what CI runs (PERIDYNAMI
 | `simulation/` | the per-commit time loops: symmetry of every solver, uniform tension | `:simulation` | `test` |
 | `mpi/` | three `mpiexec` runs (core paths, abort, threads comparison), scripts in `mpi/scripts/` | `:mpi` | `mpi` |
 | `perf/` | allocation and type stability checks | `:perf` | `extras` |
-| `quality/` | Aqua and the convention guards | `:lint` | `extras` |
+| `quality/` | Aqua, the convention guards and the API tier snapshot (`test_public_api.jl`) | `:lint` | `extras` |
 | `verification/` | physics against closed forms and convergence rates | `:verification, :skipci` | never |
 | `setup/` | the shared `@testmodule`s: `Fixtures` (materials table, bodies, chunks, condition functions, `rng()`) and `TestMaterialImpl` | | |
 

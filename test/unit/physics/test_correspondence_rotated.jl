@@ -49,10 +49,10 @@ end
     dh = Peridynamics.threads_data_handler(body, VelocityVerlet(steps=1), 1)
     (; mat, storage, system, paramsetup) = dh.chunks[1]
     # the rotation is the identity at initialization
-    @test all(Peridynamics.get_tensor(storage.rotation, i) ≈ I for i in 1:2)
+    @test all(Peridynamics.get_tensor(storage.rotation, i, Peridynamics.dims(system)) ≈ I for i in 1:2)
     σ = @SMatrix fill(100.0, 3, 3)
     for i in 1:2
-        Peridynamics.update_tensor!(storage.unrotated_stress, i, σ)
+        Peridynamics.update_tensor!(storage.unrotated_stress, i, σ, Peridynamics.dims(system))
     end
     σvm = Peridynamics.export_field(Val(:von_mises_stress), mat, system, storage, paramsetup, 0.0)
     @test all(σvm .≈ 300.0)

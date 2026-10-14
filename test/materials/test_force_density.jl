@@ -108,13 +108,12 @@ end
             Fixtures.force_density!(chunk, solver.Δt, solver.Δt)
             Peridynamics.calc_damage!(chunk)
             # the bonds (or one-neighbor interactions) of every point, as neighbor lists
-            interactions = system isa Peridynamics.InteractionSystem ? system.one_nis : system.bonds
             n_active = system isa Peridynamics.InteractionSystem ? storage.n_active_one_nis :
                        storage.n_active_bonds
             @test storage.damage[pulled] ≈ 1.0
             @test n_active[pulled] == 0
             for i in 2:n_points(body)
-                neighbors = [interactions[b].neighbor for b in Peridynamics.each_bond_idx(system, i)]
+                neighbors = [Peridynamics.get_neighbor(system, b) for b in Peridynamics.each_bond_idx(system, i)]
                 lost = count(==(pulled), neighbors)
                 @test n_active[i] == length(neighbors) - lost
                 @test storage.damage[i] ≈ lost / length(neighbors)

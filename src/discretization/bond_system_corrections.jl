@@ -14,31 +14,10 @@ function correction_type(::AbstractBondSystemMaterial{Correction}) where {Correc
     return Correction
 end
 
-function get_correction(::AbstractBondSystemMaterial{NoCorrection}, ::Int, ::Int, ::Int)
+function get_correction(::AbstractBondSystemMaterial{NoCorrection}, ::SystemSizes)
     return NoCorrection()
 end
 
-"""
-    surface_correction_factor(correction, bond_id)
-
-$(extension_api_note())
-
-Return the surface correction factor of bond `bond_id`, by which a material multiplies the
-force density of that bond. The correction of a body chunk is obtained with `get_correction`
-and depends on the `Correction` type parameter of the material, see
-`AbstractBondSystemMaterial`.
-
-`NoCorrection` returns `1`, so a material that supports corrections can always write the
-multiplication unconditionally and pays nothing when no correction is used.
-
-# Example
-
-```julia
-correction = Peridynamics.get_correction(mat, i, j, bond_id)
-scfactor = Peridynamics.surface_correction_factor(correction, bond_id)
-b = scfactor * params.bc * ε / l .* Δxij
-```
-"""
 @inline function surface_correction_factor(::NoCorrection, ::Int)
     return 1
 end
@@ -53,27 +32,41 @@ end
 A correction handler for materials that use the bond system. If `EnergySurfaceCorrection`
 is used, then the energy based surface correction method of Le and Bobaru (2018) is used.
 
+Both of its fields are type parameters, so that a correction can be moved to another array
+backend with `Adapt.adapt` together with the system that holds it. Dispatch on it therefore
+has to be written `BondSystem{<:EnergySurfaceCorrection}`.
+
 See also [`BBMaterial`](@ref), [`OSBMaterial`](@ref) for further information on how to use
 the correction type.
 """
-struct EnergySurfaceCorrection <: AbstractCorrection
-    mfactor::Matrix{Float64} # multiplication factor mfactor[ndims, npoints]
-    scfactor::Vector{Float64} # surface correction factor scfactor[nbonds]
+struct EnergySurfaceCorrection{M<:AbstractMatrix,V<:AbstractVector} <: AbstractCorrection
+    mfactor::M # multiplication factor mfactor[ndims, npoints]
+    scfactor::V # surface correction factor scfactor[nbonds]
+end
+
+function Adapt.adapt_structure(to, c::EnergySurfaceCorrection)
+    return EnergySurfaceCorrection(Adapt.adapt(to, c.mfactor), Adapt.adapt(to, c.scfactor))
+end
+
+function host_type(::Type{EnergySurfaceCorrection}, ::Val{N},
+                   ::Type{FT}) where {N,FT}
+    return EnergySurfaceCorrection{Matrix{FT},Vector{FT}}
 end
 
 function get_correction(::AbstractBondSystemMaterial{EnergySurfaceCorrection},
-                        n_loc_points::Int, n_points::Int, n_bonds::Int)
-    mfactor = zeros(3, n_points)
-    scfactor = ones(n_bonds)
+                        sizes::SystemSizes)
+    mfactor = alloc_field(PointVector(), sizes, HaloPoints())
+    scfactor = alloc_field(BondScalar(), sizes, LocalPoints(), 1)
     return EnergySurfaceCorrection(mfactor, scfactor)
 end
 
+# The read is `@inbounds` for the reason given above `get_neighbor` in `systems.jl`.
 @inline function surface_correction_factor(correction::EnergySurfaceCorrection,
                                            bond_id::Int)
-    return correction.scfactor[bond_id]
+    return @inbounds correction.scfactor[bond_id]
 end
 
-function initialize!(dh::AbstractThreadsBodyDataHandler{BondSystem{EnergySurfaceCorrection}},
+function initialize!(dh::AbstractThreadsBodyDataHandler{<:BondSystem{<:EnergySurfaceCorrection}},
                      solver::AbstractTimeSolver)
     @threads :static for chunk in dh.chunks
         calc_mfactor!(chunk)
@@ -86,7 +79,7 @@ function initialize!(dh::AbstractThreadsBodyDataHandler{BondSystem{EnergySurface
     return nothing
 end
 
-function initialize!(dh::AbstractMPIBodyDataHandler{BondSystem{EnergySurfaceCorrection}},
+function initialize!(dh::AbstractMPIBodyDataHandler{<:BondSystem{<:EnergySurfaceCorrection}},
                      solver::AbstractTimeSolver)
     calc_mfactor!(dh.chunk)
     exchange_loc_to_halo!(get_mfactor, dh)
@@ -95,7 +88,7 @@ function initialize!(dh::AbstractMPIBodyDataHandler{BondSystem{EnergySurfaceCorr
     return nothing
 end
 
-function calc_mfactor!(chunk::AbstractBodyChunk{BondSystem{EnergySurfaceCorrection}})
+function calc_mfactor!(chunk::AbstractBodyChunk{<:BondSystem{<:EnergySurfaceCorrection}})
     (; mat, system, storage, paramsetup) = chunk
     (; mfactor) = system.correction
     λ = 1.001 # deformation stretch factor
@@ -128,15 +121,12 @@ end
 
 function get_averaged_lame_parameters(system::BondSystem, storage::AbstractStorage,
                                       paramsetup::AbstractParameterHandler, i)
-    (; bonds) = system
-    (; bond_active) = storage
     lame = zero(SVector{2,Float64}) # lame[1] = λ, lame[2] = μ
     params_i = get_params(paramsetup, i)
     n_active_bonds = 0
     for bond_id in each_bond_idx(system, i)
-        if bond_active[bond_id]
-            bond = bonds[bond_id]
-            j = bond.neighbor
+        if bond_is_active(storage, system, bond_id)
+            j = get_neighbor(system, bond_id)
             params_j = get_params(paramsetup, j)
             λ = (params_i.λ + params_j.λ) / 2
             μ = (params_i.μ + params_j.μ) / 2
@@ -158,14 +148,26 @@ end
 
 @inline get_mfactor(chunk::AbstractBodyChunk) = chunk.system.correction.mfactor
 
+# The surface correction factor of a bond is the radius of an ellipsoid in the direction of
+# the bond, which is spherical trigonometry and has no two-dimensional form here.
+function check_scfactor_n_dim(system::AbstractSystem)
+    get_n_dim(system) == 3 && return nothing
+    msg = "`EnergySurfaceCorrection` is only available for three spatial dimensions, but "
+    msg *= "the system has $(get_n_dim(system))!\n"
+    msg *= "  The correction factor of a bond is derived from the angles of the bond in "
+    msg *= "space, which has no two-dimensional form yet. Use `NoCorrection` instead.\n"
+    return throw(ArgumentError(msg))
+end
+
 function calc_scfactor!(chunk::AbstractBodyChunk)
     system = chunk.system
+    check_scfactor_n_dim(system)
     mfactor = system.correction.mfactor
     scfactor = system.correction.scfactor
     for i in each_point_idx(chunk)
         for bond_id in each_bond_idx(system, i)
-            bond = system.bonds[bond_id]
-            j, L = bond.neighbor, bond.length
+            j = get_neighbor(system, bond_id)
+            L = reference_bond_length(system, bond_id)
             Δxijx = system.position[1, j] - system.position[1, i]
             Δxijy = system.position[2, j] - system.position[2, i]
             Δxijz = system.position[3, j] - system.position[3, i]

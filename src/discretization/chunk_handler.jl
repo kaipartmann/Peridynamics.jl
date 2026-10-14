@@ -112,6 +112,37 @@ function localized_point_sets(point_sets::Dict{Symbol,Vector{Int}}, ch::ChunkHan
     return loc_point_sets
 end
 
+"""
+    DeviceChunkHandler
+
+$(internal_api_warning())
+
+What is left of a [`ChunkHandler`](@ref) once a chunk is moved to another array backend with
+`Adapt.adapt`: the two point counts, which is everything a kernel reads. The point ids, the
+halo bookkeeping and the localizer stay on the host, because the halo exchange, the point
+sets and the export are host code and read them there.
+
+# Fields
+
+- `n_loc_points::Int`: Number of local points that belong to the body chunk.
+- `n_points::Int`: Number of local and halo points of the body chunk.
+"""
+struct DeviceChunkHandler <: AbstractChunkHandler
+    n_loc_points::Int
+    n_points::Int
+end
+
+#=
+Only a target that really moves arrays gets a `DeviceChunkHandler`. Adapting to something
+that leaves an array alone, e.g. `Adapt.adapt(Array, chunk)` on the host, has to return the
+chunk handler it was given, so that the whole chunk comes back `===` to itself and nothing
+of the halo bookkeeping is lost by an adapt that moves nothing.
+=#
+function Adapt.adapt_structure(to, ch::ChunkHandler)
+    Adapt.adapt(to, ch.point_ids) === ch.point_ids && return ch
+    return DeviceChunkHandler(ch.n_loc_points, length(ch.point_ids))
+end
+
 @inline function each_point_idx(chunk_handler::ChunkHandler)
     return eachindex(chunk_handler.loc_points)
 end
@@ -120,14 +151,19 @@ end
     return enumerate(chunk_handler.loc_points)
 end
 
-@inline function get_loc_view(a::Matrix{T}, chunk_handler::ChunkHandler) where {T}
-    return view(a, :, 1:chunk_handler.n_loc_points)
+@inline function get_loc_view(a::AbstractMatrix, chunk_handler::AbstractChunkHandler)
+    return view(a, :, 1:get_n_loc_points(chunk_handler))
 end
 
-@inline function get_loc_view(a::Vector{T}, chunk_handler::ChunkHandler) where {T}
-    return view(a, 1:chunk_handler.n_loc_points)
+@inline function get_loc_view(a::AbstractVector, chunk_handler::AbstractChunkHandler)
+    return view(a, 1:get_n_loc_points(chunk_handler))
 end
 
 @inline function get_n_points(chunk_handler::ChunkHandler)
     return length(chunk_handler.point_ids)
 end
+
+# the whole shape layer a device chunk answers, see `AbstractSystem` in `core/systems.jl`
+@inline get_n_loc_points(ch::DeviceChunkHandler) = ch.n_loc_points
+@inline get_n_points(ch::DeviceChunkHandler) = ch.n_points
+@inline each_point_idx(ch::DeviceChunkHandler) = Base.OneTo(ch.n_loc_points)
