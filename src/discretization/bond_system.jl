@@ -22,6 +22,9 @@ one.
 
 # Fields
 
+The fields are internal, except `position` and `volume`, which a material reads by name.
+Everything else is read through an accessor, e.g. [`get_neighbor`](@ref).
+
 $(block_table(BondSystem))
 
 `correction` is the applied surface correction and `kernels` holds the value of the influence

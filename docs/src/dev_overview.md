@@ -13,7 +13,7 @@ same thing in full.
 | a constitutive model: a stress-strain relation, plasticity | [Constitutive models](@ref) | [Writing your own constitutive model](@ref tutorial_custom_constitutive_model) | `AbstractConstitutiveModel`, `first_piola_kirchhoff`, `@cm_params`, `@cm_storage` |
 | material parameters of my own as [`material!`](@ref) keywords | [Point parameters](@ref) | [Writing your own material](@ref tutorial_custom_material) | `@params`, `@kwarg`, `@derived`, `@log`, `@inherit` |
 | storage fields of my own | [Storages](@ref) | [Writing your own material](@ref tutorial_custom_material) | `@storage`, the field shapes, `init_field` |
-| to export a field of my own | [Storages](@ref) | [Writing your own damage model](@ref tutorial_custom_damage_model) | `custom_field`, `export_field` |
+| to export a field of my own | [Materials](@ref) | [Writing your own damage model](@ref tutorial_custom_damage_model) | `custom_field`, `export_field` |
 | to reuse the fields or parameters of a shipped material | [Blocks you can inherit](@ref) | [Writing your own material](@ref tutorial_custom_material) | `@inherit`, `block_table` |
 | a new system, the discretization itself | [Systems](@ref), internal tier | none | `@system`, `system_type`, `SystemSizes` |
 | a new time solver | [Time solvers](@ref), internal tier | none | `AbstractTimeSolver`, `solve!`, `register_solver!` |

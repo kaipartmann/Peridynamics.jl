@@ -84,7 +84,7 @@ end
 | [`bond_may_fail(system, bond_id)`](@ref Peridynamics.bond_may_fail) | whether the bond is allowed to break | how [`no_failure!`](@ref) is honored |
 | [`kernel(system, bond_id)`](@ref Peridynamics.kernel) | the influence function of the bond | |
 | [`surface_correction_factor(system, bond_id)`](@ref Peridynamics.surface_correction_factor) | the correction factor | `1` with `NoCorrection` |
-| `system.volume[j]` | the volume of the neighbor | the one system field read by name |
+| `system.volume[j]` | the volume of the neighbor | one of the two system fields read by name, with `system.position` |
 | [`get_vector_diff(storage.position, i, j, dims(system))`](@ref Peridynamics.get_vector_diff) | the bond vector as an `SVector{N}` | works on `system.position` for the reference vector |
 | [`current_bond_length(storage, system, i, bond_id)`](@ref Peridynamics.current_bond_length) | the deformed length `l` | reads the cache where there is one |
 | [`bond_stretch(storage, system, i, bond_id)`](@ref Peridynamics.bond_stretch) | the stretch `ε` | one read, not length and reference length |

@@ -41,8 +41,8 @@ code under multithreading and under MPI.
 
 ## Reading a system in a kernel
 
-Whatever a system is built from, a material reads it through functions and never by field
-name. Each of these is a single array load:
+Whatever a system is built from, a material reads it through functions. The only fields it
+reads by name are `position` and `volume`. Each of these is a single array load:
 
 ```julia
 for i in each_point_idx(system)                         # the local points of this chunk

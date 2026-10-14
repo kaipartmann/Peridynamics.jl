@@ -25,7 +25,7 @@ These names are not exported, so they are written out in full:
 using Peridynamics
 
 function Peridynamics.force_density_point!(storage, system::Peridynamics.BondSystem,
-                                           mat::MyMaterial, params, t, Δt, i)
+                                           mat::MyMaterial, paramsetup, t, Δt, i)
     # ...
 end
 ```

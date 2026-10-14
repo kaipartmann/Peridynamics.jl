@@ -154,7 +154,7 @@ end
 # \varepsilon_c = \sqrt{\frac{2 G_c}{3 K \delta}} ,
 # ```
 #
-# about 8.7 % below the default, so using the default would break the body too early,
+# about 9.5 % above the default, so using the default would break the body too early,
 # silently. The material states the relation, the damage model decides what
 # ``\varepsilon_c`` means, and both are dispatched on. Define **both** directions:
 # whichever keyword the user gives, the other is derived from it.
@@ -240,7 +240,8 @@ job = Job(body, VelocityVerlet(steps=200);
 #   criterion.
 # - [Writing your own constitutive model](@ref tutorial_custom_constitutive_model) is the
 #   way to go for a new stress-strain relation on the correspondence materials.
-# - [Materials](@ref) for the declaration language in full.
+# - [Materials](@ref) for the contract of a material, [Point parameters](@ref) and
+#   [Storages](@ref) for the declaration language in full.
 # - [Blocks you can inherit](@ref) for everything `@inherit` accepts.
 # - [Extension API](@ref) for every name used here.
 # - [API stability](@ref) for what is promised and what is deliberately left internal.

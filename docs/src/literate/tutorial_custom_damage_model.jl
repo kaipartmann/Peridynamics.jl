@@ -42,8 +42,9 @@ end
 # A damage model owns the fracture bookkeeping. Inheriting
 # [`BondFracFields`](@ref Peridynamics.BondFracFields) brings `bond_active`, `n_active_bonds`
 # and `damage`, plus the defaults of [`bond_is_active`](@ref Peridynamics.bond_is_active) and
-# the rest of the interface. The accumulated damage per bond is a field of our own, declared
-# with [`@storage`](@ref Peridynamics.@storage), never exchanged between chunks.
+# the rest of the interface. The accumulated damage per bond is a field of our own.
+# [`@dmg_storage`](@ref Peridynamics.@dmg_storage) declares it with the field shapes of
+# [`@storage`](@ref Peridynamics.@storage), and it is never exchanged between chunks.
 
 Peridynamics.@dmg_storage DelayedFailure struct DelayedFailureState
     @inherit BondFracFields
@@ -134,5 +135,6 @@ job = Job(body, VelocityVerlet(steps=400);
 #   stress-strain relation with a history. A damage model can read the state of such a model
 #   through [`constitutive_state`](@ref Peridynamics.constitutive_state), which is how a
 #   ductile damage model reads the plastic strain.
-# - [Materials](@ref) for the declaration language in full.
+# - [Damage models](@ref) for the contract of a damage model, [Point parameters](@ref) and
+#   [Storages](@ref) for the declaration language in full.
 # - [Extension API](@ref) for every name used here.

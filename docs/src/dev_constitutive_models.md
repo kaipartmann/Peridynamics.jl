@@ -17,7 +17,7 @@ hyperelastic model and J2 plasticity in full.
 | the state of the model | `Peridynamics.@cm_storage MyModel struct MyModelState ... end` | no | the model has no state and is not history dependent |
 | the strain energy density | [`strain_energy_density(model, storage, params, F, idx)`](@ref Peridynamics.strain_energy_density) | only when `:strain_energy_density` is exported | `InterfaceError` |
 | that the history is kept elsewhere | [`is_history_dependent(model)`](@ref Peridynamics.is_history_dependent) | no | whether the model declares a state with `@cm_storage` |
-| that a solver evaluates the force density once per step | [`supports_history_dependence(solver)`](@ref Peridynamics.supports_history_dependence) | only for a new time solver | `true` |
+| that a history-dependent model cannot run | [`supports_history_dependence(solver)`](@ref Peridynamics.supports_history_dependence), `supports_history_dependence(mat)` | for a solver that evaluates the force density more than once per step, or a material whose `idx` does not always index the same quantity | `true` |
 
 `strain_energy_density` takes the index but not the time step, and it must not change the
 state, because it is also called when a field is exported, that is outside of the time

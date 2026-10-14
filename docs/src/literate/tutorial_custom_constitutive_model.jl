@@ -193,5 +193,6 @@ job = Job(steel, VelocityVerlet(steps=2000);
 #   constitutive model.
 # - [Writing your own damage model](@ref tutorial_custom_damage_model) for a failure
 #   criterion of your own, which can read the state of a constitutive model.
-# - [Materials](@ref) for the declaration language in full.
+# - [Constitutive models](@ref) for the contract of a constitutive model,
+#   [Point parameters](@ref) and [Storages](@ref) for the declaration language in full.
 # - [Extension API](@ref) for every name used here.

@@ -178,9 +178,10 @@ Peridynamics.AbstractTimeSolver
 
 ## System types
 
-The discretization of a body chunk, which a material dispatches on. Its fields are internal,
-a material reads it through the accessors under
-[Accessing a system and its parameters](@ref). See [Systems](@ref).
+The discretization of a body chunk, which a material dispatches on. A material reads it
+through the accessors under [Accessing a system and its parameters](@ref). Its fields are
+internal, except `position` and `volume`, which a material reads by name. See
+[Systems](@ref).
 
 ```@docs
 Peridynamics.BondSystem
