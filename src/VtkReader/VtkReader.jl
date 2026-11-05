@@ -8,7 +8,7 @@ using LightXML: LightXML, XMLDocument, XMLElement, parse_string, attribute, chil
 export read_vtk
 
 const HEADER_TYPE = UInt64
-const DATATYPE_MAPPING = Dict("Float64" => Float64, "Int64" => Int64)
+const DATATYPE_MAPPING = Dict("Float64" => Float64, "Int64" => Int64, "UInt8" => UInt8)
 
 abstract type AbstractDataArray end
 

@@ -1,7 +1,7 @@
 """
     InterfaceError
 
-$(internal_api_warning())
+$(extension_api_note())
 
 A type for a customized error that is thrown when a material model is not implemented
 correctly.
@@ -10,14 +10,16 @@ correctly.
 
 - `type::DataType`: Type that is used.
 - `func::String`: Function that is used.
+- `hint::String`: Optional explanation of how the interface method can be defined.
 """
 struct InterfaceError <: Exception
     type::DataType
     func::String
-    function InterfaceError(_type::T, _func::F) where {T,F}
+    hint::String
+    function InterfaceError(_type::T, _func::F, _hint="") where {T,F}
         func = string(_func)
         type = isa(_type, DataType) ? _type : T
-        return new(type, func)
+        return new(type, func, string(_hint))
     end
 end
 
@@ -28,6 +30,137 @@ function Base.showerror(io::IO, e::InterfaceError)
     print(io, "\n  method:  ")
     printstyled(io, string(e.func); bold=true, color=:red)
     println(io)
+    isempty(e.hint) || println(io, "  ", e.hint)
+    return nothing
+end
+
+"""
+    StorageContractError
+
+$(extension_api_note())
+
+A type for a customized error that is thrown when the storage of a material does not
+contain all fields that are required by the material, its damage model and the time solver
+of the submitted job. See [`check_storage_contract`](@ref).
+
+# Fields
+
+- `storage::DataType`: Storage type that misses fields.
+- `material::DataType`: Material type the storage belongs to.
+- `solver::DataType`: Time solver of the job.
+- `missing_fields::Vector{Pair{Symbol,String}}`: Missing fields and the reason why they are
+    required.
+"""
+struct StorageContractError <: Exception
+    storage::DataType
+    material::DataType
+    solver::DataType
+    missing_fields::Vector{Pair{Symbol,String}}
+end
+
+function Base.showerror(io::IO, e::StorageContractError)
+    print(io, "storage type does not contain all required fields!")
+    print(io, "\n  storage:   ")
+    printstyled(io, string(nameof(e.storage)); bold=true, color=:red)
+    print(io, "\n  material:  ")
+    printstyled(io, string(e.material); bold=true, color=:red)
+    print(io, "\n  solver:    ")
+    printstyled(io, string(e.solver); bold=true, color=:red)
+    println(io, "\n\n  missing fields:")
+    pad = maximum(length(string(first(x))) for x in e.missing_fields)
+    for (field, reason) in e.missing_fields
+        print(io, "    ")
+        printstyled(io, rpad(string(field), pad); bold=true, color=:red)
+        println(io, "   required by ", reason)
+    end
+    println(io, "\n  To fix this, either")
+    println(io, "    - add the missing fields to the `Peridynamics.@storage` definition")
+    println(io, "      of `", nameof(e.storage), "` and define a `Peridynamics.init_field`")
+    println(io, "      method for every added field that is not already covered by the")
+    println(io, "      system or the time solver, or")
+    println(io, "    - use a damage model and a time solver that `", nameof(e.storage),
+            "` supports.")
+    return nothing
+end
+
+"""
+    HistoryDependenceError
+
+$(extension_api_note())
+
+A type for a customized error that is thrown when a history-dependent constitutive model is
+combined with a time solver, a material or a storage that cannot integrate its history
+correctly. See [`check_constitutive_model`](@ref).
+
+# Fields
+
+- `model::DataType`: Constitutive model that integrates a history.
+- `material::DataType`: Material type the model belongs to.
+- `solver::DataType`: Time solver of the job.
+- `reason::String`: Why the combination cannot work.
+- `fix::String`: How to fix it.
+"""
+struct HistoryDependenceError <: Exception
+    model::DataType
+    material::DataType
+    solver::DataType
+    reason::String
+    fix::String
+    function HistoryDependenceError(_model::T, material::DataType, solver::DataType,
+                                    reason, fix) where {T}
+        model = isa(_model, DataType) ? _model : T
+        return new(model, material, solver, string(reason), string(fix))
+    end
+end
+
+function Base.showerror(io::IO, e::HistoryDependenceError)
+    print(io, "history-dependent constitutive model cannot be used here!")
+    print(io, "\n  model:     ")
+    printstyled(io, string(nameof(e.model)); bold=true, color=:red)
+    print(io, "\n  material:  ")
+    printstyled(io, string(nameof(e.material)); bold=true, color=:red)
+    print(io, "\n  solver:    ")
+    printstyled(io, string(nameof(e.solver)); bold=true, color=:red)
+    println(io, "\n\n  ", e.reason, ".")
+    println(io, "\n  ", e.fix)
+    return nothing
+end
+
+"""
+    SofteningSupportError
+
+$(internal_api_warning())
+
+A type for a customized error that is thrown when a damage model defines
+[`bond_integrity`](@ref) or [`kinematic_weight`](@ref), but is combined with a material
+whose force path never calls the hooks, so the softening would be silently ignored.
+
+# Fields
+- `dmgmodel::DataType`: Damage model type that defines the ignored hooks.
+- `material::DataType`: Material type that ignores them.
+- `reason::String`: Why the combination cannot work.
+- `fix::String`: How to fix it.
+"""
+struct SofteningSupportError <: Exception
+    dmgmodel::DataType
+    material::DataType
+    reason::String
+    fix::String
+    function SofteningSupportError(_dmgmodel::T, material::DataType, reason,
+                                   fix) where {T}
+        dmgmodel = isa(_dmgmodel, DataType) ? _dmgmodel : T
+        return new(dmgmodel, material, string(reason), string(fix))
+    end
+end
+
+function Base.showerror(io::IO, e::SofteningSupportError)
+    print(io, "softening damage model cannot be used here!")
+    print(io, "\n  model:     ")
+    printstyled(io, string(nameof(e.dmgmodel)); bold=true, color=:red)
+    print(io, "\n  material:  ")
+    printstyled(io, string(nameof(e.material)); bold=true, color=:red)
+    println(io, "\n\n  ", e.reason, ".")
+    println(io, "\n  ", e.fix)
     return nothing
 end
 

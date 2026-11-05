@@ -384,8 +384,8 @@ function update_volume_three_nis!(system, volume_hood)
     return nothing
 end
 
-function break_bonds!(storage::AbstractStorage, system::InteractionSystem,
-                      set_a::Vector{Int}, set_b::Vector{Int})
+function failure_by_sets!(storage, system::InteractionSystem, ::AbstractDamageModel, set_a,
+                          set_b)
     storage.n_active_one_nis .= 0
     for point_id in each_point_idx(system)
         for bond_id in each_one_ni_idx(system, point_id)
@@ -542,69 +542,63 @@ function required_point_parameters(::Type{<:AbstractInteractionSystemMaterial})
     return (:δ, :rho, elasticity_parameters()..., :C1, :C2, :C3)
 end
 
-function get_required_point_parameters(mat::AbstractInteractionSystemMaterial,
-                                       p::Dict{Symbol,Any})
-    params = (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)
-    params = (; params..., get_interaction_parameters(mat, p, params)...)
-    return params
+"""
+    InteractionFracFields
+
+$(extension_api_note())
+
+The storage fields of the fracture bookkeeping of an interaction system, see
+[`@storage_fields`](@ref). All of them are allocated by `init_field_system`.
+
+$(block_table(InteractionFracFields))
+"""
+@storage_fields InteractionFracFields begin
+    damage::PointScalar
+    n_active_one_nis::PointScalar{Int}
+    one_ni_active::Vector{Bool}
 end
 
-function get_interaction_parameters(mat::AbstractInteractionSystemMaterial,
-                                    p::Dict{Symbol,Any}, params)
+function get_interaction_parameters(mat::AbstractInteractionSystemMaterial, params;
+                                    C1=nothing, C2=nothing, C3=nothing)
     (; δ, μ, λ) = params
-    if haskey(p, :C1)
-        C1::Float64 = float(p[:C1])
-    else
-        C1 = 0.0
-    end
+    _C1::Float64 = isnothing(C1) ? 0.0 : float(C1)
+    _C2::Float64 = isnothing(C2) ? 0.0 : float(C2)
+    _C3::Float64 = isnothing(C3) ? 0.0 : float(C3)
 
-    if haskey(p, :C2)
-        C2::Float64 = float(p[:C2])
-    else
-        C2 = 0.0
-    end
-
-    if haskey(p, :C3)
-        C3::Float64 = float(p[:C3])
-    else
-        C3 = 0.0
-    end
-
-    if C1 ≈ 0 && C2 ≈ 0 && C3 ≈ 0
-        C1 = 30 / π * μ / δ^4
-        C2 = 0.0
-        C3 = 32 / π^4 * (λ - μ) / δ^12
+    if _C1 ≈ 0 && _C2 ≈ 0 && _C3 ≈ 0
+        _C1 = 30 / π * μ / δ^4
+        _C2 = 0.0
+        _C3 = 32 / π^4 * (λ - μ) / δ^12
     else
         msg = "interaction parameters for $(typeof(mat)) specified manually!\n"
         msg *= "Be careful when adjusting these parameters to avoid unexpected outcomes!"
         @mpiroot @warn msg
     end
 
-    return (; C1, C2, C3)
-end
-
-function allowed_material_kwargs(::AbstractInteractionSystemMaterial)
-    kwargs = (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...,
-              :C1, :C2, :C3)
-    return kwargs
+    return (; C1=_C1, C2=_C2, C3=_C3)
 end
 
 @inline get_n_one_nis(system::InteractionSystem) = length(system.one_nis)
 
 function log_material_property(::Val{:dmgmodel}, mat::AbstractInteractionSystemMaterial;
                                indentation::Int=2)
-    msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)
-    return msg
+    return log_dmgmodel(mat.dmgmodel; indentation)
 end
 
-function log_param_property(::Val{:C1}, param; indentation)
-    return msg_qty("parameter one-neighbor interactions", param.C1; indentation)
-end
+"""
+    InteractionParameters
 
-function log_param_property(::Val{:C2}, param; indentation)
-    return msg_qty("parameter two-neighbor interactions", param.C2; indentation)
-end
+$(extension_api_note())
 
-function log_param_property(::Val{:C3}, param; indentation)
-    return msg_qty("parameter three-neighbor interactions", param.C3; indentation)
+Parameter block of the three material constants of the continuum-kinematics-inspired
+formulation. They are resolved together, because they are either all derived from the
+elastic parameters or all specified by hand. See [`@params_fields`](@ref).
+
+$(block_table(InteractionParameters))
+"""
+@params_fields InteractionParameters begin
+    @derived (; C1, C2, C3) = get_interaction_parameters(mat, (; δ, μ, λ); C1, C2, C3)
+    @log "parameter one-neighbor interactions" C1
+    @log "parameter two-neighbor interactions" C2
+    @log "parameter three-neighbor interactions" C3
 end

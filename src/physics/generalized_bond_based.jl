@@ -83,44 +83,15 @@ function GBBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) where
 end
 GBBMaterial(; kwargs...) = GBBMaterial{NoCorrection}(; kwargs...)
 
-function StandardPointParameters(mat::GBBMaterial{C,D}, p::Dict{Symbol,Any}) where {C,D}
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters_bb(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant of the standard BB model
-    return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
-end
-
-@params GBBMaterial StandardPointParameters
+# the point parameters of the bond-based material; `bc` is its bond constant
+@params GBBMaterial BBPointParameters
 
 @storage GBBMaterial struct GBBStorage <: AbstractStorage
-    @lthfield position::Matrix{Float64}
-    @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
-    @pointfield velocity_half_old::Matrix{Float64}
-    @pointfield acceleration::Matrix{Float64}
-    @pointfield b_int::Matrix{Float64}
-    @pointfield b_int_old::Matrix{Float64}
-    @pointfield b_ext::Matrix{Float64}
-    @pointfield density_matrix::Matrix{Float64}
-    @pointfield damage::Vector{Float64}
-    @pointfield n_active_bonds::Vector{Int}
-    @pointfield strain_energy_density::Vector{Float64}
-    @pointfield weighted_volume::Vector{Float64}
-    bond_length::Vector{Float64}
-    bond_active::Vector{Bool}
-    residual::Vector{Float64}
-    displacement_copy::Matrix{Float64}
-    b_int_copy::Matrix{Float64}
-    temp_force::Vector{Float64}
-    Δu::Vector{Float64}
-    v_temp::Vector{Float64}
-    Jv_temp::Vector{Float64}
-end
-
-function init_field(::GBBMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:weighted_volume})
-    return zeros(get_n_loc_points(system))
+    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
+    @inherit BondFracFields
+    strain_energy_density::PointScalar
+    weighted_volume::PointScalar
+    bond_length::BondScalar
 end
 
 function calc_weighted_volume!(storage::GBBStorage, system::BondSystem,
@@ -138,7 +109,7 @@ function calc_weighted_volume!(storage::GBBStorage, system::BondSystem,
 end
 
 function force_density_point!(storage::GBBStorage, system::BondSystem, mat::GBBMaterial,
-                              params::StandardPointParameters, t, Δt, i)
+                              params::BBPointParameters, t, Δt, i)
     (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     wvol = calc_weighted_volume!(storage, system, mat, params, i)

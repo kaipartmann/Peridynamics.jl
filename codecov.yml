@@ -1,0 +1,15 @@
+# The CI workflow uploads coverage from three jobs per commit; codecov merges them.
+# `carryforward` keeps the last known report of a flag if its upload is missing.
+flags:
+  unit:
+    paths:
+      - src/
+    carryforward: true
+  extras:
+    paths:
+      - src/
+    carryforward: true
+  mpi:
+    paths:
+      - src/
+    carryforward: true

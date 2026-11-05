@@ -200,6 +200,24 @@ function get_kernel(mat::AbstractMaterial, params::AbstractPointParameters, L)
     return ω
 end
 
+"""
+    kernel(system, bond_id)
+
+$(extension_api_note())
+
+Return the value of the influence function ``\\omega`` of bond `bond_id`. The kernel is
+evaluated once during setup from the kernel function of the material, e.g.
+`linear_kernel` or `cubic_b_spline_kernel`, and the initial bond length, so a material only
+has to look it up.
+
+# Example
+
+```julia
+for bond_id in Peridynamics.each_bond_idx(system, i)
+    ωij = Peridynamics.kernel(system, bond_id)
+end
+```
+"""
 @inline function kernel(system::AbstractBondSystem, bond_id::Int)
     return system.kernels[bond_id]
 end
@@ -215,32 +233,33 @@ function find_halo_points(bonds::Vector{Bond}, loc_points::AbstractVector{Int})
     return halo_points
 end
 
+"""
+    each_bond_idx(system, i)
+
+$(extension_api_note())
+
+Return an iterator over the bond indices of point `i`. A bond index addresses every bond
+field of the storage, i.e. every field declared with a `Bond...` field shape, and
+`system.bonds[bond_id]` gives the bond itself with its `neighbor` and its `length`.
+
+# Example
+
+```julia
+for bond_id in Peridynamics.each_bond_idx(system, i)
+    bond = system.bonds[bond_id]
+    j, L = bond.neighbor, bond.length
+    storage.bond_active[bond_id] || continue
+end
+```
+
+See also [`each_point_idx`](@ref), [`get_n_bonds`](@ref).
+"""
 @inline each_bond_idx(system::AbstractBondSystem, i::Int) = system.bond_ids[i]
 
 function localize!(bonds::Vector{Bond}, localizer::Dict{Int,Int})
     for i in eachindex(bonds)
         bond = bonds[i]
         bonds[i] = Bond(localizer[bond.neighbor], bond.length, bond.fail_permit)
-    end
-    return nothing
-end
-
-function break_bonds!(storage::AbstractStorage, system::AbstractBondSystem,
-                      set_a::Vector{Int}, set_b::Vector{Int})
-    storage.n_active_bonds .= 0
-    for i in each_point_idx(system)
-        for bond_id in each_bond_idx(system, i)
-            bond = system.bonds[bond_id]
-            neighbor_id = bond.neighbor
-            point_in_a = in(i, set_a)
-            point_in_b = in(i, set_b)
-            neigh_in_a = in(neighbor_id, set_a)
-            neigh_in_b = in(neighbor_id, set_b)
-            if (point_in_a && neigh_in_b) || (point_in_b && neigh_in_a)
-                storage.bond_active[bond_id] = false
-            end
-            storage.n_active_bonds[i] += storage.bond_active[bond_id]
-        end
     end
     return nothing
 end
@@ -314,6 +333,35 @@ function calc_damage!(chunk::AbstractBodyChunk{<:AbstractBondSystem})
     return nothing
 end
 
+"""
+    calc_damage!(storage, system, mat, dmgmodel, paramsetup, i)
+
+$(extension_api_note())
+
+Reduce the bond-wise state of the damage model to the damage of point `i`, which is the
+scalar written to `storage.damage` and exported as the `:damage` field. It is called once per
+local point and per time step, directly after [`calc_failure!`](@ref).
+
+The default is the fraction of broken bonds, `1 - n_active_bonds[i] / n_neighbors[i]`, which
+is what a model that deletes bonds wants. A model that degrades a bond continuously instead
+of deleting it defines its own method, so that a partially damaged bond is counted with its
+degree of damage rather than as intact; see [`kinematic_weight`](@ref) and
+[`bond_integrity`](@ref).
+
+# Arguments
+
+- `storage`: The storage of the body chunk. A stateful damage model reaches its own bond
+    fields with [`damage_state`](@ref).
+- `system`: The system of the body chunk.
+- `mat`: The material.
+- `dmgmodel`: The damage model, i.e. what a new model dispatches on.
+- `paramsetup`: The parameters of the body chunk; resolve them with [`get_params`](@ref).
+- `i::Int`: The index of the local point that is evaluated.
+
+See also [`calc_failure!`](@ref), [`@dmg_storage`](@ref), `AbstractDamageModel`.
+"""
+function calc_damage! end
+
 function calc_damage!(storage::AbstractStorage, system::AbstractBondSystem,
                       mat::AbstractMaterial, dmgmodel::AbstractDamageModel,
                       paramsetup::AbstractParameterSetup, i)
@@ -374,14 +422,31 @@ function required_point_parameters(::Type{<:AbstractBondSystemMaterial})
     return (:δ, :rho, elasticity_parameters()...)
 end
 
-function get_required_point_parameters(::AbstractBondSystemMaterial, p::Dict{Symbol,Any})
-    return (; get_horizon(p)..., get_density(p)..., get_elastic_params(p)...)
+"""
+    BondFracFields
+
+$(extension_api_note())
+
+The storage fields of the fracture bookkeeping of a bond system, see
+[`@storage_fields`](@ref). All of them are allocated by `init_field_system`.
+
+$(block_table(BondFracFields))
+"""
+@storage_fields BondFracFields begin
+    damage::PointScalar
+    n_active_bonds::PointScalar{Int}
+    bond_active::BondScalar{Bool}
 end
 
-function allowed_material_kwargs(::AbstractBondSystemMaterial)
-    return (discretization_kwargs()..., elasticity_kwargs()..., fracture_kwargs()...)
-end
+"""
+    get_n_bonds(system)
 
+$(extension_api_note())
+
+Return the number of bonds of a chunk. Every storage field declared with a `Bond...` field
+shape has this many entries, and so does the state of a constitutive model that indexes per
+bond, see [`@cm_storage`](@ref).
+"""
 @inline get_n_bonds(system::AbstractBondSystem) = length(system.bonds)
 
 function log_material(mat::M; indentation::Int=2) where {M<:AbstractBondSystemMaterial}
@@ -397,8 +462,7 @@ end
 
 function log_material_property(::Val{:dmgmodel}, mat::AbstractBondSystemMaterial;
                                indentation::Int=2)
-    msg = msg_qty("damage model type", typeof(mat.dmgmodel); indentation)
-    return msg
+    return log_dmgmodel(mat.dmgmodel; indentation)
 end
 
 function log_material_property(::Val{:kernel}, mat::AbstractBondSystemMaterial;
@@ -407,9 +471,7 @@ function log_material_property(::Val{:kernel}, mat::AbstractBondSystemMaterial;
     return msg
 end
 
-function log_material(mat::M;
-                      indentation::Int=2) where {M<:Union{AbstractCorrespondenceMaterial,
-                                                          AbstractRKCMaterial}}
+function log_material(mat::M; indentation::Int=2) where {M<:AbstractCorrespondenceMaterial}
     msg = msg_qty("material type", nameof(M); indentation)
     for prop in fieldnames(M)
         msg *= log_material_property(Val(prop), mat; indentation)

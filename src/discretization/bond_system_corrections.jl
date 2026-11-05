@@ -18,6 +18,27 @@ function get_correction(::AbstractBondSystemMaterial{NoCorrection}, ::Int, ::Int
     return NoCorrection()
 end
 
+"""
+    surface_correction_factor(correction, bond_id)
+
+$(extension_api_note())
+
+Return the surface correction factor of bond `bond_id`, by which a material multiplies the
+force density of that bond. The correction of a body chunk is obtained with `get_correction`
+and depends on the `Correction` type parameter of the material, see
+`AbstractBondSystemMaterial`.
+
+`NoCorrection` returns `1`, so a material that supports corrections can always write the
+multiplication unconditionally and pays nothing when no correction is used.
+
+# Example
+
+```julia
+correction = Peridynamics.get_correction(mat, i, j, bond_id)
+scfactor = Peridynamics.surface_correction_factor(correction, bond_id)
+b = scfactor * params.bc * ε / l .* Δxij
+```
+"""
 @inline function surface_correction_factor(::NoCorrection, ::Int)
     return 1
 end

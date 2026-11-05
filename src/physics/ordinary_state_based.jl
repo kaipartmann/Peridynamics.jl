@@ -93,45 +93,26 @@ function OSBMaterial{C}(; kernel::F=linear_kernel,
 end
 OSBMaterial(; kwargs...) = OSBMaterial{NoCorrection}(; kwargs...)
 
-@params OSBMaterial StandardPointParameters
+"""
+    OSBPointParameters
+
+$(internal_api_warning())
+
+Point parameters of the ordinary state-based material: exactly the
+[`StandardParameters`](@ref).
+
+$(block_table(OSBPointParameters))
+"""
+@params OSBMaterial struct OSBPointParameters
+    @inherit StandardParameters
+end
 
 @storage OSBMaterial struct OSBStorage <: AbstractStorage
-    @lthfield position::Matrix{Float64}
-    @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
-    @pointfield velocity_half_old::Matrix{Float64}
-    @pointfield acceleration::Matrix{Float64}
-    @htlfield b_int::Matrix{Float64}
-    @pointfield b_int_old::Matrix{Float64}
-    @pointfield b_ext::Matrix{Float64}
-    @pointfield density_matrix::Matrix{Float64}
-    @pointfield damage::Vector{Float64}
-    @pointfield n_active_bonds::Vector{Int}
-    @pointfield strain_energy_density::Vector{Float64}
-    bond_length::Vector{Float64}
-    bond_active::Vector{Bool}
-    residual::Vector{Float64}
-    displacement_copy::Matrix{Float64}
-    b_int_copy::Matrix{Float64}
-    temp_force::Vector{Float64}
-    Δu::Vector{Float64}
-    v_temp::Vector{Float64}
-    Jv_temp::Vector{Float64}
-end
-
-function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
-    return zeros(3, get_n_points(system))
-end
-
-function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:bond_length})
-    return zeros(get_n_bonds(system))
-end
-
-function init_field(::OSBMaterial, ::AbstractTimeSolver, system::BondSystem,
-                    ::Val{:strain_energy_density})
-    return zeros(get_n_loc_points(system))
+    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
+    @inherit BondFracFields
+    @htl b_int::PointVector
+    strain_energy_density::PointScalar
+    bond_length::BondScalar
 end
 
 # Customized calc_failure to save the bond length for force density calculation
@@ -157,7 +138,7 @@ function calc_failure!(storage::OSBStorage, system::BondSystem,
 end
 
 function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::StandardPointParameters, t, Δt, i)
+                              params::OSBPointParameters, t, Δt, i)
     wvol = calc_weighted_volume(storage, system, mat, params, i)
     iszero(wvol) && return nothing
     dil = calc_dilatation(storage, system, mat, params, wvol, i)
@@ -205,7 +186,7 @@ function force_density_point!(storage::OSBStorage, system::BondSystem, mat::OSBM
 end
 
 function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                              params::StandardPointParameters, i)
+                              params::OSBPointParameters, i)
     wvol = 0.0
     for bond_id in each_bond_idx(system, i)
         bond = system.bonds[bond_id]
@@ -220,7 +201,7 @@ function calc_weighted_volume(storage::OSBStorage, system::BondSystem, mat::OSBM
 end
 
 function calc_dilatation(storage::OSBStorage, system::BondSystem, mat::OSBMaterial,
-                         params::StandardPointParameters, wvol, i)
+                         params::OSBPointParameters, wvol, i)
     dil = 0.0
     c1 = 3.0 / wvol
     for bond_id in each_bond_idx(system, i)

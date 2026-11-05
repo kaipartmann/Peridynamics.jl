@@ -1,3 +1,10 @@
+# Peridynamics.jl has three API tiers, and every docstring says which one it belongs to:
+#
+#   1. the user API      -- exported, no marker needed
+#   2. the extension API -- not exported, written as `Peridynamics.<name>`, marked with
+#                           `extension_api_note()`
+#   3. everything else   -- internal, marked with `internal_api_warning()`
+
 function internal_api_warning()
     if VERSION < v"1.11"
         msg = """
@@ -9,6 +16,17 @@ function internal_api_warning()
     else
         msg = ""
     end
+    return msg
+end
+
+function extension_api_note()
+    msg = """
+    !!! note "Extension API"
+        This is part of the extension API of Peridynamics.jl. It is not exported, so use it
+        as `Peridynamics.<name>` or import it explicitly. It is stable within a minor
+        release, but while the package is at version 0.x it can still change in a minor
+        version bump. Any such change is listed in `NEWS.md`.
+    """
     return msg
 end
 

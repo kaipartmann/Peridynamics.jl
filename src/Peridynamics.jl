@@ -8,6 +8,14 @@ end
 
 import LibGit2, Dates
 
+# `block_table` returns markdown, which is rendered when a block is shown, so that the table
+# is aligned in a terminal and is a real table in the documentation
+import Markdown
+
+# `@storage` extends `Adapt.adapt_structure` for every storage it generates, so that a whole
+# storage can be moved to another array backend with `Adapt.adapt`
+import Adapt
+
 # Material models
 export BBMaterial, DHBBMaterial, GBBMaterial, OSBMaterial, CMaterial, CRMaterial,
        BACMaterial, CKIMaterial, RKCMaterial, RKCRMaterial
@@ -27,7 +35,8 @@ export NoCorrection, EnergySurfaceCorrection
 # Discretization
 export Body, point_set!, point_sets, no_failure!, material!, velocity_bc!, velocity_ic!,
        forcedensity_bc!, displacement_bc!, precrack!, MultibodySetup, contact!, uniform_box,
-       uniform_sphere, uniform_cylinder, round_sphere, round_cylinder, n_points
+       uniform_sphere, uniform_cylinder, round_sphere, round_cylinder, rotate!, trunc_pyramid, 
+       n_points
 
 # Running simulations
 export VelocityVerlet, DynamicRelaxation, NewtonKrylov, Job, Study, submit, submit!
@@ -74,17 +83,24 @@ abstract type AbstractMPIBodyDataHandler{Sys,M,P,S} <: AbstractMPIDataHandler en
 abstract type AbstractMPIMultibodyDataHandler <: AbstractMPIDataHandler end
 abstract type AbstractCorrection end
 abstract type AbstractStorage end
+abstract type AbstractStorageFields end
+abstract type AbstractPointParameterFields end
+abstract type AbstractConstitutiveParameters end
+abstract type AbstractDamageParameters end
+abstract type AbstractFieldShape{T} end
+abstract type AbstractSolverField end
 abstract type AbstractCondition end
 abstract type AbstractBondSystemMaterial{Correction} <: AbstractMaterial end
 abstract type AbstractBondBasedMaterial{CM} <: AbstractBondSystemMaterial{CM} end
 abstract type AbstractCorrespondenceMaterial{CM,ZEM} <: AbstractBondSystemMaterial{ZEM} end
-abstract type AbstractRKCMaterial{CM,C} <: AbstractBondSystemMaterial{C} end
+abstract type AbstractRKCMaterial{CM,C,M} <: AbstractBondSystemMaterial{C} end
 abstract type AbstractBondAssociatedSystemMaterial <: AbstractBondSystemMaterial{Nothing} end
 abstract type AbstractConstitutiveModel end
-abstract type AbstractStressIntegration end
+abstract type AbstractConstitutiveState end
 abstract type AbstractZEMStabilization <: AbstractCorrection end
 abstract type AbstractInteractionSystemMaterial <: AbstractMaterial end
 abstract type AbstractDamageModel end
+abstract type AbstractDamageState end
 
 include("auxiliary/function_arguments.jl")
 include("auxiliary/docs.jl")
@@ -95,6 +111,13 @@ include("auxiliary/errors.jl")
 include("auxiliary/static_arrays.jl")
 include("auxiliary/nans.jl")
 include("auxiliary/autoinfiltrate.jl")
+
+# included early so that field blocks can be declared next to the system, solver or
+# material family whose contract they express
+include("core/storage_fields.jl")
+include("core/param_fields.jl")
+include("auxiliary/block_tables.jl")
+include("core/constitutive_models.jl")
 
 include("physics/boundary_conditions.jl")
 include("physics/initial_conditions.jl")

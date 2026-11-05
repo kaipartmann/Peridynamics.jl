@@ -1,0 +1,80 @@
+@testitem "show Job" setup=[Fixtures] begin
+    # for now, this test only works with multithreading!
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
+    io = IOBuffer()
+
+    b1 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
+    material!(b1, horizon=1, E=1, rho=1, Gc=1)
+    velocity_ic!(b1, :all_points, :x, 1.0)
+    b2 = Body(OSBMaterial(), Fixtures.line_position(5), ones(5))
+    material!(b2, horizon=1, E=1, nu=0.25, rho=1, Gc=1)
+    ms = MultibodySetup(:a => b1, :b => b2)
+    job = Job(ms, VelocityVerlet(steps=1))
+
+    show(IOContext(io, :compact=>true), MIME("text/plain"), job)
+    msg = String(take!(io))
+    @test contains(msg, "15-point multibody Job with VelocityVerlet solver")
+
+    show(IOContext(io, :compact=>false), MIME("text/plain"), job)
+    msg = String(take!(io))
+    @test contains(msg, "15-point MultibodySetup")
+    @test contains(msg, "VelocityVerlet(n_steps=1, safety_factor=0.7)")
+
+    # reset to the value as before
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+end
+
+@testitem "Job pre submission checks" setup=[Fixtures] begin
+    # for now, this test only works with multithreading!
+    mpi_run_current_value = Peridynamics.MPI_RUN[]
+    Peridynamics.MPI_RUN[] = false
+
+    b1 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
+    vv = VelocityVerlet(steps=1)
+    @test_throws ErrorException Job(b1, vv)
+
+    point_set!(b1, :a, 1:2)
+    material!(b1, :a; horizon=1, E=1, rho=1, Gc=1)
+    @test_throws ErrorException Job(b1, vv)
+
+    material!(b1, :all_points; horizon=1, E=1, rho=1, Gc=1)
+    velocity_bc!(t -> 0, b1, :all_points, 1)
+    job = Job(b1, vv)
+    @test job.spatial_setup isa Body{<:BBMaterial}
+
+    b2 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
+    b3 = Body(OSBMaterial(), Fixtures.line_position(5), ones(5))
+    ms = MultibodySetup(:b2 => b2, :b3 => b3)
+    @test_throws ErrorException Job(ms, vv)
+
+    material!(b2, horizon=1, E=1, rho=1, Gc=1)
+    material!(b3, horizon=1, E=1, nu=0.25, rho=1, Gc=1)
+    @test_throws ErrorException Job(ms, vv)
+
+    velocity_ic!(b2, :all_points, 1, 1.0)
+    job = Job(ms, vv)
+    @test job.spatial_setup isa MultibodySetup
+
+    # reset to the value as before
+    Peridynamics.MPI_RUN[] = mpi_run_current_value
+end
+
+@testitem "show: single-body Job and JobOptions" setup=[Fixtures] begin
+    body = Fixtures.line10()
+    velocity_bc!(Fixtures.f_one, body, :all_points, :x)
+    job = Job(body, VelocityVerlet(steps=1); path=mktempdir(), freq=1, fields=(:damage,))
+    msg = sprint(show, job)
+    @test contains(msg, "10-point Job with") && contains(msg, "VelocityVerlet solver")
+    @test !contains(msg, "multibody")
+
+    (; options) = job
+    msg = sprint(show, options)
+    @test contains(msg, "export_allowed=true") && contains(msg, "freq=1")
+    msg = sprint(show, MIME("text/plain"), options)
+    @test startswith(msg, "Job options:")
+    @test contains(msg, "root") && contains(msg, "damage")
+    msg = sprint(show, MIME("text/plain"), options; context=:compact => true)
+    @test contains(msg, "export_allowed=true") && !contains(msg, "Job options:")
+end

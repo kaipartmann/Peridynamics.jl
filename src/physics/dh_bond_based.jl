@@ -83,46 +83,31 @@ function DHBBMaterial{C}(; dmgmodel::AbstractDamageModel=CriticalStretch()) wher
 end
 DHBBMaterial(; kwargs...) = DHBBMaterial{NoCorrection}(; kwargs...)
 
-function StandardPointParameters(mat::DHBBMaterial{C,D}, p::Dict{Symbol,Any}) where {C,D}
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters_bb(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 0.5 * 18 * K / (π * δ^4) # half of the normal bond constant
-    return StandardPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc)
-end
+"""
+    DHBBPointParameters
 
-@params DHBBMaterial StandardPointParameters
+$(internal_api_warning())
+
+Point parameters of the dual-horizon bond-based material: the [`BBPointParameters`](@ref)
+with half of the bond constant, because every bond is visited from both of its points.
+
+$(block_table(DHBBPointParameters))
+"""
+@params DHBBMaterial struct DHBBPointParameters
+    @inherit BBPointParameters
+    @derived bc = 0.5 * 18 * K / (π * δ^4) # half of the normal bond constant
+end
 
 @storage DHBBMaterial struct DHBBStorage <: AbstractStorage
-    @lthfield position::Matrix{Float64}
-    @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
-    @pointfield velocity_half_old::Matrix{Float64}
-    @pointfield acceleration::Matrix{Float64}
-    @htlfield b_int::Matrix{Float64}
-    @pointfield b_int_old::Matrix{Float64}
-    @pointfield b_ext::Matrix{Float64}
-    @pointfield density_matrix::Matrix{Float64}
-    @pointfield damage::Vector{Float64}
-    @pointfield n_active_bonds::Vector{Int}
-    @pointfield strain_energy_density::Vector{Float64}
-    bond_length::Vector{Float64}
-    bond_active::Vector{Bool}
-    residual::Vector{Float64}
-    displacement_copy::Matrix{Float64}
-    b_int_copy::Matrix{Float64}
-    temp_force::Vector{Float64}
-    Δu::Vector{Float64}
-    v_temp::Vector{Float64}
-    Jv_temp::Vector{Float64}
-end
-
-function init_field(::DHBBMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
-    return zeros(3, get_n_points(system))
+    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
+    @inherit BondFracFields
+    @htl b_int::PointVector
+    strain_energy_density::PointScalar
+    bond_length::BondScalar
 end
 
 function force_density_point!(storage::DHBBStorage, system::BondSystem, ::DHBBMaterial,
-                              params::StandardPointParameters, t, Δt, i)
+                              params::DHBBPointParameters, t, Δt, i)
     (; position, bond_length, bond_active, b_int) = storage
     (; bonds, correction, volume) = system
     for bond_id in each_bond_idx(system, i)

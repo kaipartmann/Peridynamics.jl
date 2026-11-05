@@ -137,6 +137,10 @@ function log_material_property(::Val{:constitutive_model}, mat; indentation)
     return msg_qty("constitutive model", mat.constitutive_model; indentation)
 end
 
+@inline function get_constitutive_model(mat::AbstractCorrespondenceMaterial)
+    return mat.constitutive_model
+end
+
 function log_material_property(::Val{:zem}, mat; indentation)
     return msg_qty("zero-energy mode stabilization", mat.zem; indentation)
 end
@@ -145,80 +149,32 @@ function log_material_property(::Val{:maxdmg}, mat; indentation)
     return msg_qty("maximum damage", mat.maxdmg; indentation)
 end
 
-struct CPointParameters <: AbstractPointParameters
-    δ::Float64
-    rho::Float64
-    E::Float64
-    nu::Float64
-    G::Float64
-    K::Float64
-    λ::Float64
-    μ::Float64
-    Gc::Float64
-    εc::Float64
-    bc::Float64
-    C::MArray{NTuple{4,3},Float64,4,81}
-end
+"""
+    CPointParameters
 
-function CPointParameters(mat::AbstractMaterial, p::Dict{Symbol,Any})
-    (; δ, rho, E, nu, G, K, λ, μ) = get_required_point_parameters(mat, p)
-    (; Gc, εc) = get_frac_params(mat.dmgmodel, p, δ, K)
-    bc = 18 * K / (π * δ^4) # bond constant
-    C = get_hooke_matrix(nu, λ, μ)
-    return CPointParameters(δ, rho, E, nu, G, K, λ, μ, Gc, εc, bc, C)
-end
+$(internal_api_warning())
 
-@params CMaterial CPointParameters
+Point parameters of the correspondence formulation. In addition to the standard parameters,
+they carry the parameters of the constitutive model and the elastic stiffness tensor `C`,
+which the [`ZEMWan`](@ref) stabilization needs. [`CRMaterial`](@ref) uses them as well.
+
+$(block_table(CPointParameters))
+"""
+@params CMaterial struct CPointParameters
+    @inherit StandardParameters
+    cm_params::ConstitutiveParameters
+    @derived C::SArray{NTuple{4,3},FT,4,81} = get_hooke_matrix(nu, λ, μ)
+end
 
 @storage CMaterial struct CStorage
-    @lthfield position::Matrix{Float64}
-    @pointfield displacement::Matrix{Float64}
-    @pointfield velocity::Matrix{Float64}
-    @pointfield velocity_half::Matrix{Float64}
-    @pointfield velocity_half_old::Matrix{Float64}
-    @pointfield acceleration::Matrix{Float64}
-    @htlfield b_int::Matrix{Float64}
-    @pointfield b_int_old::Matrix{Float64}
-    @pointfield b_ext::Matrix{Float64}
-    @pointfield density_matrix::Matrix{Float64}
-    @pointfield damage::Vector{Float64}
-    @pointfield n_active_bonds::Vector{Int}
-    @pointfield defgrad::Matrix{Float64}
-    @pointfield cauchy_stress::Matrix{Float64}
-    @pointfield von_mises_stress::Vector{Float64}
-    @pointfield strain_energy_density::Vector{Float64}
-    bond_active::Vector{Bool}
-    residual::Vector{Float64}
-    displacement_copy::Matrix{Float64}
-    b_int_copy::Matrix{Float64}
-    temp_force::Vector{Float64}
-    Δu::Vector{Float64}
-    v_temp::Vector{Float64}
-    Jv_temp::Vector{Float64}
-end
-
-function init_field(::CMaterial, ::AbstractTimeSolver, system::BondSystem, ::Val{:b_int})
-    return zeros(3, get_n_points(system))
-end
-
-function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
-                    system::BondSystem, ::Val{:defgrad})
-    return zeros(9, get_n_loc_points(system))
-end
-
-function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
-                    system::BondSystem, ::Val{:cauchy_stress})
-    return zeros(9, get_n_loc_points(system))
-end
-
-function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
-                    system::BondSystem, ::Val{:von_mises_stress})
-    return zeros(get_n_loc_points(system))
-end
-
-function init_field(::AbstractCorrespondenceMaterial, ::AbstractTimeSolver,
-                    system::BondSystem, ::Val{:strain_energy_density})
-    return zeros(get_n_loc_points(system))
+    @inherit VelocityVerletFields DynamicRelaxationFields NewtonKrylovFields
+    @inherit BondFracFields
+    @htl b_int::PointVector
+    defgrad::PointTensor
+    cauchy_stress::PointTensor
+    von_mises_stress::PointScalar
+    strain_energy_density::PointScalar
+    cm_state::ConstitutiveState
 end
 
 function force_density_point!(storage::AbstractStorage, system::AbstractSystem,
@@ -257,7 +213,7 @@ end
 function calc_first_piola_kirchhoff!(storage::CStorage, mat::CMaterial,
                                      params::CPointParameters, defgrad_res, Δt, i)
     (; F, Kinv) = defgrad_res
-    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F)
+    P = first_piola_kirchhoff(mat.constitutive_model, storage, params, F, i, Δt)
     PKinv = P * Kinv
     σ = cauchy_stress(P, F)
     update_tensor!(storage.cauchy_stress, i, σ)
@@ -359,7 +315,7 @@ function export_field(::Val{:hydrostatic_stress}, ::CMaterial,
     end
     return storage.von_mises_stress
 end
-custom_field(::Type{CStorage}, ::Val{:hydrostatic_stress}) = true
+custom_field(::Type{<:CStorage}, ::Val{:hydrostatic_stress}) = true
 
 # calculate the strain energy density from the deformation gradient just when exporting
 function export_field(::Val{:strain_energy_density}, mat::CMaterial, system::BondSystem,
@@ -368,7 +324,8 @@ function export_field(::Val{:strain_energy_density}, mat::CMaterial, system::Bon
     for i in each_point_idx(system)
         params = get_params(paramsetup, i)
         F = get_tensor(storage.defgrad, i)
-        storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F)
+        storage.strain_energy_density[i] = strain_energy_density(model, storage, params, F,
+                                                                 i)
     end
     return storage.strain_energy_density
 end
