@@ -15,13 +15,13 @@
 # `@testmodule`s cannot depend on each other (the macro takes no `setup` keyword), so this is the
 # single module for fixtures. Its parts live in plain files next to it:
 #   materials.jl        the material tables every material-generic test loops over
-#   fixtures.jl         bodies, chunks, data handlers and deformations
+#   core_fixtures.jl    bodies, chunks, data handlers and deformations
 #   study_fixtures.jl   job creators for the `Study` tests
 @testmodule Fixtures begin
     using Peridynamics, Test, Random
     using Peridynamics.StaticArrays, Peridynamics.LinearAlgebra
 
     include(joinpath(@__DIR__, "materials.jl"))
-    include(joinpath(@__DIR__, "fixtures.jl"))
+    include(joinpath(@__DIR__, "core_fixtures.jl"))
     include(joinpath(@__DIR__, "study_fixtures.jl"))
 end

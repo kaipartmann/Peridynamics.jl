@@ -5,3 +5,10 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "monthly"
+  # Compat bounds of the package itself (replaces CompatHelper). Only the root Project.toml:
+  # test/, docs/ and benchmark/ carry (almost) no compat entries and no `julia = "1.10"`, so
+  # Dependabot would add stdlib bounds there that nobody needs.
+  - package-ecosystem: "julia"
+    directory: "/"
+    schedule:
+      interval: "weekly"
