@@ -22,7 +22,7 @@ end
 
 @testitem "gradient weight allocations" tags=[:perf] setup=[Fixtures] begin
     # `force_density!` never reaches the gradient weight calculation, so it is measured
-    # separately here. See `gradient_weights!` in `test/setup/fixtures.jl`.
+    # separately here. See `gradient_weights!` in `test/setup/core_fixtures.jl`.
     #
     # The monomial of the RKC family is a type parameter, so the size of the moment matrix
     # in `rkc_weights!` is a compile-time constant and the matrix lives on the stack.

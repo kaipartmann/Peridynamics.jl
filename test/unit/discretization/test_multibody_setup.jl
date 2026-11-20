@@ -30,7 +30,7 @@ end
     b2 = Body(BBMaterial(), Fixtures.line_position(10), ones(10))
     ms = MultibodySetup(:body1 => b1, :body2 => b2)
 
-    nhs = GridNeighborhoodSearch{3}(search_radius=1, n_points=10)
+    nhs = GridNeighborhoodSearch{3}(search_radius=1.0, n_points=10)
 
     contact!(ms, :body1, :body2; radius=1)
     srfc = ms.srf_contacts[1]
